@@ -1,0 +1,157 @@
+.agents/skills/codebase-design/DEEPENING.md
+  s_13007098a02098::t_f6c62b7e34b73c 1-37
+.agents/skills/codebase-design/DESIGN-IT-TWICE.md
+  s_13007098a02098::t_e70156c0d97028 1-44
+.agents/skills/codebase-design/SKILL.md
+  s_13007098a02098::t_f786cf3180f81b 1-114
+.agents/skills/diagnosing-bugs/SKILL.md
+  s_13007098a02098::t_7ea1d0da5b9400 1-134
+.agents/skills/diagnosing-bugs/scripts/hitl-loop.template.sh
+  s_13007098a02098::t_12279dabf8ea3e 1-41
+.agents/skills/domain-modeling/ADR-FORMAT.md
+  s_13007098a02098::t_156b49b7c3ef81 1-47
+.agents/skills/domain-modeling/CONTEXT-FORMAT.md
+  s_13007098a02098::t_2ee9c4ea8b667c 1-60
+.agents/skills/domain-modeling/SKILL.md
+  s_13007098a02098::t_6d3ad6c78e37e6 1-74
+.agents/skills/grill-with-docs/SKILL.md
+  s_13007098a02098::t_df03b81e41adaf 1-7
+.agents/skills/grilling/SKILL.md
+  s_13007098a02098::t_4e291458d0515d 1-10
+.agents/skills/implement/SKILL.md
+  s_13007098a02098::t_bfd687318786c1 1-15
+.agents/skills/improve-codebase-architecture/HTML-REPORT.md
+  s_13007098a02098::t_e7038542e571ac 1-123
+.agents/skills/improve-codebase-architecture/SKILL.md
+  s_13007098a02098::t_2cd55b1ae0bbc1 1-66
+.agents/skills/prototype/LOGIC.md
+  s_13007098a02098::t_d187cac7d45f81 1-79
+.agents/skills/prototype/SKILL.md
+  s_13007098a02098::t_d755607f2914fa 1-31
+.agents/skills/prototype/UI.md
+  s_13007098a02098::t_e18b09e8de3c98 1-112
+.agents/skills/react-doctor/SKILL.md
+  s_13007098a02098::t_fa798d0a01b9bd 1-51
+.agents/skills/react-doctor/references/explain.md
+  s_13007098a02098::t_c983d7f7be8041 1-72
+.agents/skills/review/SKILL.md
+  s_13007098a02098::t_257bc686a1a7e0 1-69
+.agents/skills/setup-matt-pocock-skills/SKILL.md
+  s_13007098a02098::t_51fec834625104 1-127
+.agents/skills/setup-matt-pocock-skills/domain.md
+  s_13007098a02098::t_445dcb66b925d5 1-51
+.agents/skills/setup-matt-pocock-skills/issue-tracker-github.md
+  s_13007098a02098::t_8bf1f8b629355f 1-34
+.agents/skills/setup-matt-pocock-skills/issue-tracker-gitlab.md
+  s_13007098a02098::t_9ad9eb849cc624 1-35
+.agents/skills/setup-matt-pocock-skills/issue-tracker-local.md
+  s_13007098a02098::t_b180e49ca9c916 1-19
+.agents/skills/setup-matt-pocock-skills/triage-labels.md
+  s_13007098a02098::t_dece6c0ea810a1 1-15
+.agents/skills/tdd/SKILL.md
+  s_13007098a02098::t_bbcf7eab0b29eb 1-108
+.agents/skills/tdd/mocking.md
+  s_13007098a02098::t_168c6518f56032 1-59
+.agents/skills/tdd/refactoring.md
+  s_13007098a02098::t_84fe5ec65a60b3 1-10
+.agents/skills/tdd/tests.md
+  s_13007098a02098::t_a5fa9c0bb0e0e4 1-61
+.agents/skills/to-issues/SKILL.md
+  s_13007098a02098::t_c680027f600f0f 1-84
+.agents/skills/to-prd/SKILL.md
+  s_13007098a02098::t_37c65d384cfe93 1-75
+.agents/skills/triage/AGENT-BRIEF.md
+  s_13007098a02098::t_75330184d67c65 1-207
+.agents/skills/triage/OUT-OF-SCOPE.md
+  s_13007098a02098::t_b49c76a9cb120c 1-105
+.agents/skills/triage/SKILL.md
+  s_13007098a02098::t_7f24c188534c85 1-112
+.gitignore
+  s_13007098a02098::t_b3b359638b6b8b 1-24
+.vscode/extensions.json
+  s_13007098a02098::t_6f6f61d2a3612a 1-3
+.zed/settings.json
+  s_13007098a02098::t_ccb515f2794649 1-74
+AGENTS.md
+  s_13007098a02098::t_a741f3d9a22411 1-149
+README.md
+  s_13007098a02098::t_5399bfcd5a3876 1-7
+docs/adrs/0001-use-tauri-react-desktop-architecture.md
+  s_13007098a02098::t_9893c0555e99cc 1-23
+docs/adrs/0002-use-beadwork-as-source-of-truth.md
+  s_13007098a02098::t_a1b0f2ca8d2e38 1-23
+docs/adrs/0003-integrate-through-bw-cli-output.md
+  s_13007098a02098::t_70d3a3533ac5f2 1-27
+docs/research/DESIGN.md
+  s_13007098a02098::t_90f42ffe9fe2ec 1-164
+docs/research/PRD.md
+  s_13007098a02098::t_12cbcc0da55348 1-183
+index.html
+  s_13007098a02098::t_5242ad58ecc68d 1-14
+lefthook.yml
+  s_13007098a02098::t_13175c83fddfff 1-16
+oxfmt.config.ts
+  s_13007098a02098::t_cb8696a46f794b 1-6
+oxlint.config.ts
+  s_13007098a02098::t_962f127cd54fe1 1-50
+package.json
+  s_13007098a02098::t_baef06e60d8bc3 1-39
+pnpm-lock.yaml
+  s_13007098a02098::t_e0e55c990caf0e 1-4508
+pnpm-workspace.yaml
+  s_13007098a02098::t_7a9a403a95336a 1-3
+public/tauri.svg
+  s_13007098a02098::t_aabe074672fb52 1-6
+public/vite.svg
+  s_13007098a02098::t_e7393dbb9eda1b 1
+skills-lock.json
+  s_13007098a02098::t_f3cec41dd58a64 1-89
+src-tauri/.gitignore
+  s_13007098a02098::t_c523959e4aecca 1-7
+src-tauri/Cargo.lock
+  s_13007098a02098::t_1238693df94e64 1-4903
+src-tauri/Cargo.toml
+  s_13007098a02098::t_38140d324db843 1-24
+src-tauri/build.rs
+  s_13007098a02098::t_799e28ad87de8b 1-3
+src-tauri/capabilities/default.json
+  s_13007098a02098::t_678e4139ecce2b 1-7
+src-tauri/src/lib.rs
+  s_13007098a02098::t_910e5c012a2e14 1-14
+src-tauri/src/main.rs
+  s_13007098a02098::t_c7361095a991f6 1-6
+src-tauri/tauri.conf.json
+  s_13007098a02098::t_a049690506f12d 1-35
+src/App.css
+  s_13007098a02098::t_cb06ea70636402 1-119
+src/App.tsx
+  s_13007098a02098::t_9d1b3e6bbbd178 1-53
+src/Main.tsx
+  s_13007098a02098::t_61eb9521af6e7b 1-10
+src/assets/react.svg
+  s_13007098a02098::t_30432f13ba3354 1
+src/vite-env.d.ts
+  s_13007098a02098::t_8e15982367fa1a 1
+tsconfig.json
+  s_13007098a02098::t_fb4daffbb5e99a 1-31
+tsconfig.node.json
+  s_13007098a02098::t_f40cb37c6714a8 1-16
+vite.config.ts
+  s_13007098a02098::t_0f90e6dab91e10 1-41
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.3",
+  "base_commit_sha": "9d06ba266a286cad44f9608d0d327d3348ce8822",
+  "prompts": {},
+  "sessions": {
+    "s_13007098a02098": {
+      "agent_id": {
+        "tool": "pi",
+        "id": "019f0ecb-0bfe-7478-8f3f-946d5951c5f6",
+        "model": "MiniMax-M3"
+      },
+      "human_author": "Tomas Thor Jonsson"
+    }
+  }
+}
