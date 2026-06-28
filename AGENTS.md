@@ -33,6 +33,20 @@ done without priming often conflicts with in-progress changes.
 
 Committing, closing issues, and syncing are part of completing a task — not separate actions requiring additional permission.
 
+## Agent skills
+
+### Issue tracker
+
+Issues are tracked in beadwork via `bw`; external PRs are not a triage surface. See `docs/agents/issue-tracker.md`.
+
+### Triage labels
+
+The triage vocabulary uses the default canonical labels. See `docs/agents/triage-labels.md`.
+
+### Domain docs
+
+This is a single-context repo with domain context at root `CONTEXT.md` when present and ADRs in `docs/adr/`. See `docs/agents/domain.md`.
+
 <important if="writing frontend react or typescript code">
 ## Ultracite Code Standards
 
