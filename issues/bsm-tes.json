@@ -1,0 +1,14 @@
+{
+  "assignee": "",
+  "blocked_by": [],
+  "blocks": [],
+  "created": "2026-06-28T22:39:39Z",
+  "description": "## What to build\n\nAdd the frontend half of the first issue-list slice. Replace the starter screen with the mockup-aligned issue explorer shell: left navigation, middle issue list pane, and right empty-detail pane.\n\nLoad issue summaries from the backend Tauri command created in the preceding task. Render true empty and error states from that command while keeping the shell mounted. The current workspace path should be displayed read-only. Add Lucide for shell iconography. Use shadcn only if this task introduces reusable base components that should come from shadcn; otherwise defer shadcn setup.\n\nSearch, sidebar state filters, workspace switching, issue selection, and issue detail behavior remain visual or empty-state only. Only listing all issues is in scope.\n\n## Acceptance criteria\n\n- [ ] The starter Tauri screen is replaced by the three-pane issue explorer shell from the functional sidebar mockup.\n- [ ] The issue list renders data from the backend `IssueSummary` command.\n- [ ] Empty output renders a true empty state, not an error.\n- [ ] Backend read failures render a visible error state while preserving the app shell.\n- [ ] The current workspace path is displayed read-only.\n- [ ] Search and sidebar filters are visible but inert or disabled; they do not imply implemented filtering.\n- [ ] The right pane remains in the `No issue selected` empty state; clicking an issue does not implement detail behavior.\n- [ ] Lucide icons are used for shell iconography.\n- [ ] shadcn is only added through the shadcn CLI if reusable base components are introduced in this slice.\n- [ ] Relevant frontend checks pass.\n\n## Blocked by\n\n- bsm-8ul\n\n## Triage\n\nready-for-agent",
+  "id": "bsm-tes",
+  "labels": [],
+  "priority": 2,
+  "status": "open",
+  "title": "Render the issue explorer shell from IssueSummary data",
+  "type": "task",
+  "updated_at": "2026-06-28T22:39:39Z"
+}
