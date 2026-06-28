@@ -1,7 +1,9 @@
 {
   "assignee": "",
   "blocked_by": [],
-  "blocks": [],
+  "blocks": [
+    "bsm-tes"
+  ],
   "created": "2026-06-28T22:39:24Z",
   "description": "## What to build\n\nAdd the backend half of the first issue-list slice. Beadsmith should expose a Tauri command that reads real Beadwork issues for the current workspace by running `bw list --all --json` in the directory Beadsmith was launched from.\n\nThe command should return a narrowed `IssueSummary` list for the frontend, not the full Beadwork issue JSON. Normalize `null` from `bw` to an empty list. Missing `bw`, non-Beadwork directories, subprocess failures, and JSON parse failures should return a typed, user-displayable error rather than silently becoming an empty list.\n\nNo React layout, sidebar, search, selection, issue detail, workspace switching, or Lucide work is in scope for this backend task.\n\n## Acceptance criteria\n\n- [ ] A Tauri command exists for listing all issues in the launch current working directory.\n- [ ] The command invokes `bw list --all --json`; it does not use default actionable-only `bw list` behavior.\n- [ ] `null` or `[]` output from `bw` becomes an empty issue summary list.\n- [ ] React-facing data uses a narrowed `IssueSummary` contract with fields needed for list rendering and near-future badges.\n- [ ] Missing `bw`, non-Beadwork directories, subprocess failures, and JSON parse failures are distinguishable from a true empty issue list.\n- [ ] Relevant Rust checks/tests pass.\n\n## Blocked by\n\nNone - can start immediately.\n\n## Triage\n\nready-for-agent",
   "id": "bsm-8ul",
@@ -10,5 +12,5 @@
   "status": "open",
   "title": "Expose all issues through a Tauri IssueSummary command",
   "type": "task",
-  "updated_at": "2026-06-28T22:39:24Z"
+  "updated_at": "2026-06-28T22:39:47Z"
 }
