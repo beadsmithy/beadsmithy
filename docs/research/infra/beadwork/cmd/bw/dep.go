@@ -1,0 +1,131 @@
+package main
+
+import (
+	"fmt"
+
+	"github.com/jallum/beadwork/internal/config"
+
+	"github.com/jallum/beadwork/internal/issue"
+)
+
+// DepArgs holds the parsed subcommand and IDs for "bw dep add|remove".
+type DepArgs struct {
+	Subcmd    string // "add" or "remove"
+	BlockerID string
+	BlockedID string
+}
+
+func parseDepArgs(raw []string) (DepArgs, error) {
+	if len(raw) == 0 {
+		return DepArgs{}, fmt.Errorf("usage: bw dep add|remove <id> blocks <id>")
+	}
+	da := DepArgs{Subcmd: raw[0]}
+	switch da.Subcmd {
+	case "add":
+		a, err := parseDepAddArgs(raw[1:])
+		if err != nil {
+			return da, err
+		}
+		da.BlockerID = a.BlockerID
+		da.BlockedID = a.BlockedID
+	case "remove":
+		a, err := parseDepRemoveArgs(raw[1:])
+		if err != nil {
+			return da, err
+		}
+		da.BlockerID = a.BlockerID
+		da.BlockedID = a.BlockedID
+	default:
+		return da, fmt.Errorf("usage: bw dep add|remove <id> blocks <id>")
+	}
+	return da, nil
+}
+
+func cmdDep(store *issue.Store, args []string, w Writer, _ *config.Config) (*config.Config, error) {
+	da, err := parseDepArgs(args)
+	if err != nil {
+		return nil, err
+	}
+	switch da.Subcmd {
+	case "add":
+		return cmdDepAdd(store, []string{da.BlockerID, "blocks", da.BlockedID}, w, nil)
+	case "remove":
+		return cmdDepRemove(store, []string{da.BlockerID, "blocks", da.BlockedID}, w, nil)
+	}
+	return nil, nil
+}
+
+type DepAddArgs struct {
+	BlockerID string
+	BlockedID string
+}
+
+func parseDepAddArgs(raw []string) (DepAddArgs, error) {
+	if len(raw) < 3 || raw[1] != "blocks" {
+		return DepAddArgs{}, fmt.Errorf("usage: bw dep add <id> blocks <id>")
+	}
+	return DepAddArgs{BlockerID: raw[0], BlockedID: raw[2]}, nil
+}
+
+func cmdDepAdd(store *issue.Store, args []string, w Writer, _ *config.Config) (*config.Config, error) {
+	la, err := parseDepAddArgs(args)
+	if err != nil {
+		return nil, err
+	}
+
+	var blocker, blocked *issue.Issue
+	err = commitWithRetry(store, commitMaxRetries, func() (string, error) {
+		if lerr := store.Link(la.BlockerID, la.BlockedID); lerr != nil {
+			return "", lerr
+		}
+		blocker, _ = store.Get(la.BlockerID)
+		blocked, _ = store.Get(la.BlockedID)
+		// Intent verb stays "link" for replay compatibility.
+		return fmt.Sprintf("link %s blocks %s", blocker.ID, blocked.ID), nil
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	fmt.Fprintf(w, "added dep %s blocks %s\n", blocker.ID, blocked.ID)
+	return nil, nil
+}
+
+type DepRemoveArgs struct {
+	BlockerID string
+	BlockedID string
+}
+
+func parseDepRemoveArgs(raw []string) (DepRemoveArgs, error) {
+	if len(raw) < 3 || raw[1] != "blocks" {
+		return DepRemoveArgs{}, fmt.Errorf("usage: bw dep remove <id> blocks <id>")
+	}
+	return DepRemoveArgs{BlockerID: raw[0], BlockedID: raw[2]}, nil
+}
+
+func cmdDepRemove(store *issue.Store, args []string, w Writer, _ *config.Config) (*config.Config, error) {
+	ua, err := parseDepRemoveArgs(args)
+	if err != nil {
+		return nil, err
+	}
+
+	var blocker, blocked *issue.Issue
+	err = commitWithRetry(store, commitMaxRetries, func() (string, error) {
+		if !store.DepExists(ua.BlockerID, ua.BlockedID) {
+			return "", fmt.Errorf("no dependency: %s does not block %s", ua.BlockerID, ua.BlockedID)
+		}
+		if uerr := store.Unlink(ua.BlockerID, ua.BlockedID); uerr != nil {
+			return "", uerr
+		}
+		blocker, _ = store.Get(ua.BlockerID)
+		blocked, _ = store.Get(ua.BlockedID)
+		// Intent verb stays "unlink" for replay compatibility.
+		return fmt.Sprintf("unlink %s blocks %s", blocker.ID, blocked.ID), nil
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	fmt.Fprintf(w, "removed dep %s blocks %s\n", blocker.ID, blocked.ID)
+	return nil, nil
+}

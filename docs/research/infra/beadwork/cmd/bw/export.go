@@ -1,0 +1,143 @@
+package main
+
+import (
+	"encoding/json"
+	"fmt"
+
+	"github.com/jallum/beadwork/internal/config"
+
+	"github.com/jallum/beadwork/internal/issue"
+)
+
+// nilIfEmpty returns nil for empty slices so omitempty works.
+func nilIfEmpty(s []string) []string {
+	if len(s) == 0 {
+		return nil
+	}
+	return s
+}
+
+type exportComment struct {
+	Author    string `json:"author,omitempty"`
+	Text      string `json:"text"`
+	CreatedAt string `json:"created_at"`
+}
+
+type beadsDep struct {
+	IssueID     string `json:"issue_id"`
+	DependsOnID string `json:"depends_on_id"`
+	Type        string `json:"type"`
+	CreatedAt   string `json:"created_at"`
+	CreatedBy   string `json:"created_by"`
+	Metadata    string `json:"metadata"`
+}
+
+type beadsRecord struct {
+	ID           string          `json:"id"`
+	Title        string          `json:"title"`
+	Description  string          `json:"description,omitempty"`
+	Status       string          `json:"status"`
+	Priority     int             `json:"priority"`
+	IssueType    string          `json:"issue_type"`
+	Owner        string          `json:"owner,omitempty"`
+	CreatedAt    string          `json:"created_at"`
+	UpdatedAt    string          `json:"updated_at,omitempty"`
+	ClosedAt     string          `json:"closed_at,omitempty"`
+	CloseReason  string          `json:"close_reason,omitempty"`
+	Labels       []string        `json:"labels,omitempty"`
+	DeferUntil   string          `json:"defer_until,omitempty"`
+	Due          string          `json:"due,omitempty"`
+	Blocks       []string        `json:"blocks,omitempty"`
+	BlockedBy    []string        `json:"blocked_by,omitempty"`
+	Dependencies []beadsDep      `json:"dependencies,omitempty"`
+	Comments     []exportComment `json:"comments,omitempty"`
+}
+
+type ExportArgs struct {
+	Status string
+	JSON   bool
+}
+
+func parseExportArgs(raw []string) (ExportArgs, error) {
+	a, err := ParseArgs(raw, []string{"--status"}, []string{"--json"})
+	if err != nil {
+		return ExportArgs{}, err
+	}
+	return ExportArgs{
+		Status: a.String("--status"),
+		JSON:   a.JSON(),
+	}, nil
+}
+
+func cmdExport(store *issue.Store, args []string, w Writer, _ *config.Config) (*config.Config, error) {
+	ea, err := parseExportArgs(args)
+	if err != nil {
+		return nil, err
+	}
+
+	filter := issue.Filter{Status: ea.Status}
+
+	issues, err := store.List(filter)
+	if err != nil {
+		return nil, err
+	}
+
+	for _, iss := range issues {
+		rec := beadsRecord{
+			ID:          iss.ID,
+			Title:       iss.Title,
+			Description: iss.Description,
+			Status:      iss.Status,
+			Priority:    iss.Priority,
+			IssueType:   iss.Type,
+			Owner:       iss.Assignee,
+			CreatedAt:   iss.Created,
+			UpdatedAt:   iss.UpdatedAt,
+			ClosedAt:    iss.ClosedAt,
+			CloseReason: iss.CloseReason,
+			Labels:      nilIfEmpty(iss.Labels),
+			DeferUntil:  iss.DeferUntil,
+			Due:         iss.Due,
+			Blocks:      nilIfEmpty(iss.Blocks),
+			BlockedBy:   nilIfEmpty(iss.BlockedBy),
+		}
+
+		// Convert comments
+		for _, c := range iss.Comments {
+			rec.Comments = append(rec.Comments, exportComment{
+				Author:    c.Author,
+				Text:      c.Text,
+				CreatedAt: c.Timestamp,
+			})
+		}
+
+		// Build dependencies from BlockedBy and Parent
+		for _, blockerID := range iss.BlockedBy {
+			rec.Dependencies = append(rec.Dependencies, beadsDep{
+				IssueID:     iss.ID,
+				DependsOnID: blockerID,
+				Type:        "blocks",
+				CreatedAt:   iss.Created,
+				CreatedBy:   iss.Assignee,
+				Metadata:    "{}",
+			})
+		}
+		if iss.Parent != "" {
+			rec.Dependencies = append(rec.Dependencies, beadsDep{
+				IssueID:     iss.ID,
+				DependsOnID: iss.Parent,
+				Type:        "parent-child",
+				CreatedAt:   iss.Created,
+				CreatedBy:   iss.Assignee,
+				Metadata:    "{}",
+			})
+		}
+
+		data, err := json.Marshal(rec)
+		if err != nil {
+			return nil, err
+		}
+		fmt.Fprintln(w, string(data))
+	}
+	return nil, nil
+}

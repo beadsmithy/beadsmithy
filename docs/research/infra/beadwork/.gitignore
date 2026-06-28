@@ -1,0 +1,14 @@
+# The application binary
+/bw*
+
+# AI Agent cruft
+CLAUDE.md
+.claude
+
+# Code Coverage
+coverage.out
+cli-coverage.out
+merged.out
+
+# Local Makefile build dir
+/bin/

@@ -1,0 +1,130 @@
+package main
+
+import (
+	"fmt"
+
+	"github.com/jallum/beadwork/internal/config"
+
+	"github.com/jallum/beadwork/internal/issue"
+	"github.com/jallum/beadwork/internal/md"
+)
+
+type ListArgs struct {
+	Status   string
+	Assignee string
+	Priority *int
+	Type     string
+	Label    string
+	Grep     string
+	Parent   string
+	Limit    int
+	LimitSet bool
+	All      bool
+	Deferred bool
+	Overdue  bool
+	JSON     bool
+}
+
+func parseListArgs(raw []string) (ListArgs, error) {
+	a, err := ParseArgs(raw,
+		[]string{"--status", "--assignee", "--priority", "--type", "--label", "--limit", "--grep", "--parent"},
+		[]string{"--all", "--deferred", "--overdue", "--json"},
+	)
+	if err != nil {
+		return ListArgs{}, err
+	}
+	la := ListArgs{
+		Status:   a.String("--status"),
+		Assignee: a.String("--assignee"),
+		Type:     a.String("--type"),
+		Label:    a.String("--label"),
+		Grep:     a.String("--grep"),
+		Parent:   a.String("--parent"),
+		All:      a.Bool("--all"),
+		Deferred: a.Bool("--deferred"),
+		Overdue:  a.Bool("--overdue"),
+		JSON:     a.JSON(),
+		Limit:    10,
+	}
+	if a.Has("--priority") {
+		p, err := parsePriority(a.String("--priority"))
+		if err != nil {
+			return la, err
+		}
+		la.Priority = &p
+	}
+	if a.Has("--limit") {
+		la.Limit = a.Int("--limit")
+		la.LimitSet = true
+	}
+	return la, nil
+}
+
+func cmdList(store *issue.Store, args []string, w Writer, _ *config.Config) (*config.Config, error) {
+	la, err := parseListArgs(args)
+	if err != nil {
+		return nil, err
+	}
+
+	filter := issue.Filter{
+		Status:   la.Status,
+		Assignee: la.Assignee,
+		Priority: la.Priority,
+		Type:     la.Type,
+		Label:    la.Label,
+		Grep:     la.Grep,
+		Parent:   la.Parent,
+	}
+
+	limit := la.Limit
+
+	// Defaults: open status, limit 10. --all overrides both.
+	// --deferred overrides status to "deferred".
+	// --overdue filters to overdue issues across actionable statuses.
+	if la.Overdue {
+		filter.Overdue = true
+		if la.Status == "" {
+			filter.Statuses = []string{"open", "in_progress", "deferred"}
+			filter.IncludeExpiredDeferred = true
+		}
+	} else if la.Deferred {
+		filter.Status = "deferred"
+	} else if la.All {
+		if !la.LimitSet {
+			limit = 0
+		}
+	} else if la.Status == "" {
+		filter.Statuses = []string{"open", "in_progress"}
+		filter.IncludeExpiredDeferred = true
+	}
+
+	issues, err := store.List(filter)
+	if err != nil {
+		return nil, err
+	}
+
+	if la.JSON {
+		if limit > 0 && len(issues) > limit {
+			issues = issues[:limit]
+		}
+		fprintJSON(w, issues)
+	} else {
+		if len(issues) == 0 {
+			fmt.Fprintln(w, "no issues found")
+			return nil, nil
+		}
+		displayed := issues
+		if limit > 0 && len(displayed) > limit {
+			displayed = displayed[:limit]
+		}
+		closedBlockers := store.ClosedBlockerSet(displayed)
+		now := store.Now()
+		for _, iss := range displayed {
+			fmt.Fprintln(w, md.IssueOneLinerWithDue(iss, now, closedBlockers))
+		}
+		if limit > 0 && len(issues) > limit {
+			fmt.Fprintf(w, "... and %d more (use --limit or --all)\n", len(issues)-limit)
+		}
+	}
+	return nil, nil
+}

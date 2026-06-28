@@ -1,0 +1,315 @@
+package main
+
+import (
+	"encoding/json"
+	"fmt"
+	"os"
+	"strconv"
+	"strings"
+	"time"
+
+	"github.com/jallum/beadwork/internal/issue"
+	"github.com/jallum/beadwork/internal/repo"
+)
+
+var repoDir string // set by -C flag; empty means use cwd
+
+func getRepo() (*repo.Repo, error) {
+	return repo.FindRepoAt(repoDir)
+}
+
+func getInitializedStore() (*issue.Store, error) {
+	r, err := getRepo()
+	if err != nil {
+		return nil, err
+	}
+	if !r.IsInitialized() {
+		return nil, fmt.Errorf("beadwork not initialized. Run: bw init")
+	}
+	if v := r.Version(); v > repo.CurrentVersion {
+		return nil, fmt.Errorf("repo version %d is newer than this binary supports (max %d); run: bw upgrade", v, repo.CurrentVersion)
+	} else if v < repo.CurrentVersion {
+		return nil, fmt.Errorf("repo version %d needs upgrade (current %d); run: bw upgrade repo", v, repo.CurrentVersion)
+	}
+	store := issue.NewStore(r.TreeFS(), r.Prefix)
+	store.Committer = r
+	if val, ok := r.GetConfig("default.priority"); ok {
+		if p, err := strconv.Atoi(val); err == nil && p >= 0 {
+			store.DefaultPriority = &p
+		}
+	}
+	if val, ok := r.GetConfig("id.retries"); ok {
+		if n, err := strconv.Atoi(val); err == nil && n > 0 {
+			store.IDRetries = n
+		}
+	}
+	return store, nil
+}
+
+func fatal(msg string) {
+	fmt.Fprintf(os.Stderr, "error: %s\n", msg)
+	os.Exit(1)
+}
+
+func hasFlag(args []string, flag string) bool {
+	for _, a := range args {
+		if a == flag {
+			return true
+		}
+	}
+	return false
+}
+
+func removeFlag(args []string, flag string) []string {
+	out := make([]string, 0, len(args))
+	for _, a := range args {
+		if a != flag {
+			out = append(out, a)
+		}
+	}
+	return out
+}
+
+func flagValue(args []string, flag string) (string, bool) {
+	for i, a := range args {
+		if a == flag && i+1 < len(args) {
+			return args[i+1], true
+		}
+	}
+	return "", false
+}
+
+func removeFlagValue(args []string, flag string) ([]string, bool) {
+	out := make([]string, 0, len(args))
+	found := false
+	for i := 0; i < len(args); i++ {
+		if args[i] == flag && i+1 < len(args) {
+			found = true
+			i++ // skip value
+		} else {
+			out = append(out, args[i])
+		}
+	}
+	return out, found
+}
+
+// aliases maps short flags to their long forms.
+var aliases = map[string]string{
+	"-p": "--priority",
+	"-t": "--type",
+	"-a": "--assignee",
+	"-d": "--description",
+	"-s": "--status",
+	"-l": "--labels",
+	"-g": "--grep",
+	"-y": "--yes",
+	"-r": "--recursive",
+}
+
+// Args holds parsed command-line arguments separated into boolean flags,
+// key-value flags, and positional arguments.
+type Args struct {
+	bools map[string]bool
+	flags map[string]string
+	pos   []string
+}
+
+// ParseArgs separates raw args into booleans, key-value pairs, and positionals.
+// valueFlags lists flags that consume the next token as a value (e.g. "--status").
+// boolFlags lists boolean flags (e.g. "--json", "--all").
+// Any "--" prefixed token not in valueFlags or boolFlags returns an error.
+func ParseArgs(raw []string, valueFlags []string, boolFlags []string) (Args, error) {
+	vf := make(map[string]bool, len(valueFlags))
+	for _, f := range valueFlags {
+		vf[f] = true
+	}
+	bf := make(map[string]bool, len(boolFlags))
+	for _, f := range boolFlags {
+		bf[f] = true
+	}
+
+	a := Args{
+		bools: make(map[string]bool),
+		flags: make(map[string]string),
+	}
+
+	for i := 0; i < len(raw); i++ {
+		tok := raw[i]
+		if long, ok := aliases[tok]; ok {
+			tok = long
+		}
+
+		if !strings.HasPrefix(tok, "--") {
+			a.pos = append(a.pos, raw[i])
+			continue
+		}
+
+		if vf[tok] {
+			if i+1 < len(raw) {
+				a.flags[tok] = raw[i+1]
+				i++
+			}
+		} else if bf[tok] {
+			a.bools[tok] = true
+		} else {
+			return a, fmt.Errorf("unknown flag: %s", tok)
+		}
+	}
+	return a, nil
+}
+
+// Bool returns true if the named boolean flag was present.
+func (a Args) Bool(name string) bool { return a.bools[name] }
+
+// JSON is shorthand for Bool("--json").
+func (a Args) JSON() bool { return a.bools["--json"] }
+
+// String returns the value of a key-value flag, or "" if absent.
+func (a Args) String(name string) string { return a.flags[name] }
+
+// Int returns the parsed int value of a flag, or 0 if absent/invalid.
+func (a Args) Int(name string) int {
+	v, _ := strconv.Atoi(a.flags[name])
+	return v
+}
+
+// IntErr returns the parsed int, whether the flag was set, and any parse error.
+func (a Args) IntErr(name string) (int, bool, error) {
+	v, ok := a.flags[name]
+	if !ok {
+		return 0, false, nil
+	}
+	n, err := strconv.Atoi(v)
+	if err != nil {
+		return 0, true, fmt.Errorf("invalid %s: %s", name, v)
+	}
+	return n, true, nil
+}
+
+// Has returns true if a key-value flag was provided.
+func (a Args) Has(name string) bool {
+	_, ok := a.flags[name]
+	return ok
+}
+
+// Pos returns all positional arguments.
+func (a Args) Pos() []string { return a.pos }
+
+// PosFirst returns the first positional argument, or "" if none.
+func (a Args) PosFirst() string {
+	if len(a.pos) > 0 {
+		return a.pos[0]
+	}
+	return ""
+}
+
+// PosJoined returns all positional args joined with spaces.
+func (a Args) PosJoined() string { return strings.Join(a.pos, " ") }
+
+// parsePriority parses a priority value from a string.
+// Accepts numeric "0"-"4" or prefixed "P0"-"P4" (case-insensitive).
+// Returns the parsed priority and an error if the value is invalid.
+func parsePriority(s string) (int, error) {
+	v := s
+	if len(v) > 0 && (v[0] == 'P' || v[0] == 'p') {
+		v = v[1:]
+	}
+	n, err := strconv.Atoi(v)
+	if err != nil || n < 0 || n > 4 {
+		return 0, fmt.Errorf("invalid priority %q: expected 0-4 or P0-P4", s)
+	}
+	return n, nil
+}
+
+func fprintJSON(w Writer, v interface{}) {
+	data, _ := json.MarshalIndent(v, "", "  ")
+	fmt.Fprintln(w, string(data))
+}
+
+// nearestOpen takes tips from the blocker chain and, for each closed tip,
+// walks back via Blocks toward currentID to find the nearest open ancestor.
+// Only follows edges that lie on the transitive blocker path of currentID,
+// preventing siblings (other issues blocked by the same closed blocker) from
+// being returned incorrectly.
+func nearestOpen(tips []*issue.Issue, currentID string, store *issue.Store) []*issue.Issue {
+	// Build the set of all transitive blockers of currentID so the
+	// walk-back only follows edges on paths leading to currentID.
+	blockers := make(map[string]bool)
+	var gather func(string)
+	gather = func(id string) {
+		if blockers[id] {
+			return
+		}
+		blockers[id] = true
+		if iss, err := store.Get(id); err == nil {
+			for _, bid := range iss.BlockedBy {
+				gather(bid)
+			}
+		}
+	}
+	if iss, err := store.Get(currentID); err == nil {
+		for _, bid := range iss.BlockedBy {
+			gather(bid)
+		}
+	}
+
+	seen := make(map[string]bool)
+	var result []*issue.Issue
+
+	var walk func(*issue.Issue)
+	walk = func(t *issue.Issue) {
+		if t.ID == currentID || seen[t.ID] {
+			return
+		}
+		seen[t.ID] = true
+		if t.Status != "closed" {
+			result = append(result, t)
+			return
+		}
+		// Closed: follow Blocks entries that lie on the path to currentID.
+		for _, id := range t.Blocks {
+			if !blockers[id] {
+				continue
+			}
+			if next, err := store.Get(id); err == nil {
+				walk(next)
+			}
+		}
+	}
+
+	for _, tip := range tips {
+		walk(tip)
+	}
+	return result
+}
+
+// sectionHeader returns name styled as a section header (Bold).
+// Used by start.go, upgrade.go, delete.go.
+func sectionHeader(w Writer, name string) string {
+	return w.Style(name, Bold)
+}
+
+// relativeTimeSince computes relative time between t and now.
+// Used by the upcoming bw recap command (PR #122).
+//
+//lint:ignore U1000 used by bw recap, re-landing in PR #122
+func relativeTimeSince(t, now time.Time) string {
+	d := now.Sub(t)
+	if d < time.Minute {
+		return "just now"
+	}
+	switch {
+	case d < time.Hour:
+		return fmt.Sprintf("%dm ago", int(d.Minutes()))
+	case d < 24*time.Hour:
+		return fmt.Sprintf("%dh ago", int(d.Hours()))
+	case d < 30*24*time.Hour:
+		return fmt.Sprintf("%dd ago", int(d.Hours()/24))
+	default:
+		mo := int(d.Hours() / 24 / 30)
+		if mo < 1 {
+			mo = 1
+		}
+		return fmt.Sprintf("%dmo ago", mo)
+	}
+}

@@ -1,0 +1,303 @@
+package repo_test
+
+import (
+	"os"
+	"path/filepath"
+	"testing"
+
+	"github.com/jallum/beadwork/internal/repo"
+)
+
+func TestForceReinit(t *testing.T) {
+	dir := t.TempDir()
+
+	gitRun(t, dir, "init")
+	gitRun(t, dir, "config", "user.email", "test@test.com")
+	gitRun(t, dir, "config", "user.name", "Test")
+	os.WriteFile(filepath.Join(dir, "README"), []byte("test"), 0644)
+	gitRun(t, dir, "add", ".")
+	gitRun(t, dir, "commit", "-m", "initial")
+
+	orig, _ := os.Getwd()
+	os.Chdir(dir)
+	defer os.Chdir(orig)
+
+	r, err := repo.FindRepo()
+	if err != nil {
+		t.Fatalf("FindRepo: %v", err)
+	}
+
+	// First init
+	if err := r.Init("old", nil); err != nil {
+		t.Fatalf("Init: %v", err)
+	}
+	if r.Prefix != "old" {
+		t.Fatalf("prefix = %q, want old", r.Prefix)
+	}
+
+	// Regular init should fail
+	r2, _ := repo.FindRepo()
+	if err := r2.Init("new", nil); err == nil {
+		t.Fatal("Init should fail when already initialized")
+	}
+
+	// Force reinit with new prefix
+	r3, _ := repo.FindRepo()
+	if err := r3.ForceReinit("new", nil); err != nil {
+		t.Fatalf("ForceReinit: %v", err)
+	}
+	if r3.Prefix != "new" {
+		t.Errorf("prefix = %q, want new", r3.Prefix)
+	}
+	if !r3.IsInitialized() {
+		t.Error("should be initialized after force reinit")
+	}
+
+	// Skeleton should exist in TreeFS
+	_, err = r3.TreeFS().Stat("issues")
+	if err != nil {
+		t.Error("issues dir should exist after reinit")
+	}
+}
+
+func TestForceReinitKeepsPrefix(t *testing.T) {
+	dir := t.TempDir()
+
+	gitRun(t, dir, "init")
+	gitRun(t, dir, "config", "user.email", "test@test.com")
+	gitRun(t, dir, "config", "user.name", "Test")
+	os.WriteFile(filepath.Join(dir, "README"), []byte("test"), 0644)
+	gitRun(t, dir, "add", ".")
+	gitRun(t, dir, "commit", "-m", "initial")
+
+	orig, _ := os.Getwd()
+	os.Chdir(dir)
+	defer os.Chdir(orig)
+
+	r, _ := repo.FindRepo()
+	r.Init("keep", nil)
+
+	// Force reinit with empty prefix should derive a new one (not keep old)
+	r2, _ := repo.FindRepo()
+	if err := r2.ForceReinit("", nil); err != nil {
+		t.Fatalf("ForceReinit: %v", err)
+	}
+	// Should derive prefix from dir name, not be empty
+	if r2.Prefix == "" {
+		t.Error("prefix should not be empty after reinit")
+	}
+}
+
+func TestDerivePrefixLength(t *testing.T) {
+	// Create a repo in a directory with a long name
+	base := t.TempDir()
+	dir := filepath.Join(base, "MyLongProjectName")
+	os.Mkdir(dir, 0755)
+
+	gitRun(t, dir, "init")
+	gitRun(t, dir, "config", "user.email", "test@test.com")
+	gitRun(t, dir, "config", "user.name", "Test")
+	os.WriteFile(filepath.Join(dir, "README"), []byte("test"), 0644)
+	gitRun(t, dir, "add", ".")
+	gitRun(t, dir, "commit", "-m", "initial")
+
+	orig, _ := os.Getwd()
+	os.Chdir(dir)
+	defer os.Chdir(orig)
+
+	r, _ := repo.FindRepo()
+	if err := r.Init("", nil); err != nil {
+		t.Fatalf("Init: %v", err)
+	}
+	// Should truncate to 8 chars max
+	if len(r.Prefix) > 8 {
+		t.Errorf("derived prefix %q longer than 8 chars", r.Prefix)
+	}
+	// Should be "MyLongPr" (8 chars, preserving case)
+	if r.Prefix != "MyLongPr" {
+		t.Errorf("prefix = %q, want MyLongPr", r.Prefix)
+	}
+}
+
+func TestDerivePrefixPreservesCase(t *testing.T) {
+	base := t.TempDir()
+	dir := filepath.Join(base, "MyApp")
+	os.Mkdir(dir, 0755)
+
+	gitRun(t, dir, "init")
+	gitRun(t, dir, "config", "user.email", "test@test.com")
+	gitRun(t, dir, "config", "user.name", "Test")
+	os.WriteFile(filepath.Join(dir, "README"), []byte("test"), 0644)
+	gitRun(t, dir, "add", ".")
+	gitRun(t, dir, "commit", "-m", "initial")
+
+	orig, _ := os.Getwd()
+	os.Chdir(dir)
+	defer os.Chdir(orig)
+
+	r, _ := repo.FindRepo()
+	if err := r.Init("", nil); err != nil {
+		t.Fatalf("Init: %v", err)
+	}
+	if r.Prefix != "MyApp" {
+		t.Errorf("prefix = %q, want MyApp", r.Prefix)
+	}
+}
+
+func TestDerivePrefixStripsInvalidChars(t *testing.T) {
+	base := t.TempDir()
+	dir := filepath.Join(base, "my.cool app")
+	os.Mkdir(dir, 0755)
+
+	gitRun(t, dir, "init")
+	gitRun(t, dir, "config", "user.email", "test@test.com")
+	gitRun(t, dir, "config", "user.name", "Test")
+	os.WriteFile(filepath.Join(dir, "README"), []byte("test"), 0644)
+	gitRun(t, dir, "add", ".")
+	gitRun(t, dir, "commit", "-m", "initial")
+
+	orig, _ := os.Getwd()
+	os.Chdir(dir)
+	defer os.Chdir(orig)
+
+	r, _ := repo.FindRepo()
+	if err := r.Init("", nil); err != nil {
+		t.Fatalf("Init: %v", err)
+	}
+	// Dots and spaces stripped, should be "mycoolap" (8 char truncation of "mycoolapp")
+	if r.Prefix != "mycoolap" {
+		t.Errorf("prefix = %q, want mycoolap", r.Prefix)
+	}
+}
+
+// TestInitNoStatusGitkeeps asserts that Init does not seed any
+// status/<state>/.gitkeep placeholders. The listing code tolerates
+// absent directories, so these placeholders are dead weight in the
+// tree. Matches the Elixir port's on-disk layout exactly.
+func TestInitNoStatusGitkeeps(t *testing.T) {
+	dir := t.TempDir()
+
+	gitRun(t, dir, "init")
+	gitRun(t, dir, "config", "user.email", "test@test.com")
+	gitRun(t, dir, "config", "user.name", "Test")
+	os.WriteFile(filepath.Join(dir, "README"), []byte("test"), 0644)
+	gitRun(t, dir, "add", ".")
+	gitRun(t, dir, "commit", "-m", "initial")
+
+	orig, _ := os.Getwd()
+	os.Chdir(dir)
+	defer os.Chdir(orig)
+
+	r, err := repo.FindRepo()
+	if err != nil {
+		t.Fatalf("FindRepo: %v", err)
+	}
+	if err := r.Init("", nil); err != nil {
+		t.Fatalf("Init: %v", err)
+	}
+
+	for _, state := range []string{"open", "in_progress", "closed", "deferred"} {
+		p := "status/" + state + "/.gitkeep"
+		if _, err := r.TreeFS().Stat(p); err == nil {
+			t.Errorf("unexpected %s seeded at init", p)
+		}
+	}
+}
+
+// TestInitWithNonOriginRemoteViaGitConfig verifies that a fresh clone whose
+// only remote is named "upstream" (origin renamed away) can still run
+// `bw init` successfully when the caller has set `git config beadwork.remote
+// upstream` beforehand. This is the bootstrap path: .bwconfig is not yet
+// readable because the beadwork branch has not been fetched.
+func TestInitWithNonOriginRemoteViaGitConfig(t *testing.T) {
+	// Set up a source repo with a beadwork branch, and a bare repo that
+	// has the beadwork branch pushed to it.
+	src := t.TempDir()
+	gitRun(t, src, "init")
+	gitRun(t, src, "config", "user.email", "test@test.com")
+	gitRun(t, src, "config", "user.name", "Test")
+	os.WriteFile(filepath.Join(src, "README"), []byte("test"), 0644)
+	gitRun(t, src, "add", ".")
+	gitRun(t, src, "commit", "-m", "initial")
+
+	bare := filepath.Join(src, "bare.git")
+	gitRun(t, src, "init", "--bare", bare)
+	gitRun(t, src, "remote", "add", "origin", bare)
+
+	orig, _ := os.Getwd()
+	os.Chdir(src)
+	srcRepo, err := repo.FindRepo()
+	if err != nil {
+		os.Chdir(orig)
+		t.Fatalf("FindRepo src: %v", err)
+	}
+	if err := srcRepo.Init("test", nil); err != nil {
+		os.Chdir(orig)
+		t.Fatalf("Init src: %v", err)
+	}
+	if _, _, err := srcRepo.Sync(nil); err != nil {
+		os.Chdir(orig)
+		t.Fatalf("Sync src: %v", err)
+	}
+	os.Chdir(orig)
+
+	// Fresh clone, but rename origin to upstream so only "upstream" exists.
+	clone := t.TempDir()
+	cloneDir := filepath.Join(clone, "work")
+	gitRun(t, clone, "clone", bare, cloneDir)
+	gitRun(t, cloneDir, "config", "user.email", "clone@test.com")
+	gitRun(t, cloneDir, "config", "user.name", "Clone")
+	gitRun(t, cloneDir, "remote", "rename", "origin", "upstream")
+
+	// Tell beadwork about the non-origin remote BEFORE init runs.
+	gitRun(t, cloneDir, "config", "beadwork.remote", "upstream")
+
+	os.Chdir(cloneDir)
+	defer os.Chdir(orig)
+
+	r, err := repo.FindRepo()
+	if err != nil {
+		t.Fatalf("FindRepo clone: %v", err)
+	}
+	if err := r.Init("test", nil); err != nil {
+		t.Fatalf("Init against upstream-only remote: %v", err)
+	}
+
+	// The beadwork branch should now exist locally, populated from upstream.
+	if _, err := r.TreeFS().Stat("issues"); err != nil {
+		t.Errorf("issues dir not found after init: %v", err)
+	}
+	if r.RemoteName() != "upstream" {
+		t.Errorf("RemoteName() = %q, want 'upstream'", r.RemoteName())
+	}
+}
+
+func TestValidatePrefix(t *testing.T) {
+	tests := []struct {
+		prefix string
+		ok     bool
+	}{
+		{"bw", true},
+		{"myapp", true},
+		{"MY-APP", true},
+		{"my_app", true},
+		{"a", true},
+		{"abcdefghijklmnop", true},   // 16 chars, max
+		{"abcdefghijklmnopq", false}, // 17 chars, too long
+		{"", true},                   // empty is ok (will be derived)
+		{"has space", false},
+		{"has/slash", false},
+		{"has.dot", false},
+		{"café", false},
+		{"a@b", false},
+	}
+	for _, tt := range tests {
+		err := repo.ValidatePrefix(tt.prefix)
+		if tt.ok && err != nil {
+			t.Errorf("ValidatePrefix(%q) = %v, want nil", tt.prefix, err)
+		}
+		if !tt.ok && err == nil {
+			t.Errorf("ValidatePrefix(%q) = nil, want error", tt.prefix)
+		}
+	}
+}
