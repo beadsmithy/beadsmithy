@@ -1,0 +1,14 @@
+{
+  "assignee": "",
+  "blocked_by": [],
+  "blocks": [],
+  "created": "2026-06-28T22:37:05Z",
+  "description": "## What to build\n\nBuild the first issue explorer slice from the functional sidebar mockup. The app should render the three-pane shell and list real Beadwork issue data for the current workspace.\n\nUse `bw list --all --json` through a Tauri command, normalize `null` to an empty issue list, and expose a narrowed `IssueSummary` contract to React. The current workspace is the directory Beadsmith was launched from and should be shown read-only.\n\nOnly listing all issues is in scope. Keep search, sidebar state filters, workspace switching, issue selection, and issue detail behavior inert or empty-state only. Add Lucide for icons now. Add shadcn components only if this implementation introduces reusable base components that need them; otherwise defer shadcn setup.\n\n## Acceptance criteria\n\n- [ ] The app replaces the starter screen with the mockup-aligned issue explorer shell: left navigation, issue list pane, and right empty-detail pane.\n- [ ] The issue list is populated from real `bw list --all --json` output in the launch current working directory.\n- [ ] `null` or `[]` output from `bw` renders a true empty state, not an error.\n- [ ] Missing `bw`, non-Beadwork directories, subprocess failures, and JSON parse failures render a visible error state while keeping the shell mounted.\n- [ ] React receives a narrowed `IssueSummary` shape rather than the full Beadwork issue JSON.\n- [ ] All Beadwork statuses are included; do not use the default actionable-only `bw list` behavior.\n- [ ] Search, state filters, workspace switching, issue selection, and issue detail remain out of scope for behavior in this slice.\n- [ ] The current workspace path is displayed read-only.\n- [ ] Lucide icons are used for the shell iconography.\n- [ ] shadcn is only added through the shadcn CLI if reusable base components are introduced in this slice.\n- [ ] The implementation passes the repo's relevant frontend/Rust checks.\n\n## Blocked by\n\nNone - can start immediately.\n\n## Triage\n\nready-for-agent",
+  "id": "bsm-up5",
+  "labels": [],
+  "priority": 2,
+  "status": "open",
+  "title": "List all issues in the issue explorer shell",
+  "type": "task",
+  "updated_at": "2026-06-28T22:37:05Z"
+}
