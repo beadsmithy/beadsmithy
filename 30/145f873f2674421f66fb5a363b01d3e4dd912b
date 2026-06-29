@@ -1,0 +1,19 @@
+docs/adr/0004-standardize-on-taurpc-and-effect.md
+  s_d61e069855aa72::t_bf2ca86532631c 1-19
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.3",
+  "base_commit_sha": "30145f873f2674421f66fb5a363b01d3e4dd912b",
+  "prompts": {},
+  "sessions": {
+    "s_d61e069855aa72": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "019f1236-ac14-7c20-9f21-039429f2ff86",
+        "model": "gpt-5.5"
+      },
+      "human_author": "Tomas Thor Jonsson"
+    }
+  }
+}

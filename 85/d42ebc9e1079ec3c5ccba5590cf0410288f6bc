@@ -1,0 +1,23 @@
+CONTEXT.md
+  s_275130f1c404af::t_40b6d8a16ec2c5 14-15,17
+  s_275130f1c404af::t_e97918034b16a2 10-11
+  s_275130f1c404af::t_cef3e041565f6d 1-9
+  s_275130f1c404af::t_d4a0e0dafb232d 12-13
+  s_275130f1c404af::t_be7bf164d7ef96 16
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.3",
+  "base_commit_sha": "85d42ebc9e1079ec3c5ccba5590cf0410288f6bc",
+  "prompts": {},
+  "sessions": {
+    "s_275130f1c404af": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "019f104d-62c7-7503-a18c-9f54b8e74d6a",
+        "model": "gpt-5.5"
+      },
+      "human_author": "Tomas Thor Jonsson"
+    }
+  }
+}

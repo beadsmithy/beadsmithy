@@ -1,0 +1,25 @@
+docs/agents/triage-labels.md
+  s_5b4a4781a4e053::t_1cac8fceabc114 1-15
+docs/agents/domain.md
+  s_5b4a4781a4e053::t_1cac8fceabc114 1-35
+AGENTS.md
+  s_5b4a4781a4e053::t_1cac8fceabc114 36-49
+docs/agents/issue-tracker.md
+  s_5b4a4781a4e053::t_1cac8fceabc114 1-25
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.3",
+  "base_commit_sha": "1742700459408e5cac02cfc7b9d79f6740d849e0",
+  "prompts": {},
+  "sessions": {
+    "s_5b4a4781a4e053": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "019f103e-aa75-7792-960a-c5fd10ab402f",
+        "model": "gpt-5.5"
+      },
+      "human_author": "Tomas Thor Jonsson"
+    }
+  }
+}
