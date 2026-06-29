@@ -14,6 +14,12 @@
     "ready-for-agent"
   ],
   "parent": "bsm-mq4",
+  "comments": [
+    {
+      "text": "Planning audit: this is where IssueSummary becomes the typed frontend-facing contract. The RPC layer maps adapter results and errors; it must not shell out to bw itself or leak raw Beadwork JSON. Future frontend code should learn the command shape from TauRPC/generated types, not from guesses.",
+      "timestamp": "2026-06-29T08:19:43Z"
+    }
+  ],
   "priority": 2,
   "status": "open",
   "title": "Expose issue summaries through TauRPC",
