@@ -11,6 +11,12 @@
     "ready-for-agent"
   ],
   "parent": "bsm-mq4",
+  "comments": [
+    {
+      "text": "Planning audit: added because isolated unit/contract/render tests can all pass while the actual desktop user path still fails. This final bead should prove the complete adapter -\u003e TauRPC -\u003e Effect -\u003e React flow against a deterministic Beadwork workspace with useful logs for future debugging.",
+      "timestamp": "2026-06-29T08:19:43Z"
+    }
+  ],
   "priority": 2,
   "status": "open",
   "title": "Add end-to-end smoke coverage for the Issue List slice",
