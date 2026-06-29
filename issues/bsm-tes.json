@@ -1,7 +1,9 @@
 {
   "assignee": "",
   "blocked_by": [],
-  "blocks": [],
+  "blocks": [
+    "bsm-mq4.4"
+  ],
   "created": "2026-06-28T22:39:39Z",
   "description": "## What to build\n\nReplace the starter Tauri screen with the static issue explorer shell shown in `docs/research/design/mockups/issue_explorer_functional_sidebar.png`: left navigation, middle issue list pane, and right empty-detail pane.\n\nThis task is layout-only. It should not call Rust, TauRPC, Effect services, raw Tauri `invoke`, or `bw`. Use local placeholder or empty-state data only where needed to make the shell visually complete.\n\nSearch, sidebar state filters, workspace switching, issue selection, issue detail behavior, and real issue rows remain visual or empty-state only.\n\n## Acceptance criteria\n\n- [ ] The starter Tauri screen is replaced by a three-pane issue explorer shell matching the mockup direction.\n- [ ] The shell has a left navigation pane, middle issue-list pane, and right empty-detail pane.\n- [ ] The right pane remains in the `No issue selected` empty state.\n- [ ] Search and sidebar filters are visible but inert or disabled; they do not imply implemented filtering.\n- [ ] No backend command, TauRPC client, Effect service, or raw Tauri invoke is introduced in this task.\n- [ ] Lucide icons are used for shell iconography if icons are introduced.\n- [ ] shadcn is only added through the shadcn CLI if reusable base components are introduced in this slice.\n- [ ] Relevant frontend checks pass.\n\n## Out of scope\n\n- Real Beadwork data loading.\n- Displaying returned `workspacePath`.\n- Rendering real `IssueSummary` rows.\n- Issue selection or detail behavior.\n\n## Triage\n\nready-for-agent",
   "id": "bsm-tes",
@@ -13,5 +15,5 @@
   "status": "open",
   "title": "Build the static three-pane issue explorer shell",
   "type": "task",
-  "updated_at": "2026-06-29T07:24:44Z"
+  "updated_at": "2026-06-29T07:24:45Z"
 }

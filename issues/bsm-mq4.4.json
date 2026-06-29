@@ -1,6 +1,8 @@
 {
   "assignee": "",
-  "blocked_by": [],
+  "blocked_by": [
+    "bsm-tes"
+  ],
   "blocks": [],
   "created": "2026-06-29T07:24:45Z",
   "description": "## What to build\n\nWire the three-pane issue explorer shell to the Effect issue-summary service and render real issue summaries in the middle pane. Display the returned `workspacePath` read-only, and preserve visible loading, empty, and error states while keeping the app shell mounted.\n\nOnly listing all issues is in scope. Search, sidebar filters, workspace switching, issue selection, and issue detail behavior remain visual, inert, or empty-state only.\n\n## Acceptance criteria\n\n- [ ] The issue list renders data from the Effect issue-summary service.\n- [ ] The UI displays the returned `workspacePath` as read-only text.\n- [ ] Empty output renders a true empty state, not an error.\n- [ ] Backend read failures render a visible error state while preserving the app shell.\n- [ ] Search and sidebar filters remain visible but inert or disabled.\n- [ ] The right pane remains in the `No issue selected` empty state; clicking an issue does not implement detail behavior.\n- [ ] React components consume the Effect service rather than calling raw Tauri APIs directly.\n- [ ] Relevant frontend checks pass.\n\n## Triage\n\nready-for-agent",
