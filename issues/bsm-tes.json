@@ -11,6 +11,12 @@
     "ready-for-agent"
   ],
   "parent": "bsm-mq4",
+  "comments": [
+    {
+      "text": "Planning audit: keep this bead static and visual. It should make Beadsmith feel like the intended dense desktop tool before data is wired, but must not fake implemented behavior. Disabled/inert controls are acceptable when they preserve layout intent without implying filters, selection, or workspace switching work.",
+      "timestamp": "2026-06-29T08:19:43Z"
+    }
+  ],
   "priority": 2,
   "status": "open",
   "title": "Build the static three-pane issue explorer shell",
