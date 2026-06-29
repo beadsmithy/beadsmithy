@@ -1,0 +1,15 @@
+{
+  "assignee": "",
+  "blocked_by": [],
+  "blocks": [],
+  "created": "2026-06-29T07:24:45Z",
+  "description": "## What to build\n\nAdd reference-only upstream source checkouts for TauRPC and Effect under `docs/research/infra/` so implementation agents can inspect untranspiled source while still consuming both libraries through normal package-manager dependencies.\n\nThis is not traditional vendoring. These directories are research material only and must not become runtime application dependencies.\n\n## Acceptance criteria\n\n- [ ] TauRPC source is available under `docs/research/infra/taurpc/` for reference.\n- [ ] Effect source is available under `docs/research/infra/effect/` for reference.\n- [ ] Adjacent documentation records how the source checkouts were obtained and clarifies that application code installs the libraries via pnpm.\n- [ ] No application code imports from the reference-source directories.\n- [ ] The added source/reference material is separated from functional app diffs.\n\n## Triage\n\nready-for-agent",
+  "id": "bsm-mq4.1",
+  "labels": [],
+  "parent": "bsm-mq4",
+  "priority": 2,
+  "status": "open",
+  "title": "Add TauRPC and Effect reference source checkouts",
+  "type": "task",
+  "updated_at": "2026-06-29T07:24:45Z"
+}
