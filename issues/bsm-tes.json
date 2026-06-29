@@ -10,9 +10,10 @@
   "labels": [
     "ready-for-agent"
   ],
+  "parent": "bsm-mq4",
   "priority": 2,
   "status": "open",
   "title": "Render the issue explorer shell from IssueSummary data",
   "type": "task",
-  "updated_at": "2026-06-28T22:50:27Z"
+  "updated_at": "2026-06-29T06:47:08Z"
 }
