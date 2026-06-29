@@ -1,0 +1,15 @@
+{
+  "assignee": "",
+  "blocked_by": [],
+  "blocks": [],
+  "created": "2026-06-29T07:24:45Z",
+  "description": "## What to build\n\nInstall and use Effect as the standard TypeScript service layer for loading issue summaries from the TauRPC issue-list function. This task should model loading, success, empty, and error outcomes without taking over the full shell rendering work.\n\nThe service should be the frontend integration point for issue summary loading. React components should not call raw Tauri commands directly.\n\n## Acceptance criteria\n\n- [ ] Effect is installed as an application dependency.\n- [ ] A frontend service/client exists for loading issue summaries through the TauRPC contract.\n- [ ] The service models loading, success, empty, and error states clearly enough for React views to consume.\n- [ ] Backend read failures surface user-displayable error information without collapsing into an empty issue list.\n- [ ] No React component calls raw Tauri `invoke` for issue summaries.\n- [ ] Relevant frontend checks/tests pass.\n\n## Out of scope\n\n- Building the static three-pane shell.\n- Rendering real issue rows in the shell.\n- Issue selection or detail behavior.\n\n## Triage\n\nready-for-agent",
+  "id": "bsm-mq4.3",
+  "labels": [],
+  "parent": "bsm-mq4",
+  "priority": 2,
+  "status": "open",
+  "title": "Add Effect service for loading issue summaries",
+  "type": "task",
+  "updated_at": "2026-06-29T07:24:45Z"
+}
