@@ -1,9 +1,7 @@
 {
   "assignee": "",
   "blocked_by": [],
-  "blocks": [
-    "bsm-tes"
-  ],
+  "blocks": [],
   "created": "2026-06-28T22:39:24Z",
   "description": "## What to build\n\nAdd the native Rust adapter for reading Beadwork issues from the current workspace. This is intentionally not a Tauri command and not a TauRPC endpoint. It should be a testable Rust wrapper around `bw list --all --json` that hides raw Beadwork CLI output behind a small internal API.\n\nFor this first slice, run `bw list --all --json` in the process current working directory. No workspace picker, saved workspace setting, directory persistence, React layout, or Tauri bridge wiring is in scope.\n\nThe adapter should parse the raw `bw` JSON into an internal/raw shape as needed, normalize missing values consistently, and return a narrowed issue-list result suitable for later mapping to the RPC-facing `IssueSummary` contract. `IssueSummary` is ultimately a frontend/RPC contract, not Beadwork raw JSON; the adapter should absorb raw `bw` output details.\n\n## Acceptance criteria\n\n- [ ] A Rust adapter module exists for listing all issues from the process current working directory.\n- [ ] The adapter invokes `bw list --all --json`; it does not use default actionable-only `bw list` behavior.\n- [ ] `null` or `[]` output from `bw` becomes an empty issue list result.\n- [ ] Missing `bw`, non-Beadwork directories, subprocess failures, and JSON parse failures are distinguishable from a true empty issue list.\n- [ ] Raw Beadwork JSON parsing is hidden behind the adapter API.\n- [ ] The adapter has focused Rust tests for success, empty output, subprocess failure, and JSON parse failure.\n- [ ] Relevant Rust checks/tests pass.\n\n## Out of scope\n\n- Tauri command registration.\n- TauRPC setup or generated TypeScript contracts.\n- React data loading or rendering.\n- Workspace switching or saved workspace settings.\n\n## Triage\n\nready-for-agent",
   "id": "bsm-8ul",
