@@ -10,9 +10,10 @@
   "labels": [
     "ready-for-agent"
   ],
+  "parent": "bsm-mq4",
   "priority": 2,
   "status": "open",
   "title": "Expose all issues through a Tauri IssueSummary command",
   "type": "task",
-  "updated_at": "2026-06-28T22:50:11Z"
+  "updated_at": "2026-06-29T06:47:10Z"
 }
