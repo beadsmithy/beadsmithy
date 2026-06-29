@@ -1,0 +1,15 @@
+{
+  "assignee": "",
+  "blocked_by": [],
+  "blocks": [],
+  "created": "2026-06-29T07:24:45Z",
+  "description": "## What to build\n\nSet up TauRPC as Beadsmith's typed Tauri RPC boundary for the first issue-list command. Wrap the pure Rust `bw` adapter from `bsm-8ul` behind a typed RPC function that returns the frontend-facing issue-list contract.\n\n`IssueSummary` belongs to the RPC/frontend contract. Raw Beadwork JSON and any adapter-only parsing shape should stay hidden behind the adapter.\n\n## Contract\n\nThe success payload should include:\n\n- `workspacePath`: the absolute or process-resolved path used as the command working directory.\n- `issues`: an array of `IssueSummary`.\n\n`IssueSummary` should include these fields, preserving absent Beadwork values as empty strings, empty arrays, or omitted optional fields consistently:\n\n- `id`\n- `title`\n- `status`\n- `priority`\n- `type`\n- `assignee`\n- `labels`\n- `parent`\n- `blockedBy`\n- `blocks`\n- `created`\n- `updatedAt`\n- `closedAt`\n- `deferUntil`\n- `due`\n\nThe error payload should distinguish at least command execution failure and JSON parsing failure. It should carry a concise message safe to show in the UI.\n\n## Acceptance criteria\n\n- [ ] TauRPC is installed and configured for the Tauri/React app.\n- [ ] A typed RPC function exposes all issue summaries from the current workspace.\n- [ ] The RPC function delegates to the Rust adapter rather than invoking `bw` directly.\n- [ ] The TypeScript-facing success and error shapes are generated, documented, or otherwise discoverable without guessing.\n- [ ] Missing `bw`, non-Beadwork directories, subprocess failures, and JSON parse failures remain distinguishable from a true empty issue list.\n- [ ] Raw Tauri `invoke` is not introduced as the app integration pattern for this functionality.\n- [ ] Relevant Rust/TypeScript generation checks pass.\n\n## Triage\n\nready-for-agent",
+  "id": "bsm-mq4.2",
+  "labels": [],
+  "parent": "bsm-mq4",
+  "priority": 2,
+  "status": "open",
+  "title": "Expose issue summaries through TauRPC",
+  "type": "task",
+  "updated_at": "2026-06-29T07:24:45Z"
+}
