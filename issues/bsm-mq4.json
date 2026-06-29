@@ -8,6 +8,12 @@
   "labels": [
     "ready-for-agent"
   ],
+  "comments": [
+    {
+      "text": "Planning audit: revised after rereading AGENTS.md, domain docs, and ADRs. The epic now records the full rationale, user-visible scope, non-goals, dependency graph, and final smoke/e2e proof requirement so implementation agents do not need the original conversation to understand why the split exists.",
+      "timestamp": "2026-06-29T08:19:43Z"
+    }
+  ],
   "priority": 2,
   "status": "in_progress",
   "title": "Epic: List all issues in the issue explorer",
