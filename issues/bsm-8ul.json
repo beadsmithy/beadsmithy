@@ -11,6 +11,12 @@
     "ready-for-agent"
   ],
   "parent": "bsm-mq4",
+  "comments": [
+    {
+      "text": "Planning audit: keep this bead as the pure Rust adapter only. The important boundary is structured bw CLI output in, normalized adapter result/errors out. No TauRPC, no React, no raw Beadwork storage reads. This protects later UI work from raw CLI schema churn and gives us deterministic unit tests around command and parse failures.",
+      "timestamp": "2026-06-29T08:19:43Z"
+    }
+  ],
   "priority": 2,
   "status": "open",
   "title": "Add pure Rust bw list adapter for the Issue List",
