@@ -5,10 +5,12 @@
   "created": "2026-06-29T06:46:53Z",
   "description": "## What to build\n\nImplement the first issue explorer slice from `docs/research/design/mockups/issue_explorer_functional_sidebar.png` as two independently landable tasks: backend first, frontend second.\n\nThe slice should list real Beadwork issues from the current workspace using `bw list --all --json`, expose a narrowed `IssueSummary` command contract, and then render the mockup-aligned issue explorer shell from that contract.\n\nOnly listing all issues is in scope. Search, sidebar filters, workspace switching, issue selection, and issue detail behavior remain out of scope except for visual or empty-state scaffolding in the frontend task.\n\n## Child tasks\n\n1. `bsm-8ul` - Expose all issues through a Tauri IssueSummary command.\n2. `bsm-tes` - Render the issue explorer shell from IssueSummary data.\n\n## Dependency order\n\n```mermaid\ngraph LR\n    bsm-8ul[Backend IssueSummary command] --\u003e bsm-tes[Frontend issue explorer shell]\n```\n\n## Acceptance criteria\n\n- [ ] Backend command task lands first and defines the command contract.\n- [ ] Frontend shell task consumes the backend contract instead of inventing one.\n- [ ] The final slice lists all real Beadwork issues across stored statuses.\n\n## Triage\n\nready-for-agent",
   "id": "bsm-mq4",
-  "labels": [],
+  "labels": [
+    "ready-for-agent"
+  ],
   "priority": 2,
   "status": "open",
   "title": "Epic: List all issues in the issue explorer",
   "type": "epic",
-  "updated_at": "2026-06-29T06:46:53Z"
+  "updated_at": "2026-06-29T06:47:05Z"
 }
