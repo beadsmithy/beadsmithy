@@ -1,0 +1,11 @@
+# Reference source checkouts — keep generated/local state out of git.
+# The checked-in trees are plain upstream source only (see README.md).
+node_modules/
+dist/
+build/
+.turbo/
+.cache/
+coverage/
+target/
+*.tsbuildinfo
+.DS_Store
