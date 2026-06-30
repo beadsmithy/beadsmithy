@@ -16,11 +16,15 @@
     {
       "text": "Planning audit: reference-source checkouts are intentionally separated from functional app work. They are research material only, pinned with provenance, and must not become runtime imports. This keeps large source diffs from obscuring implementation changes while preserving upstream context for future agents.",
       "timestamp": "2026-06-29T08:19:43Z"
+    },
+    {
+      "text": "Project owner decided not to merge the reference source repos",
+      "timestamp": "2026-06-30T20:46:45Z"
     }
   ],
   "priority": 2,
   "status": "closed",
   "title": "Add TauRPC and Effect reference source checkouts",
   "type": "task",
-  "updated_at": "2026-06-30T18:29:00Z"
+  "updated_at": "2026-06-30T20:46:45Z"
 }
