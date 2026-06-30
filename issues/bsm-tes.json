@@ -18,8 +18,8 @@
     }
   ],
   "priority": 2,
-  "status": "in_progress",
+  "status": "open",
   "title": "Build the static three-pane issue explorer shell",
   "type": "task",
-  "updated_at": "2026-06-30T21:09:49Z"
+  "updated_at": "2026-06-30T21:10:42Z"
 }
