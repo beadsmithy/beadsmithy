@@ -1,0 +1,40 @@
+src-tauri/src/issues/mod.rs
+  s_4d77e4bb4e1f04::t_3517965b499f9f 1-20
+src-tauri/src/issues/error.rs
+  s_4d77e4bb4e1f04::t_59d7edd8d4c146 1-48
+src-tauri/src/issues/raw.rs
+  s_4d77e4bb4e1f04::t_518e1cd0981b50 1-11,13-24,29,31-55
+  s_4d77e4bb4e1f04::t_ee3a5c6ee4c3e1 25-28,30
+  s_4d77e4bb4e1f04::t_77220ab2055611 12
+src-tauri/src/lib.rs
+  s_4d77e4bb4e1f04::t_96ad0683d9a2e9 1-9
+src-tauri/src/issues/adapter.rs
+  s_4d77e4bb4e1f04::t_bf3a58d1f4f8b0 319,325-337
+  s_4d77e4bb4e1f04::t_d66bd7aac52961 1-16,18-23,30-79,81-126,129-131,138,140-144,147,149,153-155,158-159,164-167,169-181,183,197-208,210-318,320-324,338-389
+  s_4d77e4bb4e1f04::t_7659797853f172 17
+  s_4d77e4bb4e1f04::t_170e85822f6388 132-137,139,145-146,148,150-152,156-157,160-163,168,184-196
+  s_4d77e4bb4e1f04::t_c389e7583026d4 24-29
+  s_4d77e4bb4e1f04::t_7b168cbab98131 128
+  s_4d77e4bb4e1f04::t_9c081ffdadd3e2 209
+  s_4d77e4bb4e1f04::t_d32def0794e1f7 80
+  s_4d77e4bb4e1f04::t_9fbfa39ddc06a6 127
+  s_4d77e4bb4e1f04::t_f64638757fb7ce 182
+src-tauri/src/issues/runner.rs
+  s_4d77e4bb4e1f04::t_7ef918e2ab38f6 1-53
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.5",
+  "base_commit_sha": "86dd581af01e46de96909b67bf387124d8d79820",
+  "prompts": {},
+  "sessions": {
+    "s_4d77e4bb4e1f04": {
+      "agent_id": {
+        "tool": "pi",
+        "id": "019f1a4c-c186-7415-b6a4-7ddd048d7aa7",
+        "model": "glm-5p2"
+      },
+      "human_author": "Tomas Thor Jonsson <benregn@gmail.com>"
+    }
+  }
+}
