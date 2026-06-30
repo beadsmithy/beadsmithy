@@ -15,11 +15,15 @@
     {
       "text": "Planning audit: keep this bead static and visual. It should make Beadsmith feel like the intended dense desktop tool before data is wired, but must not fake implemented behavior. Disabled/inert controls are acceptable when they preserve layout intent without implying filters, selection, or workspace switching work.",
       "timestamp": "2026-06-29T08:19:43Z"
+    },
+    {
+      "text": "Visually verified the layout with Vite dev server. The three-pane shell is static, styling matches PRD tokens exactly, right pane shows the empty state.",
+      "timestamp": "2026-06-30T21:19:28Z"
     }
   ],
   "priority": 2,
   "status": "in_progress",
   "title": "Build the static three-pane issue explorer shell",
   "type": "task",
-  "updated_at": "2026-06-30T21:11:01Z"
+  "updated_at": "2026-06-30T21:19:28Z"
 }
