@@ -15,11 +15,15 @@
     {
       "text": "Planning audit: keep this bead as the pure Rust adapter only. The important boundary is structured bw CLI output in, normalized adapter result/errors out. No TauRPC, no React, no raw Beadwork storage reads. This protects later UI work from raw CLI schema churn and gives us deterministic unit tests around command and parse failures.",
       "timestamp": "2026-06-29T08:19:43Z"
+    },
+    {
+      "text": "Landed pure Rust adapter at src-tauri/src/issues/ (adapter, error, raw, runner, mod). Runs exactly `bw list --all --json` via injectable CommandRunner; raw JSON hidden behind IssueSummary. Distinguishable errors: MissingBinary, NotBeadworkWorkspace (matches both 'beadwork not initialized' and 'not a git repository' stderr), CommandFailed, Parse, Io. null/[] -\u003e empty list. 13 unit tests + 1 #[ignore]d real-bw smoke. cargo fmt / clippy -D warnings / cargo test all pass. Out of scope held: no Tauri command, TauRPC, Effect/React, workspace switching, or git-storage reads. Note: parse_issues also treats empty stdout as empty list (defensive; spec only names null/[]).",
+      "timestamp": "2026-06-30T21:11:19Z"
     }
   ],
   "priority": 2,
   "status": "in_progress",
   "title": "Add pure Rust bw list adapter for the Issue List",
   "type": "task",
-  "updated_at": "2026-06-30T21:01:26Z"
+  "updated_at": "2026-06-30T21:11:19Z"
 }
