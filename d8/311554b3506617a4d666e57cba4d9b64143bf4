@@ -1,0 +1,21 @@
+pnpm-lock.yaml
+  s_c13fe98dcfc739::t_78f9fe1b75f2e1 17-19,1395-1397,1743-1745,1821-1824,2290-2292,3431-3432,3733-3737,3859-3862,4346-4347
+package.json
+  s_c13fe98dcfc739::t_80961f059077d4 19
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.9",
+  "base_commit_sha": "d8311554b3506617a4d666e57cba4d9b64143bf4",
+  "prompts": {},
+  "sessions": {
+    "s_c13fe98dcfc739": {
+      "agent_id": {
+        "tool": "pi",
+        "id": "019f2496-7fb1-76b7-8b65-f52df913c389",
+        "model": "gpt-5.5"
+      },
+      "human_author": "Tomas Thor Jonsson <benregn@gmail.com>"
+    }
+  }
+}
