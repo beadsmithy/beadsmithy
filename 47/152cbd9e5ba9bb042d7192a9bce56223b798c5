@@ -1,0 +1,23 @@
+src/App.tsx
+  s_350ae2edc84263::t_d295be0e36395f 3,12
+  s_350ae2edc84263::t_786002f8fadbc8 14-15,17-20,22-23,27-29,34-49,51-53,55-59,61,63-65,67,69-70,83,115-117,124-126,148-150,153,155,157,167-169
+  s_350ae2edc84263::t_fd39115c804448 16,21,24-26,30-33,50,54,60,62,66,68
+  s_350ae2edc84263::t_e285b001786bdb 71-82,84-98
+  s_350ae2edc84263::t_7f035fbee1c26b 13
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.9",
+  "base_commit_sha": "47152cbd9e5ba9bb042d7192a9bce56223b798c5",
+  "prompts": {},
+  "sessions": {
+    "s_350ae2edc84263": {
+      "agent_id": {
+        "tool": "windsurf",
+        "id": "",
+        "model": "unknown"
+      },
+      "human_author": "Tomas Thor Jonsson <benregn@gmail.com>"
+    }
+  }
+}
