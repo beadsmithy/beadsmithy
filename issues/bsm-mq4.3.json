@@ -6,6 +6,7 @@
   "blocks": [
     "bsm-mq4.4"
   ],
+  "closed_at": "2026-07-02T20:55:29Z",
   "created": "2026-06-29T07:24:45Z",
   "description": "## Background and intent\n\nADR-0004 makes Effect the standard frontend integration style. This bead creates the React-side service boundary for loading Issue List data without yet binding it to the full three-pane shell. The point is to keep async state, dependency wiring, and error modeling out of presentational components.\n\nThe user-facing reason is reliability: empty workspaces, missing `bw`, invalid workspaces, and parse failures must produce different UI states. A service layer makes those states explicit before the final rendering bead consumes them.\n\n## What to build\n\nInstall Effect as an application dependency and create a frontend service/client for loading issue summaries through the TauRPC contract from `bsm-mq4.2`. Use the upstream reference source in `docs/research/infra/effect/` and current package docs at implementation time.\n\nModel the result as a clear state machine that React can consume: loading, success with non-empty issues, success with empty issues, and failure with a user-displayable message plus machine-readable error kind. Keep the service thin and focused on issue-summary loading; do not hide UI policy like which rows are selected or how filters work inside this service.\n\nPrefer tests around the service mapping behavior so the app does not regress into treating failures as empty lists. If introducing React hooks or context providers, keep them small and document where later feature services should plug in.\n\n## Acceptance criteria\n\n- [ ] Effect is installed as an application dependency.\n- [ ] A frontend service/client exists for loading issue summaries through the TauRPC contract.\n- [ ] The service models loading, non-empty success, empty success, and error states explicitly.\n- [ ] Backend read failures surface user-displayable error information without collapsing into an empty issue list.\n- [ ] The service exposes the returned `workspacePath` alongside issues.\n- [ ] No React component calls raw Tauri `invoke` for issue summaries.\n- [ ] Unit tests or equivalent focused tests cover success, empty, and error mapping.\n- [ ] Relevant frontend formatting/check/test/build commands pass.\n\n## Out of scope\n\n- Building the static three-pane shell.\n- Rendering real issue rows in the shell.\n- Search/filter behavior, issue selection, or detail loading.\n\n## Triage\n\nready-for-agent",
   "id": "bsm-mq4.3",
@@ -20,8 +21,8 @@
     }
   ],
   "priority": 2,
-  "status": "in_progress",
+  "status": "closed",
   "title": "Add Effect service for loading issue summaries",
   "type": "task",
-  "updated_at": "2026-07-02T20:48:23Z"
+  "updated_at": "2026-07-02T20:55:29Z"
 }
