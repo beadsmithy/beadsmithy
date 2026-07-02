@@ -1,0 +1,21 @@
+src-tauri/src/rpc.rs
+  s_63a553226c0f95::t_ab5cb72016efa7 7,14-16
+src/rpc/bindings.ts
+  s_63a553226c0f95::t_16a74654f07271 5-7,12-16,21,26,31-35,38-39
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.9",
+  "base_commit_sha": "025df6dc6e91455b9d7097754b898177f01bb8ae",
+  "prompts": {},
+  "sessions": {
+    "s_63a553226c0f95": {
+      "agent_id": {
+        "tool": "pi",
+        "id": "019f23ae-39dd-7e5a-8fc0-ae1da4b2be1a",
+        "model": "gpt-5.5"
+      },
+      "human_author": "Tomas Thor Jonsson <benregn@gmail.com>"
+    }
+  }
+}
