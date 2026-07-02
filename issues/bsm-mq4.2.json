@@ -18,11 +18,15 @@
     {
       "text": "Planning audit: this is where IssueSummary becomes the typed frontend-facing contract. The RPC layer maps adapter results and errors; it must not shell out to bw itself or leak raw Beadwork JSON. Future frontend code should learn the command shape from TauRPC/generated types, not from guesses.",
       "timestamp": "2026-06-29T08:19:43Z"
+    },
+    {
+      "text": "Implemented TauRPC issue summary endpoint with generated TS bindings. Validation: cargo fmt; cargo test; pnpm build; cargo check. pnpm check still fails on pre-existing docs/agent formatting issues outside this ticket.",
+      "timestamp": "2026-07-02T18:32:15Z"
     }
   ],
   "priority": 2,
   "status": "in_progress",
   "title": "Expose issue summaries through TauRPC",
   "type": "task",
-  "updated_at": "2026-07-02T18:07:52Z"
+  "updated_at": "2026-07-02T18:32:15Z"
 }
