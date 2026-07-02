@@ -1,0 +1,25 @@
+src-tauri/src/dev_bridge.rs
+  s_350ae2edc84263::t_747c66f3556275 1-1022
+src-tauri/Cargo.toml
+  s_350ae2edc84263::t_59e58a0d464e2e 25-33
+src-tauri/src/lib.rs
+  s_350ae2edc84263::t_8e3838014160aa 12-13,15-20,27,30-32
+  s_350ae2edc84263::t_196aee93b9782a 4-5,26,28,33-34
+  s_350ae2edc84263::t_9737d50e185c9c 1-3,14,25,29
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.8",
+  "base_commit_sha": "4a3e90ea4e301ac014c7b396037698a44727baaa",
+  "prompts": {},
+  "sessions": {
+    "s_350ae2edc84263": {
+      "agent_id": {
+        "tool": "windsurf",
+        "id": "",
+        "model": "unknown"
+      },
+      "human_author": "Tomas Thor Jonsson <benregn@gmail.com>"
+    }
+  }
+}
