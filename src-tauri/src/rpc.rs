@@ -4,40 +4,22 @@
 //! access to the pure Rust `issues` adapter and maps adapter results/errors into
 //! serializable, user-displayable payloads.
 
-use std::{env, io, path::Path, process::Command};
+use std::env;
 
 use crate::issues::{self, ListIssuesError, ProcessRunner};
 
 /// Build the TauRPC router, including TypeScript export configuration.
 pub fn router<R: tauri::Runtime>() -> taurpc::Router<R> {
     let router = taurpc::Router::new()
-        .export_config(
-            specta_typescript::Typescript::default()
-                .header("// oxlint-disable no-unused-vars typescript/ban-ts-comment import/consistent-type-specifier-style import/newline-after-import typescript/consistent-type-definitions\n// @ts-nocheck\n")
-                .formatter(format_generated_bindings),
-        )
+        .export_config(specta_typescript::Typescript::default().header(
+            "// oxlint-disable no-unused-vars typescript/ban-ts-comment import/consistent-type-specifier-style import/newline-after-import typescript/consistent-type-definitions\n// @ts-nocheck\n",
+        ))
         .merge(BeadsmithApiImpl.into_handler());
 
     #[cfg(debug_assertions)]
     let router = router.merge(DevBridgeApiImpl.into_handler());
 
     router
-}
-
-fn format_generated_bindings(path: &Path) -> io::Result<()> {
-    let path = path.canonicalize()?;
-    let output = Command::new("pnpm")
-        .args(["exec", "oxfmt", "--write"])
-        .arg(path)
-        .output()?;
-
-    if output.status.success() {
-        Ok(())
-    } else {
-        Err(io::Error::other(
-            String::from_utf8_lossy(&output.stderr).into_owned(),
-        ))
-    }
 }
 
 /// Beadsmith's typed application RPC surface.
