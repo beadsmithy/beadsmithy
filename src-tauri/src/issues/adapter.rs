@@ -32,9 +32,9 @@ const NOT_BEADWORK_MARKERS: &[&str] = &["beadwork not initialized", "not a git r
 ///
 /// This is adapter output, not the durable frontend contract. The later TauRPC
 /// bead maps this into the typed `IssueSummary` React consumes. Fields mirror
-/// the subset useful for a list row; detail-rich fields (description, comments,
-/// close reason, due, defer_until) are intentionally omitted and belong to the
-/// future issue-detail path.
+/// the subset useful for the frontend issue-list contract; detail-rich fields
+/// (description, comments, close reason) are intentionally omitted and belong to
+/// the future issue-detail path.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct IssueSummary {
     pub id: String,
@@ -47,6 +47,8 @@ pub struct IssueSummary {
     pub created: String,
     pub updated_at: Option<String>,
     pub closed_at: Option<String>,
+    pub defer_until: Option<String>,
+    pub due: Option<String>,
     pub parent: Option<String>,
     pub blocks: Vec<String>,
     pub blocked_by: Vec<String>,
@@ -115,6 +117,8 @@ impl From<RawIssue> for IssueSummary {
             created: raw.created,
             updated_at: raw.updated_at,
             closed_at: raw.closed_at,
+            defer_until: raw.defer_until,
+            due: raw.due,
             parent: raw.parent,
             blocks: raw.blocks.unwrap_or_default(),
             blocked_by: raw.blocked_by.unwrap_or_default(),
@@ -206,7 +210,9 @@ mod tests {
             "closed_at": "2026-06-28T22:40:03Z",
             "close_reason": "done",
             "created": "2026-06-28T22:37:05Z",
+            "defer_until": "2026-07-01T10:00:00Z",
             "description": "What to build. Details here.",
+            "due": "2026-07-02T10:00:00Z",
             "id": "bsm-8ul",
             "labels": ["ready-for-agent", "backend"],
             "parent": "bsm-mq4",
@@ -247,6 +253,8 @@ mod tests {
         assert_eq!(issue.created, "2026-06-28T22:37:05Z");
         assert_eq!(issue.updated_at.as_deref(), Some("2026-06-29T08:19:43Z"));
         assert_eq!(issue.closed_at.as_deref(), Some("2026-06-28T22:40:03Z"));
+        assert_eq!(issue.defer_until.as_deref(), Some("2026-07-01T10:00:00Z"));
+        assert_eq!(issue.due.as_deref(), Some("2026-07-02T10:00:00Z"));
         assert_eq!(issue.parent.as_deref(), Some("bsm-mq4"));
         assert_eq!(issue.labels, vec!["ready-for-agent", "backend"]);
         assert_eq!(issue.blocks, vec!["bsm-bbb"]);
@@ -277,6 +285,8 @@ mod tests {
         assert!(issue.blocked_by.is_empty());
         assert!(issue.updated_at.is_none());
         assert!(issue.closed_at.is_none());
+        assert!(issue.defer_until.is_none());
+        assert!(issue.due.is_none());
         assert!(issue.parent.is_none());
     }
 

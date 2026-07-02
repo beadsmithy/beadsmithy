@@ -4,7 +4,7 @@ use std::collections::{HashMap, VecDeque};
 use std::fs;
 use std::io::{BufRead, BufReader};
 use std::process::{Command, Stdio};
-use std::sync::{Arc, Condvar, Mutex};
+use std::sync::{Arc, Condvar, Mutex, OnceLock};
 use std::thread;
 use std::time::Instant;
 use tauri::{AppHandle, Manager};
@@ -317,7 +317,7 @@ impl tracing::field::Visit for MessageVisitor {
 /// Create a tracing layer that captures logs into the given buffer.
 /// Use this if you already have a tracing subscriber and want to add log capture.
 ///
-/// ```rust
+/// ```rust,ignore
 /// use tracing_subscriber::layer::SubscriberExt;
 /// use tracing_subscriber::util::SubscriberInitExt;
 ///
@@ -410,6 +410,8 @@ pub fn spawn_sidecar_monitored(
     Ok(child)
 }
 
+static PENDING_RESULTS: OnceLock<Arc<PendingResults>> = OnceLock::new();
+
 /// Shared state for pending eval results.
 /// The HTTP handler thread waits on the Condvar; the Tauri command inserts
 /// the result and signals.
@@ -418,16 +420,13 @@ pub struct PendingResults {
     notify: Condvar,
 }
 
-/// Tauri command invoked from injected JS to deliver eval results back to Rust.
-#[tauri::command]
-pub fn __dev_bridge_result(
-    id: String,
-    value: serde_json::Value,
-    state: tauri::State<'_, Arc<PendingResults>>,
-) {
-    let mut results = state.results.lock().unwrap();
-    results.insert(id, value);
-    state.notify.notify_all();
+/// Record an injected eval result delivered over the app's IPC layer.
+pub fn record_eval_result(id: String, value: String) {
+    if let Some(state) = PENDING_RESULTS.get() {
+        let mut results = state.results.lock().unwrap();
+        results.insert(id, serde_json::Value::String(value));
+        state.notify.notify_all();
+    }
 }
 
 const EVAL_TIMEOUT_MESSAGE: &str = "Eval timeout: no result callback received. Re-copy examples/tauri-bridge/src/dev_bridge.rs from tauri-agent-tools 0.7.0+ and verify Tauri IPC is available.";
@@ -459,9 +458,9 @@ fn build_eval_callback_js(js: &str, request_id: &str) -> String {
                             }} else if (typeof __result !== "string") {{
                                 __result = String(__result);
                             }}
-                            await __devBridgeInvoke("__dev_bridge_result", {{
+                            await __devBridgeInvoke("TauRPC__devBridge.result", {{
                                 id: {id},
-                                value: __result
+                                value: __result === null ? "" : __result
                             }});
                         }} catch(e) {{
                             __devBridgeInvoke = __devBridgeInvoke || __getDevBridgeInvoke();
@@ -469,7 +468,7 @@ fn build_eval_callback_js(js: &str, request_id: &str) -> String {
                                 throw e;
                             }}
                             const __message = e && e.message ? e.message : String(e);
-                            await __devBridgeInvoke("__dev_bridge_result", {{
+                            await __devBridgeInvoke("TauRPC__devBridge.result", {{
                                 id: {id},
                                 value: "ERROR: " + __message
                             }});
@@ -492,8 +491,7 @@ fn build_eval_callback_js(js: &str, request_id: &str) -> String {
 pub fn start_bridge(
     app: &AppHandle,
 ) -> Result<(u16, Arc<LogBuffer>, Arc<SidecarRegistry>), String> {
-    let server =
-        Server::http("127.0.0.1:0").map_err(|e| format!("Failed to start bridge: {e}"))?;
+    let server = Server::http("127.0.0.1:0").map_err(|e| format!("Failed to start bridge: {e}"))?;
     let port = server
         .server_addr()
         .to_ip()
@@ -535,6 +533,7 @@ pub fn start_bridge(
         results: Mutex::new(HashMap::new()),
         notify: Condvar::new(),
     });
+    let _ = PENDING_RESULTS.set(pending.clone());
     app.manage(pending.clone());
 
     // Sidecar registry — exposed to integrators via the return tuple and
@@ -588,7 +587,13 @@ pub fn start_bridge(
 
             let known_post = matches!(
                 url.as_str(),
-                "/eval" | "/logs" | "/describe" | "/process" | "/capabilities" | "/devtools" | "/health"
+                "/eval"
+                    | "/logs"
+                    | "/describe"
+                    | "/process"
+                    | "/capabilities"
+                    | "/devtools"
+                    | "/health"
             );
             if !is_post || !known_post {
                 let _ = request.respond(Response::from_string("Not found").with_status_code(404));
@@ -598,8 +603,7 @@ pub fn start_bridge(
             // Read body
             let mut body = String::new();
             if let Err(_) = request.as_reader().read_to_string(&mut body) {
-                let _ =
-                    request.respond(Response::from_string("Bad request").with_status_code(400));
+                let _ = request.respond(Response::from_string("Bad request").with_status_code(400));
                 continue;
             }
 
@@ -721,7 +725,9 @@ pub fn start_bridge(
                     continue;
                 }
                 let sidecars = server_registry.snapshot();
-                let sidecars_alive = sidecars.iter().all(|s| matches!(s.alive, Some(true) | None));
+                let sidecars_alive = sidecars
+                    .iter()
+                    .all(|s| matches!(s.alive, Some(true) | None));
                 let webview_ready = !app_handle.webview_windows().is_empty();
                 let resp = HealthResponse {
                     uptime_ms: start_instant.elapsed().as_millis() as u64,
@@ -752,11 +758,7 @@ pub fn start_bridge(
                     continue;
                 }
 
-                let windows: Vec<String> = app_handle
-                    .webview_windows()
-                    .keys()
-                    .cloned()
-                    .collect();
+                let windows: Vec<String> = app_handle.webview_windows().keys().cloned().collect();
 
                 let resp = DescribeResponse {
                     pid: Some(std::process::id()),
@@ -822,8 +824,7 @@ pub fn start_bridge(
                         let json = serde_json::to_string(&resp).unwrap();
                         let header =
                             Header::from_bytes("Content-Type", "application/json").unwrap();
-                        let _ =
-                            request.respond(Response::from_string(json).with_header(header));
+                        let _ = request.respond(Response::from_string(json).with_header(header));
                         break;
                     }
 
@@ -902,7 +903,7 @@ mod tests {
     fn eval_callback_uses_dev_bridge_result_command() {
         let script = build_eval_callback_js("1 + 1", "request-1");
 
-        assert!(script.contains("__dev_bridge_result"));
+        assert!(script.contains("TauRPC__devBridge.result"));
         assert!(!script.contains("await window.__TAURI__.core.invoke"));
     }
 
