@@ -14,7 +14,9 @@ pre-commit:
         - "**/*.json"
         - "**/*.jsonc"
         - "**/*.css"
-      exclude: "docs/research/infra/**"
+      exclude:
+        - "docs/research/infra/**"
+        - ".agents/skills/**"
       stage_fixed: true
     - run: cargo fmt --manifest-path src-tauri/Cargo.toml -- {staged_files}
       glob: "**/*.rs"
