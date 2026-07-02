@@ -6,6 +6,8 @@ src-tauri/src/lib.rs
   s_350ae2edc84263::t_8e3838014160aa 21-22,24-29,36,39-41
   s_350ae2edc84263::t_196aee93b9782a 13-14,35,37,42-43
   s_350ae2edc84263::t_9737d50e185c9c 10-12,23,34,38
+package.json
+  s_350ae2edc84263::t_a2d939b5c72178 35
 ---
 {
   "schema_version": "authorship/3.0.0",
