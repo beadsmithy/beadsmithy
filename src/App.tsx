@@ -209,21 +209,9 @@ export default function App() {
   const workspacePath = workspaceTextFor(issueState);
 
   useEffect(() => {
-    let isMounted = true;
-
-    const loadIssues = async () => {
-      const nextState = await loadIssueSummaryStateFromTauRpc();
-
-      if (isMounted) {
-        setIssueState(nextState);
-      }
-    };
-
-    void loadIssues();
-
-    return () => {
-      isMounted = false;
-    };
+    void (async () => {
+      setIssueState(await loadIssueSummaryStateFromTauRpc());
+    })();
   }, []);
 
   return (

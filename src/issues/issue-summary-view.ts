@@ -26,7 +26,7 @@ const STATUS_LABELS: Record<string, string> = {
   open: "Open",
 };
 
-const toTitleCase = (value: string): string => {
+const toDisplayLabel = (value: string): string => {
   const words = value
     .split("-")
     .join(" ")
@@ -84,8 +84,9 @@ const dependencyLabelFor = (issue: IssueSummary): string => {
 export const toIssueSummaryViewModel = (
   issue: IssueSummary
 ): IssueSummaryViewModel => {
-  const statusLabel = STATUS_LABELS[issue.status] ?? toTitleCase(issue.status);
-  const typeLabel = toTitleCase(normalizeText(issue.type, "issue"));
+  const statusLabel =
+    STATUS_LABELS[issue.status] ?? toDisplayLabel(issue.status);
+  const typeLabel = toDisplayLabel(normalizeText(issue.type, "issue"));
   const priorityLabel = `P${issue.priority}`;
   const dependencyLabel = dependencyLabelFor(issue);
   const labels = issue.labels.filter((label) => label.trim().length > 0);
