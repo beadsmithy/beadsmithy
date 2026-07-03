@@ -23,7 +23,7 @@ fn start_dev_bridge(app: &tauri::AppHandle) {
 }
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
-pub fn run() {
+pub async fn run() {
     tauri::Builder::default()
         .plugin(tauri_plugin_opener::init())
         .invoke_handler(rpc::router::<tauri::Wry>().into_handler())
