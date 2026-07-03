@@ -2,9 +2,13 @@ import { defineConfig } from "oxlint";
 import core from "ultracite/oxlint/core";
 import react from "ultracite/oxlint/react";
 
+// Keep in sync with the pre-commit exclusions in lefthook.yml: these paths
+// hold vendored/generated content that isn't ours to lint.
+const PROJECT_IGNORES = ["docs/research/infra/**", ".agents/skills/**"];
+
 export default defineConfig({
   extends: [core, react],
-  ignorePatterns: core.ignorePatterns,
+  ignorePatterns: [...(core.ignorePatterns ?? []), ...PROJECT_IGNORES],
   jsPlugins: ["oxlint-tailwindcss"],
   overrides: [
     {
