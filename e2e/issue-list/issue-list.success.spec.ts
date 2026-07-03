@@ -10,7 +10,25 @@ import { browser, expect } from "@wdio/globals";
 
 import { FIXTURE_ISSUE_TITLE } from "./fixtures/workspace.ts";
 
+interface ListIssueSummariesResponse {
+  issues: { title: string }[];
+  workspacePath: string;
+}
+
 describe("Issue List (WebDriver e2e): workspace with a real Beadwork issue", () => {
+  it("can reach the native issue-list RPC path", async () => {
+    const result = (await browser.tauri.execute(({ core }) =>
+      core.invoke("TauRPC__list_issue_summaries")
+    )) as ListIssueSummariesResponse;
+
+    console.log(
+      `[e2e:spec] native issue-list RPC returned ${result.issues.length} issue(s)`
+    );
+    expect(
+      result.issues.some((issue) => issue.title === FIXTURE_ISSUE_TITLE)
+    ).toBe(true);
+  });
+
   it("renders the fixture issue with its label and blocking dependency", async () => {
     console.log(
       "[e2e:spec] waiting for the issue explorer to render the fixture issue"

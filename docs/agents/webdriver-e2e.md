@@ -58,8 +58,17 @@ label`/`bw dep add`. Nothing is committed to this repo and no
   layer already read from (ADR-0003). Backend and frontend log capture are
   both enabled so failures show Rust/TauRPC/Effect/UI signals, not just a
   WebDriver timeout.
-- **Specs** (`e2e/issue-list/*.spec.ts`): assert on the rendered DOM.
-  `issue-list.success.spec.ts` waits for the fixture issue's row (matched by
+- **WDIO plugin wiring**: debug builds register both `tauri-plugin-wdio` and
+  `tauri-plugin-wdio-webdriver`. `pnpm e2e:build` merges
+  `src-tauri/tauri.e2e.conf.json` so `withGlobalTauri` is enabled only for the
+  e2e binary, and sets `VITE_BEADSMITH_E2E_WDIO=1`, causing the frontend to
+  import `@wdio/tauri-plugin` for that binary only. The WDIO permissions live
+  in `src-tauri/capabilities/webdriver-e2e.json`, separate from the app's
+  default capability.
+- **Specs** (`e2e/issue-list/*.spec.ts`): assert on the native RPC path and
+  the rendered DOM. `issue-list.success.spec.ts` first invokes
+  `TauRPC__list_issue_summaries` through `browser.tauri.execute()` as a direct
+  command sanity check, then waits for the fixture issue's row (matched by
   title in its `aria-label`), asserts its label and blocking-dependency text,
   and asserts the sidebar's reported workspace path matches the launched
   fixture. `issue-list.empty.spec.ts` asserts the true-empty state renders
@@ -76,6 +85,10 @@ W3C WebDriver server -- the official `tauri-driver` only supports
 Windows/Linux when driven directly, so `embedded` is the only option that
 works natively on macOS.
 
+`tauri-plugin-wdio` is also registered only in debug builds. It enables
+`browser.tauri.execute()`, command mocking if a future suite needs it, and
+frontend/backend log forwarding for this suite.
+
 ## Known upstream issue: pinned `@wdio/native-utils`
 
 `@wdio/tauri-service@1.2.0` pins `@wdio/native-utils@2.4.0` exactly, but that
@@ -86,17 +99,5 @@ so the service crashes on startup. `pnpm-workspace.yaml` overrides
 
 ## Deliberately out of scope
 
-- **`tauri-plugin-wdio`** (the JS-side plugin backing `browser.tauri.execute()`
-  and command mocking) is not installed. It isn't required for the embedded
-  WebDriver provider itself, and every acceptance requirement here is met with
-  plain DOM assertions against the real running app. Adding it would also
-  require bundling a test-only frontend import into the built binary. If a
-  future bead needs `browser.tauri.execute()` for direct command sanity
-  checks, add `tauri-plugin-wdio` + `@wdio/tauri-plugin` then.
-- Without `tauri-plugin-wdio`, `@wdio/tauri-service`'s internal window-focus
-  check (`ensureActiveWindowFocus`) times out on every single WebDriver
-  command before falling back, adding a real ~5s tax per command. That's why
-  `mochaOpts.timeout` and `waitforTimeout`/per-assertion `waitForExist`
-  timeouts in this suite are generous -- the suite is correct, just not fast.
 - Full regression coverage for workspace switching, search, filters, issue
   detail, or mutations -- this suite covers the Issue List slice only.

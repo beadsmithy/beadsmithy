@@ -8,7 +8,7 @@
 //! `--all` is required: the user-facing goal is All Issues across stored
 //! statuses, not Beadwork's default actionable/open subset.
 
-use std::io;
+use std::{env, io};
 
 use serde::{Deserialize, Serialize};
 
@@ -61,8 +61,35 @@ pub struct IssueSummary {
 /// list. Missing `bw`, a non-Beadwork directory, a non-zero subprocess exit, and
 /// a JSON parse failure each produce a distinct [`ListIssuesError`].
 pub fn list_all_issues(runner: &dyn CommandRunner) -> Result<Vec<IssueSummary>, ListIssuesError> {
-    let output = runner.run(BW_PROGRAM, BW_ARGS).map_err(map_spawn_error)?;
-    interpret_output(output)
+    let workspace = env::current_dir()
+        .map(|path| path.display().to_string())
+        .unwrap_or_else(|_| ".".to_string());
+    eprintln!("Beadsmith: running `bw list --all --json` in {workspace}");
+
+    let result = runner
+        .run(BW_PROGRAM, BW_ARGS)
+        .map_err(map_spawn_error)
+        .and_then(interpret_output);
+
+    match &result {
+        Ok(issues) => eprintln!("Beadsmith: loaded {} issue(s)", issues.len()),
+        Err(error) => eprintln!(
+            "Beadsmith: issue list command failed with {}",
+            issue_list_error_kind(error)
+        ),
+    }
+
+    result
+}
+
+fn issue_list_error_kind(error: &ListIssuesError) -> &'static str {
+    match error {
+        ListIssuesError::MissingBinary => "missing-binary",
+        ListIssuesError::NotBeadworkWorkspace { .. } => "not-beadwork-workspace",
+        ListIssuesError::CommandFailed { .. } => "command-failed",
+        ListIssuesError::Parse(_) => "parse-failed",
+        ListIssuesError::Io(_) => "io-error",
+    }
 }
 
 /// Map a subprocess spawn failure. A missing binary is distinguishable from

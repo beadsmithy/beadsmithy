@@ -49,7 +49,9 @@ This is a single-context repo with domain context at root `CONTEXT.md` when pres
 
 ### WebDriver end-to-end testing
 
-Slice-level user-path proof (launches the real built desktop binary, not a renderer-only or mocked test) lives in per-slice `wdio.*.conf.ts` files at the repo root plus `e2e/`. See `docs/agents/webdriver-e2e.md` for the Issue List slice's suite, how to run it, and its known upstream caveats.
+Slice-level user-path proof (launches the real built desktop binary, not a renderer-only or mocked test) lives in
+per-slice `wdio.*.conf.ts` files at the repo root plus `e2e/`. See `docs/agents/webdriver-e2e.md` for the Issue
+List slice's suite, how to run it, and its known upstream caveats.
 
 <important if="writing frontend react or typescript code">
 ## Ultracite Code Standards
@@ -164,4 +166,4 @@ Oxlint + Oxfmt's linter will catch most issues automatically. Focus your attenti
 4. **Edge cases** - Handle boundary conditions and error states
 5. **User experience** - Accessibility, performance, and usability considerations
 6. **Documentation** - Add comments for complex logic, but prefer self-documenting code
-</important>
+   </important>

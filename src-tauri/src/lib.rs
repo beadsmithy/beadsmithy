@@ -29,11 +29,13 @@ pub async fn run() {
 
     let builder = tauri::Builder::default().plugin(tauri_plugin_opener::init());
 
-    // The embedded WebDriver server backs the WebDriver end-to-end suite (see
-    // docs/agents/webdriver-e2e.md). It is never registered outside debug
-    // builds, so it never ships in a release binary.
+    // WebDriver plugins back the end-to-end suite (see
+    // docs/agents/webdriver-e2e.md). They are never registered outside debug
+    // builds, so they never ship in a release binary.
     #[cfg(debug_assertions)]
-    let builder = builder.plugin(tauri_plugin_wdio_webdriver::init());
+    let builder = builder
+        .plugin(tauri_plugin_wdio::init())
+        .plugin(tauri_plugin_wdio_webdriver::init());
 
     builder
         .invoke_handler(rpc::router::<tauri::Wry>().into_handler())
