@@ -171,6 +171,12 @@ impl SidecarRegistry {
         }
     }
 
+    // Unused by beadsmith today: nothing here spawns sidecars, so this is
+    // only reachable via `register_sidecar`/`spawn_sidecar_monitored` below,
+    // which are themselves kept for upstream parity. Kept together so a
+    // future re-copy of tauri-agent-tools's dev_bridge.rs stays a clean diff
+    // instead of requiring us to re-derive which pieces to drop.
+    #[allow(dead_code)]
     fn add(&self, record: SidecarRecord) {
         let mut recs = self.records.lock().unwrap();
         recs.push(record);
@@ -217,6 +223,12 @@ fn pid_alive(_pid: u32) -> Option<bool> {
 /// this for free; callers who spawn their own children can register them
 /// here. Idempotent in the sense that re-registering a name is allowed
 /// (both entries will be reported).
+///
+/// Unused by beadsmith today — this app doesn't spawn sidecar processes.
+/// Kept for parity with upstream tauri-agent-tools so `/process` and
+/// `/health` gain sidecar support for free if that changes, and so future
+/// re-copies of dev_bridge.rs don't need to reconcile a divergent trim.
+#[allow(dead_code)]
 pub fn register_sidecar(
     registry: &Arc<SidecarRegistry>,
     name: &str,
@@ -327,6 +339,13 @@ impl tracing::field::Visit for MessageVisitor {
 ///     .with(tracing_subscriber::fmt::layer())
 ///     .init();
 /// ```
+///
+/// Unused by beadsmith today — `start_bridge` installs its own
+/// `BridgeLogLayer` directly rather than going through this wrapper. Kept for
+/// integrators who bring their own tracing subscriber, matching upstream
+/// tauri-agent-tools, so future re-copies of dev_bridge.rs don't need to
+/// reconcile a divergent trim.
+#[allow(dead_code)]
 pub fn create_log_layer(
     buffer: Arc<LogBuffer>,
 ) -> impl tracing_subscriber::Layer<tracing_subscriber::Registry> {
@@ -338,6 +357,11 @@ pub fn create_log_layer(
 /// Returns the `std::process::Child` handle. If a `SidecarRegistry` is
 /// supplied (recommended), the child is also recorded for `/process` and
 /// `/health` responses; pass `None` to opt out of registry tracking.
+///
+/// Unused by beadsmith today — this app doesn't spawn sidecar processes.
+/// Kept for parity with upstream tauri-agent-tools so future re-copies of
+/// dev_bridge.rs don't need to reconcile a divergent trim.
+#[allow(dead_code)]
 pub fn spawn_sidecar_monitored(
     name: &str,
     command: &str,
