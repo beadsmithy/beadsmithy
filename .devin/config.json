@@ -1,0 +1,32 @@
+{
+  "permissions": {
+    "allow": [
+      "Exec(base64)",
+      "Exec(bw)",
+      "Exec(cargo check)",
+      "Exec(cargo fmt)",
+      "Exec(cargo test)",
+      "Exec(diff)",
+      "Exec(find)",
+      "Exec(gh pr)",
+      "Exec(git check-ignore)",
+      "Exec(git fetch)",
+      "Exec(git merge-base)",
+      "Exec(git push)",
+      "Exec(git remote)",
+      "Exec(jq)",
+      "Exec(lsof)",
+      "Exec(npx tsc)",
+      "Exec(pnpm build)",
+      "Exec(pnpm dlx)",
+      "Exec(pnpm ls)",
+      "Exec(pnpm tauri)",
+      "Exec(pnpm tauri-agent-tools)",
+      "Exec(pnpm test)",
+      "Exec(readlink)",
+      "Exec(sleep)",
+      "Exec(touch)",
+      "Exec(wc)"
+    ]
+  }
+}
