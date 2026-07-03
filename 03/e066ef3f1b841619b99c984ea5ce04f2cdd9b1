@@ -1,0 +1,21 @@
+src-tauri/src/dev_bridge.rs
+  s_350ae2edc84263::t_e98ce53a081121 342-348,360-364
+  s_350ae2edc84263::t_da523e788ede34 226-231
+  s_350ae2edc84263::t_6075ec4c9f7485 174-179
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.9",
+  "base_commit_sha": "03e066ef3f1b841619b99c984ea5ce04f2cdd9b1",
+  "prompts": {},
+  "sessions": {
+    "s_350ae2edc84263": {
+      "agent_id": {
+        "tool": "windsurf",
+        "id": "",
+        "model": "unknown"
+      },
+      "human_author": "Tomas Thor Jonsson <benregn@gmail.com>"
+    }
+  }
+}
