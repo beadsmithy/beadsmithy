@@ -29,6 +29,7 @@ describe("toIssueSummaryViewModel", () => {
         issue({ blockedBy: ["bsm-tes"], blocks: ["bsm-mq4.5"] })
       )
     ).toMatchObject({
+      badgeTone: "open",
       dependencyLabel: "blocked by 1 · blocks 1",
       id: "bsm-mq4.4",
       labels: ["ready-for-agent"],
@@ -53,6 +54,7 @@ describe("toIssueSummaryViewModel", () => {
         })
       )
     ).toMatchObject({
+      badgeTone: "inProgress",
       id: "unknown",
       labels: ["agent"],
       metadataLabel: "In progress, P2, Issue",

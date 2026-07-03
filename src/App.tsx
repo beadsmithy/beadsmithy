@@ -104,7 +104,7 @@ const IssueRow = ({ issue }: { issue: IssueSummary }) => {
           {view.id}
         </span>
         <span
-          className={`shrink-0 rounded-full border px-1.5 py-0.5 font-mono text-[10px] ${TONE_BADGE_CLASSES[view.tone]}`}
+          className={`shrink-0 rounded-full border px-1.5 py-0.5 font-mono text-[10px] ${TONE_BADGE_CLASSES[view.badgeTone]}`}
         >
           {view.statusLabel}
         </span>

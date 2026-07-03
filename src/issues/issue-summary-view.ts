@@ -14,6 +14,7 @@ export interface IssueSummaryViewModel {
   priorityLabel: string;
   typeLabel: string;
   tone: IssueTone;
+  badgeTone: IssueTone;
   labels: string[];
   dependencyLabel: string;
   metadataLabel: string;
@@ -47,11 +48,7 @@ const normalizeText = (value: string, fallback: string): string => {
   return normalized.length > 0 ? normalized : fallback;
 };
 
-const issueToneFor = (issue: IssueSummary): IssueTone => {
-  if (issue.blockedBy.length > 0) {
-    return "blocked";
-  }
-
+const badgeToneFor = (issue: IssueSummary): IssueTone => {
   if (issue.status === "in_progress") {
     return "inProgress";
   }
@@ -65,6 +62,14 @@ const issueToneFor = (issue: IssueSummary): IssueTone => {
   }
 
   return "open";
+};
+
+const issueToneFor = (issue: IssueSummary): IssueTone => {
+  if (issue.blockedBy.length > 0) {
+    return "blocked";
+  }
+
+  return badgeToneFor(issue);
 };
 
 const dependencyLabelFor = (issue: IssueSummary): string => {
@@ -92,6 +97,7 @@ export const toIssueSummaryViewModel = (
   const labels = issue.labels.filter((label) => label.trim().length > 0);
 
   return {
+    badgeTone: badgeToneFor(issue),
     dependencyLabel,
     id: normalizeText(issue.id, "unknown"),
     labels,
