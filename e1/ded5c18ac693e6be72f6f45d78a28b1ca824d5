@@ -1,0 +1,21 @@
+oxfmt.config.ts
+  s_350ae2edc84263::t_8e1def59d2f62e 4-7,10
+oxlint.config.ts
+  s_350ae2edc84263::t_40d7ada88ee64b 5-8,11
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.9",
+  "base_commit_sha": "e1ded5c18ac693e6be72f6f45d78a28b1ca824d5",
+  "prompts": {},
+  "sessions": {
+    "s_350ae2edc84263": {
+      "agent_id": {
+        "tool": "windsurf",
+        "id": "",
+        "model": "unknown"
+      },
+      "human_author": "Tomas Thor Jonsson <benregn@gmail.com>"
+    }
+  }
+}
