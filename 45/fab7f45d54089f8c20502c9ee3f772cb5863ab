@@ -1,0 +1,52 @@
+src-tauri/Cargo.toml
+  s_a2ed17c521c935::t_7eca4ee9dceb07 35-38
+src-tauri/src/lib.rs
+  s_a2ed17c521c935::t_32c1bed97c46b5 32-34,36-38
+src-tauri/capabilities/webdriver-e2e.json
+  s_a2ed17c521c935::t_36d4825ab0f46d 1-7
+e2e/issue-list/issue-list.success.spec.ts
+  s_a2ed17c521c935::t_c5558f79cf06ac 14-15,17,19-31
+  s_a2ed17c521c935::t_3d804de49b5aa0 13
+  s_a2ed17c521c935::t_6bfa471d8aeb0f 16
+docs/agents/webdriver-e2e.md
+  s_a2ed17c521c935::t_58bcc3d279aa5a 62-67
+  s_a2ed17c521c935::t_682952f216e72e 61,68-71,88-91
+package.json
+  s_a2ed17c521c935::t_47f6c8798852d1 41
+  s_a2ed17c521c935::t_704b5a37c27d26 16
+src-tauri/tauri.e2e.conf.json
+  s_a2ed17c521c935::t_a3672ddeffaad3 1-5
+e2e/issue-list/scripts/build.ts
+  s_a2ed17c521c935::t_cc3f062c7890cb 1-2,21-22
+  s_a2ed17c521c935::t_ffe02b0bd45f26 3-13,18-20
+  s_a2ed17c521c935::t_c5558f79cf06ac 14-17
+src-tauri/capabilities/default.json
+  s_a2ed17c521c935::t_bc23acfd50f408 6
+AGENTS.md
+  s_a2ed17c521c935::t_24eea419263bb0 52-54
+  s_a2ed17c521c935::t_c5558f79cf06ac 169
+src/Main.tsx
+  s_a2ed17c521c935::t_dc89923e59b425 6-20
+pnpm-lock.yaml
+  s_a2ed17c521c935::t_80411619717d79 63-65,1706-1708,1788-1790,2020-2023,4302,4342,5404-5405,5455-5458,5827-5836
+src-tauri/Cargo.lock
+  s_a2ed17c521c935::t_5f69917a287376 306,3837-3853
+src-tauri/src/issues/adapter.rs
+  s_a2ed17c521c935::t_e0951ac7f7ea76 11,64-92
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.10",
+  "base_commit_sha": "45fab7f45d54089f8c20502c9ee3f772cb5863ab",
+  "prompts": {},
+  "sessions": {
+    "s_a2ed17c521c935": {
+      "agent_id": {
+        "tool": "pi",
+        "id": "019f289d-52fe-7792-9e09-8ddeaf1c0524",
+        "model": "gpt-5.5"
+      },
+      "human_author": "Tomas Thor Jonsson <benregn@gmail.com>"
+    }
+  }
+}
