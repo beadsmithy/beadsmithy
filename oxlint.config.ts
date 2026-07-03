@@ -19,6 +19,7 @@ export default defineConfig({
           "error",
           {
             case: "pascalCase",
+            ignore: ["^main\\.tsx$"],
           },
         ],
       },
