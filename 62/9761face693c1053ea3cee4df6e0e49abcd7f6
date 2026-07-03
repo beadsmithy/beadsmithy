@@ -1,0 +1,21 @@
+src-tauri/src/lib.rs
+  s_c68f47c52cc829::t_80a219b191b701 26
+src-tauri/src/main.rs
+  s_c68f47c52cc829::t_70ddbb7b28d8bc 4-6
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.9",
+  "base_commit_sha": "629761face693c1053ea3cee4df6e0e49abcd7f6",
+  "prompts": {},
+  "sessions": {
+    "s_c68f47c52cc829": {
+      "agent_id": {
+        "tool": "devin",
+        "id": "s_c68f47c52cc829",
+        "model": "unknown"
+      },
+      "human_author": "Tomas Thor Jonsson <benregn@gmail.com>"
+    }
+  }
+}
