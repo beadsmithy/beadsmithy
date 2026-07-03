@@ -1,0 +1,27 @@
+src/issues/issue-summary-view.test.ts
+  s_350ae2edc84263::t_e241e092259f90 32
+  s_350ae2edc84263::t_f0bd5effc2035a 57
+src/issues/issue-summary-view.ts
+  s_350ae2edc84263::t_0db6fcb5cc5163 17
+  s_350ae2edc84263::t_d99511ffc8ac90 73-74
+  s_350ae2edc84263::t_5fa764e71c9d3e 100
+  s_350ae2edc84263::t_3a763fdd93e4e5 51,67-72
+src/App.tsx
+  s_350ae2edc84263::t_bdd9151a674b8c 107
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.10",
+  "base_commit_sha": "aa5ea6a9b8ce26eebe0a4f2901a10fa6ce178e72",
+  "prompts": {},
+  "sessions": {
+    "s_350ae2edc84263": {
+      "agent_id": {
+        "tool": "windsurf",
+        "id": "",
+        "model": "unknown"
+      },
+      "human_author": "Tomas Thor Jonsson <benregn@gmail.com>"
+    }
+  }
+}
