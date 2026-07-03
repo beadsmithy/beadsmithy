@@ -47,6 +47,10 @@ The triage vocabulary uses the default canonical labels. See `docs/agents/triage
 
 This is a single-context repo with domain context at root `CONTEXT.md` when present and ADRs in `docs/adr/`. See `docs/agents/domain.md`.
 
+### WebDriver end-to-end testing
+
+Slice-level user-path proof (launches the real built desktop binary, not a renderer-only or mocked test) lives in per-slice `wdio.*.conf.ts` files at the repo root plus `e2e/`. See `docs/agents/webdriver-e2e.md` for the Issue List slice's suite, how to run it, and its known upstream caveats.
+
 <important if="writing frontend react or typescript code">
 ## Ultracite Code Standards
 

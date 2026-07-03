@@ -12,7 +12,12 @@
     "check": "ultracite check",
     "fix": "ultracite fix",
     "prepare": "lefthook install",
-    "doctor": "npx react-doctor@latest"
+    "doctor": "npx react-doctor@latest",
+    "e2e:build": "tauri build --debug --no-bundle",
+    "e2e:issue-list:success": "tsx e2e/issue-list/scripts/run-scenario.ts issues",
+    "e2e:issue-list:empty": "tsx e2e/issue-list/scripts/run-scenario.ts empty",
+    "e2e:issue-list": "pnpm e2e:issue-list:success && pnpm e2e:issue-list:empty",
+    "test:e2e:issue-list": "pnpm e2e:build && pnpm e2e:issue-list"
   },
   "dependencies": {
     "@tauri-apps/api": "^2",
@@ -29,6 +34,11 @@
     "@types/react": "^19.1.8",
     "@types/react-dom": "^19.1.6",
     "@vitejs/plugin-react": "^4.6.0",
+    "@wdio/cli": "^9.29.1",
+    "@wdio/local-runner": "^9.29.1",
+    "@wdio/mocha-framework": "^9.29.1",
+    "@wdio/spec-reporter": "^9.29.1",
+    "@wdio/tauri-service": "^1.2.0",
     "lefthook": "^2.1.9",
     "oxfmt": "^0.56.0",
     "oxlint": "^1.71.0",
@@ -36,6 +46,7 @@
     "react-doctor": "^0.5.8",
     "tailwindcss": "^4.3.1",
     "tauri-agent-tools": "^0.8.0",
+    "tsx": "4.22.4",
     "typescript": "~5.8.3",
     "ultracite": "7.8.3",
     "vite": "^7.0.4",
