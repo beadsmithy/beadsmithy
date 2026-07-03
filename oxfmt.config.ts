@@ -3,7 +3,11 @@ import ultracite from "ultracite/oxfmt";
 
 // Keep in sync with the pre-commit exclusions in lefthook.yml: these paths
 // hold vendored/generated content that isn't ours to reformat.
-const PROJECT_IGNORES = ["docs/research/infra/**", ".agents/skills/**"];
+const PROJECT_IGNORES = [
+  "docs/research/infra/**",
+  ".agents/skills/**",
+  "src/rpc/bindings.ts",
+];
 
 export default defineConfig({
   ...ultracite,
