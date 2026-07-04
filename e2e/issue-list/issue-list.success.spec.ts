@@ -17,9 +17,30 @@ interface ListIssueSummariesResponse {
 
 describe("Issue List (WebDriver e2e): workspace with a real Beadwork issue", () => {
   it("can reach the native issue-list RPC path", async () => {
-    const result = (await browser.tauri.execute(({ core }) =>
-      core.invoke("TauRPC__list_issue_summaries")
-    )) as ListIssueSummariesResponse;
+    const result = (await browser.executeAsync((done) => {
+      const tauriWindow = window as typeof window & {
+        __TAURI__?: {
+          core?: {
+            invoke: (command: string) => Promise<ListIssueSummariesResponse>;
+          };
+        };
+      };
+
+      const invoke = tauriWindow.__TAURI__?.core?.invoke;
+
+      if (!invoke) {
+        done({ error: "window.__TAURI__.core.invoke is not available" });
+        return;
+      }
+
+      invoke("TauRPC__list_issue_summaries")
+        .then(done)
+        .catch((error: unknown) => done({ error: String(error) }));
+    })) as ListIssueSummariesResponse | { error: string };
+
+    if ("error" in result) {
+      throw new Error(result.error);
+    }
 
     console.log(
       `[e2e:spec] native issue-list RPC returned ${result.issues.length} issue(s)`

@@ -18,6 +18,7 @@ import {
   removeWorkspace,
   resolveBwPath,
 } from "../fixtures/workspace.ts";
+import { assertEmbeddedWebDriverPortAvailable } from "./embedded-webdriver-port.ts";
 
 type Scenario = "empty" | "issues";
 
@@ -32,6 +33,13 @@ if (!isScenario(scenario)) {
 
 console.log(`[e2e] bw resolved at: ${resolveBwPath()}`);
 console.log(`[e2e] scenario: ${scenario}`);
+
+try {
+  await assertEmbeddedWebDriverPortAvailable();
+} catch (error) {
+  console.error(error instanceof Error ? error.message : String(error));
+  process.exit(1);
+}
 
 const workspace =
   scenario === "empty" ? createEmptyWorkspace() : createIssueListWorkspace();

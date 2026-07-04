@@ -51,12 +51,14 @@ label`/`bw dep add`. Nothing is committed to this repo and no
 - **wdio config** (`wdio.issue-list.conf.ts`): points `@wdio/tauri-service` at
   the built binary (`src-tauri/target/debug/beadsmith`) using the `embedded`
   driver provider, so no external `tauri-driver` install is needed (this is
-  also the only provider that works natively on macOS). The workspace path is
-  passed as a `--workspace <path>` launch argument, which
-  `src-tauri/src/workspace.rs` uses to switch the process's current directory
-  before Beadsmith starts -- the same directory the `issues` adapter and RPC
-  layer already read from (ADR-0003). Backend and frontend log capture are
-  both enabled so failures show Rust/TauRPC/Effect/UI signals, not just a
+  also the only provider that works natively on macOS). The suite uses a
+  non-default embedded WebDriver port (`46245`) and preflights that port before
+  launching so it fails clearly instead of silently attaching to a stale debug
+  app. The workspace path is passed as a `--workspace <path>` launch argument,
+  which `src-tauri/src/workspace.rs` uses to switch the process's current
+  directory before Beadsmith starts -- the same directory the `issues` adapter
+  and RPC layer already read from (ADR-0003). Backend and frontend log capture
+  are both enabled so failures show Rust/TauRPC/Effect/UI signals, not just a
   WebDriver timeout.
 - **WDIO plugin wiring**: debug builds register both `tauri-plugin-wdio` and
   `tauri-plugin-wdio-webdriver`. `pnpm e2e:build` merges

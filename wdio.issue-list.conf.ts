@@ -18,6 +18,10 @@ import { existsSync } from "node:fs";
 import path from "node:path";
 
 import { resolveBwPath } from "./e2e/issue-list/fixtures/workspace.ts";
+import {
+  assertEmbeddedWebDriverPortAvailable,
+  EMBEDDED_WEBDRIVER_PORT,
+} from "./e2e/issue-list/scripts/embedded-webdriver-port.ts";
 
 const BINARY_NAME =
   process.platform === "win32" ? "beadsmith.exe" : "beadsmith";
@@ -61,7 +65,9 @@ export const config: WebdriverIO.Config = {
     timeout: 180_000,
     ui: "bdd",
   },
-  onPrepare: () => {
+  onPrepare: async () => {
+    await assertEmbeddedWebDriverPortAvailable();
+
     if (resolveBwPath() === "not found on PATH") {
       throw new Error(
         "bw was not found on PATH. Install Beadwork (https://github.com/jallum/beadwork) before running this suite."
@@ -76,6 +82,9 @@ export const config: WebdriverIO.Config = {
     console.log(
       `[e2e] launching Beadsmith against workspace: ${workspacePath}`
     );
+    console.log(
+      `[e2e] using embedded WebDriver port: ${EMBEDDED_WEBDRIVER_PORT}`
+    );
   },
   reporters: ["spec"],
   runner: "local",
@@ -89,6 +98,7 @@ export const config: WebdriverIO.Config = {
         captureBackendLogs: true,
         captureFrontendLogs: true,
         driverProvider: "embedded",
+        embeddedPort: EMBEDDED_WEBDRIVER_PORT,
         frontendLogLevel: "debug",
         startTimeout: 90_000,
       },
