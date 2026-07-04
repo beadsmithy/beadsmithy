@@ -69,7 +69,7 @@ label`/`bw dep add`. Nothing is committed to this repo and no
   default capability.
 - **Specs** (`e2e/issue-list/*.spec.ts`): assert on the native RPC path and
   the rendered DOM. `issue-list.success.spec.ts` first invokes
-  `TauRPC__list_issue_summaries` through `browser.tauri.execute()` as a direct
+  `TauRPC__list_issues` through `browser.tauri.execute()` as a direct
   command sanity check, then waits for the fixture issue's row (matched by
   title in its `aria-label`), asserts its label and blocking-dependency text,
   and asserts the sidebar's reported workspace path matches the launched

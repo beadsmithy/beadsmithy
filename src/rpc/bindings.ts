@@ -7,6 +7,16 @@ type TAURI_CHANNEL<T> = (response: T) => void
 
 
 /**
+ * Frontend-facing Issue contract for rendering the Issue List and future Issue Detail.
+ */
+export type Issue = { id: string; title: string; status: string; priority: number; type: string; description: string; comments: IssueComment[]; closeReason: string; assignee: string; labels: string[]; parent: string; blockedBy: string[]; blocks: string[]; created: string; updatedAt: string; closedAt: string; deferUntil: string; due: string }
+
+/**
+ * Frontend-facing Issue comment contract.
+ */
+export type IssueComment = { text: string; author: string; timestamp: string }
+
+/**
  * User-displayable typed issue-list error payload.
  */
 export type IssueListError = { 
@@ -21,17 +31,12 @@ kind: IssueListErrorKind; message: string }
 export type IssueListErrorKind = "missingBinary" | "notBeadworkWorkspace" | "commandFailed" | "parseFailed" | "executionFailed"
 
 /**
- * Frontend-facing issue summary contract for rendering the Issue List.
- */
-export type IssueSummary = { id: string; title: string; status: string; priority: number; type: string; assignee: string; labels: string[]; parent: string; blockedBy: string[]; blocks: string[]; created: string; updatedAt: string; closedAt: string; deferUntil: string; due: string }
-
-/**
  * Successful issue-list RPC payload.
  */
-export type ListIssueSummariesResponse = { workspacePath: string; issues: IssueSummary[] }
+export type ListIssuesResponse = { workspacePath: string; issues: Issue[] }
 
-const ARGS_MAP = { '':'{"list_issue_summaries":[]}', 'devBridge':'{"result":["id","value"]}' }
-export type Router = { "": {list_issue_summaries: () => Promise<ListIssueSummariesResponse>},
+const ARGS_MAP = { '':'{"list_issues":[]}', 'devBridge':'{"result":["id","value"]}' }
+export type Router = { "": {list_issues: () => Promise<ListIssuesResponse>},
 "devBridge": {result: (id: string, value: string) => Promise<void>} };
 
 

@@ -1,7 +1,7 @@
 /**
  * Proves the Issue List slice end to end: launches the real Beadsmith debug
  * binary against a disposable Beadwork workspace built via `bw` and asserts
- * the issue explorer renders a real `IssueSummary` through the full
+ * the issue explorer renders a real `Issue` through the full
  * Rust adapter -> TauRPC -> Effect -> React path (see bsm-mq4.5).
  */
 import path from "node:path";
@@ -10,7 +10,7 @@ import { browser, expect } from "@wdio/globals";
 
 import { FIXTURE_ISSUE_TITLE } from "./fixtures/workspace.ts";
 
-interface ListIssueSummariesResponse {
+interface ListIssuesResponse {
   issues: { title: string }[];
   workspacePath: string;
 }
@@ -21,7 +21,7 @@ describe("Issue List (WebDriver e2e): workspace with a real Beadwork issue", () 
       const tauriWindow = window as typeof window & {
         __TAURI__?: {
           core?: {
-            invoke: (command: string) => Promise<ListIssueSummariesResponse>;
+            invoke: (command: string) => Promise<ListIssuesResponse>;
           };
         };
       };
@@ -33,10 +33,13 @@ describe("Issue List (WebDriver e2e): workspace with a real Beadwork issue", () 
         return;
       }
 
-      invoke("TauRPC__list_issue_summaries")
+      invoke("TauRPC__list_issues")
+        // WDIO executeAsync requires calling the injected completion callback.
+        // oxlint-disable-next-line promise/no-callback-in-promise
         .then(done)
+        // oxlint-disable-next-line promise/no-callback-in-promise
         .catch((error: unknown) => done({ error: String(error) }));
-    })) as ListIssueSummariesResponse | { error: string };
+    })) as ListIssuesResponse | { error: string };
 
     if ("error" in result) {
       throw new Error(result.error);

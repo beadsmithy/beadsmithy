@@ -6,7 +6,7 @@
 //!
 //! Public surface:
 //! - [`list_all_issues`] — run `bw list --all --json` and normalize the result.
-//! - [`IssueSummary`] — adapter output to be mapped at the RPC boundary.
+//! - [`Issue`] — adapter output to be mapped at the RPC boundary.
 //! - [`ListIssuesError`] — distinguishable failure cases.
 //! - [`CommandRunner`] / [`ProcessRunner`] — the subprocess seam.
 
@@ -15,6 +15,6 @@ mod error;
 mod raw;
 mod runner;
 
-pub use adapter::{list_all_issues, IssueSummary};
+pub use adapter::{list_all_issues, Issue, IssueComment};
 pub use error::ListIssuesError;
 pub use runner::{CommandOutput, CommandRunner, ProcessRunner};

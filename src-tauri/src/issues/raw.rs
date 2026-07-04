@@ -3,11 +3,11 @@
 //! Internal to the adapter. This struct captures Beadwork's current JSON
 //! schema so the rest of the adapter never touches raw [`serde_json::Value`].
 //! It is deliberately not exported: the public adapter API is
-//! [`super::adapter::IssueSummary`], and raw field churn stays here.
+//! [`super::adapter::Issue`], and raw field churn stays here.
 
 use serde::Deserialize;
 
-/// A single comment on a Beadwork issue. Only deserialized; never exposed.
+/// A single raw comment on a Beadwork issue.
 #[derive(Debug, Deserialize)]
 #[allow(dead_code)]
 pub(crate) struct RawComment {
@@ -23,9 +23,9 @@ pub(crate) struct RawComment {
 /// slice as `null` and an empty slice as `[]`; both normalize to an empty list
 /// at the adapter boundary.
 ///
-/// Fields that the list adapter does not map into [`super::adapter::IssueSummary`]
-/// are still deserialized so this struct mirrors the full Beadwork schema and
-/// keeps parsing strict. They are intentionally unused.
+/// Detail-capable fields such as `description`, `comments`, and
+/// `close_reason` stay optional here because older or sparse Beadwork JSON may
+/// omit them; the adapter normalizes them into always-present Issue fields.
 #[derive(Debug, Deserialize)]
 #[allow(dead_code)]
 pub(crate) struct RawIssue {
@@ -38,7 +38,7 @@ pub(crate) struct RawIssue {
     pub close_reason: Option<String>,
     pub created: String,
     pub defer_until: Option<String>,
-    pub description: String,
+    pub description: Option<String>,
     pub due: Option<String>,
     pub id: String,
     #[serde(default)]
