@@ -1,0 +1,19 @@
+wdio.issue-list.conf.ts
+  s_c5de8e18aebd85::t_6cdd454a95485c 71-80
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.10",
+  "base_commit_sha": "50c4f5bff890644a6101fe23c8d4e7bd1295c285",
+  "prompts": {},
+  "sessions": {
+    "s_c5de8e18aebd85": {
+      "agent_id": {
+        "tool": "pi",
+        "id": "019f2e4b-67b8-70dc-b7fd-a2f8b5ae3250",
+        "model": "MiniMax-M3"
+      },
+      "human_author": "Tomas Thor Jonsson <benregn@gmail.com>"
+    }
+  }
+}
