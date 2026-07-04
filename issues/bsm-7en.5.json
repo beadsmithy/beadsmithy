@@ -3,7 +3,9 @@
   "blocked_by": [
     "bsm-7en.3"
   ],
-  "blocks": [],
+  "blocks": [
+    "bsm-7en.6"
+  ],
   "created": "2026-07-04T13:58:32Z",
   "description": "## Parent\n\nbsm-7en\n\n## What to build\n\nRender read-only Issue comments in the Issue Detail pane when comments exist. Each comment should show its raw timestamp, optional author, and Markdown body using the shared safe Markdown renderer. Issues with no comments should omit the Comments section entirely.\n\nThis slice reuses the Markdown policy from descriptions while adding comment-specific presentation and omission behavior.\n\n## Acceptance criteria\n\n- [ ] Issue Detail renders a Comments section only when the selected Issue has comments.\n- [ ] Each comment shows its raw timestamp.\n- [ ] Comment author is shown only when present.\n- [ ] Comment body renders through the shared MarkdownContent component with the same safe Markdown/link behavior as descriptions.\n- [ ] No comment creation, editing, deletion, or reply behavior is added.\n- [ ] Component tests cover absent comments, author/timestamp display, Markdown comment rendering, and safe link behavior in comment bodies where not already covered by MarkdownContent tests.\n\n## Blocked by\n\nbsm-7en.3",
   "id": "bsm-7en.5",
