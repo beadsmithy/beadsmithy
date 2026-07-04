@@ -1,0 +1,67 @@
+docs/agents/webdriver-e2e.md
+  s_6ecea3f1209333::t_aac524d4825265 72
+src/issues/issue-loader.ts
+  s_6ecea3f1209333::t_6cfe8438676840 4,6,8-9,13,18,21,23-24,32,41,49-50,60,94,106,109-111
+  s_6ecea3f1209333::t_a27a4e7371ac12 27-30,36,64,82-87,89-90,98-99,101-102,104
+src-tauri/src/issues/mod.rs
+  s_6ecea3f1209333::t_18ebf484943abe 9,18
+src/rpc/bindings.ts
+  s_6ecea3f1209333::t_10932c076d6392 9-18,36,38-39
+src/issues/issue-view.ts
+  s_6ecea3f1209333::t_a27a4e7371ac12 89
+  s_6ecea3f1209333::t_6cfe8438676840 1,10,51,67,75
+src/issues/issue-view.test.ts
+  s_6ecea3f1209333::t_6cfe8438676840 3-4,6,22,28-29,40,48
+  s_6ecea3f1209333::t_e7d9072d460f36 10,12,15
+  s_6ecea3f1209333::t_a27a4e7371ac12 31
+src-tauri/src/rpc.rs
+  s_6ecea3f1209333::t_5b2fd8d07bed9e 178
+  s_6ecea3f1209333::t_c11fc153cf1982 315-318,357-358
+  s_6ecea3f1209333::t_f277a441af8361 175-176
+  s_6ecea3f1209333::t_fce7dc4991b1bf 28,37-38,64,66,73,126,128,135,138,144-145,280,301,312,356,381
+  s_6ecea3f1209333::t_a3dd7e6982534f 69,80-82,95-104,152-154,169-174,177
+  s_6ecea3f1209333::t_c15660281756bf 268-270,273,291-296,313-314,325-327,338-340
+src/App.tsx
+  s_6ecea3f1209333::t_a27a4e7371ac12 206-207
+  s_6ecea3f1209333::t_6cfe8438676840 19-25,65,90-91,152,158,212
+src/issues/issue-loader.test.ts
+  s_6ecea3f1209333::t_3ac36fc06808e4 29,31,34
+  s_6ecea3f1209333::t_6cfe8438676840 6-7,10-13,15,20,25,41,47,49-50,54,56,87-88,90
+src-tauri/src/issues/adapter.rs
+  s_6ecea3f1209333::t_38daedbffa2403 180,316-322,350-398
+  s_6ecea3f1209333::t_897bf9330c819c 179
+  s_6ecea3f1209333::t_54f127200f4258 182
+  s_6ecea3f1209333::t_4244066f4a58fd 6,37,72,115,129,134,140,143
+  s_6ecea3f1209333::t_9e69360c80be61 16,31,33-35,43-45,58-65,151-158,173-178,181
+src-tauri/src/issues/raw.rs
+  s_e6163c844ec5a3::t_5680212b278d46 10,26-28
+  s_6ecea3f1209333::t_023d60d921e7e6 6,41
+e2e/issue-list/issue-list.success.spec.ts
+  s_6ecea3f1209333::t_80bfb88f3856c9 4,13
+  s_e6163c844ec5a3::t_5eae351cb7fc1b 24,36,42
+  s_e6163c844ec5a3::t_9832952039f70c 37-38,40
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.10",
+  "base_commit_sha": "2172fcfee0e9281879ec9ed3b9a885b334d8c953",
+  "prompts": {},
+  "sessions": {
+    "s_6ecea3f1209333": {
+      "agent_id": {
+        "tool": "pi",
+        "id": "019f2db4-08bb-7413-9d6a-078adbe1f44f",
+        "model": "gpt-5.5"
+      },
+      "human_author": "Tomas Thor Jonsson <benregn@gmail.com>"
+    },
+    "s_e6163c844ec5a3": {
+      "agent_id": {
+        "tool": "pi",
+        "id": "019f2daa-adbf-7bcf-8e84-dde2840b3d76",
+        "model": "gpt-5.5"
+      },
+      "human_author": null
+    }
+  }
+}
