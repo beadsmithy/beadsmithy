@@ -1,0 +1,15 @@
+{
+  "assignee": "",
+  "blocked_by": [],
+  "blocks": [],
+  "created": "2026-07-04T13:58:32Z",
+  "description": "## Parent\n\nbsm-7en\n\n## What to build\n\nExtend Issue Detail with dependency context and optional metadata. The Dependencies card should show both directions using raw canonical Issue IDs. Other metadata should show optional assignee and raw date/string fields without adding formatting rules.\n\nThis slice completes the structured, non-Markdown detail content after Issue selection exists.\n\n## Acceptance criteria\n\n- [ ] Issue Detail includes one compact Dependencies card with `Blocked by` and `Blocking` rows.\n- [ ] Dependency rows display raw canonical Issue IDs, including the prefix, without resolving titles/statuses or adding dependency navigation.\n- [ ] Empty dependency copy is exactly `No blockers` for blockers and `Not blocking anything` for blocked work.\n- [ ] Other metadata shows assignee only when present.\n- [ ] Other metadata shows raw created and updated values.\n- [ ] Optional due, deferred-until, closed-at, close reason, and parent fields show only when present.\n- [ ] The deferred date label reads `Deferred until`.\n- [ ] Component tests cover non-empty and empty dependency states plus present/absent optional metadata behavior.\n\n## Blocked by\n\nbsm-7en.2",
+  "id": "bsm-7en.4",
+  "labels": [],
+  "parent": "bsm-7en",
+  "priority": 2,
+  "status": "open",
+  "title": "Show issue dependencies and optional metadata",
+  "type": "task",
+  "updated_at": "2026-07-04T13:58:32Z"
+}
