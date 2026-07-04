@@ -2,7 +2,8 @@
   "assignee": "",
   "blocked_by": [],
   "blocks": [
-    "bsm-7en.2"
+    "bsm-7en.2",
+    "bsm-7en.3"
   ],
   "created": "2026-07-04T13:58:32Z",
   "description": "## Parent\n\nbsm-7en\n\n## What to build\n\nRename the existing summary-oriented Issue List contract to the canonical Issue contract while preserving the current list-loading behavior. The app should continue to load and render the Issue List from the Current Workspace, but the data contract should now carry the fields needed by Issue Detail: always-present description, comments, comment author, and closeReason.\n\nThis is the prefactor that makes later Issue Detail slices operate on one Beadwork Issue model rather than adding a separate detail RPC or durable model.\n\n## Acceptance criteria\n\n- [ ] Existing `IssueSummary` / `list_issue_summaries` naming is replaced with `Issue` / `list_issues` across code, generated bindings, tests, and relevant docs touched by this slice.\n- [ ] `bw list --all --json` remains the only Beadwork read used for the Issue List.\n- [ ] The normalized Issue contract includes always-present `description`, `comments`, comment `author`, and `closeReason` fields with empty defaults when Beadwork omits or nulls them.\n- [ ] Existing list-loading states still behave as before: loading, success with Issues, empty with workspace path, and typed failure.\n- [ ] Adapter, RPC, Effect, and compact Issue List view-model tests are preserved/renamed and extended for the expanded Issue contract.\n\n## Blocked by\n\nNone - can start immediately",
