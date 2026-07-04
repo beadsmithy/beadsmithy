@@ -1,0 +1,28 @@
+.config/wt.toml
+  s_2b7ae26509997c::t_5a94c3ba40e83e 1-6,15-19
+  s_c5de8e18aebd85::t_81e4a8f496c2b8 7-14,20
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.10",
+  "base_commit_sha": "7fbf574c9f413dccf9435e9becef80f029979a8f",
+  "prompts": {},
+  "sessions": {
+    "s_2b7ae26509997c": {
+      "agent_id": {
+        "tool": "pi",
+        "id": "019f2e38-c891-7bed-85fc-cd74dad161f9",
+        "model": "MiniMax-M3"
+      },
+      "human_author": "Tomas Thor Jonsson <benregn@gmail.com>"
+    },
+    "s_c5de8e18aebd85": {
+      "agent_id": {
+        "tool": "pi",
+        "id": "019f2e4b-67b8-70dc-b7fd-a2f8b5ae3250",
+        "model": "MiniMax-M3"
+      },
+      "human_author": "Tomas Thor Jonsson <benregn@gmail.com>"
+    }
+  }
+}
