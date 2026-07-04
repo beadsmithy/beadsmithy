@@ -68,6 +68,16 @@ export const config: WebdriverIO.Config = {
   onPrepare: async () => {
     await assertEmbeddedWebDriverPortAvailable();
 
+    // Propagate the embedded port to the worker process env. `@wdio/tauri-service`
+    // spawns Beadsmith with `TAURI_WEBDRIVER_PORT` set (so the embedded WebDriver
+    // server listens there), but its `getDirectEvalPort()` only consults
+    // `process.env.TAURI_WEBDRIVER_PORT` and falls back to 4445 when unset. Without
+    // this, the worker's `browser.tauri.execute(...)` calls hit a closed port and
+    // the focus-check warnings (`Failed to get window states: TypeError: fetch failed`)
+    // pollute every spec. Mirrors the env var the service already sets for the
+    // spawned Beadsmith so the worker points at the same `/wdio/eval` endpoint.
+    process.env.TAURI_WEBDRIVER_PORT = String(EMBEDDED_WEBDRIVER_PORT);
+
     if (resolveBwPath() === "not found on PATH") {
       throw new Error(
         "bw was not found on PATH. Install Beadwork (https://github.com/jallum/beadwork) before running this suite."
