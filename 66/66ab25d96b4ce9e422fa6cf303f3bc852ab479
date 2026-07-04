@@ -22,6 +22,7 @@ src/App.tsx
   s_6ecea3f1209333::t_a27a4e7371ac12 206-207
 e2e/issue-list/issue-list.success.spec.ts
   s_6ecea3f1209333::t_80bfb88f3856c9 4,13
+  s_e6163c844ec5a3::t_5eae351cb7fc1b 24,36,39
 src-tauri/src/issues/mod.rs
   s_6ecea3f1209333::t_18ebf484943abe 9,18
 docs/agents/webdriver-e2e.md
