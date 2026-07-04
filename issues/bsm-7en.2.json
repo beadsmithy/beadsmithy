@@ -1,0 +1,15 @@
+{
+  "assignee": "",
+  "blocked_by": [],
+  "blocks": [],
+  "created": "2026-07-04T13:58:32Z",
+  "description": "## Parent\n\nbsm-7en\n\n## What to build\n\nMake the Issue List selectable and render the first useful Issue Detail view in the right pane. The detail pane should stay empty until the user selects an Issue. Clicking an Issue selects it, highlights the row, and shows title, de-emphasized ID, status, `P#` priority, type, and labels. Clicking the already-selected Issue keeps it selected.\n\nThis slice proves the core user path from loaded Issue data to selected Issue Detail without adding Markdown, comments, or secondary metadata yet.\n\n## Acceptance criteria\n\n- [ ] React state stores only the selected Issue ID and derives the selected Issue from the loaded Issue collection.\n- [ ] No Issue is auto-selected on load; the detail pane shows the specified empty state until selection.\n- [ ] Issue rows are accessible clickable controls and selecting a row renders its Issue Detail.\n- [ ] The selected row is visually highlighted, and repeat-clicking it does not deselect it.\n- [ ] The basic detail view shows de-emphasized ID beside title, status, `P#` priority, type, and labels when present.\n- [ ] Empty labels are hidden.\n- [ ] Unit/component tests cover empty detail state, selecting an Issue, selected-row highlighting, repeat-click behavior, and basic detail metadata/labels.\n\n## Blocked by\n\nbsm-7en.1",
+  "id": "bsm-7en.2",
+  "labels": [],
+  "parent": "bsm-7en",
+  "priority": 2,
+  "status": "open",
+  "title": "Select an issue and render basic detail",
+  "type": "task",
+  "updated_at": "2026-07-04T13:58:32Z"
+}
