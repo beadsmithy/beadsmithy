@@ -1,0 +1,31 @@
+e2e/issue-list/issue-list.success.spec.ts
+  s_a37545d0efa705::t_72453b891b75f9 20-28,37-43
+  s_a37545d0efa705::t_b9a33b67b8dc41 29-36
+wdio.issue-list.conf.ts
+  s_a37545d0efa705::t_9cbb4eeb692454 68,70,85-87,101
+  s_a37545d0efa705::t_6cc007b9bb4518 21-24,69
+e2e/issue-list/scripts/run-scenario.ts
+  s_a37545d0efa705::t_f1ea21eb28fe13 37-42
+  s_a37545d0efa705::t_28cee2e478e69e 21
+  s_a37545d0efa705::t_5e918053991e29 43
+docs/agents/webdriver-e2e.md
+  s_a37545d0efa705::t_dd84ab1941c85b 54-61
+e2e/issue-list/scripts/embedded-webdriver-port.ts
+  s_a37545d0efa705::t_c5a750ce464417 1-35
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.10",
+  "base_commit_sha": "15862d3172f4900ffce50b1114535c92c730d658",
+  "prompts": {},
+  "sessions": {
+    "s_a37545d0efa705": {
+      "agent_id": {
+        "tool": "pi",
+        "id": "019f2e30-0390-7ad8-9496-db97d0152587",
+        "model": "gpt-5.5"
+      },
+      "human_author": "Tomas Thor Jonsson <benregn@gmail.com>"
+    }
+  }
+}
