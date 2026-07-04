@@ -1,0 +1,15 @@
+{
+  "assignee": "",
+  "blocked_by": [],
+  "blocks": [],
+  "created": "2026-07-04T13:58:32Z",
+  "description": "## Parent\n\nbsm-7en\n\n## What to build\n\nExtend the existing real desktop WebDriver Issue List suite to prove the completed Issue Detail path end to end. The suite should launch the built desktop app against a disposable Beadwork workspace, click an Issue row, and verify selected Issue Detail content renders through the full Rust adapter → TauRPC → Effect → React path. Update stale WebDriver/E2E documentation and summary-oriented references.\n\nThis is the final hardening slice. Earlier slices should include unit and component/integration tests where possible; this slice focuses on the real desktop proof.\n\n## Acceptance criteria\n\n- [ ] The existing Issue List WebDriver fixture includes description and comments suitable for detail-rendering assertions.\n- [ ] The WebDriver success scenario clicks an Issue row and verifies representative Issue Detail content renders in the real desktop app.\n- [ ] The E2E test stays focused on user-visible outcomes and avoids over-asserting visual implementation details.\n- [ ] Existing empty-list E2E behavior continues to pass.\n- [ ] WebDriver/E2E documentation is updated for the selected Issue Detail path.\n- [ ] Stale `IssueSummary` / `list_issue_summaries` references in relevant docs are updated to `Issue` / `list_issues` language.\n\n## Blocked by\n\nbsm-7en.2\nbsm-7en.3\nbsm-7en.4\nbsm-7en.5",
+  "id": "bsm-7en.6",
+  "labels": [],
+  "parent": "bsm-7en",
+  "priority": 2,
+  "status": "open",
+  "title": "Extend desktop E2E coverage for issue detail",
+  "type": "task",
+  "updated_at": "2026-07-04T13:58:32Z"
+}
