@@ -4,7 +4,8 @@
     "bsm-7en.1"
   ],
   "blocks": [
-    "bsm-7en.5"
+    "bsm-7en.5",
+    "bsm-7en.6"
   ],
   "created": "2026-07-04T13:58:32Z",
   "description": "## Parent\n\nbsm-7en\n\n## What to build\n\nAdd a shared safe Markdown renderer and use it for Issue descriptions in the Issue Detail pane. Markdown should support GitHub-flavored Markdown, keep raw HTML disabled, and make only external HTTP(S) links clickable in a way that opens outside the app. Relative links, Issue IDs, file paths, anchors, and non-HTTP schemes should render inert for this slice.\n\nThis slice establishes the app-wide Markdown policy before comments reuse it.\n\n## Acceptance criteria\n\n- [ ] A shared MarkdownContent component renders Markdown paragraphs, headings, lists, inline code, and code blocks in the existing dark developer-tool style.\n- [ ] GitHub-flavored Markdown features render, including tables, task lists, strikethrough, and bare HTTP(S) autolinks.\n- [ ] Raw HTML in Markdown is not rendered or executed.\n- [ ] External `http:` and `https:` Markdown links are clickable and open outside the app through an injectable opener seam.\n- [ ] Relative links, anchors, Issue IDs, file paths, and non-HTTP schemes render as non-clickable text.\n- [ ] Issue Detail renders the selected Issue description through MarkdownContent.\n- [ ] Empty descriptions show the specified icon-and-text empty card.\n- [ ] Unit/component tests cover Markdown rendering, safe link behavior with a test double, inert non-HTTP links, GFM autolinks, raw HTML suppression, and empty-description rendering.\n\n## Blocked by\n\nbsm-7en.1",
