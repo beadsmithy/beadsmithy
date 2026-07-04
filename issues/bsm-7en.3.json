@@ -1,8 +1,6 @@
 {
   "assignee": "",
-  "blocked_by": [
-    "bsm-7en.1"
-  ],
+  "blocked_by": [],
   "blocks": [
     "bsm-7en.5",
     "bsm-7en.6"
