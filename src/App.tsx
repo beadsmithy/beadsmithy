@@ -16,13 +16,13 @@ import { useEffect, useState } from "react";
 
 import "./App.css";
 import {
-  ISSUE_SUMMARY_LOADING_STATE,
-  loadIssueSummaryStateFromTauRpc,
-} from "./issues/issue-summary-loader";
-import type { IssueSummaryLoadState } from "./issues/issue-summary-loader";
-import { toIssueSummaryViewModel } from "./issues/issue-summary-view";
-import type { IssueTone } from "./issues/issue-summary-view";
-import type { IssueSummary } from "./rpc/bindings";
+  ISSUE_LOADING_STATE,
+  loadIssueStateFromTauRpc,
+} from "./issues/issue-loader";
+import type { IssueLoadState } from "./issues/issue-loader";
+import { toIssueViewModel } from "./issues/issue-view";
+import type { IssueTone } from "./issues/issue-view";
+import type { Issue } from "./rpc/bindings";
 
 interface NavItem {
   id: string;
@@ -62,7 +62,7 @@ const TONE_BADGE_CLASSES: Record<IssueTone, string> = {
 
 const MAX_VISIBLE_LABELS = 3;
 
-const workspaceTextFor = (state: IssueSummaryLoadState): string => {
+const workspaceTextFor = (state: IssueLoadState): string => {
   if (state.status === "success" || state.status === "empty") {
     return state.workspacePath;
   }
@@ -87,8 +87,8 @@ const SidebarNavButton = ({ label, icon: Icon, current }: NavItem) => (
   </button>
 );
 
-const IssueRow = ({ issue }: { issue: IssueSummary }) => {
-  const view = toIssueSummaryViewModel(issue);
+const IssueRow = ({ issue }: { issue: Issue }) => {
+  const view = toIssueViewModel(issue);
 
   return (
     <article
@@ -149,13 +149,13 @@ const IssueRow = ({ issue }: { issue: IssueSummary }) => {
   );
 };
 
-const IssueListContent = ({ state }: { state: IssueSummaryLoadState }) => {
+const IssueListContent = ({ state }: { state: IssueLoadState }) => {
   if (state.status === "loading") {
     return (
       <div className="flex h-full flex-col items-center justify-center p-6 text-center text-sm text-muted">
         <LoaderCircle className="mb-3 size-5 animate-spin text-accent" />
         <p className="font-medium text-text-main">Loading issues</p>
-        <p className="mt-1 text-xs">Reading Beadwork issue summaries…</p>
+        <p className="mt-1 text-xs">Reading Beadwork issues…</p>
       </div>
     );
   }
@@ -203,14 +203,13 @@ const IssueListContent = ({ state }: { state: IssueSummaryLoadState }) => {
 };
 
 export default function App() {
-  const [issueState, setIssueState] = useState<IssueSummaryLoadState>(
-    ISSUE_SUMMARY_LOADING_STATE
-  );
+  const [issueState, setIssueState] =
+    useState<IssueLoadState>(ISSUE_LOADING_STATE);
   const workspacePath = workspaceTextFor(issueState);
 
   useEffect(() => {
     void (async () => {
-      setIssueState(await loadIssueSummaryStateFromTauRpc());
+      setIssueState(await loadIssueStateFromTauRpc());
     })();
   }, []);
 

@@ -1,4 +1,4 @@
-import type { IssueSummary } from "../rpc/bindings";
+import type { Issue } from "../rpc/bindings";
 
 export type IssueTone =
   | "blocked"
@@ -7,7 +7,7 @@ export type IssueTone =
   | "inProgress"
   | "open";
 
-export interface IssueSummaryViewModel {
+export interface IssueViewModel {
   id: string;
   title: string;
   statusLabel: string;
@@ -48,7 +48,7 @@ const normalizeText = (value: string, fallback: string): string => {
   return normalized.length > 0 ? normalized : fallback;
 };
 
-const badgeToneFor = (issue: IssueSummary): IssueTone => {
+const badgeToneFor = (issue: Issue): IssueTone => {
   if (issue.status === "in_progress") {
     return "inProgress";
   }
@@ -64,7 +64,7 @@ const badgeToneFor = (issue: IssueSummary): IssueTone => {
   return "open";
 };
 
-const issueToneFor = (issue: IssueSummary): IssueTone => {
+const issueToneFor = (issue: Issue): IssueTone => {
   if (issue.blockedBy.length > 0) {
     return "blocked";
   }
@@ -72,7 +72,7 @@ const issueToneFor = (issue: IssueSummary): IssueTone => {
   return badgeToneFor(issue);
 };
 
-const dependencyLabelFor = (issue: IssueSummary): string => {
+const dependencyLabelFor = (issue: Issue): string => {
   const fragments: string[] = [];
 
   if (issue.blockedBy.length > 0) {
@@ -86,9 +86,7 @@ const dependencyLabelFor = (issue: IssueSummary): string => {
   return fragments.join(" · ");
 };
 
-export const toIssueSummaryViewModel = (
-  issue: IssueSummary
-): IssueSummaryViewModel => {
+export const toIssueViewModel = (issue: Issue): IssueViewModel => {
   const statusLabel =
     STATUS_LABELS[issue.status] ?? toDisplayLabel(issue.status);
   const typeLabel = toDisplayLabel(normalizeText(issue.type, "issue"));

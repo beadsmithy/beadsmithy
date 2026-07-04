@@ -3,54 +3,57 @@ import { describe, expect, it } from "vitest";
 
 import type {
   IssueListErrorKind,
-  IssueSummary,
-  ListIssueSummariesResponse,
+  Issue,
+  ListIssuesResponse,
 } from "../rpc/bindings";
 import {
-  IssueSummaryTransport,
-  ISSUE_SUMMARY_LOADING_STATE,
-  loadIssueSummaryState,
-} from "./issue-summary-loader";
+  IssueTransport,
+  ISSUE_LOADING_STATE,
+  loadIssueState,
+} from "./issue-loader";
 
-class IssueSummaryRpcError extends Error {
+class IssueRpcError extends Error {
   readonly kind: IssueListErrorKind;
 
   constructor(kind: IssueListErrorKind, message: string) {
     super(message);
-    this.name = "IssueSummaryRpcError";
+    this.name = "IssueRpcError";
     this.kind = kind;
   }
 }
 
-const issue = (overrides: Partial<IssueSummary> = {}): IssueSummary => ({
+const issue = (overrides: Partial<Issue> = {}): Issue => ({
   assignee: "",
   blockedBy: [],
   blocks: [],
+  closeReason: "",
   closedAt: "",
+  comments: [],
   created: "2026-06-29T08:00:00Z",
   deferUntil: "",
+  description: "",
   due: "",
   id: "bsm-mq4.3",
   labels: ["ready-for-agent"],
   parent: "bsm-mq4",
   priority: 2,
   status: "open",
-  title: "Add Effect service for loading issue summaries",
+  title: "Add Effect service for loading issues",
   type: "task",
   updatedAt: "2026-06-29T08:00:00Z",
   ...overrides,
 });
 
-const loadWithResponse = (response: ListIssueSummariesResponse) =>
+const loadWithResponse = (response: ListIssuesResponse) =>
   Effect.runPromise(
-    Effect.provideService(loadIssueSummaryState, IssueSummaryTransport, {
-      listIssueSummaries: () => Promise.resolve(response),
+    Effect.provideService(loadIssueState, IssueTransport, {
+      listIssues: () => Promise.resolve(response),
     })
   );
 
-describe("loadIssueSummaryState", () => {
+describe("loadIssueState", () => {
   it("exposes a loading state for React consumers before the request resolves", () => {
-    expect(ISSUE_SUMMARY_LOADING_STATE).toEqual({ status: "loading" });
+    expect(ISSUE_LOADING_STATE).toEqual({ status: "loading" });
   });
 
   it("maps non-empty RPC results to a success state with workspace path", async () => {
@@ -81,10 +84,10 @@ describe("loadIssueSummaryState", () => {
 
   it("maps backend read failures to an error state instead of an empty list", async () => {
     const state = await Effect.runPromise(
-      Effect.provideService(loadIssueSummaryState, IssueSummaryTransport, {
-        listIssueSummaries: () =>
+      Effect.provideService(loadIssueState, IssueTransport, {
+        listIssues: () =>
           Promise.reject(
-            new IssueSummaryRpcError(
+            new IssueRpcError(
               "notBeadworkWorkspace",
               "The current directory is not a Beadwork workspace."
             )

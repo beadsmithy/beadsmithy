@@ -3,7 +3,7 @@
 //! Executes exactly `bw list --all --json` in the process current working
 //! directory, consumes only the structured JSON output, and returns a
 //! normalized adapter result. Raw Beadwork JSON parsing is hidden behind this
-//! API; callers receive [`IssueSummary`] and [`ListIssuesError`].
+//! API; callers receive [`Issue`] and [`ListIssuesError`].
 //!
 //! `--all` is required: the user-facing goal is All Issues across stored
 //! statuses, not Beadwork's default actionable/open subset.
@@ -13,7 +13,7 @@ use std::{env, io};
 use serde::{Deserialize, Serialize};
 
 use super::error::ListIssuesError;
-use super::raw::RawIssue;
+use super::raw::{RawComment, RawIssue};
 use super::runner::{CommandOutput, CommandRunner};
 
 /// The program and arguments the adapter runs. `--all` overrides Beadwork's
@@ -28,20 +28,21 @@ const BW_ARGS: &[&str] = &["list", "--all", "--json"];
 /// initialized, and the second when the cwd is not a git repo at all.
 const NOT_BEADWORK_MARKERS: &[&str] = &["beadwork not initialized", "not a git repository"];
 
-/// Adapter output: a narrowed view of a Beadwork issue for the Issue List.
+/// Adapter output: a normalized Beadwork issue loaded from the Issue List path.
 ///
-/// This is adapter output, not the durable frontend contract. The later TauRPC
-/// bead maps this into the typed `IssueSummary` React consumes. Fields mirror
-/// the subset useful for the frontend issue-list contract; detail-rich fields
-/// (description, comments, close reason) are intentionally omitted and belong to
-/// the future issue-detail path.
+/// This is adapter output, not the durable frontend contract. The TauRPC layer
+/// maps this into the typed `Issue` React consumes. Fields mirror Beadwork's
+/// structured JSON while normalizing nullable/missing list and detail fields.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-pub struct IssueSummary {
+pub struct Issue {
     pub id: String,
     pub title: String,
     pub status: String,
     pub priority: i64,
     pub issue_type: String,
+    pub description: String,
+    pub comments: Vec<IssueComment>,
+    pub close_reason: String,
     pub labels: Vec<String>,
     pub assignee: String,
     pub created: String,
@@ -54,13 +55,21 @@ pub struct IssueSummary {
     pub blocked_by: Vec<String>,
 }
 
+/// A normalized Beadwork issue comment.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct IssueComment {
+    pub text: String,
+    pub author: String,
+    pub timestamp: String,
+}
+
 /// List all Beadwork issues in the process current working directory.
 ///
 /// Runs `bw list --all --json` through the supplied [`CommandRunner`] and
 /// normalizes the result. A true empty result (`null` or `[]`) yields an empty
 /// list. Missing `bw`, a non-Beadwork directory, a non-zero subprocess exit, and
 /// a JSON parse failure each produce a distinct [`ListIssuesError`].
-pub fn list_all_issues(runner: &dyn CommandRunner) -> Result<Vec<IssueSummary>, ListIssuesError> {
+pub fn list_all_issues(runner: &dyn CommandRunner) -> Result<Vec<Issue>, ListIssuesError> {
     let workspace = env::current_dir()
         .map(|path| path.display().to_string())
         .unwrap_or_else(|_| ".".to_string());
@@ -103,7 +112,7 @@ fn map_spawn_error(err: io::Error) -> ListIssuesError {
 }
 
 /// Interpret a finished command's output: classify non-zero exits, then parse.
-fn interpret_output(output: CommandOutput) -> Result<Vec<IssueSummary>, ListIssuesError> {
+fn interpret_output(output: CommandOutput) -> Result<Vec<Issue>, ListIssuesError> {
     if output.status != 0 {
         let stderr = output.stderr.trim().to_string();
         if NOT_BEADWORK_MARKERS.iter().any(|m| stderr.contains(m)) {
@@ -117,21 +126,21 @@ fn interpret_output(output: CommandOutput) -> Result<Vec<IssueSummary>, ListIssu
     parse_issues(&output.stdout)
 }
 
-/// Parse `bw list --all --json` stdout into normalized summaries.
+/// Parse `bw list --all --json` stdout into normalized issues.
 ///
 /// `bw` prints `null` for a nil result slice and `[]` for an empty one; both
 /// are a successful empty issue list. Any other stdout must deserialize as a
 /// JSON array of issues.
-fn parse_issues(stdout: &str) -> Result<Vec<IssueSummary>, ListIssuesError> {
+fn parse_issues(stdout: &str) -> Result<Vec<Issue>, ListIssuesError> {
     let trimmed = stdout.trim();
     if trimmed.is_empty() || trimmed == "null" {
         return Ok(Vec::new());
     }
     let raw: Vec<RawIssue> = serde_json::from_str(trimmed).map_err(ListIssuesError::Parse)?;
-    Ok(raw.into_iter().map(IssueSummary::from).collect())
+    Ok(raw.into_iter().map(Issue::from).collect())
 }
 
-impl From<RawIssue> for IssueSummary {
+impl From<RawIssue> for Issue {
     fn from(raw: RawIssue) -> Self {
         Self {
             id: raw.id,
@@ -139,6 +148,14 @@ impl From<RawIssue> for IssueSummary {
             status: raw.status,
             priority: raw.priority,
             issue_type: raw.issue_type,
+            description: raw.description.unwrap_or_default(),
+            comments: raw
+                .comments
+                .unwrap_or_default()
+                .into_iter()
+                .map(IssueComment::from)
+                .collect(),
+            close_reason: raw.close_reason.unwrap_or_default(),
             labels: raw.labels.unwrap_or_default(),
             assignee: raw.assignee,
             created: raw.created,
@@ -149,6 +166,16 @@ impl From<RawIssue> for IssueSummary {
             parent: raw.parent,
             blocks: raw.blocks.unwrap_or_default(),
             blocked_by: raw.blocked_by.unwrap_or_default(),
+        }
+    }
+}
+
+impl From<RawComment> for IssueComment {
+    fn from(raw: RawComment) -> Self {
+        Self {
+            text: raw.text,
+            author: raw.author.unwrap_or_default(),
+            timestamp: raw.timestamp,
         }
     }
 }
@@ -286,7 +313,13 @@ mod tests {
         assert_eq!(issue.labels, vec!["ready-for-agent", "backend"]);
         assert_eq!(issue.blocks, vec!["bsm-bbb"]);
         assert_eq!(issue.blocked_by, vec!["bsm-aaa"]);
-        // Detail-rich fields are not part of the summary contract.
+        assert_eq!(issue.description, "What to build. Details here.");
+        assert_eq!(issue.close_reason, "done");
+        assert_eq!(issue.comments.len(), 1);
+        let comment = &issue.comments[0];
+        assert_eq!(comment.text, "keep it pure Rust");
+        assert_eq!(comment.author, "tomas");
+        assert_eq!(comment.timestamp, "2026-06-29T08:19:43Z");
     }
 
     #[test]
@@ -295,7 +328,6 @@ mod tests {
           {
             "assignee": "",
             "created": "2026-06-28T22:37:05Z",
-            "description": "x",
             "id": "bsm-x",
             "priority": 0,
             "status": "open",
@@ -315,6 +347,55 @@ mod tests {
         assert!(issue.defer_until.is_none());
         assert!(issue.due.is_none());
         assert!(issue.parent.is_none());
+        assert_eq!(issue.description, "");
+        assert!(issue.comments.is_empty());
+        assert_eq!(issue.close_reason, "");
+    }
+
+    #[test]
+    fn success_normalizes_null_detail_fields_and_comment_authors() {
+        let json = r#"[
+          {
+            "assignee": "",
+            "close_reason": null,
+            "created": "2026-06-28T22:37:05Z",
+            "description": null,
+            "id": "bsm-null",
+            "comments": null,
+            "priority": 0,
+            "status": "open",
+            "title": "Null details",
+            "type": "task"
+          },
+          {
+            "assignee": "",
+            "created": "2026-06-28T22:37:05Z",
+            "id": "bsm-comments",
+            "comments": [
+              {"text": "missing author", "timestamp": "2026-06-29T08:19:43Z"},
+              {"text": "null author", "author": null, "timestamp": "2026-06-30T08:19:43Z"}
+            ],
+            "priority": 1,
+            "status": "open",
+            "title": "Comment details",
+            "type": "task"
+          }
+        ]"#;
+        let runner = FakeRunner::ok(json);
+        let issues = list_all_issues(&runner).expect("expected success");
+        assert_eq!(issues.len(), 2);
+
+        let null_issue = &issues[0];
+        assert_eq!(null_issue.description, "");
+        assert!(null_issue.comments.is_empty());
+        assert_eq!(null_issue.close_reason, "");
+
+        let comments_issue = &issues[1];
+        assert_eq!(comments_issue.description, "");
+        assert_eq!(comments_issue.close_reason, "");
+        assert_eq!(comments_issue.comments.len(), 2);
+        assert_eq!(comments_issue.comments[0].author, "");
+        assert_eq!(comments_issue.comments[1].author, "");
     }
 
     #[test]
