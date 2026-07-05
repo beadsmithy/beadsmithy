@@ -1,5 +1,5 @@
 ---
-description: Implement a bead end-to-end — worktree, scout → plan → implement → review, one fix round, commit, open PR, close bead.
+description: V2 - Implement a bead end-to-end — worktree, scout → plan → implement → review, one fix round, commit, open PR, close bead.
 ---
 
 Implement bead `$1` end-to-end. Drive a scout → planner → worker → reviewer chain via subagents, fix review feedback at most once, run pre-PR checks, commit, open a PR, and close the bead.
