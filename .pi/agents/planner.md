@@ -6,7 +6,7 @@ thinking: high
 systemPromptMode: replace
 inheritProjectContext: true
 inheritSkills: false
-output: false
+output: plan.md
 defaultReads: context.md
 defaultContext: fork
 ---
