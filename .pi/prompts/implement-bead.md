@@ -94,6 +94,7 @@ If `$1` is already in_progress, the worktree exists, and `context.md` / `plan.md
 ## Output
 
 Summarize at the end:
+
 - bead ID and final state
 - worktree path and branch
 - changed files (high level)

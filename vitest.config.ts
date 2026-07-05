@@ -5,6 +5,8 @@ import { defineConfig } from "vitest/config";
 // (see docs/agents/webdriver-e2e.md), not vitest.
 export default defineConfig({
   test: {
+    environment: "jsdom",
     exclude: ["**/node_modules/**", "**/dist/**", "e2e/**"],
+    setupFiles: ["src/test/setup.ts"],
   },
 });

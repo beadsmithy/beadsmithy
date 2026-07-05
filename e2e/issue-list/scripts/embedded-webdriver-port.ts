@@ -1,35 +1,55 @@
+import { once } from "node:events";
 import { createServer } from "node:net";
+import { promisify } from "node:util";
 
 export const EMBEDDED_WEBDRIVER_PORT = 46_245;
 
-export const assertEmbeddedWebDriverPortAvailable = (): Promise<void> =>
-  new Promise((resolve, reject) => {
-    const server = createServer();
+type PortProbeResult =
+  | { status: "listening" }
+  | { error: unknown; status: "error" };
 
-    server.once("error", (error: NodeJS.ErrnoException) => {
-      if (error.code === "EADDRINUSE") {
-        reject(
-          new Error(
-            `Beadsmith e2e embedded WebDriver port ${EMBEDDED_WEBDRIVER_PORT} is already in use. ` +
-              "Stop the process using it before running `pnpm test:e2e:issue-list`."
-          )
-        );
-        return;
-      }
+const waitForListening = async (
+  server: ReturnType<typeof createServer>,
+  signal: AbortSignal
+): Promise<PortProbeResult> => {
+  await once(server, "listening", { signal });
+  return { status: "listening" };
+};
 
-      reject(error);
-    });
+const waitForServerError = async (
+  server: ReturnType<typeof createServer>,
+  signal: AbortSignal
+): Promise<PortProbeResult> => {
+  const [error] = await once(server, "error", { signal });
+  return { error, status: "error" };
+};
 
-    server.once("listening", () => {
-      server.close((error) => {
-        if (error) {
-          reject(error);
-          return;
-        }
+export const assertEmbeddedWebDriverPortAvailable = async (): Promise<void> => {
+  const server = createServer();
+  const closeServer = promisify(server.close.bind(server));
+  const eventController = new AbortController();
 
-        resolve();
-      });
-    });
+  server.listen(EMBEDDED_WEBDRIVER_PORT, "127.0.0.1");
 
-    server.listen(EMBEDDED_WEBDRIVER_PORT, "127.0.0.1");
-  });
+  const result = await Promise.race([
+    waitForListening(server, eventController.signal),
+    waitForServerError(server, eventController.signal),
+  ]);
+
+  eventController.abort();
+
+  if (result.status === "error") {
+    const errnoError = result.error as NodeJS.ErrnoException;
+    if (errnoError.code === "EADDRINUSE") {
+      throw new Error(
+        `Beadsmith e2e embedded WebDriver port ${EMBEDDED_WEBDRIVER_PORT} is already in use. ` +
+          "Stop the process using it before running `pnpm test:e2e:issue-list`.",
+        { cause: result.error }
+      );
+    }
+
+    throw result.error;
+  }
+
+  await closeServer();
+};
