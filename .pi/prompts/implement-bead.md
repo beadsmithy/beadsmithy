@@ -1,5 +1,4 @@
 ---
-model: openai-codex/gpt-5.5:medium
 description: Implement a bead end-to-end — worktree, scout → plan → implement → review, one fix round, commit, open PR, close bead.
 ---
 
