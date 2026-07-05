@@ -59,8 +59,6 @@ Steps in order:
 
 3. **worker** — `agent: "worker"`, `model: "MiniMax-M3:high"`, `skills: ["tdd"]`, `output: "worker-handoff.md"`. Task: "Implement the plan for bead `$1`. Use TDD at pre-agreed seams. Validate with `pnpm run check`, `pnpm exec tsc --noEmit`, and `pnpm test`. Report changed files, validation commands run with exit codes, what was left undone, and any open risks. Do not silently make unapproved product/architecture decisions — escalate via `contact_supervisor` if blocked. **Do not edit files unrelated to the bead** — pre-existing repo lint/format failures are out of scope; surface them in the handoff, don't fix them."
 
-
-
 Then `wait({ all: true })` (or `wait({ id: <chain-id> })`) before continuing.
 
 **The chain stops at the worker.** The reviewer is intentionally not part of it — the worker doesn't commit, and you commit between worker and reviewer so the reviewer can review an actual committed diff instead of a worktree diff. Launch the reviewer as a separate subagent call in the "After the implementation chain completes" subsection below.
@@ -75,14 +73,15 @@ Then `wait({ all: true })` (or `wait({ id: <chain-id> })`) before continuing.
    ```js
    subagent({
      agent: "delegate",
-     tools: "read, grep, find, ls, bash, edit, write, contact_supervisor, subagent",
+     tools:
+       "read, grep, find, ls, bash, edit, write, contact_supervisor, subagent",
      skills: ["review"],
      model: "openai-codex/gpt-5.5:high",
      context: "fresh",
      output: "review.md",
      cwd: "<worktree-path>",
      async: true,
-   })
+   });
    ```
 
    Task: "Apply the `review` skill to the committed diff between `main` and `HEAD` on this worktree. Pin the fixed point at `<commit-sha>` from step 3. Diff command: `git diff <commit-sha>~1..HEAD` (or `git diff $(git merge-base main HEAD)..HEAD` if you prefer merge-base). Commit list: `git log $(git merge-base main HEAD)..HEAD --oneline`. Spec source: `bw show $1 --json` plus the plan comment on the bead (fetch via `bw show $1 --only comments`). Standards sources: `AGENTS.md`, `oxlint.config.ts`, `oxfmt.config.ts`, and any `CONTRIBUTING.md` / `CODING_STANDARDS.md` if present. Run the two parallel axes (Standards + Spec) per the skill, then write the aggregated report to `review.md`. The work is already committed; do not amend, do not push."
