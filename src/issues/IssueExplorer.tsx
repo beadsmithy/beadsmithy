@@ -7,6 +7,9 @@ import {
 } from "lucide-react";
 import { useState } from "react";
 
+import type { ExternalLinkOpener } from "../components/external-link-opener";
+import { openExternalLink as defaultOpenExternalLink } from "../components/external-link-opener";
+import { MarkdownContent } from "../components/MarkdownContent";
 import type { Issue } from "../rpc/bindings";
 import type { IssueLoadState } from "./issue-loader";
 import { toIssueViewModel } from "./issue-view";
@@ -198,8 +201,33 @@ const IssueDetailEmpty = () => (
   </main>
 );
 
-const IssueDetailContent = ({ issue }: { issue: Issue }) => {
+const IssueDetailDescriptionEmpty = () => (
+  <div
+    aria-label="No description"
+    className="mt-2 flex items-center gap-3 rounded-lg border border-border-main bg-surface p-4"
+    role="note"
+  >
+    <div className="flex size-10 shrink-0 items-center justify-center rounded-xl border border-border-main bg-background shadow-[inset_0_1px_0_rgba(255,255,255,0.05)]">
+      <FileText className="size-5 text-muted" strokeWidth={1.5} />
+    </div>
+    <div>
+      <p className="text-sm font-medium text-text-main">No description</p>
+      <p className="text-xs text-muted">
+        This issue doesn&apos;t have a description yet.
+      </p>
+    </div>
+  </div>
+);
+
+const IssueDetailContent = ({
+  issue,
+  openExternalLink,
+}: {
+  issue: Issue;
+  openExternalLink: ExternalLinkOpener;
+}) => {
   const view = toIssueViewModel(issue);
+  const hasDescription = issue.description.trim().length > 0;
 
   return (
     <main
@@ -254,21 +282,47 @@ const IssueDetailContent = ({ issue }: { issue: Issue }) => {
           </ul>
         </section>
       ) : null}
+      <section>
+        <h3 className="font-mono text-[10px] tracking-wider text-muted uppercase">
+          Description
+        </h3>
+        {hasDescription ? (
+          <div className="mt-2">
+            <MarkdownContent
+              markdown={issue.description}
+              openExternalLink={openExternalLink}
+            />
+          </div>
+        ) : (
+          <IssueDetailDescriptionEmpty />
+        )}
+      </section>
     </main>
   );
 };
 
-const IssueDetailPane = ({ selectedIssue }: { selectedIssue: Issue | null }) =>
+const IssueDetailPane = ({
+  selectedIssue,
+  openExternalLink,
+}: {
+  selectedIssue: Issue | null;
+  openExternalLink: ExternalLinkOpener;
+}) =>
   selectedIssue === null ? (
     <IssueDetailEmpty />
   ) : (
-    <IssueDetailContent issue={selectedIssue} />
+    <IssueDetailContent
+      issue={selectedIssue}
+      openExternalLink={openExternalLink}
+    />
   );
 
 export const IssueExplorer = ({
   issueState,
+  openExternalLink = defaultOpenExternalLink,
 }: {
   issueState: IssueLoadState;
+  openExternalLink?: ExternalLinkOpener;
 }) => {
   const [selectedIssueId, setSelectedIssueId] = useState<string | null>(null);
 
@@ -311,7 +365,10 @@ export const IssueExplorer = ({
           />
         </div>
       </section>
-      <IssueDetailPane selectedIssue={selectedIssue} />
+      <IssueDetailPane
+        openExternalLink={openExternalLink}
+        selectedIssue={selectedIssue}
+      />
     </>
   );
 };

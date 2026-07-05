@@ -24,4 +24,4 @@ dist-ssr
 *.sln
 *.sw?
 
-.pi-subagents
+.pi-subagents/
