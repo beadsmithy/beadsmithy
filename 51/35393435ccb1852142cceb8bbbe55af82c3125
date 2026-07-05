@@ -1,0 +1,36 @@
+.pi/prompts/implement-bead.md
+  s_aaf2f51159d90e::t_80ad9f50b850c5 105-107,109
+  s_aaf2f51159d90e::t_e6bf719ae7d5c9 52,56-57,59,64
+  s_aaf2f51159d90e::t_e24f248018ba0e 18,34,50,136
+  s_aaf2f51159d90e::t_92bcd2b516d0df 129,132
+  s_aaf2f51159d90e::t_22eb34a7e7c0c3 31-33,35-36
+  s_aaf2f51159d90e::t_fdf68210d786ba 66,68-70,74-89
+  s_aaf2f51159d90e::t_d8771e8258e567 90,94
+  s_aaf2f51159d90e::t_8357f070ea6c1b 101
+  s_aaf2f51159d90e::t_6d81074c514727 15
+  s_aaf2f51159d90e::t_a05fed6929e3d2 44
+  s_aaf2f51159d90e::t_a30a887540f10c 113-115
+  s_aaf2f51159d90e::t_0921db4b852d58 16-17
+  s_aaf2f51159d90e::t_5f77aa340ce70b 19
+  s_aaf2f51159d90e::t_50f5e7860ae3d4 29-30
+  s_aaf2f51159d90e::t_36cf036c2db129 51
+  s_aaf2f51159d90e::t_cf58bbc34939e7 58
+  s_aaf2f51159d90e::t_6685ddca8ac774 60-61
+  s_aaf2f51159d90e::t_9aef9f7b28438a 71-73
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.10",
+  "base_commit_sha": "5135393435ccb1852142cceb8bbbe55af82c3125",
+  "prompts": {},
+  "sessions": {
+    "s_aaf2f51159d90e": {
+      "agent_id": {
+        "tool": "pi",
+        "id": "019f32ba-07a9-7bd3-b946-554bc9565f57",
+        "model": "MiniMax-M3"
+      },
+      "human_author": "Tomas Thor Jonsson <benregn@gmail.com>"
+    }
+  }
+}
