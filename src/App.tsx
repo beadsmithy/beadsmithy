@@ -1,15 +1,11 @@
 import {
-  AlertTriangle,
   CheckCircle2,
   Circle,
   CircleSlash,
   Clock,
-  FileText,
   Folder,
   Inbox,
-  LoaderCircle,
   PlayCircle,
-  Search,
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import { useEffect, useState } from "react";
@@ -20,9 +16,7 @@ import {
   loadIssueStateFromTauRpc,
 } from "./issues/issue-loader";
 import type { IssueLoadState } from "./issues/issue-loader";
-import { toIssueViewModel } from "./issues/issue-view";
-import type { IssueTone } from "./issues/issue-view";
-import type { Issue } from "./rpc/bindings";
+import { IssueExplorer } from "./issues/IssueExplorer";
 
 interface NavItem {
   id: string;
@@ -43,24 +37,6 @@ const STATE_ITEMS: NavItem[] = [
   { icon: CheckCircle2, id: "closed", label: "Closed" },
   { icon: Clock, id: "deferred", label: "Deferred" },
 ];
-
-const TONE_DOT_CLASSES: Record<IssueTone, string> = {
-  blocked: "bg-danger",
-  closed: "bg-success",
-  deferred: "border border-muted bg-surface",
-  inProgress: "bg-accent",
-  open: "border border-muted bg-background",
-};
-
-const TONE_BADGE_CLASSES: Record<IssueTone, string> = {
-  blocked: "border-danger/30 bg-danger/10 text-red-200",
-  closed: "border-success/30 bg-success/10 text-emerald-200",
-  deferred: "border-border-main bg-surface text-muted",
-  inProgress: "border-accent/40 bg-accent/10 text-indigo-200",
-  open: "border-border-main bg-surface text-text-main",
-};
-
-const MAX_VISIBLE_LABELS = 3;
 
 const workspaceTextFor = (state: IssueLoadState): string => {
   if (state.status === "success" || state.status === "empty") {
@@ -86,121 +62,6 @@ const SidebarNavButton = ({ label, icon: Icon, current }: NavItem) => (
     {label}
   </button>
 );
-
-const IssueRow = ({ issue }: { issue: Issue }) => {
-  const view = toIssueViewModel(issue);
-
-  return (
-    <article
-      aria-label={`${view.id}: ${view.title}. ${view.metadataLabel}`}
-      className="border-b border-border-main p-3"
-    >
-      <div className="mb-1.5 flex min-w-0 items-center gap-2">
-        <div
-          aria-hidden="true"
-          className={`size-1.5 shrink-0 rounded-full ${TONE_DOT_CLASSES[view.tone]}`}
-        />
-        <span className="shrink-0 font-mono text-[12px] text-muted">
-          {view.id}
-        </span>
-        <span
-          className={`shrink-0 rounded-full border px-1.5 py-0.5 font-mono text-[10px] ${TONE_BADGE_CLASSES[view.badgeTone]}`}
-        >
-          {view.statusLabel}
-        </span>
-      </div>
-      <h3 className="truncate text-[13px] font-medium text-text-main">
-        {view.title}
-      </h3>
-      <div className="mt-2 flex min-w-0 items-center gap-1.5 overflow-hidden font-mono text-[10px] text-muted">
-        <span className="shrink-0 rounded border border-border-main px-1 py-0.5">
-          {view.priorityLabel}
-        </span>
-        <span className="shrink-0 rounded border border-border-main px-1 py-0.5">
-          {view.typeLabel}
-        </span>
-        {view.dependencyLabel.length > 0 ? (
-          <span className="truncate rounded border border-border-main px-1 py-0.5">
-            {view.dependencyLabel}
-          </span>
-        ) : null}
-      </div>
-      {view.labels.length > 0 ? (
-        <div
-          className="mt-2 flex min-w-0 gap-1 overflow-hidden"
-          aria-label="Labels"
-        >
-          {view.labels.slice(0, MAX_VISIBLE_LABELS).map((label) => (
-            <span
-              className="truncate rounded bg-white/5 px-1.5 py-0.5 font-mono text-[10px] text-muted"
-              key={label}
-            >
-              {label}
-            </span>
-          ))}
-          {view.labels.length > MAX_VISIBLE_LABELS ? (
-            <span className="shrink-0 font-mono text-[10px] text-muted">
-              +{view.labels.length - MAX_VISIBLE_LABELS}
-            </span>
-          ) : null}
-        </div>
-      ) : null}
-    </article>
-  );
-};
-
-const IssueListContent = ({ state }: { state: IssueLoadState }) => {
-  if (state.status === "loading") {
-    return (
-      <div className="flex h-full flex-col items-center justify-center p-6 text-center text-sm text-muted">
-        <LoaderCircle className="mb-3 size-5 animate-spin text-accent" />
-        <p className="font-medium text-text-main">Loading issues</p>
-        <p className="mt-1 text-xs">Reading Beadwork issues…</p>
-      </div>
-    );
-  }
-
-  if (state.status === "failure") {
-    return (
-      <div className="p-4" role="alert">
-        <div className="rounded-lg border border-danger/40 bg-danger/10 p-3">
-          <div className="mb-2 flex items-center gap-2 text-sm font-medium text-red-200">
-            <AlertTriangle className="size-4" />
-            Could not load issues
-          </div>
-          <p className="text-xs leading-5 text-text-main">
-            {state.error.message}
-          </p>
-          <p className="mt-2 font-mono text-[10px] text-muted">
-            {state.error.kind}
-          </p>
-        </div>
-      </div>
-    );
-  }
-
-  if (state.status === "empty") {
-    return (
-      <div className="flex h-full flex-col items-center justify-center p-6 text-center text-sm text-muted">
-        <Inbox className="mb-3 size-6 text-muted" />
-        <p className="font-medium text-text-main">No issues found</p>
-        <p className="mt-1 text-xs">
-          Beadwork returned an empty issue list for this workspace.
-        </p>
-      </div>
-    );
-  }
-
-  return (
-    <ul aria-label="Issues">
-      {state.issues.map((issue) => (
-        <li key={issue.id}>
-          <IssueRow issue={issue} />
-        </li>
-      ))}
-    </ul>
-  );
-};
 
 export default function App() {
   const [issueState, setIssueState] =
@@ -258,45 +119,7 @@ export default function App() {
         </div>
       </nav>
 
-      {/* Middle Pane: Issue List */}
-      <section className="flex w-[320px] shrink-0 flex-col border-r border-border-main bg-background">
-        <div className="flex h-14 items-center border-b border-border-main p-2">
-          <div className="relative w-full">
-            <label className="sr-only" htmlFor="issue-search">
-              Search issues
-            </label>
-            <Search className="absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted" />
-            <input
-              className="w-full rounded-md border border-border-main bg-surface py-1.5 pr-12 pl-9 text-sm text-text-main placeholder:text-muted focus:border-accent focus:outline-none disabled:opacity-50"
-              disabled
-              id="issue-search"
-              placeholder="Search issues..."
-              type="text"
-            />
-            <div className="absolute top-1/2 right-2 -translate-y-1/2 rounded border border-border-main px-1.5 py-0.5 font-mono text-[10px] text-muted">
-              Cmd+F
-            </div>
-          </div>
-        </div>
-
-        <div className="flex-1 overflow-y-auto">
-          <IssueListContent state={issueState} />
-        </div>
-      </section>
-
-      {/* Right Pane: Issue Detail (Empty State) */}
-      <main className="flex flex-1 flex-col items-center justify-center bg-background p-8">
-        <div className="mb-6 flex size-16 items-center justify-center rounded-2xl border border-border-main bg-surface shadow-[inset_0_1px_0_rgba(255,255,255,0.05)]">
-          <FileText className="size-8 text-muted" strokeWidth={1.5} />
-        </div>
-        <h2 className="mb-2 text-xl font-semibold text-primary">
-          No issue selected
-        </h2>
-        <p className="max-w-sm text-center text-sm text-muted">
-          Issue details are not implemented in this slice. Search and filters
-          are visible for orientation only.
-        </p>
-      </main>
+      <IssueExplorer issueState={issueState} />
     </div>
   );
 }
