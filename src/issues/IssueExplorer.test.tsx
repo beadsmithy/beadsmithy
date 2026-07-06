@@ -65,7 +65,9 @@ const renderExplorer = (
   return render(<IssueExplorer {...props} />);
 };
 
-const getDetail = () => within(screen.getByRole("main"));
+const getDetailElement = () => screen.getByRole("main");
+
+const getDetail = () => within(getDetailElement());
 
 const requireHTMLElement = (element: Element | null): HTMLElement => {
   if (!(element instanceof HTMLElement)) {
@@ -81,6 +83,21 @@ const getRowButton = (issue: Issue) =>
   (() => {
     throw new Error(`No row button rendered for issue ${issue.id}`);
   })();
+
+const getDetailSectionFlow = () =>
+  [...getDetailElement().children].map((child) => {
+    if (child.tagName === "HEADER") {
+      return "title/header";
+    }
+    if (child.tagName === "DL") {
+      return "primary metadata";
+    }
+
+    const heading = within(requireHTMLElement(child)).queryByRole("heading", {
+      level: 3,
+    });
+    return heading?.textContent ?? "";
+  });
 
 describe("IssueExplorer", () => {
   it("renders the empty Issue detail state on successful load without auto-selecting", () => {
@@ -155,6 +172,79 @@ describe("IssueExplorer", () => {
         ? null
         : [...paragraphsBelowTitle].find((p) => p.textContent === issue.id);
     expect(idInParagraphs ?? null).toBeNull();
+  });
+
+  it("renders Parent directly below the title header and omits it when blank", async () => {
+    const user = userEvent.setup();
+    const issueWithParent = buildIssue({
+      id: "bsm-with-parent",
+      parent: "bsm-7en",
+    });
+    const issueWithoutParent = buildIssue({
+      id: "bsm-without-parent",
+      parent: "   ",
+    });
+
+    renderExplorer([issueWithParent, issueWithoutParent]);
+
+    await user.click(getRowButton(issueWithParent));
+
+    const detail = getDetail();
+    const title = detail.getByRole("heading", {
+      level: 2,
+      name: issueWithParent.title,
+    });
+    const headerScope = within(requireHTMLElement(title.closest("header")));
+
+    expect(headerScope.getByText("Parent")).toBeInTheDocument();
+    expect(headerScope.getByText("bsm-7en")).toBeInTheDocument();
+
+    await user.click(getRowButton(issueWithoutParent));
+
+    const blankParentHeaderScope = within(
+      requireHTMLElement(
+        getDetail()
+          .getByRole("heading", {
+            level: 2,
+            name: issueWithoutParent.title,
+          })
+          .closest("header")
+      )
+    );
+    expect(blankParentHeaderScope.queryByText("Parent")).toBeNull();
+  });
+
+  it("orders selected Issue Detail sections with comments after Other metadata", async () => {
+    const user = userEvent.setup();
+    const issue = buildIssue({
+      blockedBy: ["bsm-blocker"],
+      blocks: ["bsm-blocked"],
+      comments: [
+        {
+          author: "Tomas",
+          text: "Final note.",
+          timestamp: "2026-07-05T12:00:00Z",
+        },
+      ],
+      description: "Detail body.",
+      id: "bsm-section-order",
+      labels: ["ready-for-agent"],
+      parent: "bsm-7en",
+    });
+
+    renderExplorer([issue]);
+
+    await user.click(getRowButton(issue));
+
+    expect(getDetailSectionFlow()).toEqual([
+      "title/header",
+      "primary metadata",
+      "Labels",
+      "Description",
+      "Dependencies",
+      "Other metadata",
+      "Comments",
+    ]);
   });
 
   it("marks the clicked Issue row as the selected row with an accessible current state", async () => {
@@ -564,7 +654,7 @@ describe("IssueExplorer", () => {
     expect(otherScope.getByText("Deferred until")).toBeInTheDocument();
     expect(otherScope.getByText("Closed at")).toBeInTheDocument();
     expect(otherScope.getByText("Close reason")).toBeInTheDocument();
-    expect(otherScope.getByText("Parent")).toBeInTheDocument();
+    expect(otherScope.queryByText("Parent")).toBeNull();
 
     // Raw values are rendered verbatim — no date formatting.
     expect(otherScope.getByText("Tomas")).toBeInTheDocument();
@@ -574,7 +664,7 @@ describe("IssueExplorer", () => {
     expect(otherScope.getByText("2026-09-01")).toBeInTheDocument();
     expect(otherScope.getByText("2026-07-04T08:00:00Z")).toBeInTheDocument();
     expect(otherScope.getByText("Done")).toBeInTheDocument();
-    expect(otherScope.getByText("bsm-7en")).toBeInTheDocument();
+    expect(otherScope.queryByText("bsm-7en")).toBeNull();
   });
 
   it("hides optional Other metadata fields when their values are empty or whitespace-only and always shows Created and Updated", async () => {

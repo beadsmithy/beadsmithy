@@ -300,6 +300,7 @@ const IssueDetailContent = ({
   const view = toIssueViewModel(issue);
   const hasDescription = issue.description.trim().length > 0;
   const hasComments = issue.comments.length > 0;
+  const hasParent = issue.parent.trim().length > 0;
 
   return (
     <main
@@ -318,6 +319,11 @@ const IssueDetailContent = ({
           </h2>
           <span className="font-mono text-xs text-muted">{view.id}</span>
         </div>
+        {hasParent ? (
+          <dl className="mt-3 flex flex-wrap items-start gap-x-6 gap-y-3">
+            <MetadataRow label="Parent" value={issue.parent} />
+          </dl>
+        ) : null}
       </header>
       <dl className="flex flex-wrap items-start gap-x-6 gap-y-3">
         <div className="flex flex-col gap-1">
@@ -369,22 +375,6 @@ const IssueDetailContent = ({
           <IssueDetailDescriptionEmpty />
         )}
       </section>
-      {hasComments ? (
-        <section>
-          <h3 className="font-mono text-[10px] tracking-wider text-muted uppercase">
-            Comments
-          </h3>
-          <ul className="mt-2 flex flex-col gap-3">
-            {issue.comments.map((comment) => (
-              <IssueCommentCard
-                comment={comment}
-                key={`${comment.timestamp}-${comment.author}-${comment.text}`}
-                openExternalLink={openExternalLink}
-              />
-            ))}
-          </ul>
-        </section>
-      ) : null}
       <section>
         <h3 className="font-mono text-[10px] tracking-wider text-muted uppercase">
           Dependencies
@@ -426,11 +416,24 @@ const IssueDetailContent = ({
           {issue.closeReason.trim().length > 0 ? (
             <MetadataRow label="Close reason" value={issue.closeReason} />
           ) : null}
-          {issue.parent.trim().length > 0 ? (
-            <MetadataRow label="Parent" value={issue.parent} />
-          ) : null}
         </dl>
       </section>
+      {hasComments ? (
+        <section>
+          <h3 className="font-mono text-[10px] tracking-wider text-muted uppercase">
+            Comments
+          </h3>
+          <ul className="mt-2 flex flex-col gap-3">
+            {issue.comments.map((comment) => (
+              <IssueCommentCard
+                comment={comment}
+                key={`${comment.timestamp}-${comment.author}-${comment.text}`}
+                openExternalLink={openExternalLink}
+              />
+            ))}
+          </ul>
+        </section>
+      ) : null}
     </main>
   );
 };
