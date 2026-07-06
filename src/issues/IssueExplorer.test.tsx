@@ -67,6 +67,13 @@ const renderExplorer = (
 
 const getDetail = () => within(screen.getByRole("main"));
 
+const requireHTMLElement = (element: Element | null): HTMLElement => {
+  if (!(element instanceof HTMLElement)) {
+    throw new Error("Expected an HTMLElement ancestor");
+  }
+  return element;
+};
+
 const getRowButton = (issue: Issue) =>
   within(screen.getByRole("list", { name: "Issues" }))
     .getAllByRole("button")
@@ -137,10 +144,8 @@ describe("IssueExplorer", () => {
 
     // The ID must be in the same header container as the title (not on a
     // separate paragraph below it).
-    const header = title.closest("header");
-    expect(header).not.toBeNull();
     expect(
-      within(header as HTMLElement).getByText(issue.id)
+      within(requireHTMLElement(title.closest("header"))).getByText(issue.id)
     ).toBeInTheDocument();
 
     // And it must not be a sibling <p> sitting below the <h2>.
@@ -344,5 +349,203 @@ describe("IssueExplorer", () => {
     expect(detail.getByText("src/issues/IssueExplorer.tsx").tagName).toBe(
       "CODE"
     );
+  });
+
+  it("renders the Dependencies card with raw canonical IDs preserving prefixes and no link or button wrappers", async () => {
+    const user = userEvent.setup();
+    const issue = buildIssue({
+      blockedBy: ["bsm-7en.2", "bsm-7en.3"],
+      blocks: ["bsm-7en.5"],
+      id: "bsm-with-deps",
+    });
+
+    renderExplorer([issue]);
+
+    await user.click(getRowButton(issue));
+
+    const detail = getDetail();
+    const depsHeading = detail.getByRole("heading", {
+      level: 3,
+      name: "Dependencies",
+    });
+    const depsScope = within(
+      requireHTMLElement(depsHeading.closest("section"))
+    );
+
+    // Row labels are present.
+    expect(depsScope.getByText("Blocked by")).toBeInTheDocument();
+    expect(depsScope.getByText("Blocking")).toBeInTheDocument();
+
+    // Raw canonical IDs (including the prefix) are rendered as plain text.
+    expect(depsScope.getByText("bsm-7en.2")).toBeInTheDocument();
+    expect(depsScope.getByText("bsm-7en.3")).toBeInTheDocument();
+    expect(depsScope.getByText("bsm-7en.5")).toBeInTheDocument();
+
+    // IDs are not wrapped in <a> or <button> — no dependency navigation.
+    expect(depsScope.queryByRole("link", { name: "bsm-7en.2" })).toBeNull();
+    expect(depsScope.queryByRole("link", { name: "bsm-7en.3" })).toBeNull();
+    expect(depsScope.queryByRole("link", { name: "bsm-7en.5" })).toBeNull();
+    expect(depsScope.queryByRole("button", { name: "bsm-7en.2" })).toBeNull();
+    expect(depsScope.queryByRole("button", { name: "bsm-7en.3" })).toBeNull();
+    expect(depsScope.queryByRole("button", { name: "bsm-7en.5" })).toBeNull();
+
+    // No empty-state copy when dependencies are populated.
+    expect(depsScope.queryByText("No blockers")).toBeNull();
+    expect(depsScope.queryByText("Not blocking anything")).toBeNull();
+  });
+
+  it("renders the exact empty-state copy in the Dependencies card when blockers and blocks are empty", async () => {
+    const user = userEvent.setup();
+    const issue = buildIssue({
+      blockedBy: [],
+      blocks: [],
+      id: "bsm-no-deps",
+    });
+
+    renderExplorer([issue]);
+
+    await user.click(getRowButton(issue));
+
+    const detail = getDetail();
+    const depsHeading = detail.getByRole("heading", {
+      level: 3,
+      name: "Dependencies",
+    });
+    const depsScope = within(
+      requireHTMLElement(depsHeading.closest("section"))
+    );
+
+    expect(depsScope.getByText("Blocked by")).toBeInTheDocument();
+    expect(depsScope.getByText("Blocking")).toBeInTheDocument();
+
+    // Exact empty-state copy locked by the bead.
+    expect(depsScope.getByText("No blockers")).toBeInTheDocument();
+    expect(depsScope.getByText("Not blocking anything")).toBeInTheDocument();
+  });
+
+  it("renders the Other metadata section with raw values when all optional fields are present", async () => {
+    const user = userEvent.setup();
+    const issue = buildIssue({
+      assignee: "Tomas",
+      closeReason: "Done",
+      closedAt: "2026-07-04T08:00:00Z",
+      created: "2026-07-01T08:00:00Z",
+      deferUntil: "2026-09-01",
+      due: "2026-08-01",
+      id: "bsm-full-meta",
+      parent: "bsm-7en",
+      updatedAt: "2026-07-05T10:00:00Z",
+    });
+
+    renderExplorer([issue]);
+
+    await user.click(getRowButton(issue));
+
+    const detail = getDetail();
+    const otherScope = within(
+      requireHTMLElement(
+        detail
+          .getByRole("heading", { level: 3, name: "Other metadata" })
+          .closest("section")
+      )
+    );
+
+    // Every label appears once in the Other metadata section.
+    expect(otherScope.getByText("Assignee")).toBeInTheDocument();
+    expect(otherScope.getByText("Created")).toBeInTheDocument();
+    expect(otherScope.getByText("Updated")).toBeInTheDocument();
+    expect(otherScope.getByText("Due")).toBeInTheDocument();
+    expect(otherScope.getByText("Deferred until")).toBeInTheDocument();
+    expect(otherScope.getByText("Closed at")).toBeInTheDocument();
+    expect(otherScope.getByText("Close reason")).toBeInTheDocument();
+    expect(otherScope.getByText("Parent")).toBeInTheDocument();
+
+    // Raw values are rendered verbatim — no date formatting.
+    expect(otherScope.getByText("Tomas")).toBeInTheDocument();
+    expect(otherScope.getByText("2026-07-01T08:00:00Z")).toBeInTheDocument();
+    expect(otherScope.getByText("2026-07-05T10:00:00Z")).toBeInTheDocument();
+    expect(otherScope.getByText("2026-08-01")).toBeInTheDocument();
+    expect(otherScope.getByText("2026-09-01")).toBeInTheDocument();
+    expect(otherScope.getByText("2026-07-04T08:00:00Z")).toBeInTheDocument();
+    expect(otherScope.getByText("Done")).toBeInTheDocument();
+    expect(otherScope.getByText("bsm-7en")).toBeInTheDocument();
+  });
+
+  it("hides optional Other metadata fields when their values are empty or whitespace-only and always shows Created and Updated", async () => {
+    const user = userEvent.setup();
+
+    const emptyMeta = buildIssue({
+      assignee: "",
+      closeReason: "",
+      closedAt: "",
+      created: "2026-07-01T08:00:00Z",
+      deferUntil: "",
+      due: "",
+      id: "bsm-empty-meta",
+      parent: "",
+      updatedAt: "2026-07-05T10:00:00Z",
+    });
+    const whitespaceMeta = buildIssue({
+      assignee: "   ",
+      closeReason: "   ",
+      closedAt: "   ",
+      created: "2026-07-01T08:00:00Z",
+      deferUntil: "   ",
+      due: "   ",
+      id: "bsm-whitespace-meta",
+      parent: "   ",
+      updatedAt: "2026-07-05T10:00:00Z",
+    });
+
+    renderExplorer([emptyMeta, whitespaceMeta]);
+
+    // Empty-string values hide their labels.
+    await user.click(getRowButton(emptyMeta));
+    {
+      const detail = getDetail();
+      const otherScope = within(
+        requireHTMLElement(
+          detail
+            .getByRole("heading", { level: 3, name: "Other metadata" })
+            .closest("section")
+        )
+      );
+
+      expect(otherScope.queryByText("Assignee")).toBeNull();
+      expect(otherScope.queryByText("Due")).toBeNull();
+      expect(otherScope.queryByText("Deferred until")).toBeNull();
+      expect(otherScope.queryByText("Closed at")).toBeNull();
+      expect(otherScope.queryByText("Close reason")).toBeNull();
+      expect(otherScope.queryByText("Parent")).toBeNull();
+
+      // Created and Updated remain visible with raw values.
+      expect(otherScope.getByText("Created")).toBeInTheDocument();
+      expect(otherScope.getByText("Updated")).toBeInTheDocument();
+      expect(otherScope.getByText("2026-07-01T08:00:00Z")).toBeInTheDocument();
+      expect(otherScope.getByText("2026-07-05T10:00:00Z")).toBeInTheDocument();
+    }
+
+    // Whitespace-only values hide their labels the same way.
+    await user.click(getRowButton(whitespaceMeta));
+    {
+      const detail = getDetail();
+      const otherScope = within(
+        requireHTMLElement(
+          detail
+            .getByRole("heading", { level: 3, name: "Other metadata" })
+            .closest("section")
+        )
+      );
+
+      expect(otherScope.queryByText("Assignee")).toBeNull();
+      expect(otherScope.queryByText("Due")).toBeNull();
+      expect(otherScope.queryByText("Deferred until")).toBeNull();
+      expect(otherScope.queryByText("Closed at")).toBeNull();
+      expect(otherScope.queryByText("Close reason")).toBeNull();
+      expect(otherScope.queryByText("Parent")).toBeNull();
+
+      expect(otherScope.getByText("Created")).toBeInTheDocument();
+      expect(otherScope.getByText("Updated")).toBeInTheDocument();
+    }
   });
 });

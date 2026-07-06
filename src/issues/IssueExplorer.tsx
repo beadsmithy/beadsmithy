@@ -219,6 +219,46 @@ const IssueDetailDescriptionEmpty = () => (
   </div>
 );
 
+const DependencyChip = ({ id }: { id: string }) => (
+  <span className="rounded border border-border-main px-2 py-0.5 font-mono text-xs text-text-main">
+    {id}
+  </span>
+);
+
+const DependencyRow = ({
+  emptyText,
+  ids,
+  label,
+}: {
+  emptyText: string;
+  ids: string[];
+  label: string;
+}) => (
+  <div className="flex flex-col gap-1">
+    <dt className="font-mono text-[10px] tracking-wider text-muted uppercase">
+      {label}
+    </dt>
+    <dd className="flex flex-wrap gap-1">
+      {ids.length > 0 ? (
+        ids.map((id) => <DependencyChip id={id} key={id} />)
+      ) : (
+        <span className="font-mono text-xs text-muted">{emptyText}</span>
+      )}
+    </dd>
+  </div>
+);
+
+const MetadataRow = ({ label, value }: { label: string; value: string }) => (
+  <div className="flex flex-col gap-1">
+    <dt className="font-mono text-[10px] tracking-wider text-muted uppercase">
+      {label}
+    </dt>
+    <dd className="rounded border border-border-main px-2 py-0.5 font-mono text-xs text-text-main">
+      {value}
+    </dd>
+  </div>
+);
+
 const IssueDetailContent = ({
   issue,
   openExternalLink,
@@ -296,6 +336,52 @@ const IssueDetailContent = ({
         ) : (
           <IssueDetailDescriptionEmpty />
         )}
+      </section>
+      <section>
+        <h3 className="font-mono text-[10px] tracking-wider text-muted uppercase">
+          Dependencies
+        </h3>
+        <div className="mt-2 rounded-lg border border-border-main bg-surface p-4">
+          <dl className="flex flex-wrap items-start gap-x-6 gap-y-3">
+            <DependencyRow
+              emptyText="No blockers"
+              ids={issue.blockedBy}
+              label="Blocked by"
+            />
+            <DependencyRow
+              emptyText="Not blocking anything"
+              ids={issue.blocks}
+              label="Blocking"
+            />
+          </dl>
+        </div>
+      </section>
+      <section>
+        <h3 className="font-mono text-[10px] tracking-wider text-muted uppercase">
+          Other metadata
+        </h3>
+        <dl className="mt-2 flex flex-wrap items-start gap-x-6 gap-y-3">
+          {issue.assignee.trim().length > 0 ? (
+            <MetadataRow label="Assignee" value={issue.assignee} />
+          ) : null}
+          <MetadataRow label="Created" value={issue.created} />
+          <MetadataRow label="Updated" value={issue.updatedAt} />
+          {issue.due.trim().length > 0 ? (
+            <MetadataRow label="Due" value={issue.due} />
+          ) : null}
+          {issue.deferUntil.trim().length > 0 ? (
+            <MetadataRow label="Deferred until" value={issue.deferUntil} />
+          ) : null}
+          {issue.closedAt.trim().length > 0 ? (
+            <MetadataRow label="Closed at" value={issue.closedAt} />
+          ) : null}
+          {issue.closeReason.trim().length > 0 ? (
+            <MetadataRow label="Close reason" value={issue.closeReason} />
+          ) : null}
+          {issue.parent.trim().length > 0 ? (
+            <MetadataRow label="Parent" value={issue.parent} />
+          ) : null}
+        </dl>
       </section>
     </main>
   );
