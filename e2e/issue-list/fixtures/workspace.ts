@@ -1,6 +1,6 @@
 /**
- * Deterministic, disposable Beadwork workspaces for the Issue List WebDriver
- * end-to-end suite. Each workspace is a throwaway git repository initialized
+ * Deterministic, disposable Beadwork workspaces for the Issue explorer
+ * WebDriver end-to-end suite. Each workspace is a throwaway git repository initialized
  * with `bw init` under the OS temp directory, so nothing here is committed
  * and nothing depends on a machine-specific path (see
  * docs/agents/webdriver-e2e.md).
@@ -60,11 +60,26 @@ export const createEmptyWorkspace = (): BeadworkWorkspace => {
   return { path: workspacePath };
 };
 
-export const FIXTURE_ISSUE_TITLE = "Render real issue summaries end to end";
+export const FIXTURE_BLOCKER_TITLE = "Wire up the deterministic e2e fixture";
+export const FIXTURE_ISSUE_TITLE = "Render selected issue details end to end";
+export const FIXTURE_DESCRIPTION_HEADING = "Detail-ready fixture";
+export const FIXTURE_DESCRIPTION_BULLET =
+  "Markdown bullets survive the Beadwork round trip.";
+export const FIXTURE_DESCRIPTION_INLINE_CODE = "list_issues";
+export const FIXTURE_ISSUE_DESCRIPTION = `## ${FIXTURE_DESCRIPTION_HEADING}
+
+This description proves the desktop app renders selected Issue Detail content from ${FIXTURE_DESCRIPTION_INLINE_CODE}.
+
+- ${FIXTURE_DESCRIPTION_BULLET}
+- Inline code such as \`${FIXTURE_DESCRIPTION_INLINE_CODE}\` appears in the detail pane.`;
+export const FIXTURE_COMMENT_AUTHOR = "Beadsmith E2E";
+export const FIXTURE_COMMENT_TEXT =
+  "The detail pane should show this authored fixture comment.";
 
 /**
- * A real Beadwork workspace with one issue that has labels and a blocking
- * dependency, plus the blocker issue itself.
+ * A real Beadwork workspace with one issue that has labels, a blocking
+ * dependency, a Markdown description, and comments, plus the blocker issue
+ * itself.
  */
 export const createIssueListWorkspace = (): BeadworkWorkspace => {
   const workspacePath = mkdtempSync(
@@ -78,7 +93,7 @@ export const createIssueListWorkspace = (): BeadworkWorkspace => {
   const blockerId = runBw(
     [
       "create",
-      "Wire up the deterministic e2e fixture",
+      FIXTURE_BLOCKER_TITLE,
       "--type",
       "task",
       "--priority",
@@ -95,12 +110,24 @@ export const createIssueListWorkspace = (): BeadworkWorkspace => {
       "feature",
       "--priority",
       "1",
+      "--description",
+      FIXTURE_ISSUE_DESCRIPTION,
       "--silent",
     ],
     workspacePath
   );
   runBw(["label", issueId, "+e2e-fixture", "+ready-for-agent"], workspacePath);
   runBw(["dep", "add", blockerId, "blocks", issueId], workspacePath);
+  runBw(
+    [
+      "comment",
+      issueId,
+      FIXTURE_COMMENT_TEXT,
+      "--author",
+      FIXTURE_COMMENT_AUTHOR,
+    ],
+    workspacePath
+  );
 
   console.log(
     `[e2e:fixture] workspace ready at ${workspacePath}: issue ${issueId} (blocked by ${blockerId})`

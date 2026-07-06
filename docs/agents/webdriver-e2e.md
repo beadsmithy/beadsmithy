@@ -1,9 +1,11 @@
-# WebDriver end-to-end: Issue List
+# WebDriver end-to-end: Issue explorer and selected Issue Detail
 
-This is the WebDriver end-to-end suite for the Issue List slice (bsm-mq4.5). It
+This is the WebDriver end-to-end suite for the Issue explorer path. It
 launches the real, built Beadsmith desktop binary and drives it through
-WebdriverIO, proving the full stack renders real Beadwork data: Rust `bw`
-adapter -> TauRPC boundary -> Effect service -> React.
+WebdriverIO, proving real Beadwork `Issue` data flows from the Rust `bw`
+adapter -> TauRPC boundary -> Effect service -> React. The success scenario
+also selects an Issue row and verifies representative Issue Detail content from
+that same `list_issues` payload.
 
 Unit tests (`cargo test`, `pnpm test`) already cover each layer in isolation.
 This suite exists because those can all pass while the actual desktop launch
@@ -36,10 +38,12 @@ if `bw` isn't found or the debug binary hasn't been built yet.
 
 - **Fixtures** (`e2e/issue-list/fixtures/workspace.ts`): each scenario gets a
   throwaway git repository under the OS temp directory, initialized with
-  `bw init` and (for the "issues" scenario) populated with `bw create`/`bw
-label`/`bw dep add`. Nothing is committed to this repo and no
-  machine-specific path is baked in -- everything is created fresh per run and
-  removed afterward.
+  `bw init` and (for the "issues" scenario) populated with `bw create`,
+  `bw create --description`, `bw label`, `bw dep add`, and `bw comment` so the
+  selected detail view has labels, dependency context, Markdown description
+  output, and authored comments to render. Nothing is committed to this repo
+  and no machine-specific path is baked in -- everything is created fresh per
+  run and removed afterward.
 - **Scenario runner** (`e2e/issue-list/scripts/run-scenario.ts`): creates the
   workspace, launches `wdio` with `BEADSMITH_E2E_WORKSPACE` set, and removes
   the workspace when the run finishes (pass or fail). Workspace creation lives
@@ -68,14 +72,16 @@ label`/`bw dep add`. Nothing is committed to this repo and no
   in `src-tauri/capabilities/webdriver-e2e.json`, separate from the app's
   default capability.
 - **Specs** (`e2e/issue-list/*.spec.ts`): assert on the native RPC path and
-  the rendered DOM. `issue-list.success.spec.ts` first invokes
-  `TauRPC__list_issues` through `browser.tauri.execute()` as a direct
-  command sanity check, then waits for the fixture issue's row (matched by
-  title in its `aria-label`), asserts its label and blocking-dependency text,
-  and asserts the sidebar's reported workspace path matches the launched
-  fixture. `issue-list.empty.spec.ts` asserts the true-empty state renders
-  (and that neither the failure nor the populated-list state does) for a
-  workspace with zero issues.
+  the rendered DOM. `issue-list.success.spec.ts` invokes
+  `TauRPC__list_issues` as a direct command sanity check, waits for the
+  fixture Issue row (matched by title in its `aria-label`), asserts row label
+  and blocking-dependency metadata, clicks the Issue row, and asserts
+  representative selected Issue Detail content: title/ID, Markdown description
+  output, dependency context, and comments. It also asserts the sidebar's
+  reported workspace path matches the launched fixture.
+  `issue-list.empty.spec.ts` asserts the true-empty state renders (and that
+  neither the failure nor the populated-list state does) for a workspace with
+  zero issues.
 
 ## Why the embedded WebDriver server, not `tauri-driver`
 
@@ -101,5 +107,7 @@ so the service crashes on startup. `pnpm-workspace.yaml` overrides
 
 ## Deliberately out of scope
 
-- Full regression coverage for workspace switching, search, filters, issue
-  detail, or mutations -- this suite covers the Issue List slice only.
+- Broad visual regression coverage.
+- Issue mutations.
+- Workspace switching.
+- Search and filter coverage beyond the selected fixture row path.

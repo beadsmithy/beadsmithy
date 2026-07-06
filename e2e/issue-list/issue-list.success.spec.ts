@@ -1,21 +1,29 @@
 /**
- * Proves the Issue List slice end to end: launches the real Beadsmith debug
- * binary against a disposable Beadwork workspace built via `bw` and asserts
- * the issue explorer renders a real `Issue` through the full
- * Rust adapter -> TauRPC -> Effect -> React path (see bsm-mq4.5).
+ * Proves the Issue explorer and selected Issue Detail end to end: launches
+ * the real Beadsmith debug binary against a disposable Beadwork workspace
+ * built via `bw` and asserts the issue explorer renders a real `Issue`
+ * through the full Rust adapter -> TauRPC -> Effect -> React path.
  */
 import path from "node:path";
 
 import { browser, expect } from "@wdio/globals";
 
-import { FIXTURE_ISSUE_TITLE } from "./fixtures/workspace.ts";
+import {
+  FIXTURE_BLOCKER_TITLE,
+  FIXTURE_COMMENT_AUTHOR,
+  FIXTURE_COMMENT_TEXT,
+  FIXTURE_DESCRIPTION_BULLET,
+  FIXTURE_DESCRIPTION_HEADING,
+  FIXTURE_DESCRIPTION_INLINE_CODE,
+  FIXTURE_ISSUE_TITLE,
+} from "./fixtures/workspace.ts";
 
 interface ListIssuesResponse {
   issues: { title: string }[];
   workspacePath: string;
 }
 
-describe("Issue List (WebDriver e2e): workspace with a real Beadwork issue", () => {
+describe("Issue explorer (WebDriver e2e): workspace with a selectable Issue Detail", () => {
   it("can reach the native issue-list RPC path", async () => {
     const result = (await browser.executeAsync((done) => {
       const tauriWindow = window as typeof window & {
@@ -68,6 +76,63 @@ describe("Issue List (WebDriver e2e): workspace with a real Beadwork issue", () 
     expect(rowText).toContain(FIXTURE_ISSUE_TITLE);
     expect(rowText).toContain("e2e-fixture");
     expect(rowText).toContain("blocked by 1");
+  });
+
+  it("selects the fixture issue and renders representative detail content", async () => {
+    const issueRow = await browser.$(
+      `article[aria-label*="${FIXTURE_ISSUE_TITLE}"]`
+    );
+    await issueRow.waitForExist({ timeout: 120_000 });
+
+    const blockerRow = await browser.$(
+      `article[aria-label*="${FIXTURE_BLOCKER_TITLE}"]`
+    );
+    await blockerRow.waitForExist({ timeout: 120_000 });
+
+    const issueButton = await issueRow.$("button[data-issue-id]");
+    const blockerButton = await blockerRow.$("button[data-issue-id]");
+    const selectedIssueId = await issueButton.getAttribute("data-issue-id");
+    const blockerId = await blockerButton.getAttribute("data-issue-id");
+
+    if (!selectedIssueId || !blockerId) {
+      throw new Error(
+        "Expected fixture rows to expose dynamic data-issue-id values"
+      );
+    }
+
+    await issueButton.click();
+
+    let detailText = "";
+    await browser.waitUntil(
+      async () => {
+        const detail = await browser.$('main[aria-label="Issue detail"]');
+        if (!(await detail.isDisplayed())) {
+          return false;
+        }
+
+        detailText = await detail.getText();
+        return (
+          detailText.includes(FIXTURE_ISSUE_TITLE) &&
+          detailText.includes(selectedIssueId)
+        );
+      },
+      {
+        timeout: 30_000,
+        timeoutMsg:
+          "Selected Issue Detail did not render the fixture title and ID",
+      }
+    );
+
+    expect(detailText).toContain("Description");
+    expect(detailText).toContain(FIXTURE_DESCRIPTION_HEADING);
+    expect(detailText).toContain(FIXTURE_DESCRIPTION_BULLET);
+    expect(detailText).toContain(FIXTURE_DESCRIPTION_INLINE_CODE);
+    expect(detailText).toContain("Comments");
+    expect(detailText).toContain(FIXTURE_COMMENT_AUTHOR);
+    expect(detailText).toContain(FIXTURE_COMMENT_TEXT);
+    expect(detailText).toContain("Dependencies");
+    expect(detailText).toContain("Blocked by");
+    expect(detailText).toContain(blockerId);
   });
 
   it("shows the launched Beadwork workspace path in the sidebar", async () => {
