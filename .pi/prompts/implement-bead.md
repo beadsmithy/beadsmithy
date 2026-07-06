@@ -19,6 +19,7 @@ Implement Beadwork issue `$1` end-to-end.
 Branch name: `<issue-id>/<title-slug>` — kebab-case the title, drop filler words, cap at ~40 chars.
 
 **Must-do:**
+
 - Create or resume the worktree via `wt switch --create <branch-name> --no-cd --yes --format json`.
 - Capture the worktree path from the JSON response.
 - `cd` into the worktree path. Every subsequent shell command and every `subagent({ ... })` call runs from that cwd.
@@ -69,7 +70,6 @@ The reviewer is a separate single-agent run, not part of the implementation chai
 Reviewer task instruction to pass to subagent:
 Review the committed change for Beadwork issue `$1`. Run `bw show $1 --json` to read the implemented issue. Run a diff of the branch (`git diff <commit-sha>~1..HEAD`). The implementation is already committed; do not amend, do not push.
 
-
 ```js
 const reviewerRun = subagent({
   agent: "reviewer",
@@ -80,7 +80,6 @@ const reviewerRun = subagent({
   timeoutMs: 1800000,
 });
 ```
-
 
 Save the async run id from the launch result as `<reviewer-id>`. The report lands at `.pi-subagents/artifacts/outputs/<reviewer-id>/review.md`.
 
@@ -93,8 +92,6 @@ Read `.pi-subagents/artifacts/outputs/<reviewer-id>/review.md` and determine if 
 To fix any feedback launch **one** fix worker (cap is 1 round — no re-review). Use the `worker` agent.
 
 You should compose the fixer (worker) task instruction to pass to subagent from the review findings. Make sure to be explicit and exact in what should be fixed. Tell the subagent to not fix anything else than what you have explicitly instructed.
-
-
 
 ```js
 const fixRun = subagent({
@@ -115,6 +112,7 @@ Commit the changes in a new, separate commit.
 **Step 1: Run the validation commands** the project uses. At minimum: `pnpm run check`, `pnpm exec tsc --noEmit`, `pnpm test`, and (for Tauri) `cargo check` in `src-tauri/` if Rust changed.
 
 **Step 2: Classify findings.**
+
 - Findings in files this issue changed → block the gate. Either fix via a follow-up fix worker (no second review round) or stop and ask the user.
 - Pre-existing failures in files this issue did not change → not blockers. Note them in the final summary. Do **not** "fix inline".
 
@@ -132,6 +130,7 @@ gh pr create --base main --title "<issue-id>: <short summary>" --body-file <body
 ```
 
 **Must-do for the PR body:**
+
 - Summarize the issue this PR implements.
 - Highlight the most important changes (≤ 3 bullets).
 - Walk through the implementation at a level a reviewer who has not seen the bead can follow.

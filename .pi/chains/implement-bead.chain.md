@@ -4,6 +4,7 @@ description: Implement a Beadwork issue through the main scout → planner → w
 ---
 
 ## scout
+
 phase: Context
 label: Scout issue context
 as: codebaseContext
@@ -16,6 +17,7 @@ Write findings to output, with the full `bw show {task} --json` output at the to
 Hard constraints: do not edit project/source files; surface ambiguities instead of guessing.
 
 ## planner
+
 phase: Planning
 label: Plan implementation
 as: implementationPlan
@@ -27,6 +29,7 @@ The read the context, path is supplied at runtime.
 Hard constraints: do not make code changes; surface underspecified requirements instead of guessing.
 
 ## worker
+
 phase: Implementation
 label: Implement issue
 as: workerHandoff
