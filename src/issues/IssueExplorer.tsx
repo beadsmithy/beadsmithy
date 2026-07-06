@@ -297,6 +297,140 @@ const IssueDetailContent = ({
           <IssueDetailDescriptionEmpty />
         )}
       </section>
+      <section>
+        <h3 className="font-mono text-[10px] tracking-wider text-muted uppercase">
+          Dependencies
+        </h3>
+        <div className="mt-2 rounded-lg border border-border-main bg-surface p-4">
+          <dl className="flex flex-wrap items-start gap-x-6 gap-y-3">
+            <div className="flex flex-col gap-1">
+              <dt className="font-mono text-[10px] tracking-wider text-muted uppercase">
+                Blocked by
+              </dt>
+              <dd className="flex flex-wrap gap-1">
+                {issue.blockedBy.length > 0 ? (
+                  issue.blockedBy.map((id) => (
+                    <span
+                      className="rounded border border-border-main px-2 py-0.5 font-mono text-xs text-text-main"
+                      key={id}
+                    >
+                      {id}
+                    </span>
+                  ))
+                ) : (
+                  <span className="font-mono text-xs text-muted">
+                    No blockers
+                  </span>
+                )}
+              </dd>
+            </div>
+            <div className="flex flex-col gap-1">
+              <dt className="font-mono text-[10px] tracking-wider text-muted uppercase">
+                Blocking
+              </dt>
+              <dd className="flex flex-wrap gap-1">
+                {issue.blocks.length > 0 ? (
+                  issue.blocks.map((id) => (
+                    <span
+                      className="rounded border border-border-main px-2 py-0.5 font-mono text-xs text-text-main"
+                      key={id}
+                    >
+                      {id}
+                    </span>
+                  ))
+                ) : (
+                  <span className="font-mono text-xs text-muted">
+                    Not blocking anything
+                  </span>
+                )}
+              </dd>
+            </div>
+          </dl>
+        </div>
+      </section>
+      <section>
+        <h3 className="font-mono text-[10px] tracking-wider text-muted uppercase">
+          Other
+        </h3>
+        <dl className="mt-2 flex flex-wrap items-start gap-x-6 gap-y-3">
+          {issue.assignee.trim().length > 0 ? (
+            <div className="flex flex-col gap-1">
+              <dt className="font-mono text-[10px] tracking-wider text-muted uppercase">
+                Assignee
+              </dt>
+              <dd className="rounded border border-border-main px-2 py-0.5 font-mono text-xs text-text-main">
+                {issue.assignee}
+              </dd>
+            </div>
+          ) : null}
+          <div className="flex flex-col gap-1">
+            <dt className="font-mono text-[10px] tracking-wider text-muted uppercase">
+              Created
+            </dt>
+            <dd className="rounded border border-border-main px-2 py-0.5 font-mono text-xs text-text-main">
+              {issue.created}
+            </dd>
+          </div>
+          <div className="flex flex-col gap-1">
+            <dt className="font-mono text-[10px] tracking-wider text-muted uppercase">
+              Updated
+            </dt>
+            <dd className="rounded border border-border-main px-2 py-0.5 font-mono text-xs text-text-main">
+              {issue.updatedAt}
+            </dd>
+          </div>
+          {issue.due.trim().length > 0 ? (
+            <div className="flex flex-col gap-1">
+              <dt className="font-mono text-[10px] tracking-wider text-muted uppercase">
+                Due
+              </dt>
+              <dd className="rounded border border-border-main px-2 py-0.5 font-mono text-xs text-text-main">
+                {issue.due}
+              </dd>
+            </div>
+          ) : null}
+          {issue.deferUntil.trim().length > 0 ? (
+            <div className="flex flex-col gap-1">
+              <dt className="font-mono text-[10px] tracking-wider text-muted uppercase">
+                Deferred until
+              </dt>
+              <dd className="rounded border border-border-main px-2 py-0.5 font-mono text-xs text-text-main">
+                {issue.deferUntil}
+              </dd>
+            </div>
+          ) : null}
+          {issue.closedAt.trim().length > 0 ? (
+            <div className="flex flex-col gap-1">
+              <dt className="font-mono text-[10px] tracking-wider text-muted uppercase">
+                Closed at
+              </dt>
+              <dd className="rounded border border-border-main px-2 py-0.5 font-mono text-xs text-text-main">
+                {issue.closedAt}
+              </dd>
+            </div>
+          ) : null}
+          {issue.closeReason.trim().length > 0 ? (
+            <div className="flex flex-col gap-1">
+              <dt className="font-mono text-[10px] tracking-wider text-muted uppercase">
+                Close reason
+              </dt>
+              <dd className="rounded border border-border-main px-2 py-0.5 font-mono text-xs text-text-main">
+                {issue.closeReason}
+              </dd>
+            </div>
+          ) : null}
+          {issue.parent.trim().length > 0 ? (
+            <div className="flex flex-col gap-1">
+              <dt className="font-mono text-[10px] tracking-wider text-muted uppercase">
+                Parent
+              </dt>
+              <dd className="rounded border border-border-main px-2 py-0.5 font-mono text-xs text-text-main">
+                {issue.parent}
+              </dd>
+            </div>
+          ) : null}
+        </dl>
+      </section>
     </main>
   );
 };
