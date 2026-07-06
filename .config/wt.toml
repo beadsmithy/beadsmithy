@@ -4,14 +4,6 @@
 pre-start = "pnpm install"
 post-start = "mise trust"
 
-[merge]
-squash = false # Don't squash commits into one
-commit = false # Don't commit uncommitted changes first
-rebase = true # Rebase onto target before merge (--no-rebase to skip)
-remove = true # Remove worktree after merge (--no-remove to keep)
-verify = true # Run project hooks (--no-hooks to skip)
-ff = true # Fast-forward merge (--no-ff to create a merge commit instead)
-
 # Validate both halves of the app before merging back to the default
 # branch. These run concurrently — vitest covers React/TS,
 # `cargo check` covers the Tauri Rust workspace.
