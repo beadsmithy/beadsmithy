@@ -1,5 +1,5 @@
 {
-  "assignee": "",
+  "assignee": "Tomas Thor Jonsson",
   "blocked_by": [],
   "blocks": [],
   "created": "2026-07-06T15:11:58Z",
@@ -8,8 +8,8 @@
   "labels": [],
   "parent": "bsm-7en",
   "priority": 2,
-  "status": "open",
+  "status": "in_progress",
   "title": "Fix Issue Detail section ordering",
   "type": "task",
-  "updated_at": "2026-07-06T15:11:58Z"
+  "updated_at": "2026-07-06T15:12:29Z"
 }
