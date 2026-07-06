@@ -351,6 +351,112 @@ describe("IssueExplorer", () => {
     );
   });
 
+  it("omits the Comments section when the selected Issue has no comments", async () => {
+    const user = userEvent.setup();
+    const issue = buildIssue({
+      comments: [],
+      id: "bsm-no-comments",
+    });
+
+    renderExplorer([issue]);
+
+    await user.click(getRowButton(issue));
+
+    expect(getDetail().queryByText(/^Comments$/u)).not.toBeInTheDocument();
+  });
+
+  it("renders comment timestamps and present authors while omitting missing authors", async () => {
+    const user = userEvent.setup();
+    const issue = buildIssue({
+      comments: [
+        {
+          author: "Tomas",
+          text: "First comment body.",
+          timestamp: "2026-07-05T12:00:00Z",
+        },
+        {
+          author: "   ",
+          text: "Second comment body.",
+          timestamp: "2026-07-05T13:00:00Z",
+        },
+      ],
+      id: "bsm-comment-authors",
+    });
+
+    renderExplorer([issue]);
+
+    await user.click(getRowButton(issue));
+
+    const commentsHeading = getDetail().getByRole("heading", {
+      level: 3,
+      name: "Comments",
+    });
+    const commentsScope = within(
+      requireHTMLElement(commentsHeading.closest("section"))
+    );
+
+    expect(commentsScope.getByText("2026-07-05T12:00:00Z")).toBeInTheDocument();
+    expect(commentsScope.getByText("2026-07-05T13:00:00Z")).toBeInTheDocument();
+    expect(commentsScope.getByText("Tomas")).toBeInTheDocument();
+    expect(commentsScope.queryByText(/^\s+$/u)).toBeNull();
+  });
+
+  it("renders comment bodies as Markdown and routes safe external links through the injected opener", async () => {
+    const user = userEvent.setup();
+    const openExternalLink = vi.fn();
+    const issue = buildIssue({
+      comments: [
+        {
+          author: "Tomas",
+          text: [
+            "### Comment update",
+            "",
+            "- shipped Markdown",
+            "",
+            "See [public docs](https://example.com/comments) and [local notes](./notes.md).",
+          ].join("\n"),
+          timestamp: "2026-07-05T14:00:00Z",
+        },
+      ],
+      id: "bsm-comment-markdown",
+    });
+
+    renderExplorer([issue], { openExternalLink });
+
+    await user.click(getRowButton(issue));
+
+    const commentsHeading = getDetail().getByRole("heading", {
+      level: 3,
+      name: "Comments",
+    });
+    const commentsScope = within(
+      requireHTMLElement(commentsHeading.closest("section"))
+    );
+
+    expect(
+      commentsScope.getByRole("heading", { level: 3, name: "Comment update" })
+    ).toBeInTheDocument();
+    expect(commentsScope.getByText("shipped Markdown")).toBeInTheDocument();
+
+    const externalLink = commentsScope.getByRole("link", {
+      name: "public docs",
+    });
+    expect(externalLink).toHaveAttribute(
+      "href",
+      "https://example.com/comments"
+    );
+
+    await user.click(externalLink);
+    expect(openExternalLink).toHaveBeenCalledWith(
+      "https://example.com/comments"
+    );
+
+    expect(
+      commentsScope.queryByRole("link", { name: "local notes" })
+    ).toBeNull();
+    expect(commentsScope.getByText("local notes")).toBeInTheDocument();
+  });
+
   it("renders the Dependencies card with raw canonical IDs preserving prefixes and no link or button wrappers", async () => {
     const user = userEvent.setup();
     const issue = buildIssue({
