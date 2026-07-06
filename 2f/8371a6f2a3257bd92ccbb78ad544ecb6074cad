@@ -1,0 +1,19 @@
+.pi/prompts/implement-bead.md
+  s_6c5cf62e917ba4::t_286b8f4eab66c3 43
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.10",
+  "base_commit_sha": "2f8371a6f2a3257bd92ccbb78ad544ecb6074cad",
+  "prompts": {},
+  "sessions": {
+    "s_6c5cf62e917ba4": {
+      "agent_id": {
+        "tool": "pi",
+        "id": "019f3132-0558-7e9e-a6a5-b89afdb1c8ca",
+        "model": "MiniMax-M3"
+      },
+      "human_author": "Tomas Thor Jonsson <benregn@gmail.com>"
+    }
+  }
+}
