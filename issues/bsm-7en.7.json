@@ -2,14 +2,15 @@
   "assignee": "Tomas Thor Jonsson",
   "blocked_by": [],
   "blocks": [],
+  "closed_at": "2026-07-06T15:16:22Z",
   "created": "2026-07-06T15:11:58Z",
   "description": "## Parent\n\nbsm-7en — Render selected issue details in the issue explorer\n\n## Background\n\nVerification found the implementation matches the child slices overall, but the selected Issue Detail layout does not match the parent epic ordering. The epic requires: description, dependencies, other metadata, comments. The current UI renders comments before dependencies/metadata.\n\nThe user also wants the Parent metadata promoted from the Other metadata section to right below the title.\n\n## What to build\n\n- Reorder selected Issue Detail sections so the visible layout is: title/header, primary metadata, labels, description, dependencies, other metadata, comments.\n- Move Parent metadata out of the Other metadata section and render it directly below the title/header, close to the Issue ID. Keep it hidden when `issue.parent` is empty or whitespace.\n- Update tests to lock the new ordering and Parent placement.\n- Keep the feature read-only. Do not add dependency navigation or extra `bw` calls.\n\n## Acceptance criteria\n\n- [ ] Comments render after Other metadata.\n- [ ] Dependencies render before Other metadata.\n- [ ] Parent appears directly below the title/header when present.\n- [ ] Parent no longer appears in Other metadata.\n- [ ] Empty/whitespace Parent remains hidden.\n- [ ] Focused component tests pass.\n- [ ] Existing unit and E2E tests still pass or any unrun checks are reported.\n\n## Blocked by\n\nNone.",
   "id": "bsm-7en.7",
   "labels": [],
   "parent": "bsm-7en",
   "priority": 2,
-  "status": "in_progress",
+  "status": "closed",
   "title": "Fix Issue Detail section ordering",
   "type": "task",
-  "updated_at": "2026-07-06T15:12:29Z"
+  "updated_at": "2026-07-06T15:16:22Z"
 }
