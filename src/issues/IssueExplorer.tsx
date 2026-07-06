@@ -10,7 +10,7 @@ import { useState } from "react";
 import type { ExternalLinkOpener } from "../components/external-link-opener";
 import { openExternalLink as defaultOpenExternalLink } from "../components/external-link-opener";
 import { MarkdownContent } from "../components/MarkdownContent";
-import type { Issue } from "../rpc/bindings";
+import type { Issue, IssueComment } from "../rpc/bindings";
 import type { IssueLoadState } from "./issue-loader";
 import { toIssueViewModel } from "./issue-view";
 import type { IssueTone } from "./issue-view";
@@ -219,6 +219,37 @@ const IssueDetailDescriptionEmpty = () => (
   </div>
 );
 
+const IssueCommentCard = ({
+  comment,
+  openExternalLink,
+}: {
+  comment: IssueComment;
+  openExternalLink: ExternalLinkOpener;
+}) => {
+  const hasAuthor = comment.author.trim().length > 0;
+
+  return (
+    <li className="rounded-lg border border-border-main bg-surface p-4">
+      <article className="flex flex-col gap-3">
+        <header className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
+          <time className="font-mono text-xs text-muted">
+            {comment.timestamp}
+          </time>
+          {hasAuthor ? (
+            <span className="font-mono text-xs text-text-main">
+              {comment.author}
+            </span>
+          ) : null}
+        </header>
+        <MarkdownContent
+          markdown={comment.text}
+          openExternalLink={openExternalLink}
+        />
+      </article>
+    </li>
+  );
+};
+
 const DependencyChip = ({ id }: { id: string }) => (
   <span className="rounded border border-border-main px-2 py-0.5 font-mono text-xs text-text-main">
     {id}
@@ -268,6 +299,7 @@ const IssueDetailContent = ({
 }) => {
   const view = toIssueViewModel(issue);
   const hasDescription = issue.description.trim().length > 0;
+  const hasComments = issue.comments.length > 0;
 
   return (
     <main
@@ -337,6 +369,22 @@ const IssueDetailContent = ({
           <IssueDetailDescriptionEmpty />
         )}
       </section>
+      {hasComments ? (
+        <section>
+          <h3 className="font-mono text-[10px] tracking-wider text-muted uppercase">
+            Comments
+          </h3>
+          <ul className="mt-2 flex flex-col gap-3">
+            {issue.comments.map((comment) => (
+              <IssueCommentCard
+                comment={comment}
+                key={`${comment.timestamp}-${comment.author}-${comment.text}`}
+                openExternalLink={openExternalLink}
+              />
+            ))}
+          </ul>
+        </section>
+      ) : null}
       <section>
         <h3 className="font-mono text-[10px] tracking-wider text-muted uppercase">
           Dependencies
