@@ -16,9 +16,29 @@ _Avoid_: Local issue store, fixture list, cached database
 The selected Issue's readable view: title, concise metadata, Markdown description, dependency context, and read-only comments when present. It is a view of Beadwork issue data, not a separate Beadsmith document.
 _Avoid_: Detail document, local issue page, cached issue body
 
+**Issue Search**:
+A local, case-insensitive token search over Issue ID, title, and description within the selected Issue List View. Every search token must match for an Issue to remain visible.
+_Avoid_: Global search, comment search, server search
+
+**Issue List View**:
+A selectable lens that chooses which Issues the Issue List shows. Issue List Views include All Issues, Ready, Blocked, and status-specific views; they may overlap because they answer different Beadwork questions.
+_Avoid_: Combined filter, faceted filter, tab
+
+**Issue Status**:
+A Beadwork-stored lifecycle value for an Issue, such as open, in-progress, closed, or deferred. Status-specific Issue List Views show Issues with exactly one stored status.
+_Avoid_: State, view state, readiness
+
 **All Issues**:
-Every Beadwork issue in the current workspace across Beadwork's stored statuses. Ready and blocked are derived views that may be built from issue status and dependency data.
+Every Beadwork issue in the current workspace across Beadwork's stored statuses.
 _Avoid_: Actionable issues, default list, open issues, ready issues, blocked issues
+
+**Ready**:
+The Beadwork-authored view of Issues available to work next. Beadsmith treats Beadwork's ready calculation as authoritative instead of reimplementing readiness rules.
+_Avoid_: Locally ready, unblocked open issue
+
+**Blocked**:
+The Beadwork-authored view of Issues that cannot proceed because of unresolved blockers. Beadsmith treats Beadwork's blocked calculation as authoritative instead of reimplementing blocking rules.
+_Avoid_: Locally blocked, has dependencies
 
 **Current Workspace**:
 The local directory whose Beadwork issues Beadsmith is currently showing.
