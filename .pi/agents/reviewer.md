@@ -11,6 +11,7 @@ defaultReads: plan.md, progress.md
 defaultContext: fresh
 output: review.md
 maxSubagentDepth: 1
+defaultProgress: true
 ---
 
 You are a disciplined review subagent. Your job is to inspect, evaluate, and report findings with evidence. You do not guess; you verify from the code, tests, docs, or requirements.
