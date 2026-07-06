@@ -67,6 +67,13 @@ const renderExplorer = (
 
 const getDetail = () => within(screen.getByRole("main"));
 
+const requireHTMLElement = (element: Element | null): HTMLElement => {
+  if (!(element instanceof HTMLElement)) {
+    throw new Error("Expected an HTMLElement ancestor");
+  }
+  return element;
+};
+
 const getRowButton = (issue: Issue) =>
   within(screen.getByRole("list", { name: "Issues" }))
     .getAllByRole("button")
@@ -137,10 +144,8 @@ describe("IssueExplorer", () => {
 
     // The ID must be in the same header container as the title (not on a
     // separate paragraph below it).
-    const header = title.closest("header");
-    expect(header).not.toBeNull();
     expect(
-      within(header as HTMLElement).getByText(issue.id)
+      within(requireHTMLElement(title.closest("header"))).getByText(issue.id)
     ).toBeInTheDocument();
 
     // And it must not be a sibling <p> sitting below the <h2>.
@@ -363,9 +368,9 @@ describe("IssueExplorer", () => {
       level: 3,
       name: "Dependencies",
     });
-    const depsSection = depsHeading.closest("section");
-    expect(depsSection).not.toBeNull();
-    const depsScope = within(depsSection as HTMLElement);
+    const depsScope = within(
+      requireHTMLElement(depsHeading.closest("section"))
+    );
 
     // Row labels are present.
     expect(depsScope.getByText("Blocked by")).toBeInTheDocument();
@@ -406,9 +411,9 @@ describe("IssueExplorer", () => {
       level: 3,
       name: "Dependencies",
     });
-    const depsSection = depsHeading.closest("section");
-    expect(depsSection).not.toBeNull();
-    const depsScope = within(depsSection as HTMLElement);
+    const depsScope = within(
+      requireHTMLElement(depsHeading.closest("section"))
+    );
 
     expect(depsScope.getByText("Blocked by")).toBeInTheDocument();
     expect(depsScope.getByText("Blocking")).toBeInTheDocument();
@@ -437,13 +442,13 @@ describe("IssueExplorer", () => {
     await user.click(getRowButton(issue));
 
     const detail = getDetail();
-    const otherHeading = detail.getByRole("heading", {
-      level: 3,
-      name: "Other",
-    });
-    const otherSection = otherHeading.closest("section");
-    expect(otherSection).not.toBeNull();
-    const otherScope = within(otherSection as HTMLElement);
+    const otherScope = within(
+      requireHTMLElement(
+        detail
+          .getByRole("heading", { level: 3, name: "Other metadata" })
+          .closest("section")
+      )
+    );
 
     // Every label appears once in the Other metadata section.
     expect(otherScope.getByText("Assignee")).toBeInTheDocument();
@@ -498,11 +503,13 @@ describe("IssueExplorer", () => {
     await user.click(getRowButton(emptyMeta));
     {
       const detail = getDetail();
-      const otherHeading = detail.getByRole("heading", {
-        level: 3,
-        name: "Other",
-      });
-      const otherScope = within(otherHeading.closest("section") as HTMLElement);
+      const otherScope = within(
+        requireHTMLElement(
+          detail
+            .getByRole("heading", { level: 3, name: "Other metadata" })
+            .closest("section")
+        )
+      );
 
       expect(otherScope.queryByText("Assignee")).toBeNull();
       expect(otherScope.queryByText("Due")).toBeNull();
@@ -522,11 +529,13 @@ describe("IssueExplorer", () => {
     await user.click(getRowButton(whitespaceMeta));
     {
       const detail = getDetail();
-      const otherHeading = detail.getByRole("heading", {
-        level: 3,
-        name: "Other",
-      });
-      const otherScope = within(otherHeading.closest("section") as HTMLElement);
+      const otherScope = within(
+        requireHTMLElement(
+          detail
+            .getByRole("heading", { level: 3, name: "Other metadata" })
+            .closest("section")
+        )
+      );
 
       expect(otherScope.queryByText("Assignee")).toBeNull();
       expect(otherScope.queryByText("Due")).toBeNull();
