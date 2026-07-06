@@ -1,5 +1,5 @@
 ---
-name: implement-bead-main
+name: implement-bead
 description: Implement a Beadwork issue through the main scout → planner → worker chain.
 ---
 
