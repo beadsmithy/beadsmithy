@@ -29,10 +29,15 @@ const buildIssue = (overrides: Partial<Issue> = {}): Issue => ({
   ...overrides,
 });
 
+type SuccessfulIssueExplorerLoadState = Extract<
+  IssueExplorerLoadState,
+  { status: "success" }
+>;
+
 const successState = (
   issues: Issue[],
   workspacePath = "/Users/dev/work/portal"
-): IssueExplorerLoadState => ({
+): SuccessfulIssueExplorerLoadState => ({
   allIssues: issues,
   blockedIssues: [],
   readyIssues: [],
@@ -41,20 +46,26 @@ const successState = (
 });
 
 interface RenderExplorerOptions {
+  activeIssueListViewId?: "all" | "ready" | "blocked";
   openExternalLink?: ExternalLinkOpener;
+  state?: IssueExplorerLoadState;
 }
 
 const renderExplorer = (
   issues: Issue[],
   options: RenderExplorerOptions = {}
 ) => {
-  const state: IssueExplorerLoadState = successState(issues);
+  const state: IssueExplorerLoadState = options.state ?? successState(issues);
   const props: {
+    activeIssueListViewId?: "all" | "ready" | "blocked";
     issueState: IssueExplorerLoadState;
     openExternalLink?: ExternalLinkOpener;
   } = {
     issueState: state,
   };
+  if (options.activeIssueListViewId !== undefined) {
+    props.activeIssueListViewId = options.activeIssueListViewId;
+  }
   if (options.openExternalLink !== undefined) {
     props.openExternalLink = options.openExternalLink;
   }
@@ -106,6 +117,68 @@ describe("IssueExplorer", () => {
       )
     ).toBeInTheDocument();
     expect(screen.queryByRole("list", { name: "Issues" })).toBeNull();
+  });
+
+  it("renders Blocked from the command-backed Blocked collection in command order", () => {
+    const allBlockedByDependency = buildIssue({
+      blockedBy: ["bsm-open-blocker"],
+      id: "bsm-derived-only",
+      title: "Would be derived locally",
+    });
+    const blockedSecond = buildIssue({
+      blockedBy: [],
+      id: "bsm-command-second",
+      title: "Second blocked command result",
+    });
+    const blockedFirst = buildIssue({
+      blockedBy: [],
+      id: "bsm-command-first",
+      title: "First blocked command result",
+    });
+
+    renderExplorer([], {
+      activeIssueListViewId: "blocked",
+      state: {
+        ...successState([allBlockedByDependency, blockedSecond, blockedFirst]),
+        blockedIssues: [blockedFirst, blockedSecond],
+      },
+    });
+
+    const rowButtons = within(screen.getByRole("list", { name: "Issues" }))
+      .getAllByRole("button")
+      .map((button) => button.dataset.issueId);
+
+    expect(rowButtons).toEqual(["bsm-command-first", "bsm-command-second"]);
+    expect(screen.queryByText("Would be derived locally")).toBeNull();
+  });
+
+  it("renders Issue Detail from the selected Blocked issue collection", async () => {
+    const user = userEvent.setup();
+    const allIssueWithSameId = buildIssue({
+      id: "bsm-overlap",
+      title: "All collection title",
+    });
+    const blockedIssueWithSameId = buildIssue({
+      blockedBy: ["bsm-real-blocker"],
+      id: "bsm-overlap",
+      title: "Blocked collection title",
+    });
+
+    renderExplorer([], {
+      activeIssueListViewId: "blocked",
+      state: {
+        ...successState([allIssueWithSameId]),
+        blockedIssues: [blockedIssueWithSameId],
+      },
+    });
+
+    await user.click(getRowButton(blockedIssueWithSameId));
+
+    expect(
+      getDetail().getByText("Blocked collection title")
+    ).toBeInTheDocument();
+    expect(getDetail().queryByText("All collection title")).toBeNull();
+    expect(getDetail().getByText("bsm-real-blocker")).toBeInTheDocument();
   });
 
   it("renders the empty Issue detail state on successful load without auto-selecting", () => {
