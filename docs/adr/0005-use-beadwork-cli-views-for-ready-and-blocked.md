@@ -8,7 +8,7 @@ Ready and Blocked are different. They are workflow views whose membership depend
 
 ## Decision
 
-We will load Ready from `bw ready --json --no-context` and Blocked from `bw blocked --json`. Beadsmith will treat those commands as the authoritative source for membership and ordering of the Ready and Blocked issue list views.
+We will load Ready from `bw ready --json` and Blocked from `bw blocked --json`. Beadsmith will treat those commands as the authoritative source for membership and ordering of the Ready and Blocked issue list views.
 
 We will continue to load All from `bw list --all --json`. Status-specific views will be local slices of All because they reflect stored issue status rather than derived workflow rules.
 
