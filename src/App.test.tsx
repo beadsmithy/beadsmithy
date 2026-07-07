@@ -189,4 +189,60 @@ describe("App issue list view sidebar", () => {
       expect(closedButton).toHaveAttribute("aria-current", "true");
     });
   });
+
+  it("shows a zero count for Ready when the preloaded Ready collection is empty", async () => {
+    loadIssueExplorerStateFromTauRpc.mockResolvedValue(
+      successState({
+        allIssues: [buildIssue({ id: "bsm-all" })],
+        readyIssues: [],
+      })
+    );
+
+    render(<App />);
+
+    await screen.findByRole("button", { name: "All, 1 issue" });
+    expect(sidebarButton(/^Ready, 0 issues$/u)).toBeEnabled();
+  });
+
+  it("renders the preloaded Ready collection when the Ready sidebar item is selected", async () => {
+    const user = userEvent.setup();
+    const readyIssue = buildIssue({ id: "bsm-ready", title: "Ready one" });
+    const allOnly = buildIssue({ id: "bsm-all-only", title: "All only one" });
+
+    loadIssueExplorerStateFromTauRpc.mockResolvedValue(
+      successState({
+        allIssues: [allOnly],
+        readyIssues: [readyIssue],
+      })
+    );
+
+    render(<App />);
+
+    await screen.findByRole("button", { name: "All, 1 issue" });
+
+    await user.click(sidebarButton(/^Ready, 1 issue$/u));
+
+    expect(screen.getByText("Ready one")).toBeInTheDocument();
+    expect(screen.queryByText("All only one")).toBeNull();
+  });
+
+  it("does not re-run the Beadwork load when switching to the Ready view after load", async () => {
+    const user = userEvent.setup();
+    const readyIssue = buildIssue({ id: "bsm-ready" });
+
+    loadIssueExplorerStateFromTauRpc.mockResolvedValue(
+      successState({
+        allIssues: [readyIssue],
+        readyIssues: [readyIssue],
+      })
+    );
+
+    render(<App />);
+
+    await screen.findByRole("button", { name: "All, 1 issue" });
+    expect(loadIssueExplorerStateFromTauRpc).toHaveBeenCalledTimes(1);
+
+    await user.click(sidebarButton(/^Ready, 1 issue$/u));
+    expect(loadIssueExplorerStateFromTauRpc).toHaveBeenCalledTimes(1);
+  });
 });
