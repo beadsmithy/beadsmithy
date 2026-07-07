@@ -1,12 +1,14 @@
-//! The `bw list` adapter.
+//! The Beadwork issue CLI adapter.
 //!
-//! Executes exactly `bw list --all --json` in the process current working
-//! directory, consumes only the structured JSON output, and returns a
-//! normalized adapter result. Raw Beadwork JSON parsing is hidden behind this
+//! Executes the authoritative Beadwork issue-view commands in the process
+//! current working directory, consumes only structured JSON output, and returns
+//! normalized adapter results. Raw Beadwork JSON parsing is hidden behind this
 //! API; callers receive [`Issue`] and [`ListIssuesError`].
 //!
-//! `--all` is required: the user-facing goal is All Issues across stored
-//! statuses, not Beadwork's default actionable/open subset.
+//! All Issues must run `bw list --all --json` so Beadsmith loads every stored
+//! status, not Beadwork's default actionable/open subset. Ready and Blocked must
+//! run `bw ready --json` and `bw blocked --json` respectively; Beadsmith does
+//! not derive those view memberships locally.
 
 use std::{env, io};
 
@@ -16,10 +18,15 @@ use super::error::ListIssuesError;
 use super::raw::{RawComment, RawIssue};
 use super::runner::{CommandOutput, CommandRunner};
 
-/// The program and arguments the adapter runs. `--all` overrides Beadwork's
-/// default actionable-only `bw list` behavior so every stored status is listed.
+/// The Beadwork CLI program the adapter runs.
 const BW_PROGRAM: &str = "bw";
-const BW_ARGS: &[&str] = &["list", "--all", "--json"];
+/// `--all` overrides Beadwork's default actionable-only `bw list` behavior so
+/// every stored status is listed.
+const BW_LIST_ALL_ARGS: &[&str] = &["list", "--all", "--json"];
+/// Beadwork-authored Ready view. Do not derive this membership locally.
+const BW_READY_ARGS: &[&str] = &["ready", "--json"];
+/// Beadwork-authored Blocked view. Do not derive this membership locally.
+const BW_BLOCKED_ARGS: &[&str] = &["blocked", "--json"];
 
 /// Markers Beadwork writes to stderr when the cwd is not a usable Beadwork
 /// workspace. Used to distinguish that case from other non-zero exits. This is
@@ -70,20 +77,50 @@ pub struct IssueComment {
 /// list. Missing `bw`, a non-Beadwork directory, a non-zero subprocess exit, and
 /// a JSON parse failure each produce a distinct [`ListIssuesError`].
 pub fn list_all_issues(runner: &dyn CommandRunner) -> Result<Vec<Issue>, ListIssuesError> {
+    load_issues_for_view(runner, "All Issues", BW_LIST_ALL_ARGS)
+}
+
+/// List Beadwork issues in the Ready view in the process current working directory.
+///
+/// Runs `bw ready --json` through the supplied [`CommandRunner`] and normalizes
+/// the result. Beadwork owns Ready membership and ordering; the adapter only
+/// preserves the structured command result.
+pub fn list_ready_issues(runner: &dyn CommandRunner) -> Result<Vec<Issue>, ListIssuesError> {
+    load_issues_for_view(runner, "Ready Issues", BW_READY_ARGS)
+}
+
+/// List Beadwork issues in the Blocked view in the process current working directory.
+///
+/// Runs `bw blocked --json` through the supplied [`CommandRunner`] and
+/// normalizes the result. Blocked-only JSON fields such as `open_blockers` are
+/// intentionally ignored by the shared raw parser.
+pub fn list_blocked_issues(runner: &dyn CommandRunner) -> Result<Vec<Issue>, ListIssuesError> {
+    load_issues_for_view(runner, "Blocked Issues", BW_BLOCKED_ARGS)
+}
+
+fn load_issues_for_view(
+    runner: &dyn CommandRunner,
+    view_label: &str,
+    args: &[&str],
+) -> Result<Vec<Issue>, ListIssuesError> {
     let workspace = env::current_dir()
         .map(|path| path.display().to_string())
         .unwrap_or_else(|_| ".".to_string());
-    eprintln!("Beadsmith: running `bw list --all --json` in {workspace}");
+    let command = args.join(" ");
+    eprintln!("Beadsmith: running `bw {command}` for {view_label} in {workspace}");
 
     let result = runner
-        .run(BW_PROGRAM, BW_ARGS)
+        .run(BW_PROGRAM, args)
         .map_err(map_spawn_error)
         .and_then(interpret_output);
 
     match &result {
-        Ok(issues) => eprintln!("Beadsmith: loaded {} issue(s)", issues.len()),
+        Ok(issues) => eprintln!(
+            "Beadsmith: loaded {} issue(s) for {view_label}",
+            issues.len()
+        ),
         Err(error) => eprintln!(
-            "Beadsmith: issue list command failed with {}",
+            "Beadsmith: {view_label} command failed with {}",
             issue_list_error_kind(error)
         ),
     }
@@ -126,7 +163,7 @@ fn interpret_output(output: CommandOutput) -> Result<Vec<Issue>, ListIssuesError
     parse_issues(&output.stdout)
 }
 
-/// Parse `bw list --all --json` stdout into normalized issues.
+/// Parse Beadwork issue JSON stdout into normalized issues.
 ///
 /// `bw` prints `null` for a nil result slice and `[]` for an empty one; both
 /// are a successful empty issue list. Any other stdout must deserialize as a
@@ -293,6 +330,24 @@ mod tests {
     }
 
     #[test]
+    fn invokes_exactly_bw_ready_json() {
+        let runner = FakeRunner::ok("[]");
+        let _ = list_ready_issues(&runner);
+        let (program, args) = runner.recorded();
+        assert_eq!(program, BW_PROGRAM);
+        assert_eq!(args, vec!["ready", "--json"]);
+    }
+
+    #[test]
+    fn invokes_exactly_bw_blocked_json() {
+        let runner = FakeRunner::ok("[]");
+        let _ = list_blocked_issues(&runner);
+        let (program, args) = runner.recorded();
+        assert_eq!(program, BW_PROGRAM);
+        assert_eq!(args, vec!["blocked", "--json"]);
+    }
+
+    #[test]
     fn success_maps_representative_fields() {
         let runner = FakeRunner::ok(&representative_issue_json());
         let issues = list_all_issues(&runner).expect("expected success");
@@ -320,6 +375,44 @@ mod tests {
         assert_eq!(comment.text, "keep it pure Rust");
         assert_eq!(comment.author, "tomas");
         assert_eq!(comment.timestamp, "2026-06-29T08:19:43Z");
+    }
+
+    #[test]
+    fn ready_success_maps_representative_fields() {
+        let runner = FakeRunner::ok(&representative_issue_json());
+        let issues = list_ready_issues(&runner).expect("expected success");
+        assert_eq!(issues.len(), 1);
+        assert_eq!(issues[0].id, "bsm-8ul");
+        assert_eq!(issues[0].title, "Add pure Rust bw list adapter");
+    }
+
+    #[test]
+    fn blocked_success_ignores_open_blockers_field() {
+        let json = r#"[
+          {
+            "assignee": "",
+            "blocked_by": ["bsm-blocker"],
+            "blocks": [],
+            "created": "2026-06-28T22:37:05Z",
+            "description": "Blocked issue body",
+            "id": "bsm-blocked",
+            "labels": ["ready-for-agent"],
+            "open_blockers": ["bsm-blocker"],
+            "priority": 2,
+            "status": "open",
+            "title": "Blocked by another issue",
+            "type": "task",
+            "updated_at": "2026-06-29T08:19:43Z"
+          }
+        ]"#;
+        let runner = FakeRunner::ok(json);
+        let issues = list_blocked_issues(&runner).expect("expected success");
+        assert_eq!(issues.len(), 1);
+        let issue = &issues[0];
+        assert_eq!(issue.id, "bsm-blocked");
+        assert_eq!(issue.title, "Blocked by another issue");
+        assert_eq!(issue.blocked_by, vec!["bsm-blocker"]);
+        assert_eq!(issue.description, "Blocked issue body");
     }
 
     #[test]

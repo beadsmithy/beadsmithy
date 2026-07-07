@@ -18,8 +18,10 @@ import {
   FIXTURE_ISSUE_TITLE,
 } from "./fixtures/workspace.ts";
 
-interface ListIssuesResponse {
-  issues: { title: string }[];
+interface LoadIssueExplorerDataResponse {
+  allIssues: { title: string }[];
+  readyIssues: { title: string }[];
+  blockedIssues: { title: string }[];
   workspacePath: string;
 }
 
@@ -29,7 +31,7 @@ describe("Issue explorer (WebDriver e2e): workspace with a selectable Issue Deta
       const tauriWindow = window as typeof window & {
         __TAURI__?: {
           core?: {
-            invoke: (command: string) => Promise<ListIssuesResponse>;
+            invoke: (command: string) => Promise<LoadIssueExplorerDataResponse>;
           };
         };
       };
@@ -41,24 +43,26 @@ describe("Issue explorer (WebDriver e2e): workspace with a selectable Issue Deta
         return;
       }
 
-      invoke("TauRPC__list_issues")
+      invoke("TauRPC__load_issue_explorer_data")
         // WDIO executeAsync requires calling the injected completion callback.
         // oxlint-disable-next-line promise/no-callback-in-promise
         .then(done)
         // oxlint-disable-next-line promise/no-callback-in-promise
         .catch((error: unknown) => done({ error: String(error) }));
-    })) as ListIssuesResponse | { error: string };
+    })) as LoadIssueExplorerDataResponse | { error: string };
 
     if ("error" in result) {
       throw new Error(result.error);
     }
 
     console.log(
-      `[e2e:spec] native issue-list RPC returned ${result.issues.length} issue(s)`
+      `[e2e:spec] native issue-explorer RPC returned ${result.allIssues.length} issue(s)`
     );
     expect(
-      result.issues.some((issue) => issue.title === FIXTURE_ISSUE_TITLE)
+      result.allIssues.some((issue) => issue.title === FIXTURE_ISSUE_TITLE)
     ).toBe(true);
+    expect(Array.isArray(result.readyIssues)).toBe(true);
+    expect(Array.isArray(result.blockedIssues)).toBe(true);
   });
 
   it("renders the fixture issue with its label and blocking dependency", async () => {

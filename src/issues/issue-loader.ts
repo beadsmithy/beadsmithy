@@ -1,7 +1,7 @@
 import { Context, Effect } from "effect";
 
 import { createTauRPCProxy } from "../rpc/bindings";
-import type { Issue, ListIssuesResponse } from "../rpc/bindings";
+import type { Issue, LoadIssueExplorerDataResponse } from "../rpc/bindings";
 
 export type IssueLoadErrorKind = string;
 
@@ -10,18 +10,20 @@ export interface IssueLoadError {
   message: string;
 }
 
-export type IssueLoadState =
+export interface IssueExplorerData {
+  workspacePath: string;
+  allIssues: Issue[];
+  readyIssues: Issue[];
+  blockedIssues: Issue[];
+}
+
+export type IssueExplorerLoadState =
   | { status: "loading" }
-  | {
-      status: "success";
-      workspacePath: string;
-      issues: [Issue, ...Issue[]];
-    }
-  | { status: "empty"; workspacePath: string; issues: [] }
+  | ({ status: "success" } & IssueExplorerData)
   | { status: "failure"; error: IssueLoadError };
 
 export interface IssueTransportClient {
-  listIssues: () => Promise<ListIssuesResponse>;
+  loadIssueExplorerData: () => Promise<LoadIssueExplorerDataResponse>;
 }
 
 export class IssueTransport extends Context.Tag("beadsmith/IssueTransport")<
@@ -29,7 +31,7 @@ export class IssueTransport extends Context.Tag("beadsmith/IssueTransport")<
   IssueTransportClient
 >() {}
 
-export const ISSUE_LOADING_STATE: IssueLoadState = {
+export const ISSUE_EXPLORER_LOADING_STATE: IssueExplorerLoadState = {
   status: "loading",
 };
 
@@ -61,37 +63,31 @@ const toIssueLoadError = (cause: unknown): IssueLoadError => {
   };
 };
 
-const toIssueSuccessState = (response: ListIssuesResponse): IssueLoadState => {
-  const [firstIssue, ...remainingIssues] = response.issues;
+const toIssueExplorerSuccessState = (
+  response: LoadIssueExplorerDataResponse
+): IssueExplorerLoadState => ({
+  allIssues: response.allIssues,
+  blockedIssues: response.blockedIssues,
+  readyIssues: response.readyIssues,
+  status: "success",
+  workspacePath: response.workspacePath,
+});
 
-  if (firstIssue === undefined) {
-    return {
-      issues: [],
-      status: "empty",
-      workspacePath: response.workspacePath,
-    };
+export const loadIssueExplorerState = Effect.gen(
+  function* loadIssueExplorerStateEffect() {
+    const transport = yield* IssueTransport;
+    const response = yield* Effect.tryPromise({
+      catch: toIssueLoadError,
+      try: () => transport.loadIssueExplorerData(),
+    });
+
+    return toIssueExplorerSuccessState(response);
   }
-
-  return {
-    issues: [firstIssue, ...remainingIssues],
-    status: "success",
-    workspacePath: response.workspacePath,
-  };
-};
-
-export const loadIssueState = Effect.gen(function* loadIssueStateEffect() {
-  const transport = yield* IssueTransport;
-  const response = yield* Effect.tryPromise({
-    catch: toIssueLoadError,
-    try: () => transport.listIssues(),
-  });
-
-  return toIssueSuccessState(response);
-}).pipe(
+).pipe(
   // Effect requires an error-channel callback here; this is not a Promise callback.
   // oxlint-disable-next-line promise/prefer-await-to-callbacks
   Effect.catchAll((error) =>
-    Effect.succeed<IssueLoadState>({ error, status: "failure" })
+    Effect.succeed<IssueExplorerLoadState>({ error, status: "failure" })
   )
 );
 
@@ -99,14 +95,14 @@ export const createTauRpcIssueTransport = (): IssueTransportClient => {
   const rpc = createTauRPCProxy();
 
   return {
-    listIssues: () => rpc.list_issues(),
+    loadIssueExplorerData: () => rpc.load_issue_explorer_data(),
   };
 };
 
-export const loadIssueStateFromTauRpc = () =>
+export const loadIssueExplorerStateFromTauRpc = () =>
   Effect.runPromise(
     Effect.provideService(
-      loadIssueState,
+      loadIssueExplorerState,
       IssueTransport,
       createTauRpcIssueTransport()
     )

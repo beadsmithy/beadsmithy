@@ -12,10 +12,10 @@ import { useEffect, useState } from "react";
 
 import "./App.css";
 import {
-  ISSUE_LOADING_STATE,
-  loadIssueStateFromTauRpc,
+  ISSUE_EXPLORER_LOADING_STATE,
+  loadIssueExplorerStateFromTauRpc,
 } from "./issues/issue-loader";
-import type { IssueLoadState } from "./issues/issue-loader";
+import type { IssueExplorerLoadState } from "./issues/issue-loader";
 import { IssueExplorer } from "./issues/IssueExplorer";
 
 interface NavItem {
@@ -38,8 +38,8 @@ const STATE_ITEMS: NavItem[] = [
   { icon: Clock, id: "deferred", label: "Deferred" },
 ];
 
-const workspaceTextFor = (state: IssueLoadState): string => {
-  if (state.status === "success" || state.status === "empty") {
+const workspaceTextFor = (state: IssueExplorerLoadState): string => {
+  if (state.status === "success") {
     return state.workspacePath;
   }
 
@@ -64,13 +64,14 @@ const SidebarNavButton = ({ label, icon: Icon, current }: NavItem) => (
 );
 
 export default function App() {
-  const [issueState, setIssueState] =
-    useState<IssueLoadState>(ISSUE_LOADING_STATE);
+  const [issueState, setIssueState] = useState<IssueExplorerLoadState>(
+    ISSUE_EXPLORER_LOADING_STATE
+  );
   const workspacePath = workspaceTextFor(issueState);
 
   useEffect(() => {
     void (async () => {
-      setIssueState(await loadIssueStateFromTauRpc());
+      setIssueState(await loadIssueExplorerStateFromTauRpc());
     })();
   }, []);
 

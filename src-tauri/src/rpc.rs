@@ -26,6 +26,7 @@ pub fn router<R: tauri::Runtime>() -> taurpc::Router<R> {
 #[taurpc::procedures(export_to = "../src/rpc/bindings.ts")]
 pub trait BeadsmithApi {
     async fn list_issues() -> Result<ListIssuesResponse, IssueListError>;
+    async fn load_issue_explorer_data() -> Result<LoadIssueExplorerDataResponse, IssueListError>;
 }
 
 /// Resolver implementation for Beadsmith's application RPC surface.
@@ -36,6 +37,12 @@ pub struct BeadsmithApiImpl;
 impl BeadsmithApi for BeadsmithApiImpl {
     async fn list_issues(self) -> Result<ListIssuesResponse, IssueListError> {
         list_issues_from_adapter(&ProcessRunner::new())
+    }
+
+    async fn load_issue_explorer_data(
+        self,
+    ) -> Result<LoadIssueExplorerDataResponse, IssueListError> {
+        load_issue_explorer_data_from_adapter(&ProcessRunner::new())
     }
 }
 
@@ -64,6 +71,17 @@ impl DevBridgeApi for DevBridgeApiImpl {
 pub struct ListIssuesResponse {
     pub workspace_path: String,
     pub issues: Vec<Issue>,
+}
+
+/// Successful Issue Explorer RPC payload containing Beadwork-authored base views.
+#[taurpc::ipc_type]
+#[derive(Debug, PartialEq, Eq)]
+#[serde(rename_all = "camelCase")]
+pub struct LoadIssueExplorerDataResponse {
+    pub workspace_path: String,
+    pub all_issues: Vec<Issue>,
+    pub ready_issues: Vec<Issue>,
+    pub blocked_issues: Vec<Issue>,
 }
 
 /// Frontend-facing Issue contract for rendering the Issue List and future Issue Detail.
@@ -126,19 +144,55 @@ pub struct IssueListError {
 fn list_issues_from_adapter(
     runner: &dyn issues::CommandRunner,
 ) -> Result<ListIssuesResponse, IssueListError> {
-    let workspace_path = env::current_dir()
-        .map(|path| path.display().to_string())
-        .unwrap_or_else(|_| ".".to_string());
-    let issues = issues::list_all_issues(runner)
-        .map_err(IssueListError::from)?
-        .into_iter()
-        .map(Issue::from)
-        .collect();
+    let workspace_path = current_workspace_path();
+    let issues =
+        map_issue_collection(issues::list_all_issues(runner).map_err(IssueListError::from)?);
 
     Ok(ListIssuesResponse {
         workspace_path,
         issues,
     })
+}
+
+fn load_issue_explorer_data_from_adapter(
+    runner: &dyn issues::CommandRunner,
+) -> Result<LoadIssueExplorerDataResponse, IssueListError> {
+    let workspace_path = current_workspace_path();
+    let all_issues = map_issue_collection(
+        issues::list_all_issues(runner)
+            .map_err(|error| issue_list_error_with_view_context(error, "All Issues"))?,
+    );
+    let ready_issues = map_issue_collection(
+        issues::list_ready_issues(runner)
+            .map_err(|error| issue_list_error_with_view_context(error, "Ready Issues"))?,
+    );
+    let blocked_issues = map_issue_collection(
+        issues::list_blocked_issues(runner)
+            .map_err(|error| issue_list_error_with_view_context(error, "Blocked Issues"))?,
+    );
+
+    Ok(LoadIssueExplorerDataResponse {
+        workspace_path,
+        all_issues,
+        ready_issues,
+        blocked_issues,
+    })
+}
+
+fn current_workspace_path() -> String {
+    env::current_dir()
+        .map(|path| path.display().to_string())
+        .unwrap_or_else(|_| ".".to_string())
+}
+
+fn map_issue_collection(issues: Vec<issues::Issue>) -> Vec<Issue> {
+    issues.into_iter().map(Issue::from).collect()
+}
+
+fn issue_list_error_with_view_context(error: ListIssuesError, view_label: &str) -> IssueListError {
+    let mut mapped = IssueListError::from(error);
+    mapped.message = format!("Could not load {view_label}: {}", mapped.message);
+    mapped
 }
 
 impl From<issues::Issue> for Issue {
@@ -207,45 +261,91 @@ impl From<ListIssuesError> for IssueListError {
 mod tests {
     use super::*;
     use crate::issues::{CommandOutput, CommandRunner};
+    use std::collections::VecDeque;
     use std::io;
+    use std::sync::Mutex;
 
     struct FakeRunner {
-        output: Result<CommandOutput, io::ErrorKind>,
+        outputs: Mutex<VecDeque<Result<CommandOutput, io::ErrorKind>>>,
     }
 
     impl FakeRunner {
         fn ok(stdout: &str) -> Self {
-            Self {
-                output: Ok(CommandOutput {
-                    status: 0,
-                    stdout: stdout.to_string(),
-                    stderr: String::new(),
-                }),
-            }
+            Self::with_outputs([Ok(CommandOutput {
+                status: 0,
+                stdout: stdout.to_string(),
+                stderr: String::new(),
+            })])
         }
 
         fn failed(status: i32, stderr: &str) -> Self {
-            Self {
-                output: Ok(CommandOutput {
-                    status,
-                    stdout: String::new(),
-                    stderr: stderr.to_string(),
-                }),
-            }
+            Self::with_outputs([Ok(CommandOutput {
+                status,
+                stdout: String::new(),
+                stderr: stderr.to_string(),
+            })])
         }
 
         fn io_error(kind: io::ErrorKind) -> Self {
-            Self { output: Err(kind) }
+            Self::with_outputs([Err(kind)])
+        }
+
+        fn with_outputs<const N: usize>(
+            outputs: [Result<CommandOutput, io::ErrorKind>; N],
+        ) -> Self {
+            Self {
+                outputs: Mutex::new(VecDeque::from(outputs)),
+            }
         }
     }
 
     impl CommandRunner for FakeRunner {
         fn run(&self, _program: &str, _args: &[&str]) -> io::Result<CommandOutput> {
-            match &self.output {
-                Ok(output) => Ok(output.clone()),
-                Err(kind) => Err(io::Error::from(*kind)),
+            let output = self
+                .outputs
+                .lock()
+                .unwrap()
+                .pop_front()
+                .expect("expected a canned command output");
+
+            match output {
+                Ok(output) => Ok(output),
+                Err(kind) => Err(io::Error::from(kind)),
             }
         }
+    }
+
+    fn issue_json(id: &str, title: &str) -> String {
+        format!(
+            r#"[
+              {{
+                "assignee": "",
+                "created": "2026-06-28T22:37:05Z",
+                "id": "{id}",
+                "priority": 2,
+                "status": "open",
+                "title": "{title}",
+                "type": "task",
+                "updated_at": "2026-06-29T08:19:43Z"
+              }}
+            ]"#
+        )
+    }
+
+    fn successful_output(stdout: &str) -> Result<CommandOutput, io::ErrorKind> {
+        Ok(CommandOutput {
+            status: 0,
+            stdout: stdout.to_string(),
+            stderr: String::new(),
+        })
+    }
+
+    fn failed_output(status: i32, stderr: &str) -> Result<CommandOutput, io::ErrorKind> {
+        Ok(CommandOutput {
+            status,
+            stdout: String::new(),
+            stderr: stderr.to_string(),
+        })
     }
 
     #[test]
@@ -303,6 +403,75 @@ mod tests {
         assert!(response.issues.is_empty());
     }
 
+    #[test]
+    fn maps_combined_issue_explorer_data_without_deriving_views() {
+        let all_json = issue_json("bsm-all", "All issue");
+        let ready_json = issue_json("bsm-ready", "Ready issue");
+        let blocked_json = issue_json("bsm-blocked", "Blocked issue");
+        let runner = FakeRunner::with_outputs([
+            successful_output(&all_json),
+            successful_output(&ready_json),
+            successful_output(&blocked_json),
+        ]);
+
+        let response = load_issue_explorer_data_from_adapter(&runner).expect("expected success");
+
+        assert!(!response.workspace_path.is_empty());
+        assert_eq!(response.all_issues[0].id, "bsm-all");
+        assert_eq!(response.ready_issues[0].id, "bsm-ready");
+        assert_eq!(response.blocked_issues[0].id, "bsm-blocked");
+    }
+
+    #[test]
+    fn combined_issue_explorer_data_accepts_empty_view_collections() {
+        let runner = FakeRunner::with_outputs([
+            successful_output("[]"),
+            successful_output("null"),
+            successful_output(""),
+        ]);
+
+        let response = load_issue_explorer_data_from_adapter(&runner).expect("expected success");
+
+        assert!(response.all_issues.is_empty());
+        assert!(response.ready_issues.is_empty());
+        assert!(response.blocked_issues.is_empty());
+    }
+
+    #[test]
+    fn combined_issue_explorer_data_errors_identify_failing_view() {
+        let cases = [
+            (
+                FakeRunner::with_outputs([failed_output(2, "all failed")]),
+                "All Issues",
+            ),
+            (
+                FakeRunner::with_outputs([
+                    successful_output("[]"),
+                    failed_output(2, "ready failed"),
+                ]),
+                "Ready Issues",
+            ),
+            (
+                FakeRunner::with_outputs([
+                    successful_output("[]"),
+                    successful_output("[]"),
+                    failed_output(2, "blocked failed"),
+                ]),
+                "Blocked Issues",
+            ),
+        ];
+
+        for (runner, expected_view) in cases {
+            let error = load_issue_explorer_data_from_adapter(&runner).expect_err("expected error");
+            assert_eq!(error.kind, IssueListErrorKind::CommandFailed);
+            assert!(
+                error.message.contains(expected_view),
+                "expected message to identify {expected_view}, got {}",
+                error.message
+            );
+        }
+    }
+
     #[tokio::test]
     async fn generates_typescript_bindings() {
         let _handler = router::<tauri::Wry>().into_handler();
@@ -312,6 +481,7 @@ mod tests {
         assert!(bindings.contains("export type Issue"));
         assert!(bindings.contains("export type IssueComment"));
         assert!(bindings.contains("export type ListIssuesResponse"));
+        assert!(bindings.contains("export type LoadIssueExplorerDataResponse"));
         let old_issue_type_name = ["Issue", "Summary"].concat();
         let old_response_type_name = ["ListIssue", "SummariesResponse"].concat();
         assert!(!bindings.contains(&old_issue_type_name));
@@ -338,6 +508,10 @@ mod tests {
             "text: string",
             "author: string",
             "timestamp: string",
+            "workspacePath: string",
+            "allIssues: Issue[]",
+            "readyIssues: Issue[]",
+            "blockedIssues: Issue[]",
         ] {
             assert!(bindings.contains(field), "missing generated field {field}");
         }
@@ -354,6 +528,7 @@ mod tests {
             );
         }
         assert!(bindings.contains("list_issues"));
+        assert!(bindings.contains("load_issue_explorer_data"));
         let old_method_name = ["list_issue", "_summaries"].concat();
         assert!(!bindings.contains(&old_method_name));
         assert!(bindings.contains("createTauRPCProxy"));

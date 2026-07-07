@@ -2,14 +2,14 @@ import { Effect } from "effect";
 import { describe, expect, it } from "vitest";
 
 import type {
-  IssueListErrorKind,
   Issue,
-  ListIssuesResponse,
+  IssueListErrorKind,
+  LoadIssueExplorerDataResponse,
 } from "../rpc/bindings";
 import {
+  ISSUE_EXPLORER_LOADING_STATE,
   IssueTransport,
-  ISSUE_LOADING_STATE,
-  loadIssueState,
+  loadIssueExplorerState,
 } from "./issue-loader";
 
 class IssueRpcError extends Error {
@@ -44,48 +44,80 @@ const issue = (overrides: Partial<Issue> = {}): Issue => ({
   ...overrides,
 });
 
-const loadWithResponse = (response: ListIssuesResponse) =>
+const loadWithResponse = (response: LoadIssueExplorerDataResponse) =>
   Effect.runPromise(
-    Effect.provideService(loadIssueState, IssueTransport, {
-      listIssues: () => Promise.resolve(response),
+    Effect.provideService(loadIssueExplorerState, IssueTransport, {
+      loadIssueExplorerData: () => Promise.resolve(response),
     })
   );
 
-describe("loadIssueState", () => {
+describe("loadIssueExplorerState", () => {
   it("exposes a loading state for React consumers before the request resolves", () => {
-    expect(ISSUE_LOADING_STATE).toEqual({ status: "loading" });
+    expect(ISSUE_EXPLORER_LOADING_STATE).toEqual({ status: "loading" });
   });
 
-  it("maps non-empty RPC results to a success state with workspace path", async () => {
+  it("maps combined RPC results to a success state with workspace path", async () => {
+    const allIssue = issue({ id: "bsm-all", title: "All issue" });
+    const readyIssue = issue({ id: "bsm-ready", title: "Ready issue" });
+    const blockedIssue = issue({ id: "bsm-blocked", title: "Blocked issue" });
+
     await expect(
       loadWithResponse({
-        issues: [issue()],
+        allIssues: [allIssue],
+        blockedIssues: [blockedIssue],
+        readyIssues: [readyIssue],
         workspacePath: "/Users/dev/work/portal",
       })
     ).resolves.toEqual({
-      issues: [issue()],
+      allIssues: [allIssue],
+      blockedIssues: [blockedIssue],
+      readyIssues: [readyIssue],
       status: "success",
       workspacePath: "/Users/dev/work/portal",
     });
   });
 
-  it("maps empty RPC results to an explicit empty state", async () => {
+  it("maps empty RPC arrays to a success state", async () => {
     await expect(
       loadWithResponse({
-        issues: [],
+        allIssues: [],
+        blockedIssues: [],
+        readyIssues: [],
         workspacePath: "/Users/dev/work/empty",
       })
     ).resolves.toEqual({
-      issues: [],
-      status: "empty",
+      allIssues: [],
+      blockedIssues: [],
+      readyIssues: [],
+      status: "success",
       workspacePath: "/Users/dev/work/empty",
     });
   });
 
-  it("maps backend read failures to an error state instead of an empty list", async () => {
+  it("preserves Ready and Blocked arrays without deriving them from All Issues", async () => {
+    const allIssue = issue({ id: "bsm-all", title: "All issue" });
+    const readyIssue = issue({ id: "bsm-ready", title: "Ready issue" });
+    const blockedIssue = issue({ id: "bsm-blocked", title: "Blocked issue" });
+
+    const state = await loadWithResponse({
+      allIssues: [allIssue],
+      blockedIssues: [blockedIssue],
+      readyIssues: [readyIssue],
+      workspacePath: "/Users/dev/work/portal",
+    });
+
+    expect(state).toMatchObject({
+      allIssues: [allIssue],
+      blockedIssues: [blockedIssue],
+      readyIssues: [readyIssue],
+      status: "success",
+    });
+  });
+
+  it("maps backend read failures to an error state instead of empty collections", async () => {
     const state = await Effect.runPromise(
-      Effect.provideService(loadIssueState, IssueTransport, {
-        listIssues: () =>
+      Effect.provideService(loadIssueExplorerState, IssueTransport, {
+        loadIssueExplorerData: () =>
           Promise.reject(
             new IssueRpcError(
               "notBeadworkWorkspace",
@@ -102,6 +134,6 @@ describe("loadIssueState", () => {
       },
       status: "failure",
     });
-    expect(state.status).not.toBe("empty");
+    expect(state.status).not.toBe("success");
   });
 });
