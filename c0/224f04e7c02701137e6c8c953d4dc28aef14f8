@@ -1,0 +1,19 @@
+src/issues/issue-search.ts
+  s_045d3a1504d2be::t_871b023b507581 6,9
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.10",
+  "base_commit_sha": "c0224f04e7c02701137e6c8c953d4dc28aef14f8",
+  "prompts": {},
+  "sessions": {
+    "s_045d3a1504d2be": {
+      "agent_id": {
+        "tool": "pi",
+        "id": "019f3ec3-8e8a-70bb-a15d-ccd9a50c47cf",
+        "model": "gpt-5.5"
+      },
+      "human_author": "Tomas Thor Jonsson <benregn@gmail.com>"
+    }
+  }
+}
