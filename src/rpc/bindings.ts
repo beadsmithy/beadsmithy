@@ -35,8 +35,14 @@ export type IssueListErrorKind = "missingBinary" | "notBeadworkWorkspace" | "com
  */
 export type ListIssuesResponse = { workspacePath: string; issues: Issue[] }
 
-const ARGS_MAP = { '':'{"list_issues":[]}', 'devBridge':'{"result":["id","value"]}' }
-export type Router = { "": {list_issues: () => Promise<ListIssuesResponse>},
+/**
+ * Successful Issue Explorer RPC payload containing Beadwork-authored base views.
+ */
+export type LoadIssueExplorerDataResponse = { workspacePath: string; allIssues: Issue[]; readyIssues: Issue[]; blockedIssues: Issue[] }
+
+const ARGS_MAP = { '':'{"list_issues":[],"load_issue_explorer_data":[]}', 'devBridge':'{"result":["id","value"]}' }
+export type Router = { "": {list_issues: () => Promise<ListIssuesResponse>,
+load_issue_explorer_data: () => Promise<LoadIssueExplorerDataResponse>},
 "devBridge": {result: (id: string, value: string) => Promise<void>} };
 
 

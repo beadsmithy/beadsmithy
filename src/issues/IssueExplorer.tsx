@@ -11,7 +11,7 @@ import type { ExternalLinkOpener } from "../components/external-link-opener";
 import { openExternalLink as defaultOpenExternalLink } from "../components/external-link-opener";
 import { MarkdownContent } from "../components/MarkdownContent";
 import type { Issue, IssueComment } from "../rpc/bindings";
-import type { IssueLoadState } from "./issue-loader";
+import type { IssueExplorerLoadState } from "./issue-loader";
 import { toIssueViewModel } from "./issue-view";
 import type { IssueTone } from "./issue-view";
 
@@ -125,7 +125,7 @@ const IssueListContent = ({
   selectedIssueId,
   onSelect,
 }: {
-  state: IssueLoadState;
+  state: IssueExplorerLoadState;
   selectedIssueId: string | null;
   onSelect: (issueId: string) => void;
 }) => {
@@ -158,7 +158,7 @@ const IssueListContent = ({
     );
   }
 
-  if (state.status === "empty") {
+  if (state.status === "success" && state.allIssues.length === 0) {
     return (
       <div className="flex h-full flex-col items-center justify-center p-6 text-center text-sm text-muted">
         <Inbox className="mb-3 size-6 text-muted" />
@@ -172,7 +172,7 @@ const IssueListContent = ({
 
   return (
     <ul aria-label="Issues">
-      {state.issues.map((issue) => (
+      {state.allIssues.map((issue) => (
         <IssueRow
           issue={issue}
           isSelected={issue.id === selectedIssueId}
@@ -458,14 +458,16 @@ export const IssueExplorer = ({
   issueState,
   openExternalLink = defaultOpenExternalLink,
 }: {
-  issueState: IssueLoadState;
+  issueState: IssueExplorerLoadState;
   openExternalLink?: ExternalLinkOpener;
 }) => {
   const [selectedIssueId, setSelectedIssueId] = useState<string | null>(null);
 
+  // Ready and Blocked are preloaded for later Issue List View switching; this
+  // slice continues to render All Issues.
   const selectedIssue: Issue | null =
     issueState.status === "success"
-      ? (issueState.issues.find((issue) => issue.id === selectedIssueId) ??
+      ? (issueState.allIssues.find((issue) => issue.id === selectedIssueId) ??
         null)
       : null;
 

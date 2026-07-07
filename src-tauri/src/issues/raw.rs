@@ -1,9 +1,10 @@
-//! Raw mirror of `bw list --all --json` issue objects.
+//! Raw mirror of Beadwork issue JSON objects.
 //!
 //! Internal to the adapter. This struct captures Beadwork's current JSON
-//! schema so the rest of the adapter never touches raw [`serde_json::Value`].
-//! It is deliberately not exported: the public adapter API is
-//! [`super::adapter::Issue`], and raw field churn stays here.
+//! schema from `bw list --all --json`, `bw ready --json`, and
+//! `bw blocked --json` so the rest of the adapter never touches raw
+//! [`serde_json::Value`]. It is deliberately not exported: the public adapter
+//! API is [`super::adapter::Issue`], and raw field churn stays here.
 
 use serde::Deserialize;
 
@@ -16,7 +17,7 @@ pub(crate) struct RawComment {
     pub timestamp: String,
 }
 
-/// Raw `bw list --all --json` issue object.
+/// Raw Beadwork issue object returned by `bw list`, `bw ready`, and `bw blocked`.
 ///
 /// Beadwork serializes Go `omitempty` fields by omitting them, so those are
 /// [`Option`]. Slice fields are [`Option<Vec<..>>`] because Go marshals a nil
@@ -26,6 +27,7 @@ pub(crate) struct RawComment {
 /// Detail-capable fields such as `description`, `comments`, and
 /// `close_reason` stay optional here because older or sparse Beadwork JSON may
 /// omit them; the adapter normalizes them into always-present Issue fields.
+/// Blocked-only fields such as `open_blockers` are intentionally ignored.
 #[derive(Debug, Deserialize)]
 #[allow(dead_code)]
 pub(crate) struct RawIssue {

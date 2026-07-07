@@ -4,7 +4,7 @@ import { describe, expect, it, vi } from "vitest";
 
 import type { ExternalLinkOpener } from "../components/external-link-opener";
 import type { Issue } from "../rpc/bindings";
-import type { IssueLoadState } from "./issue-loader";
+import type { IssueExplorerLoadState } from "./issue-loader";
 import { IssueExplorer } from "./IssueExplorer";
 
 const buildIssue = (overrides: Partial<Issue> = {}): Issue => ({
@@ -32,17 +32,13 @@ const buildIssue = (overrides: Partial<Issue> = {}): Issue => ({
 const successState = (
   issues: Issue[],
   workspacePath = "/Users/dev/work/portal"
-): IssueLoadState => {
-  const [first, ...rest] = issues;
-  if (first === undefined) {
-    return { issues: [], status: "empty", workspacePath };
-  }
-  return {
-    issues: [first, ...rest],
-    status: "success",
-    workspacePath,
-  };
-};
+): IssueExplorerLoadState => ({
+  allIssues: issues,
+  blockedIssues: [],
+  readyIssues: [],
+  status: "success",
+  workspacePath,
+});
 
 interface RenderExplorerOptions {
   openExternalLink?: ExternalLinkOpener;
@@ -52,9 +48,9 @@ const renderExplorer = (
   issues: Issue[],
   options: RenderExplorerOptions = {}
 ) => {
-  const state: IssueLoadState = successState(issues);
+  const state: IssueExplorerLoadState = successState(issues);
   const props: {
-    issueState: IssueLoadState;
+    issueState: IssueExplorerLoadState;
     openExternalLink?: ExternalLinkOpener;
   } = {
     issueState: state,
@@ -100,6 +96,18 @@ const getDetailSectionFlow = () =>
   });
 
 describe("IssueExplorer", () => {
+  it("renders the empty Issue List UI from a successful empty All Issues collection", () => {
+    renderExplorer([]);
+
+    expect(screen.getByText("No issues found")).toBeInTheDocument();
+    expect(
+      screen.getByText(
+        "Beadwork returned an empty issue list for this workspace."
+      )
+    ).toBeInTheDocument();
+    expect(screen.queryByRole("list", { name: "Issues" })).toBeNull();
+  });
+
   it("renders the empty Issue detail state on successful load without auto-selecting", () => {
     const issue = buildIssue();
 
