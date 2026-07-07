@@ -32,6 +32,21 @@ const countIssuesWithStatus = (
   status: IssueStatusViewId
 ): number => issues.filter((issue) => issue.status === status).length;
 
+export const getVisibleIssuesForListView = (
+  state: IssueExplorerLoadState,
+  viewId: IssueListViewId
+): Issue[] => {
+  if (state.status !== "success") {
+    return [];
+  }
+
+  if (viewId === "blocked") {
+    return state.blockedIssues;
+  }
+
+  return state.allIssues;
+};
+
 export const getIssueListViewCounts = (
   state: IssueExplorerLoadState
 ): IssueListViewCounts | null => {

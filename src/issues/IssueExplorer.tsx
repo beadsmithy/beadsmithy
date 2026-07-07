@@ -11,6 +11,10 @@ import type { ExternalLinkOpener } from "../components/external-link-opener";
 import { openExternalLink as defaultOpenExternalLink } from "../components/external-link-opener";
 import { MarkdownContent } from "../components/MarkdownContent";
 import type { Issue, IssueComment } from "../rpc/bindings";
+import {
+  DEFAULT_ISSUE_LIST_VIEW_ID,
+  getVisibleIssuesForListView,
+} from "./issue-list-view";
 import type { IssueListViewId } from "./issue-list-view";
 import type { IssueExplorerLoadState } from "./issue-loader";
 import { toIssueViewModel } from "./issue-view";
@@ -122,13 +126,15 @@ const IssueRow = ({
 };
 
 const IssueListContent = ({
-  state,
-  selectedIssueId,
   onSelect,
+  selectedIssueId,
+  state,
+  visibleIssues,
 }: {
-  state: IssueExplorerLoadState;
-  selectedIssueId: string | null;
   onSelect: (issueId: string) => void;
+  selectedIssueId: string | null;
+  state: IssueExplorerLoadState;
+  visibleIssues: Issue[];
 }) => {
   if (state.status === "loading") {
     return (
@@ -159,7 +165,7 @@ const IssueListContent = ({
     );
   }
 
-  if (state.status === "success" && state.allIssues.length === 0) {
+  if (state.status === "success" && visibleIssues.length === 0) {
     return (
       <div className="flex h-full flex-col items-center justify-center p-6 text-center text-sm text-muted">
         <Inbox className="mb-3 size-6 text-muted" />
@@ -173,7 +179,7 @@ const IssueListContent = ({
 
   return (
     <ul aria-label="Issues">
-      {state.allIssues.map((issue) => (
+      {visibleIssues.map((issue) => (
         <IssueRow
           issue={issue}
           isSelected={issue.id === selectedIssueId}
@@ -468,13 +474,11 @@ export const IssueExplorer = ({
 }) => {
   void onIssueListViewChange;
   const [selectedIssueId, setSelectedIssueId] = useState<string | null>(null);
-
-  // Ready and Blocked are preloaded for later Issue List View switching; this
-  // slice continues to render All Issues.
+  const activeViewId = activeIssueListViewId ?? DEFAULT_ISSUE_LIST_VIEW_ID;
+  const visibleIssues = getVisibleIssuesForListView(issueState, activeViewId);
   const selectedIssue: Issue | null =
     issueState.status === "success"
-      ? (issueState.allIssues.find((issue) => issue.id === selectedIssueId) ??
-        null)
+      ? (visibleIssues.find((issue) => issue.id === selectedIssueId) ?? null)
       : null;
 
   const handleSelect = (issueId: string) => {
@@ -510,6 +514,7 @@ export const IssueExplorer = ({
             onSelect={handleSelect}
             selectedIssueId={selectedIssueId}
             state={issueState}
+            visibleIssues={visibleIssues}
           />
         </div>
       </section>
