@@ -23,7 +23,7 @@ export interface IssueViewModel {
 const STATUS_LABELS: Record<string, string> = {
   closed: "Closed",
   deferred: "Deferred",
-  in_progress: "In progress",
+  in_progress: "In Progress",
   open: "Open",
 };
 

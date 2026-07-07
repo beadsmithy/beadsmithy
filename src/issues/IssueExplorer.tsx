@@ -489,7 +489,7 @@ export const IssueExplorer = ({
     <>
       <section
         className="flex w-[320px] shrink-0 flex-col border-r border-border-main bg-background"
-        data-active-issue-list-view-id={activeIssueListViewId}
+        data-active-issue-list-view-id={activeViewId}
       >
         <div className="flex h-14 items-center border-b border-border-main p-2">
           <div className="relative w-full">

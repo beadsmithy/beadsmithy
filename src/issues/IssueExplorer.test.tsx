@@ -92,6 +92,11 @@ const getRowButton = (issue: Issue) =>
     throw new Error(`No row button rendered for issue ${issue.id}`);
   })();
 
+const getRenderedIssueIds = () =>
+  within(screen.getByRole("list", { name: "Issues" }))
+    .getAllByRole("button")
+    .map((button) => button.dataset.issueId ?? "");
+
 const getDetailSectionFlow = () =>
   [...getDetailElement().children].map((child) => {
     if (child.tagName === "HEADER") {
@@ -118,6 +123,87 @@ describe("IssueExplorer", () => {
       )
     ).toBeInTheDocument();
     expect(screen.queryByRole("list", { name: "Issues" })).toBeNull();
+  });
+
+  it("renders the All Issue List View from All Issues in original order", () => {
+    const closedIssue = buildIssue({
+      id: "bsm-closed",
+      status: "closed",
+      title: "Closed first by command order",
+    });
+    const unknownStatusIssue = buildIssue({
+      id: "bsm-unknown",
+      status: "triaged",
+      title: "Unknown status remains in All",
+    });
+    const openIssue = buildIssue({
+      id: "bsm-open",
+      status: "open",
+      title: "Open last by command order",
+    });
+
+    renderExplorer([closedIssue, unknownStatusIssue, openIssue], {
+      activeIssueListViewId: "all",
+    });
+
+    expect(getRenderedIssueIds()).toEqual([
+      "bsm-closed",
+      "bsm-unknown",
+      "bsm-open",
+    ]);
+  });
+
+  it("renders status Issue List Views from exact stored status matches with the same row and detail UI", async () => {
+    const user = userEvent.setup();
+    const closedIssue = buildIssue({
+      id: "bsm-closed",
+      status: "closed",
+      title: "Closed issue",
+    });
+    const inProgressEpic = buildIssue({
+      blockedBy: ["bsm-blocker"],
+      blocks: ["bsm-blocked"],
+      id: "bsm-progress-epic",
+      status: "in_progress",
+      title: "Progress epic",
+      type: "epic",
+    });
+    const unknownStatusIssue = buildIssue({
+      id: "bsm-unknown",
+      status: "triaged",
+      title: "Unknown status issue",
+    });
+    const inProgressTask = buildIssue({
+      id: "bsm-progress-task",
+      status: "in_progress",
+      title: "Progress task",
+      type: "task",
+    });
+
+    renderExplorer(
+      [closedIssue, inProgressEpic, unknownStatusIssue, inProgressTask],
+      { activeIssueListViewId: "in_progress" }
+    );
+
+    expect(getRenderedIssueIds()).toEqual([
+      "bsm-progress-epic",
+      "bsm-progress-task",
+    ]);
+    expect(screen.queryByText(closedIssue.title)).toBeNull();
+    expect(screen.queryByText(unknownStatusIssue.title)).toBeNull();
+    expect(screen.getAllByText("In Progress")).toHaveLength(2);
+    expect(screen.getByText("blocked by 1 · blocks 1")).toBeInTheDocument();
+
+    await user.click(getRowButton(inProgressEpic));
+
+    const detail = getDetail();
+    expect(
+      detail.getByRole("heading", { level: 2, name: inProgressEpic.title })
+    ).toBeInTheDocument();
+    expect(detail.getByText("In Progress")).toBeInTheDocument();
+    expect(detail.getByText("Epic")).toBeInTheDocument();
+    expect(detail.getByText("bsm-blocker")).toBeInTheDocument();
+    expect(detail.getByText("bsm-blocked")).toBeInTheDocument();
   });
 
   it("renders Blocked from the command-backed Blocked collection in command order", () => {
