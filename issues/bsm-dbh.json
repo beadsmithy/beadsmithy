@@ -1,5 +1,5 @@
 {
-  "assignee": "",
+  "assignee": "Tomas Thor Jonsson",
   "blocked_by": [],
   "blocks": [],
   "created": "2026-07-06T20:41:20Z",
@@ -9,8 +9,8 @@
     "ready-for-agent"
   ],
   "priority": 2,
-  "status": "open",
+  "status": "in_progress",
   "title": "Epic: Filtering and search issue list views",
   "type": "epic",
-  "updated_at": "2026-07-07T15:09:01Z"
+  "updated_at": "2026-07-07T17:51:53Z"
 }
