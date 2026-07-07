@@ -12,31 +12,31 @@ import { useEffect, useState } from "react";
 
 import "./App.css";
 import {
+  DEFAULT_ISSUE_LIST_VIEW_ID,
+  formatIssueCountLabel,
+  getIssueListViewCounts,
+  ISSUE_LIST_VIEW_DEFINITIONS,
+} from "./issues/issue-list-view";
+import type {
+  IssueListViewDefinition,
+  IssueListViewId,
+} from "./issues/issue-list-view";
+import {
   ISSUE_EXPLORER_LOADING_STATE,
   loadIssueExplorerStateFromTauRpc,
 } from "./issues/issue-loader";
 import type { IssueExplorerLoadState } from "./issues/issue-loader";
 import { IssueExplorer } from "./issues/IssueExplorer";
 
-interface NavItem {
-  id: string;
-  label: string;
-  icon: LucideIcon;
-  current?: boolean;
-}
-
-const VIEW_ITEMS: NavItem[] = [
-  { current: true, icon: Inbox, id: "all", label: "All" },
-  { icon: CheckCircle2, id: "ready", label: "Ready" },
-  { icon: CircleSlash, id: "blocked", label: "Blocked" },
-];
-
-const STATE_ITEMS: NavItem[] = [
-  { icon: Circle, id: "open", label: "Open" },
-  { icon: PlayCircle, id: "in-progress", label: "In-Progress" },
-  { icon: CheckCircle2, id: "closed", label: "Closed" },
-  { icon: Clock, id: "deferred", label: "Deferred" },
-];
+const ISSUE_LIST_VIEW_ICONS: Record<IssueListViewId, LucideIcon> = {
+  all: Inbox,
+  blocked: CircleSlash,
+  closed: CheckCircle2,
+  deferred: Clock,
+  in_progress: PlayCircle,
+  open: Circle,
+  ready: CheckCircle2,
+};
 
 const workspaceTextFor = (state: IssueExplorerLoadState): string => {
   if (state.status === "success") {
@@ -50,24 +50,65 @@ const workspaceTextFor = (state: IssueExplorerLoadState): string => {
   return "Loading workspace…";
 };
 
-const SidebarNavButton = ({ label, icon: Icon, current }: NavItem) => (
-  <button
-    aria-current={current ? "true" : undefined}
-    className={`flex w-full items-center rounded-md px-2 py-1.5 text-sm transition-colors hover:bg-white/5 hover:text-text-main hover:disabled:bg-transparent hover:disabled:text-muted ${
-      current ? "bg-white/5 text-primary" : "text-muted"
-    }`}
-    disabled
-  >
-    <Icon className="mr-2 size-4" />
-    {label}
-  </button>
-);
+const SidebarNavButton = ({
+  count,
+  current,
+  disabled,
+  item,
+  onSelect,
+}: {
+  count: number | null;
+  current: boolean;
+  disabled: boolean;
+  item: IssueListViewDefinition;
+  onSelect: (viewId: IssueListViewId) => void;
+}) => {
+  const Icon = ISSUE_LIST_VIEW_ICONS[item.id];
+  const countLabel = count === null ? null : formatIssueCountLabel(count);
+
+  return (
+    <button
+      aria-current={current ? "true" : undefined}
+      aria-label={
+        countLabel === null ? item.label : `${item.label}, ${countLabel}`
+      }
+      className={`flex w-full items-center rounded-md px-2 py-1.5 text-sm transition-colors hover:bg-white/5 hover:text-text-main hover:disabled:bg-transparent hover:disabled:text-muted ${
+        current ? "bg-white/5 text-primary" : "text-muted"
+      }`}
+      disabled={disabled}
+      onClick={() => {
+        if (!current) {
+          onSelect(item.id);
+        }
+      }}
+      type="button"
+    >
+      <Icon className="mr-2 size-4" />
+      <span>{item.label}</span>
+      {count === null ? null : (
+        <span className="ml-auto font-mono text-[11px] text-muted tabular-nums">
+          {count}
+        </span>
+      )}
+    </button>
+  );
+};
 
 export default function App() {
   const [issueState, setIssueState] = useState<IssueExplorerLoadState>(
     ISSUE_EXPLORER_LOADING_STATE
   );
+  const [activeIssueListViewId, setActiveIssueListViewId] =
+    useState<IssueListViewId>(DEFAULT_ISSUE_LIST_VIEW_ID);
   const workspacePath = workspaceTextFor(issueState);
+  const issueListViewCounts = getIssueListViewCounts(issueState);
+  const sidebarDisabled = issueState.status !== "success";
+  const viewItems = ISSUE_LIST_VIEW_DEFINITIONS.filter(
+    (item) => item.group === "views"
+  );
+  const statusItems = ISSUE_LIST_VIEW_DEFINITIONS.filter(
+    (item) => item.group === "status"
+  );
 
   useEffect(() => {
     void (async () => {
@@ -89,17 +130,31 @@ export default function App() {
             Views
           </div>
           <div className="px-2">
-            {VIEW_ITEMS.map((item) => (
-              <SidebarNavButton key={item.id} {...item} />
+            {viewItems.map((item) => (
+              <SidebarNavButton
+                count={issueListViewCounts?.[item.id] ?? null}
+                current={item.id === activeIssueListViewId}
+                disabled={sidebarDisabled}
+                item={item}
+                key={item.id}
+                onSelect={setActiveIssueListViewId}
+              />
             ))}
           </div>
 
           <div className="px-4 py-2 pt-6 font-mono text-[10px] tracking-wider text-muted uppercase">
-            States
+            Status
           </div>
           <div className="px-2">
-            {STATE_ITEMS.map((item) => (
-              <SidebarNavButton key={item.id} {...item} />
+            {statusItems.map((item) => (
+              <SidebarNavButton
+                count={issueListViewCounts?.[item.id] ?? null}
+                current={item.id === activeIssueListViewId}
+                disabled={sidebarDisabled}
+                item={item}
+                key={item.id}
+                onSelect={setActiveIssueListViewId}
+              />
             ))}
           </div>
         </div>
@@ -120,7 +175,11 @@ export default function App() {
         </div>
       </nav>
 
-      <IssueExplorer issueState={issueState} />
+      <IssueExplorer
+        activeIssueListViewId={activeIssueListViewId}
+        issueState={issueState}
+        onIssueListViewChange={setActiveIssueListViewId}
+      />
     </div>
   );
 }
