@@ -41,7 +41,7 @@ export type ListIssuesResponse = { workspacePath: string; issues: Issue[] }
 export type LoadIssueExplorerDataResponse = { workspacePath: string; allIssues: Issue[]; readyIssues: Issue[]; blockedIssues: Issue[] }
 
 const ARGS_MAP = { '':'{"list_issues":[],"load_issue_explorer_data":[]}', 'devBridge':'{"result":["id","value"]}' }
-export type Router = { "": {list_issues: () => Promise<ListIssuesResponse>, 
+export type Router = { "": {list_issues: () => Promise<ListIssuesResponse>,
 load_issue_explorer_data: () => Promise<LoadIssueExplorerDataResponse>},
 "devBridge": {result: (id: string, value: string) => Promise<void>} };
 
