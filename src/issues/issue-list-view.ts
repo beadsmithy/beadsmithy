@@ -40,19 +40,11 @@ export const getVisibleIssuesForListView = (
     return [];
   }
 
-  if (viewId === "ready") {
-    return state.readyIssues;
-  }
-
   if (viewId === "blocked") {
     return state.blockedIssues;
   }
 
-  if (viewId === "all") {
-    return state.allIssues;
-  }
-
-  return state.allIssues.filter((issue) => issue.status === viewId);
+  return state.allIssues;
 };
 
 export const getIssueListViewCounts = (

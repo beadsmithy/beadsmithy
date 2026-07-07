@@ -4,6 +4,7 @@ import { describe, expect, it, vi } from "vitest";
 
 import type { ExternalLinkOpener } from "../components/external-link-opener";
 import type { Issue } from "../rpc/bindings";
+import type { IssueListViewId } from "./issue-list-view";
 import type { IssueExplorerLoadState } from "./issue-loader";
 import { IssueExplorer } from "./IssueExplorer";
 
@@ -46,7 +47,7 @@ const successState = (
 });
 
 interface RenderExplorerOptions {
-  activeIssueListViewId?: "all" | "ready" | "blocked";
+  activeIssueListViewId?: IssueListViewId;
   openExternalLink?: ExternalLinkOpener;
   state?: IssueExplorerLoadState;
 }
@@ -57,7 +58,7 @@ const renderExplorer = (
 ) => {
   const state: IssueExplorerLoadState = options.state ?? successState(issues);
   const props: {
-    activeIssueListViewId?: "all" | "ready" | "blocked";
+    activeIssueListViewId?: IssueListViewId;
     issueState: IssueExplorerLoadState;
     openExternalLink?: ExternalLinkOpener;
   } = {

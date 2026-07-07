@@ -144,6 +144,23 @@ describe("App issue list view sidebar", () => {
     ).toHaveLength(1);
   });
 
+  it("shows a zero Blocked count from the command-backed Blocked collection", async () => {
+    const issueWithDependencies = buildIssue({
+      blockedBy: ["bsm-blocker"],
+      id: "bsm-derived-only",
+    });
+
+    loadIssueExplorerStateFromTauRpc.mockResolvedValue(
+      successState({ allIssues: [issueWithDependencies], blockedIssues: [] })
+    );
+
+    render(<App />);
+
+    expect(
+      await screen.findByRole("button", { name: "Blocked, 0 issues" })
+    ).toBeEnabled();
+  });
+
   it("changes the active issue list view only when an inactive loaded sidebar item is clicked", async () => {
     const user = userEvent.setup();
     const issue = buildIssue({ status: "open" });
