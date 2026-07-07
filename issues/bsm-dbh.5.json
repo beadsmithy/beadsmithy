@@ -1,6 +1,8 @@
 {
   "assignee": "",
-  "blocked_by": [],
+  "blocked_by": [
+    "bsm-dbh.2"
+  ],
   "blocks": [],
   "created": "2026-07-07T15:08:05Z",
   "description": "## Parent\n\nParent epic: `bsm-dbh` — Filtering and search issue list views.\n\n## Background\n\nBlocked is a Beadwork workflow view: it asks which Issues Beadwork considers blocked by unresolved blockers. Beadsmith should not infer this by checking whether `blockedBy` is non-empty, because Beadwork owns the exact workflow semantics. ADR-0005 requires Beadsmith to use `bw blocked --json` as the authoritative source for Blocked membership and ordering.\n\nThis task wires the already-loaded Blocked collection into the active Issue List View UI without adding special blocker-specific presentation in this slice.\n\n## What to build\n\nWhen the active Issue List View is Blocked, render exactly the normalized Issues returned by the combined load's Blocked collection. Preserve the order returned by `bw blocked --json`. Use the same row and Issue Detail rendering as all other views.\n\nBlocked count should come from `blockedIssues.length`, not local dependency derivation.\n\n## Technical Approach\n\nExtend the active-view-to-visible-issues logic so the Blocked view returns the preloaded Blocked collection. The adapter may have ignored `open_blockers` while normalizing, and this UI slice should continue to render dependency chips/details from the normal `blockedBy` and `blocks` fields only.\n\nDo not locally include or exclude Issues based on dependency arrays, status, parent, or deferral fields. Do not apply special styling merely because an Issue is currently shown through the Blocked view.\n\n## Considerations\n\n- A Blocked Issue may also appear in All or a status view; views are overlapping lenses, not partitions.\n- Blocked output order should be treated as Beadwork-authored command order. Do not claim or implement a priority/due-date sort guarantee.\n- Special Blocked-view dependency rendering that emphasizes open blockers is explicitly out of scope.\n\n## Acceptance criteria\n\n- [ ] Selecting Blocked shows the preloaded Blocked Issues collection.\n- [ ] Blocked preserves `bw blocked --json` output order.\n- [ ] Blocked count uses `blockedIssues.length`.\n- [ ] Blocked membership is not derived locally from All Issues fields or dependency arrays.\n- [ ] Row tone, dependency chips, and Issue Detail dependency display remain data-derived and consistent with other views.\n- [ ] Switching to Blocked after load does not trigger another Beadwork command.\n\n## Test Plan\n\n- Component or pure helper tests proving Blocked returns the command-backed Blocked collection rather than local dependency derivation.\n- Tests proving Blocked order is preserved even when All Issues has a different order.\n- Tests proving no special `open_blockers` UI appears and normal dependency display remains unchanged.\n- Sidebar/count tests for Blocked, including zero count.",
@@ -13,5 +15,5 @@
   "status": "open",
   "title": "Render Blocked Issue List View from bw blocked data",
   "type": "task",
-  "updated_at": "2026-07-07T15:08:05Z"
+  "updated_at": "2026-07-07T15:08:14Z"
 }
