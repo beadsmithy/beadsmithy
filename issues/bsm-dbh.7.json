@@ -1,6 +1,8 @@
 {
   "assignee": "",
-  "blocked_by": [],
+  "blocked_by": [
+    "bsm-dbh.3"
+  ],
   "blocks": [],
   "created": "2026-07-07T15:08:05Z",
   "description": "## Parent\n\nParent epic: `bsm-dbh` — Filtering and search issue list views.\n\n## Background\n\nAfter the search foundation works for All Issues, the feature's product behavior requires Issue Search to be scoped to whichever Issue List View is active. A user should be able to type one query and compare how it behaves across All, Ready, Blocked, Open, In Progress, Closed, and Deferred without retyping.\n\nThis task overlays search on the active Issue List View model rather than treating search as an All-only feature.\n\n## What to build\n\nApply the existing Issue Search query to the currently active Issue List View. The query text should persist when switching views, but the visible rows should be recomputed against the new active view's base collection.\n\nExamples:\n\n- Searching while All is active searches All Issues.\n- Switching to Ready with the same query searches only Ready Issues.\n- Switching to Closed with the same query searches only Closed Issues.\n\nSearch should continue to preserve the active view's base order and only remove non-matching rows.\n\n## Technical Approach\n\nCompose the active-view base collection first, then apply the search helper from the All-search task. Keep sidebar counts based on unsearched base collections. Do not introduce combined filter semantics; search is a local narrowing of the active lens, not another persistent Issue List View.\n\nThe search query should remain local UI state and should not persist across app reloads. View switching persists only the text; no hidden per-view query state is required.\n\n## Considerations\n\n- Ready and Blocked search must search the command-backed Ready/Blocked collections, not All Issues.\n- Status view search must search the status slice, not All Issues globally.\n- Search does not change Beadwork data and does not invoke `bw --grep`.\n- Empty-state copy for no matches is handled in a later task, but this task should expose enough state for that copy to distinguish base-empty from search-filtered-empty.\n\n## Acceptance criteria\n\n- [ ] The same search query narrows whichever Issue List View is active.\n- [ ] Switching views preserves the query text and recomputes visible rows against the new base view.\n- [ ] Ready search is scoped to Ready; Blocked search is scoped to Blocked; status search is scoped to the selected status view.\n- [ ] Search preserves each active view's base order.\n- [ ] Sidebar counts remain unfiltered base counts while search changes.\n- [ ] No Beadwork command is run for search.\n\n## Test Plan\n\n- Component tests for searching All, Ready, Blocked, and at least two status views with the same query.\n- Tests proving query text persists across view switches.\n- Tests proving scoped search does not leak matches from another view.\n- Tests proving counts do not change when query text changes or when switching views with a query active.",
@@ -13,5 +15,5 @@
   "status": "open",
   "title": "Apply Issue Search to the active Issue List View",
   "type": "task",
-  "updated_at": "2026-07-07T15:08:05Z"
+  "updated_at": "2026-07-07T15:08:14Z"
 }
