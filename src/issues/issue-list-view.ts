@@ -73,15 +73,12 @@ export const getVisibleIssuesForListView = (
     return selectAllIssuesBackedIssueListViewIssues(state, viewId);
   }
 
-  if (viewId === "blocked") {
-    return state.blockedIssues;
+  if (viewId === "ready") {
+    return state.readyIssues;
   }
 
-  // Ready command-backed rendering belongs to its own slice. Preserve the
-  // existing All Issues rendering for Ready until that branch lands on main.
-  return state.allIssues;
+  return state.blockedIssues;
 };
-
 export const getIssueListViewCounts = (
   state: IssueExplorerLoadState
 ): IssueListViewCounts | null => {

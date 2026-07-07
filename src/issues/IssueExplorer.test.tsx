@@ -912,4 +912,86 @@ describe("IssueExplorer", () => {
       expect(otherScope.getByText("Updated")).toBeInTheDocument();
     }
   });
+
+  it("renders Ready from the command-backed Ready collection in command order", () => {
+    const allDerivedReady = buildIssue({
+      id: "bsm-derived-only",
+      status: "open",
+      title: "Would be derived locally",
+    });
+    const readySecond = buildIssue({
+      blockedBy: ["bsm-real-blocker"],
+      id: "bsm-command-second",
+      status: "in_progress",
+      title: "Second ready command result",
+    });
+    const readyFirst = buildIssue({
+      blockedBy: ["bsm-real-blocker"],
+      id: "bsm-command-first",
+      status: "in_progress",
+      title: "First ready command result",
+    });
+
+    renderExplorer([], {
+      activeIssueListViewId: "ready",
+      state: {
+        ...successState([allDerivedReady, readySecond, readyFirst]),
+        readyIssues: [readyFirst, readySecond],
+      },
+    });
+
+    const rowButtons = within(screen.getByRole("list", { name: "Issues" }))
+      .getAllByRole("button")
+      .map((button) => button.dataset.issueId);
+
+    expect(rowButtons).toEqual(["bsm-command-first", "bsm-command-second"]);
+    expect(screen.queryByText("Would be derived locally")).toBeNull();
+  });
+
+  it("renders Issue Detail from the selected Ready issue collection", async () => {
+    const user = userEvent.setup();
+    const allIssueWithSameId = buildIssue({
+      id: "bsm-overlap",
+      title: "All collection title",
+    });
+    const readyIssueWithSameId = buildIssue({
+      blockedBy: ["bsm-real-blocker"],
+      id: "bsm-overlap",
+      status: "in_progress",
+      title: "Ready collection title",
+    });
+
+    renderExplorer([], {
+      activeIssueListViewId: "ready",
+      state: {
+        ...successState([allIssueWithSameId]),
+        readyIssues: [readyIssueWithSameId],
+      },
+    });
+
+    await user.click(getRowButton(readyIssueWithSameId));
+
+    expect(getDetail().getByText("Ready collection title")).toBeInTheDocument();
+    expect(getDetail().queryByText("All collection title")).toBeNull();
+    expect(getDetail().getByText("bsm-real-blocker")).toBeInTheDocument();
+  });
+
+  it("renders the empty Issue List state when the preloaded Ready collection is empty", () => {
+    const allOnly = buildIssue({
+      id: "bsm-all-only",
+      title: "Only in All Issues",
+    });
+
+    renderExplorer([], {
+      activeIssueListViewId: "ready",
+      state: {
+        ...successState([allOnly]),
+        readyIssues: [],
+      },
+    });
+
+    expect(screen.getByText("No issues found")).toBeInTheDocument();
+    expect(screen.queryByRole("list", { name: "Issues" })).toBeNull();
+    expect(screen.queryByText("Only in All Issues")).toBeNull();
+  });
 });
