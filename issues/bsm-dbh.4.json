@@ -1,0 +1,15 @@
+{
+  "assignee": "",
+  "blocked_by": [],
+  "blocks": [],
+  "created": "2026-07-07T15:08:05Z",
+  "description": "## Parent\n\nParent epic: `bsm-dbh` — Filtering and search issue list views.\n\n## Background\n\nReady is a Beadwork workflow view: it asks which Issues Beadwork considers available to work next. It can depend on blockers, deferrals, subtree behavior, and ordering rules that Beadsmith must not duplicate. ADR-0005 requires Beadsmith to use `bw ready --json` as the authoritative source for Ready membership and ordering.\n\nThis task wires the already-loaded Ready collection into the active Issue List View UI.\n\n## What to build\n\nWhen the active Issue List View is Ready, render exactly the normalized Issues returned by the combined load's Ready collection. Preserve the order returned by `bw ready --json`. Use the same row and Issue Detail rendering as all other views.\n\nReady count should come from `readyIssues.length`, not from local derivation over All Issues.\n\n## Technical Approach\n\nExtend the active-view-to-visible-issues logic so the Ready view returns the preloaded Ready collection. Do not join Ready IDs against All Issues unless there is a strong implementation reason and tests still prove Ready's command order and normalized data are preserved. Do not filter out Ready Issues because of local status, blockedBy, parent, or deferral fields.\n\nKeep the Ready view instant after load by relying on the preloaded collection, not by making a new CLI/RPC call when the sidebar item is clicked.\n\n## Considerations\n\n- A Ready Issue may also appear in All or a status view; views are overlapping lenses, not partitions.\n- Ready is not necessarily identical to \"open and unblocked\" as locally inferred by Beadsmith.\n- If Ready is empty, that is still a successful loaded view and should become visible as an empty-state task later.\n\n## Acceptance criteria\n\n- [ ] Selecting Ready shows the preloaded Ready Issues collection.\n- [ ] Ready preserves `bw ready --json` output order.\n- [ ] Ready count uses `readyIssues.length`.\n- [ ] Ready membership is not derived locally from All Issues fields.\n- [ ] Row and Issue Detail rendering are consistent with All/status views.\n- [ ] Switching to Ready after load does not trigger another Beadwork command.\n\n## Test Plan\n\n- Component or pure helper tests proving Ready returns the command-backed Ready collection rather than a local derivation.\n- Tests proving Ready order is preserved even when All Issues has a different order.\n- Sidebar/count tests for Ready, including zero count.",
+  "id": "bsm-dbh.4",
+  "labels": [],
+  "parent": "bsm-dbh",
+  "priority": 2,
+  "status": "open",
+  "title": "Render Ready Issue List View from bw ready data",
+  "type": "task",
+  "updated_at": "2026-07-07T15:08:05Z"
+}
