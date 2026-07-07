@@ -12,9 +12,15 @@
     "ready-for-agent"
   ],
   "parent": "bsm-dbh",
+  "comments": [
+    {
+      "text": "",
+      "timestamp": "2026-07-07T16:51:52Z"
+    }
+  ],
   "priority": 2,
   "status": "in_progress",
   "title": "Load Issue Explorer data through one authoritative All/Ready/Blocked RPC",
   "type": "task",
-  "updated_at": "2026-07-07T16:28:47Z"
+  "updated_at": "2026-07-07T16:51:52Z"
 }
