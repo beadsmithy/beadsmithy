@@ -1,5 +1,5 @@
 {
-  "assignee": "",
+  "assignee": "Tomas Thor Jonsson",
   "blocked_by": [],
   "blocks": [
     "bsm-dbh.2",
@@ -13,8 +13,8 @@
   ],
   "parent": "bsm-dbh",
   "priority": 2,
-  "status": "open",
+  "status": "in_progress",
   "title": "Load Issue Explorer data through one authoritative All/Ready/Blocked RPC",
   "type": "task",
-  "updated_at": "2026-07-07T15:19:26Z"
+  "updated_at": "2026-07-07T16:28:47Z"
 }
