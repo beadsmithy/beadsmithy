@@ -97,6 +97,9 @@ const getRenderedIssueIds = () =>
     .getAllByRole("button")
     .map((button) => button.dataset.issueId ?? "");
 
+const getSearchInput = () =>
+  screen.getByRole("textbox", { name: "Search issues" });
+
 const getDetailSectionFlow = () =>
   [...getDetailElement().children].map((child) => {
     if (child.tagName === "HEADER") {
@@ -123,6 +126,109 @@ describe("IssueExplorer", () => {
       )
     ).toBeInTheDocument();
     expect(screen.queryByRole("list", { name: "Issues" })).toBeNull();
+  });
+
+  it("enables search after successful load while preserving the placeholder and Cmd+F hint", () => {
+    renderExplorer([]);
+
+    const searchInput = getSearchInput();
+    expect(searchInput).toBeEnabled();
+    expect(searchInput).toHaveAttribute("placeholder", "Search issues...");
+    expect(screen.getByText("Cmd+F")).toBeInTheDocument();
+  });
+
+  it("disables search while issues are loading or failed", () => {
+    const { rerender } = renderExplorer([], {
+      state: { status: "loading" },
+    });
+
+    expect(getSearchInput()).toBeDisabled();
+
+    rerender(
+      <IssueExplorer
+        issueState={{
+          error: { kind: "command-failed", message: "bw failed" },
+          status: "failure",
+        }}
+      />
+    );
+
+    expect(getSearchInput()).toBeDisabled();
+  });
+
+  it("filters All Issues immediately by ID, title, and raw description but not comments", async () => {
+    const user = userEvent.setup();
+    const idMatch = buildIssue({ id: "bsm-dbh.6", title: "Plain" });
+    const titleMatch = buildIssue({
+      id: "bsm-title",
+      title: "Keyboard Search",
+    });
+    const descriptionMatch = buildIssue({
+      description: "Raw description mentions Needlework.",
+      id: "bsm-description",
+      title: "Plain",
+    });
+    const commentOnlyMatch = buildIssue({
+      comments: [
+        {
+          author: "Tomas",
+          text: "Needlework appears only in a comment.",
+          timestamp: "2026-07-05T12:00:00Z",
+        },
+      ],
+      id: "bsm-comment",
+      title: "Plain",
+    });
+
+    renderExplorer([idMatch, titleMatch, descriptionMatch, commentOnlyMatch]);
+
+    await user.type(getSearchInput(), "needle");
+    expect(getRenderedIssueIds()).toEqual(["bsm-description"]);
+
+    await user.clear(getSearchInput());
+    await user.type(getSearchInput(), "DBH.6");
+    expect(getRenderedIssueIds()).toEqual(["bsm-dbh.6"]);
+
+    await user.clear(getSearchInput());
+    await user.type(getSearchInput(), "key sea");
+    expect(getRenderedIssueIds()).toEqual(["bsm-title"]);
+  });
+
+  it("keeps whitespace-only All Issues search unfiltered and preserves match order", async () => {
+    const user = userEvent.setup();
+    const first = buildIssue({ id: "bsm-z", title: "Search" });
+    const second = buildIssue({ id: "bsm-a", title: "Search" });
+    const miss = buildIssue({ id: "bsm-miss", title: "Other" });
+
+    renderExplorer([first, second, miss]);
+
+    await user.type(getSearchInput(), "   ");
+    expect(getRenderedIssueIds()).toEqual(["bsm-z", "bsm-a", "bsm-miss"]);
+
+    await user.type(getSearchInput(), "search");
+    expect(getRenderedIssueIds()).toEqual(["bsm-z", "bsm-a"]);
+  });
+
+  it("does not apply search to non-All Issue List Views in this slice", async () => {
+    const user = userEvent.setup();
+    const openIssue = buildIssue({
+      id: "bsm-open",
+      status: "open",
+      title: "Open",
+    });
+    const closedIssue = buildIssue({
+      id: "bsm-closed",
+      status: "closed",
+      title: "Closed",
+    });
+
+    renderExplorer([openIssue, closedIssue], {
+      activeIssueListViewId: "closed",
+    });
+
+    await user.type(getSearchInput(), "does-not-match");
+
+    expect(getRenderedIssueIds()).toEqual(["bsm-closed"]);
   });
 
   it("renders the All Issue List View from All Issues in original order", () => {
