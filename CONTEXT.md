@@ -25,7 +25,7 @@ A selectable lens that chooses which Issues the Issue List shows. Issue List Vie
 _Avoid_: Combined filter, faceted filter, tab
 
 **Issue Status**:
-A Beadwork-stored lifecycle value for an Issue, such as open, in-progress, closed, or deferred. Status-specific Issue List Views show Issues with exactly one stored status.
+A Beadwork-stored lifecycle value for an Issue, such as `open`, `in_progress`, `closed`, or `deferred`. Beadsmith may display humanized labels such as "In Progress", but status-specific Issue List Views match the stored Beadwork status value.
 _Avoid_: State, view state, readiness
 
 **All Issues**:
