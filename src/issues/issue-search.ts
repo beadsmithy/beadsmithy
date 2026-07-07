@@ -3,10 +3,10 @@ import type { Issue } from "../rpc/bindings";
 const WHITESPACE_PATTERN = /\s+/u;
 
 export const tokenizeIssueSearchQuery = (query: string): string[] =>
-  query.trim().toLocaleLowerCase().split(WHITESPACE_PATTERN).filter(Boolean);
+  query.trim().toLowerCase().split(WHITESPACE_PATTERN).filter(Boolean);
 
 const getIssueSearchText = (issue: Issue): string =>
-  `${issue.id} ${issue.title} ${issue.description}`.toLocaleLowerCase();
+  `${issue.id} ${issue.title} ${issue.description}`.toLowerCase();
 
 export const filterIssuesBySearchQuery = (
   issues: Issue[],
