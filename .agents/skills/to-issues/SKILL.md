@@ -56,10 +56,29 @@ For each approved slice, publish a new issue to the issue tracker. Use the issue
 
 Publish issues in dependency order (blockers first) so you can reference real issue identifiers in the "Blocked by" field.
 
+#### Good Description Properties
+
+1. **Self-contained** — Never need to refer back to original plan
+2. **Self-documenting** — Future you can understand it
+3. **Verbose** — More detail is better than less
+4. **Actionable** — Clear what to do
+
+#### Description Checklist
+
+- [ ] Background explains WHY
+- [ ] Technical approach explains HOW
+- [ ] Success criteria define DONE
+- [ ] Test plan ensures QUALITY
+- [ ] Considerations prevent SURPRISES
+
 <issue-template>
 ## Parent
 
 A reference to the parent issue on the issue tracker (if the source was an existing issue, otherwise omit this section).
+
+## Background
+
+Why this exists, context
 
 ## What to build
 
@@ -67,17 +86,24 @@ A concise description of this vertical slice. Describe the end-to-end behavior, 
 
 Avoid specific file paths or code snippets — they go stale fast. Exception: if a prototype produced a snippet that encodes a decision more precisely than prose can (state machine, reducer, schema, type shape), inline it here and note briefly that it came from a prototype. Trim to the decision-rich parts — not a working demo, just the important bits.
 
+## Technical Approach
+
+How to implement
+
+## Considerations
+
+Edge cases, risks
+
 ## Acceptance criteria
 
 - [ ] Criterion 1
 - [ ] Criterion 2
 - [ ] Criterion 3
 
-## Blocked by
+## Test Plan
 
-- A reference to the blocking ticket (if any)
-
-Or "None - can start immediately" if no blockers.
+- Unit + integration tests
+- E2E tests (if applicable)
 
 </issue-template>
 
