@@ -1,0 +1,19 @@
+src/rpc/bindings.ts
+  s_0959b1e3e63d27::t_b59347a17b23a5 44
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.10",
+  "base_commit_sha": "ee70e36c149528d7be42469a2433019251db5537",
+  "prompts": {},
+  "sessions": {
+    "s_0959b1e3e63d27": {
+      "agent_id": {
+        "tool": "pi",
+        "id": "019f3d83-71aa-7fd4-ba9e-5568b09d1dfd",
+        "model": "MiniMax-M3"
+      },
+      "human_author": "Tomas Thor Jonsson <benregn@gmail.com>"
+    }
+  }
+}
