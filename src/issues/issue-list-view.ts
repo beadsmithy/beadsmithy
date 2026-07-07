@@ -1,9 +1,14 @@
 import type { Issue } from "../rpc/bindings";
-import type { IssueExplorerLoadState } from "./issue-loader";
+import type { IssueExplorerData, IssueExplorerLoadState } from "./issue-loader";
 
 export type IssueStatusViewId = "open" | "in_progress" | "closed" | "deferred";
 
-export type IssueListViewId = "all" | "ready" | "blocked" | IssueStatusViewId;
+export type AllIssuesBackedIssueListViewId = "all" | IssueStatusViewId;
+
+export type IssueListViewId =
+  | AllIssuesBackedIssueListViewId
+  | "ready"
+  | "blocked";
 
 export type IssueListViewGroup = "views" | "status";
 
@@ -27,10 +32,34 @@ export const ISSUE_LIST_VIEW_DEFINITIONS: IssueListViewDefinition[] = [
   { group: "status", id: "deferred", label: "Deferred" },
 ];
 
+const ALL_ISSUES_BACKED_VIEW_IDS = [
+  "all",
+  "open",
+  "in_progress",
+  "closed",
+  "deferred",
+] as const satisfies readonly AllIssuesBackedIssueListViewId[];
+
+export const isAllIssuesBackedIssueListViewId = (
+  viewId: IssueListViewId
+): viewId is AllIssuesBackedIssueListViewId =>
+  (ALL_ISSUES_BACKED_VIEW_IDS as readonly IssueListViewId[]).includes(viewId);
+
 const countIssuesWithStatus = (
   issues: Issue[],
   status: IssueStatusViewId
 ): number => issues.filter((issue) => issue.status === status).length;
+
+export const selectAllIssuesBackedIssueListViewIssues = (
+  data: IssueExplorerData,
+  viewId: AllIssuesBackedIssueListViewId
+): Issue[] => {
+  if (viewId === "all") {
+    return data.allIssues;
+  }
+
+  return data.allIssues.filter((issue) => issue.status === viewId);
+};
 
 export const getVisibleIssuesForListView = (
   state: IssueExplorerLoadState,
@@ -40,10 +69,16 @@ export const getVisibleIssuesForListView = (
     return [];
   }
 
+  if (isAllIssuesBackedIssueListViewId(viewId)) {
+    return selectAllIssuesBackedIssueListViewIssues(state, viewId);
+  }
+
   if (viewId === "blocked") {
     return state.blockedIssues;
   }
 
+  // Ready command-backed rendering belongs to its own slice. Preserve the
+  // existing All Issues rendering for Ready until that branch lands on main.
   return state.allIssues;
 };
 
