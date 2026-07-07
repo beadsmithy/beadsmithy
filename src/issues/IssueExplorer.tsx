@@ -11,6 +11,7 @@ import type { ExternalLinkOpener } from "../components/external-link-opener";
 import { openExternalLink as defaultOpenExternalLink } from "../components/external-link-opener";
 import { MarkdownContent } from "../components/MarkdownContent";
 import type { Issue, IssueComment } from "../rpc/bindings";
+import type { IssueListViewId } from "./issue-list-view";
 import type { IssueExplorerLoadState } from "./issue-loader";
 import { toIssueViewModel } from "./issue-view";
 import type { IssueTone } from "./issue-view";
@@ -455,12 +456,17 @@ const IssueDetailPane = ({
   );
 
 export const IssueExplorer = ({
+  activeIssueListViewId,
   issueState,
+  onIssueListViewChange,
   openExternalLink = defaultOpenExternalLink,
 }: {
+  activeIssueListViewId?: IssueListViewId;
   issueState: IssueExplorerLoadState;
+  onIssueListViewChange?: (viewId: IssueListViewId) => void;
   openExternalLink?: ExternalLinkOpener;
 }) => {
+  void onIssueListViewChange;
   const [selectedIssueId, setSelectedIssueId] = useState<string | null>(null);
 
   // Ready and Blocked are preloaded for later Issue List View switching; this
@@ -477,7 +483,10 @@ export const IssueExplorer = ({
 
   return (
     <>
-      <section className="flex w-[320px] shrink-0 flex-col border-r border-border-main bg-background">
+      <section
+        className="flex w-[320px] shrink-0 flex-col border-r border-border-main bg-background"
+        data-active-issue-list-view-id={activeIssueListViewId}
+      >
         <div className="flex h-14 items-center border-b border-border-main p-2">
           <div className="relative w-full">
             <label className="sr-only" htmlFor="issue-search">
