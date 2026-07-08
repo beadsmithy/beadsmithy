@@ -1,0 +1,27 @@
+e2e/issue-list/issue-list.success.spec.ts
+  s_6dcfba5925df0a::t_cda691441bf6bb 50-53,187-190
+  s_6dcfba5925df0a::t_bf144ba7a899ed 13,16,21-22,26,32-49,54-89,125-186,191-198,205-206,216
+  s_6dcfba5925df0a::t_8f916f022f2300 217-218
+e2e/issue-list/fixtures/workspace.ts
+  s_6dcfba5925df0a::t_978c3199a32f80 65-74,129-174,177-178,180
+  s_6dcfba5925df0a::t_20b9de6ddce6ad 179,181,194
+docs/agents/webdriver-e2e.md
+  s_6dcfba5925df0a::t_ca5a16a3e4587c 8
+  s_6dcfba5925df0a::t_be2a915242551e 41-49,79-85,117-118
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.10",
+  "base_commit_sha": "5b89450b181c77a5a0cff9bf4cfa9a7e402108a7",
+  "prompts": {},
+  "sessions": {
+    "s_6dcfba5925df0a": {
+      "agent_id": {
+        "tool": "pi",
+        "id": "019f41cf-6299-7a2f-a987-3d8b999947be",
+        "model": "gpt-5.5"
+      },
+      "human_author": "Tomas Thor Jonsson <benregn@gmail.com>"
+    }
+  }
+}
