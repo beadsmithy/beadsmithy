@@ -1,6 +1,7 @@
 {
   "assignee": "",
   "blocked_by": [
+    "bsm-dbh.12",
     "bsm-dbh.7"
   ],
   "blocks": [
@@ -17,5 +18,5 @@
   "status": "open",
   "title": "Implement Issue Explorer loading failure and empty-state taxonomy",
   "type": "task",
-  "updated_at": "2026-07-07T15:19:58Z"
+  "updated_at": "2026-07-08T05:21:36Z"
 }

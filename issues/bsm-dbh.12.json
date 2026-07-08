@@ -1,7 +1,9 @@
 {
   "assignee": "",
   "blocked_by": [],
-  "blocks": [],
+  "blocks": [
+    "bsm-dbh.8"
+  ],
   "created": "2026-07-08T05:21:30Z",
   "description": "## Parent\n\nParent epic: `bsm-dbh` — Filtering and search issue list views.\n\n## Background\n\nThe active-view search slice introduced a small empty-state signal in `IssueExplorer.tsx`: `IssueListEmptyReason` plus `getIssueListEmptyReason`. That signal is derived from issue-list model inputs, not from JSX rendering:\n\n- active view base collection count (`baseVisibleIssues.length`)\n- searched visible row count (`visibleIssues.length`)\n- local search query text\n- successful load state\n\nKeeping that derivation inside `IssueExplorer.tsx` makes the component own list-state semantics that will grow in the empty-state taxonomy work. The next slice needs true-empty, base-empty, and search-filtered-empty behavior; that should be modeled at a seam that can be unit-tested without rendering the explorer.\n\n## What to build\n\nExtract issue-list derived state out of `IssueExplorer.tsx` into a small model/helper module before expanding the empty-state taxonomy.\n\nSuggested shape:\n\n- Create a focused module such as `src/issues/issue-list-state.ts` (or another clearly named issue-list model file).\n- Move the empty reason type and derivation helper into that module.\n- Prefer a helper that accepts domain inputs rather than UI component props, e.g. base issue count, visible issue count, and normalized query state.\n- Update `IssueExplorer.tsx` to import the helper/type and remain mostly wiring/rendering code.\n- Add direct unit tests for the helper so base-empty vs search-filtered-empty behavior is covered without DOM assertions.\n\n## Technical notes\n\nThe current implementation lives in the active-view search branch around:\n\n- `src/issues/IssueExplorer.tsx`: `IssueListEmptyReason`\n- `src/issues/IssueExplorer.tsx`: `getIssueListEmptyReason`\n- `src/issues/IssueExplorer.tsx`: `emptyReason` derivation before rendering `IssueListContent`\n\nThis refactor should preserve existing behavior and copy. It should not implement the full empty-state taxonomy itself unless that work has intentionally been merged into this task.\n\n## Acceptance criteria\n\n- [ ] `IssueListEmptyReason` is no longer defined in `IssueExplorer.tsx`.\n- [ ] Empty-list reason derivation lives in a focused issue-list model/helper module.\n- [ ] `IssueExplorer.tsx` imports the derived-state helper/type and does not contain the base-vs-search-empty decision tree inline.\n- [ ] Direct unit tests cover at least: non-empty visible list, base-empty list, and search-filtered-empty list.\n- [ ] Existing Issue Explorer behavior and tests continue to pass.\n- [ ] The refactor leaves the UI copy unchanged.\n\n## Test Plan\n\n- Add/adjust unit tests for the new issue-list state helper.\n- Run `pnpm test`.\n- Run `pnpm check`.\n- Run `pnpm exec tsc --noEmit`.",
   "id": "bsm-dbh.12",
@@ -11,5 +13,5 @@
   "status": "open",
   "title": "Extract Issue List derived state from IssueExplorer",
   "type": "task",
-  "updated_at": "2026-07-08T05:21:30Z"
+  "updated_at": "2026-07-08T05:21:36Z"
 }
