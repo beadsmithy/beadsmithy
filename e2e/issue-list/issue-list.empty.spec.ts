@@ -8,7 +8,7 @@ import { browser, expect } from "@wdio/globals";
 describe("Issue List (WebDriver e2e): workspace with zero Beadwork issues", () => {
   it("renders the empty state instead of a failure or stale loading state", async () => {
     console.log("[e2e:spec] waiting for the empty-issue-list state to render");
-    const emptyState = await browser.$("p=No issues found");
+    const emptyState = await browser.$("h2=No issues found");
     await emptyState.waitForExist({ timeout: 120_000 });
     await expect(emptyState).toBeDisplayed();
 

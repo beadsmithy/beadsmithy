@@ -142,9 +142,19 @@ const ISSUE_LIST_VIEW_LABEL_BY_ID = new Map(
 const getActiveIssueListViewLabel = (viewId: IssueListViewId): string =>
   ISSUE_LIST_VIEW_LABEL_BY_ID.get(viewId) ?? "view";
 
-const getIssueListEmptyTitle = (reason: IssueListEmptyReason): string => {
+const getIssueListEmptyTitle = ({
+  activeViewLabel,
+  reason,
+}: {
+  activeViewLabel: string;
+  reason: IssueListEmptyReason;
+}): string => {
   if (reason === "search-filtered-empty") {
     return "No matching issues";
+  }
+
+  if (reason === "base-empty") {
+    return `No issues in ${activeViewLabel}.`;
   }
 
   return "No issues found";
@@ -168,7 +178,7 @@ const getIssueListEmptySupportingCopy = ({
     return `No issues in ${activeViewLabel} match "${trimmedQuery}".`;
   }
 
-  return `No issues in ${activeViewLabel}.`;
+  return `The ${activeViewLabel} Issue List View has no issues.`;
 };
 
 const IssueListEmptyState = ({
@@ -185,9 +195,9 @@ const IssueListEmptyState = ({
     data-empty-reason={reason}
   >
     <Inbox className="mb-3 size-6 text-muted" />
-    <p className="font-medium text-text-main">
-      {getIssueListEmptyTitle(reason)}
-    </p>
+    <h2 className="font-medium text-text-main">
+      {getIssueListEmptyTitle({ activeViewLabel, reason })}
+    </h2>
     <p className="mt-1 text-xs">
       {getIssueListEmptySupportingCopy({
         activeViewLabel,
