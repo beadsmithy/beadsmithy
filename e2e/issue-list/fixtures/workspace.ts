@@ -31,6 +31,29 @@ const runGit = (args: string[], cwd: string): void => {
   execFileSync("git", args, { cwd, stdio: "ignore" });
 };
 
+interface TaskIssueOptions {
+  description?: string;
+  priority: "2" | "3";
+  title: string;
+  workspacePath: string;
+}
+
+const createTaskIssue = ({
+  description,
+  priority,
+  title,
+  workspacePath,
+}: TaskIssueOptions): string => {
+  const args = ["create", title, "--type", "task", "--priority", priority];
+
+  if (description !== undefined) {
+    args.push("--description", description);
+  }
+
+  args.push("--silent");
+  return runBw(args, workspacePath);
+};
+
 /** Resolve the `bw` binary path (or a diagnostic message) for e2e logging. */
 export const resolveBwPath = (): string => {
   try {
@@ -100,18 +123,11 @@ export const createIssueListWorkspace = (): BeadworkWorkspace => {
   );
   initGitBeadworkRepo(workspacePath);
 
-  const blockerId = runBw(
-    [
-      "create",
-      FIXTURE_BLOCKER_TITLE,
-      "--type",
-      "task",
-      "--priority",
-      "2",
-      "--silent",
-    ],
-    workspacePath
-  );
+  const blockerId = createTaskIssue({
+    priority: "2",
+    title: FIXTURE_BLOCKER_TITLE,
+    workspacePath,
+  });
   const issueId = runBw(
     [
       "create",
@@ -126,48 +142,24 @@ export const createIssueListWorkspace = (): BeadworkWorkspace => {
     ],
     workspacePath
   );
-  const readyIssueId = runBw(
-    [
-      "create",
-      FIXTURE_READY_TITLE,
-      "--type",
-      "task",
-      "--priority",
-      "2",
-      "--description",
-      FIXTURE_READY_DESCRIPTION,
-      "--silent",
-    ],
-    workspacePath
-  );
-  const closedIssueId = runBw(
-    [
-      "create",
-      FIXTURE_CLOSED_TITLE,
-      "--type",
-      "task",
-      "--priority",
-      "3",
-      "--description",
-      FIXTURE_CLOSED_DESCRIPTION,
-      "--silent",
-    ],
-    workspacePath
-  );
-  const deferredIssueId = runBw(
-    [
-      "create",
-      FIXTURE_DEFERRED_TITLE,
-      "--type",
-      "task",
-      "--priority",
-      "3",
-      "--description",
-      FIXTURE_DEFERRED_DESCRIPTION,
-      "--silent",
-    ],
-    workspacePath
-  );
+  const readyIssueId = createTaskIssue({
+    description: FIXTURE_READY_DESCRIPTION,
+    priority: "2",
+    title: FIXTURE_READY_TITLE,
+    workspacePath,
+  });
+  const closedIssueId = createTaskIssue({
+    description: FIXTURE_CLOSED_DESCRIPTION,
+    priority: "3",
+    title: FIXTURE_CLOSED_TITLE,
+    workspacePath,
+  });
+  const deferredIssueId = createTaskIssue({
+    description: FIXTURE_DEFERRED_DESCRIPTION,
+    priority: "3",
+    title: FIXTURE_DEFERRED_TITLE,
+    workspacePath,
+  });
 
   console.log(
     `[e2e:fixture] created issues: blocker=${blockerId}, blocked=${issueId}, ready=${readyIssueId}, closed=${closedIssueId}, deferred=${deferredIssueId}`
