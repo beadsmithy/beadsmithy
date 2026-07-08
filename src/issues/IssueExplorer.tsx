@@ -14,6 +14,7 @@ import type { Issue, IssueComment } from "../rpc/bindings";
 import {
   DEFAULT_ISSUE_LIST_VIEW_ID,
   getVisibleIssuesForListView,
+  ISSUE_LIST_VIEW_DEFINITIONS,
 } from "./issue-list-view";
 import type { IssueListViewId } from "./issue-list-view";
 import type { IssueExplorerLoadState } from "./issue-loader";
@@ -126,17 +127,90 @@ const IssueRow = ({
   );
 };
 
-type IssueListEmptyReason = "base-empty" | "search-filtered-empty";
+type IssueListEmptyReason =
+  | "true-empty"
+  | "base-empty"
+  | "search-filtered-empty";
+
+const ISSUE_LIST_VIEW_LABEL_BY_ID = new Map(
+  ISSUE_LIST_VIEW_DEFINITIONS.map((definition) => [
+    definition.id,
+    definition.label,
+  ])
+);
+
+const getActiveIssueListViewLabel = (viewId: IssueListViewId): string =>
+  ISSUE_LIST_VIEW_LABEL_BY_ID.get(viewId) ?? "view";
+
+const getIssueListEmptyTitle = (reason: IssueListEmptyReason): string => {
+  if (reason === "search-filtered-empty") {
+    return "No matching issues";
+  }
+
+  return "No issues found";
+};
+
+const getIssueListEmptySupportingCopy = ({
+  activeViewLabel,
+  rawSearchQuery,
+  reason,
+}: {
+  activeViewLabel: string;
+  rawSearchQuery: string;
+  reason: IssueListEmptyReason;
+}): string => {
+  if (reason === "true-empty") {
+    return "Beadwork returned an empty issue list for this workspace.";
+  }
+
+  if (reason === "search-filtered-empty") {
+    const trimmedQuery = rawSearchQuery.trim();
+    return `No issues in ${activeViewLabel} match "${trimmedQuery}".`;
+  }
+
+  return `No issues in ${activeViewLabel}.`;
+};
+
+const IssueListEmptyState = ({
+  activeViewLabel,
+  rawSearchQuery,
+  reason,
+}: {
+  activeViewLabel: string;
+  rawSearchQuery: string;
+  reason: IssueListEmptyReason;
+}) => (
+  <div
+    className="flex h-full flex-col items-center justify-center p-6 text-center text-sm text-muted"
+    data-empty-reason={reason}
+  >
+    <Inbox className="mb-3 size-6 text-muted" />
+    <p className="font-medium text-text-main">
+      {getIssueListEmptyTitle(reason)}
+    </p>
+    <p className="mt-1 text-xs">
+      {getIssueListEmptySupportingCopy({
+        activeViewLabel,
+        rawSearchQuery,
+        reason,
+      })}
+    </p>
+  </div>
+);
 
 const IssueListContent = ({
+  activeViewLabel,
   emptyReason,
   onSelect,
+  rawSearchQuery,
   selectedIssueId,
   state,
   visibleIssues,
 }: {
+  activeViewLabel: string;
   emptyReason: IssueListEmptyReason | null;
   onSelect: (issueId: string) => void;
+  rawSearchQuery: string;
   selectedIssueId: string | null;
   state: IssueExplorerLoadState;
   visibleIssues: Issue[];
@@ -145,8 +219,10 @@ const IssueListContent = ({
     return (
       <div className="flex h-full flex-col items-center justify-center p-6 text-center text-sm text-muted">
         <LoaderCircle className="mb-3 size-5 animate-spin text-accent" />
-        <p className="font-medium text-text-main">Loading issues</p>
-        <p className="mt-1 text-xs">Reading Beadwork issues…</p>
+        <p className="font-medium text-text-main">Loading issue views</p>
+        <p className="mt-1 text-xs">
+          Reading All, Ready, and Blocked views from Beadwork…
+        </p>
       </div>
     );
   }
@@ -170,18 +246,13 @@ const IssueListContent = ({
     );
   }
 
-  if (state.status === "success" && visibleIssues.length === 0) {
+  if (visibleIssues.length === 0 && emptyReason !== null) {
     return (
-      <div
-        className="flex h-full flex-col items-center justify-center p-6 text-center text-sm text-muted"
-        data-empty-reason={emptyReason}
-      >
-        <Inbox className="mb-3 size-6 text-muted" />
-        <p className="font-medium text-text-main">No issues found</p>
-        <p className="mt-1 text-xs">
-          Beadwork returned an empty issue list for this workspace.
-        </p>
-      </div>
+      <IssueListEmptyState
+        activeViewLabel={activeViewLabel}
+        rawSearchQuery={rawSearchQuery}
+        reason={emptyReason}
+      />
     );
   }
 
@@ -470,16 +541,23 @@ const IssueDetailPane = ({
   );
 
 const getIssueListEmptyReason = ({
+  allIssuesCount,
   baseIssueCount,
   hasSearchQuery,
   visibleIssueCount,
 }: {
+  allIssuesCount: number;
   baseIssueCount: number;
   hasSearchQuery: boolean;
   visibleIssueCount: number;
 }): IssueListEmptyReason | null => {
   if (visibleIssueCount > 0) {
     return null;
+  }
+
+  // True-empty workspace: nothing in All Issues, regardless of view or query.
+  if (allIssuesCount === 0) {
+    return "true-empty";
   }
 
   if (baseIssueCount === 0 || !hasSearchQuery) {
@@ -505,6 +583,7 @@ export const IssueExplorer = ({
   const [selectedIssueId, setSelectedIssueId] = useState<string | null>(null);
   const issueListScrollContainerRef = useRef<HTMLDivElement>(null);
   const activeViewId = activeIssueListViewId ?? DEFAULT_ISSUE_LIST_VIEW_ID;
+  const activeViewLabel = getActiveIssueListViewLabel(activeViewId);
   const baseVisibleIssues = getVisibleIssuesForListView(
     issueState,
     activeViewId
@@ -517,6 +596,7 @@ export const IssueExplorer = ({
   const emptyReason: IssueListEmptyReason | null =
     issueState.status === "success"
       ? getIssueListEmptyReason({
+          allIssuesCount: issueState.allIssues.length,
           baseIssueCount: baseVisibleIssues.length,
           hasSearchQuery,
           visibleIssueCount: visibleIssues.length,
@@ -589,8 +669,10 @@ export const IssueExplorer = ({
           ref={issueListScrollContainerRef}
         >
           <IssueListContent
+            activeViewLabel={activeViewLabel}
             emptyReason={emptyReason}
             onSelect={handleSelect}
+            rawSearchQuery={searchQuery}
             selectedIssueId={selectedIssueId}
             state={issueState}
             visibleIssues={visibleIssues}
