@@ -1,0 +1,30 @@
+src/issues/IssueExplorer.test.tsx
+  s_a57f154a653fba::t_9031efdf34c65d 119,125,135-169,1389
+  s_a57f154a653fba::t_534a27c6ff9a91 1313-1314,1316,1318
+  s_a57f154a653fba::t_47723a3ffd0703 1278-1279,1284,1289
+  s_a57f154a653fba::t_b09a2da8b73e27 170,179,212-213,216,218,384-386,389-390,1245,1259-1262,1266-1267,1269-1272,1274-1277,1280-1282,1285-1287,1290-1292,1294-1312,1315,1317,1319-1384,1387-1388,1390-1392
+  s_a57f154a653fba::t_46c95824d28f9d 1268,1273,1283,1288,1293
+  s_a57f154a653fba::t_a53bfe33308dc3 190-211
+  s_a57f154a653fba::t_6cc929191e71dd 171-178,180,214-215,217,219-221,387-388,1385-1386,1393-1399
+src/issues/IssueExplorer.tsx
+  s_a57f154a653fba::t_258766e2e50ea9 17
+  s_a57f154a653fba::t_e1d277e9e9d5bb 130-199,202,205,210,213,222-225,249,251-255
+  s_a57f154a653fba::t_8cee651dbe6b91 560-562
+  s_a57f154a653fba::t_ab2cdd381b4117 544,549,558-559,585,598,642,645
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.10",
+  "base_commit_sha": "68aa4aaf71b983aef02cc8cf026b724d98a2e0f5",
+  "prompts": {},
+  "sessions": {
+    "s_a57f154a653fba": {
+      "agent_id": {
+        "tool": "pi",
+        "id": "019f4056-47c1-7c26-a2a4-de256a297593",
+        "model": "MiniMax-M3"
+      },
+      "human_author": "Tomas Thor Jonsson <benregn@gmail.com>"
+    }
+  }
+}
