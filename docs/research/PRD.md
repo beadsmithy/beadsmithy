@@ -106,8 +106,8 @@ Using **Geist** for crisp, highly-legible UI text and **Geist Mono** for technic
 
 **Layout:**
 
-- Left Sidebar: 240px fixed (Issue states/Projects/Directories)
-- Middle List: 320px fixed (Issue list + Search)
+- Left Sidebar: 240px fixed (Issue List Views/Projects/Directories)
+- Middle List: 320px fixed (Issue List + Search)
 - Right Pane: Flexible remainder (Issue Detail)
 
 **Key Elements:**
@@ -117,9 +117,9 @@ Using **Geist** for crisp, highly-legible UI text and **Geist Mono** for technic
 - **Search Bar:** Middle pane, 32px height, `#09090B` bg, inset `Cmd+F` shortcut hint
 - **Issue Card:** 64px height, full width, 1px bottom border `#27272A`
 
-**States:**
+**UI States:**
 
-- **Empty:** If workspace path added but no issues (in any state): "No issues found in this directory" in middle pane, `#71717A`, centered. If no workspace path added: "No workspace configured, please add a directory" in middle pane, `#71717A`, centered.
+- **Empty:** If workspace path added but no issues (in any Issue Status): "No issues found in this directory" in middle pane, `#71717A`, centered. If no workspace path added: "No workspace configured, please add a directory" in middle pane, `#71717A`, centered.
 - **Loading:** Skeleton rows with gradient sweep (`#18181B` to `#27272A`)
 
 **Components:**
@@ -150,7 +150,7 @@ Using **Geist** for crisp, highly-legible UI text and **Geist Mono** for technic
 - **Markdown Body:** 14px Geist, `#E4E4E7`, 1.6 line height
 - **Code Blocks:** `#09090B` background, `#27272A` border, 12px Geist Mono, 16px padding
 
-**States:**
+**UI States:**
 
 - **Empty:** Giant wireframe icon, "Select an issue to view details", center aligned
 - **Loading:** Pulse effect on title and paragraph skeletons
@@ -183,7 +183,7 @@ Using **Geist** for crisp, highly-legible UI text and **Geist Mono** for technic
 - **Result Item:** 40px height, flex row, icon + text + shortcut hint
 - **Footer:** 32px height, 12px text, `#71717A`, showing keyboard navigation hints (arrows to select, enter to confirm)
 
-**States:**
+**UI States:**
 
 - **Empty:** "No matching directories or issues"
 - **Loading:** N/A (instant local search)

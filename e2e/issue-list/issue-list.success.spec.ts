@@ -197,6 +197,14 @@ describe("Issue explorer (WebDriver e2e): workspace with selectable Issue List V
           "Selected visible Issue did not render through Issue Detail after view/search interaction",
       }
     );
+
+    await selectSidebarView("Closed", "closed");
+    await expectIssueVisible(FIXTURE_CLOSED_TITLE);
+    await expectIssueNotVisible(FIXTURE_ISSUE_TITLE);
+
+    await selectSidebarView("Deferred", "deferred");
+    await expectIssueVisible(FIXTURE_DEFERRED_TITLE);
+    await expectIssueNotVisible(FIXTURE_CLOSED_TITLE);
   });
 
   it("renders the fixture issue with its label and blocking dependency", async () => {
