@@ -1,5 +1,6 @@
 e2e/issue-list/fixtures/workspace.ts
   s_20473a62c447d3::t_2659fcf30af3cb 56
+  s_20473a62c447d3::t_0e20ddf2f0841f 34-55,126-130,145-162
 ---
 {
   "schema_version": "authorship/3.0.0",
