@@ -1,0 +1,19 @@
+e2e/issue-list/fixtures/workspace.ts
+  s_20473a62c447d3::t_2659fcf30af3cb 34-39,127-128
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.10",
+  "base_commit_sha": "06297770953380428e7986c2c025bed64c04664f",
+  "prompts": {},
+  "sessions": {
+    "s_20473a62c447d3": {
+      "agent_id": {
+        "tool": "pi",
+        "id": "019f41f2-53df-73af-8de2-c725822ff62d",
+        "model": "gpt-5.5"
+      },
+      "human_author": "Tomas Thor Jonsson <benregn@gmail.com>"
+    }
+  }
+}
