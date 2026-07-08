@@ -1,5 +1,5 @@
 {
-  "assignee": "",
+  "assignee": "Tomas Thor Jonsson",
   "blocked_by": [
     "bsm-dbh.3",
     "bsm-dbh.4",
@@ -18,8 +18,8 @@
   ],
   "parent": "bsm-dbh",
   "priority": 2,
-  "status": "open",
+  "status": "in_progress",
   "title": "Apply Issue Search to the active Issue List View",
   "type": "task",
-  "updated_at": "2026-07-07T15:19:58Z"
+  "updated_at": "2026-07-08T04:41:48Z"
 }
