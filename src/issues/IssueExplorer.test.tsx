@@ -127,13 +127,13 @@ const getDetailSectionFlow = () =>
   });
 
 describe("IssueExplorer", () => {
-  it("renders the empty Issue List UI from a successful empty All Issues collection", () => {
+  it("renders the true-empty Issue List UI from a successful empty All Issues collection", () => {
     renderExplorer([]);
 
     expect(screen.getByText("No issues found")).toBeInTheDocument();
     expect(screen.getByText("No issues found").closest("div")).toHaveAttribute(
       "data-empty-reason",
-      "base-empty"
+      "true-empty"
     );
     expect(
       screen.getByText(
@@ -143,6 +143,52 @@ describe("IssueExplorer", () => {
     expect(screen.queryByRole("list", { name: "Issues" })).toBeNull();
   });
 
+  it("prefers true-empty over base-empty and search-filtered-empty across active views and non-empty search text", async () => {
+    const user = userEvent.setup();
+
+    const { rerender } = render(
+      <IssueExplorer
+        activeIssueListViewId="ready"
+        issueState={successState([])}
+      />
+    );
+
+    await user.type(getSearchInput(), "needle");
+    expect(screen.getByText("No issues found")).toBeInTheDocument();
+    expect(screen.getByText("No issues found").closest("div")).toHaveAttribute(
+      "data-empty-reason",
+      "true-empty"
+    );
+    expect(
+      screen.getByText(
+        "Beadwork returned an empty issue list for this workspace."
+      )
+    ).toBeInTheDocument();
+
+    rerender(
+      <IssueExplorer
+        activeIssueListViewId="blocked"
+        issueState={successState([])}
+      />
+    );
+    expect(screen.getByText("No issues found").closest("div")).toHaveAttribute(
+      "data-empty-reason",
+      "true-empty"
+    );
+    expect(getSearchInput()).toHaveValue("needle");
+
+    rerender(
+      <IssueExplorer
+        activeIssueListViewId="closed"
+        issueState={successState([])}
+      />
+    );
+    expect(screen.getByText("No issues found").closest("div")).toHaveAttribute(
+      "data-empty-reason",
+      "true-empty"
+    );
+  });
+
   it("enables search after successful load while preserving the placeholder and Cmd+F hint", () => {
     renderExplorer([]);
 
@@ -150,6 +196,38 @@ describe("IssueExplorer", () => {
     expect(searchInput).toBeEnabled();
     expect(searchInput).toHaveAttribute("placeholder", "Search issues...");
     expect(screen.getByText("Cmd+F")).toBeInTheDocument();
+  });
+
+  it("renders loading copy that refers to loading issue views across multiple Beadwork commands", () => {
+    renderExplorer([], { state: { status: "loading" } });
+
+    expect(screen.getByText("Loading issue views")).toBeInTheDocument();
+    expect(
+      screen.getByText("Reading All, Ready, and Blocked views from Beadwork…")
+    ).toBeInTheDocument();
+    expect(screen.queryByText(/^Loading issues$/u)).toBeNull();
+    expect(screen.queryByText("Reading Beadwork issues…")).toBeNull();
+  });
+
+  it("renders the failure state as a whole-explorer error using the error message and kind", () => {
+    const errorState: IssueExplorerLoadState = {
+      error: {
+        kind: "command-failed",
+        message: "bw list --all --json exited with status 1",
+      },
+      status: "failure",
+    };
+
+    renderExplorer([], { state: errorState });
+
+    expect(screen.getByRole("alert")).toBeInTheDocument();
+    expect(screen.getByText("Could not load issues")).toBeInTheDocument();
+    expect(
+      screen.getByText("bw list --all --json exited with status 1")
+    ).toBeInTheDocument();
+    expect(screen.getByText("command-failed")).toBeInTheDocument();
+    // No partial list rendered alongside the failure.
+    expect(screen.queryByRole("list", { name: "Issues" })).toBeNull();
   });
 
   it("disables search while issues are loading or failed", () => {
@@ -314,11 +392,13 @@ describe("IssueExplorer", () => {
 
     await user.type(getSearchInput(), "ready-only");
 
-    expect(screen.getByText("No issues found")).toBeInTheDocument();
-    expect(screen.getByText("No issues found").closest("div")).toHaveAttribute(
-      "data-empty-reason",
-      "search-filtered-empty"
-    );
+    expect(screen.getByText("No matching issues")).toBeInTheDocument();
+    expect(
+      screen.getByText("No matching issues").closest("div")
+    ).toHaveAttribute("data-empty-reason", "search-filtered-empty");
+    expect(
+      screen.getByText('No issues in Blocked match "ready-only".')
+    ).toBeInTheDocument();
     expect(screen.queryByRole("list", { name: "Issues" })).toBeNull();
   });
 
@@ -1173,7 +1253,7 @@ describe("IssueExplorer", () => {
     expect(getDetail().getByText("bsm-real-blocker")).toBeInTheDocument();
   });
 
-  it("renders the empty Issue List state when the preloaded Ready collection is empty", () => {
+  it("renders the base-empty Issue List state when the preloaded Ready collection is empty", () => {
     const allOnly = buildIssue({
       id: "bsm-all-only",
       title: "Only in All Issues",
@@ -1187,7 +1267,10 @@ describe("IssueExplorer", () => {
       },
     });
 
-    expect(screen.getByText("No issues found")).toBeInTheDocument();
+    expect(screen.getByText("No issues in Ready.")).toBeInTheDocument();
+    expect(
+      screen.getByText("No issues in Ready.").closest("div")
+    ).toHaveAttribute("data-empty-reason", "base-empty");
     expect(screen.queryByRole("list", { name: "Issues" })).toBeNull();
     expect(screen.queryByText("Only in All Issues")).toBeNull();
   });
@@ -1533,5 +1616,139 @@ describe("IssueExplorer", () => {
       // Search-only changes must preserve the existing scroll offset.
       expect(scrollContainer.scrollTop).toBe(50);
     });
+  });
+
+  it("renders the base-empty copy for each Issue List View with view-specific labels", () => {
+    const openOnly = buildIssue({
+      id: "bsm-open-only",
+      status: "open",
+      title: "Only an Open issue",
+    });
+
+    const cases: {
+      viewId: IssueListViewId;
+      state: IssueExplorerLoadState;
+      expectedLabel: string;
+    }[] = [
+      {
+        expectedLabel: "No issues in Ready.",
+        state: { ...successState([openOnly]), readyIssues: [] },
+        viewId: "ready",
+      },
+      {
+        expectedLabel: "No issues in Blocked.",
+        state: { ...successState([openOnly]), blockedIssues: [] },
+        viewId: "blocked",
+      },
+      {
+        expectedLabel: "No issues in Open.",
+        state: {
+          ...successState([{ ...openOnly, id: "bsm-other", status: "closed" }]),
+        },
+        viewId: "open",
+      },
+      {
+        expectedLabel: "No issues in In Progress.",
+        state: { ...successState([openOnly]) },
+        viewId: "in_progress",
+      },
+      {
+        expectedLabel: "No issues in Closed.",
+        state: { ...successState([openOnly]) },
+        viewId: "closed",
+      },
+      {
+        expectedLabel: "No issues in Deferred.",
+        state: { ...successState([openOnly]) },
+        viewId: "deferred",
+      },
+    ];
+
+    for (const { expectedLabel, state, viewId } of cases) {
+      const { unmount } = renderExplorer([], {
+        activeIssueListViewId: viewId,
+        state,
+      });
+      expect(screen.getByText(expectedLabel)).toBeInTheDocument();
+      expect(screen.getByText(expectedLabel).closest("div")).toHaveAttribute(
+        "data-empty-reason",
+        "base-empty"
+      );
+      unmount();
+    }
+  });
+
+  it("renders the search-filtered-empty copy with title and view-aware message including the raw query", async () => {
+    const user = userEvent.setup();
+    const closedIssue = buildIssue({
+      id: "bsm-closed",
+      status: "closed",
+      title: "Closed project plan",
+    });
+    const state = successState([closedIssue]);
+
+    renderExplorer([], {
+      activeIssueListViewId: "closed",
+      state,
+    });
+
+    await user.type(getSearchInput(), "migration");
+
+    expect(screen.getByText("No matching issues")).toBeInTheDocument();
+    expect(
+      screen.getByText("No matching issues").closest("div")
+    ).toHaveAttribute("data-empty-reason", "search-filtered-empty");
+    expect(
+      screen.getByText('No issues in Closed match "migration".')
+    ).toBeInTheDocument();
+    expect(screen.queryByRole("list", { name: "Issues" })).toBeNull();
+  });
+
+  it("escapes the raw search query as a text node in the search-filtered-empty copy", async () => {
+    const user = userEvent.setup();
+    const onlyIssue = buildIssue({
+      id: "bsm-only",
+      title: "plain",
+    });
+
+    renderExplorer([], {
+      activeIssueListViewId: "all",
+      state: successState([onlyIssue]),
+    });
+
+    await user.type(getSearchInput(), '<img src="x">');
+
+    const message = screen.getByText('No issues in All match "<img src="x">".');
+    expect(message).toBeInTheDocument();
+    // The query text is rendered as a text node, not parsed into HTML.
+    expect(message.querySelector("img")).toBeNull();
+  });
+
+  it("keeps the search input enabled across true-empty, base-empty, and search-filtered-empty states", async () => {
+    const user = userEvent.setup();
+    const onlyIssue = buildIssue({ id: "bsm-only", title: "Plain" });
+
+    const { rerender } = renderExplorer([], {
+      state: successState([]),
+    });
+    expect(getSearchInput()).toBeEnabled();
+
+    rerender(
+      <IssueExplorer
+        activeIssueListViewId="ready"
+        issueState={{ ...successState([onlyIssue]), readyIssues: [] }}
+      />
+    );
+    expect(getSearchInput()).toBeEnabled();
+
+    rerender(
+      <IssueExplorer
+        activeIssueListViewId="all"
+        issueState={successState([onlyIssue])}
+      />
+    );
+    await user.type(getSearchInput(), "needle");
+    expect(getSearchInput()).toBeEnabled();
+    expect(screen.getByText("No matching issues")).toBeInTheDocument();
   });
 });
