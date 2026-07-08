@@ -75,7 +75,7 @@ export const FIXTURE_DEFER_UNTIL = "2035-01-01";
 export const FIXTURE_DESCRIPTION_HEADING = "Detail-ready fixture";
 export const FIXTURE_DESCRIPTION_BULLET =
   "Markdown bullets survive the Beadwork round trip.";
-export const FIXTURE_DESCRIPTION_INLINE_CODE = "list_issues";
+export const FIXTURE_DESCRIPTION_INLINE_CODE = "load_issue_explorer_data";
 export const FIXTURE_ISSUE_DESCRIPTION = `## ${FIXTURE_DESCRIPTION_HEADING}
 
 This description proves the desktop app renders selected Issue Detail content from ${FIXTURE_DESCRIPTION_INLINE_CODE}.
