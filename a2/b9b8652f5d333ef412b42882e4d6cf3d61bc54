@@ -1,0 +1,36 @@
+src/issues/IssueExplorer.test.tsx
+  s_20473a62c447d3::t_69da47b305d76b 395-401,1270-1271
+e2e/issue-list/issue-list.empty.spec.ts
+  s_20473a62c447d3::t_24790e8799b192 11
+src/issues/IssueExplorer.tsx
+  s_20473a62c447d3::t_ced502ecbc9432 232-233
+  s_20473a62c447d3::t_8005390cb2b996 17
+  s_20473a62c447d3::t_3a2dd478f1975c 144,148,154-155,159,174-175,182-183
+e2e/issue-list/fixtures/workspace.ts
+  s_20473a62c447d3::t_0edbab9dced434 78,144-150,153-156,158-164,167-171
+  s_20473a62c447d3::t_5071937969c35d 177,179-180
+e2e/issue-list/issue-list.success.spec.ts
+  s_20473a62c447d3::t_5071937969c35d 173,199
+  s_20473a62c447d3::t_b07c9730f82160 13,16,152,157,200
+  s_20473a62c447d3::t_284c53398daa36 208-209
+docs/agents/webdriver-e2e.md
+  s_20473a62c447d3::t_2c535397216b06 79
+docs/research/PRD.md
+  s_20473a62c447d3::t_6333d000ec33ea 109-110,120,122,153,186
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.10",
+  "base_commit_sha": "a2b9b8652f5d333ef412b42882e4d6cf3d61bc54",
+  "prompts": {},
+  "sessions": {
+    "s_20473a62c447d3": {
+      "agent_id": {
+        "tool": "pi",
+        "id": "019f41f2-53df-73af-8de2-c725822ff62d",
+        "model": "gpt-5.5"
+      },
+      "human_author": "Tomas Thor Jonsson <benregn@gmail.com>"
+    }
+  }
+}
