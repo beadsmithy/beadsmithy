@@ -1,5 +1,5 @@
 {
-  "assignee": "",
+  "assignee": "Tomas Thor Jonsson",
   "blocked_by": [
     "bsm-dbh.10"
   ],
@@ -12,8 +12,8 @@
   ],
   "parent": "bsm-dbh",
   "priority": 2,
-  "status": "open",
+  "status": "in_progress",
   "title": "Run feature-wide filtering and search regression quality gate",
   "type": "task",
-  "updated_at": "2026-07-07T15:19:58Z"
+  "updated_at": "2026-07-08T13:37:43Z"
 }
