@@ -126,12 +126,16 @@ const IssueRow = ({
   );
 };
 
+type IssueListEmptyReason = "base-empty" | "search-filtered-empty";
+
 const IssueListContent = ({
+  emptyReason,
   onSelect,
   selectedIssueId,
   state,
   visibleIssues,
 }: {
+  emptyReason: IssueListEmptyReason | null;
   onSelect: (issueId: string) => void;
   selectedIssueId: string | null;
   state: IssueExplorerLoadState;
@@ -168,7 +172,10 @@ const IssueListContent = ({
 
   if (state.status === "success" && visibleIssues.length === 0) {
     return (
-      <div className="flex h-full flex-col items-center justify-center p-6 text-center text-sm text-muted">
+      <div
+        className="flex h-full flex-col items-center justify-center p-6 text-center text-sm text-muted"
+        data-empty-reason={emptyReason}
+      >
         <Inbox className="mb-3 size-6 text-muted" />
         <p className="font-medium text-text-main">No issues found</p>
         <p className="mt-1 text-xs">
@@ -462,6 +469,26 @@ const IssueDetailPane = ({
     />
   );
 
+const getIssueListEmptyReason = ({
+  baseIssueCount,
+  hasSearchQuery,
+  visibleIssueCount,
+}: {
+  baseIssueCount: number;
+  hasSearchQuery: boolean;
+  visibleIssueCount: number;
+}): IssueListEmptyReason | null => {
+  if (visibleIssueCount > 0) {
+    return null;
+  }
+
+  if (baseIssueCount === 0 || !hasSearchQuery) {
+    return "base-empty";
+  }
+
+  return "search-filtered-empty";
+};
+
 export const IssueExplorer = ({
   activeIssueListViewId,
   issueState,
@@ -481,10 +508,19 @@ export const IssueExplorer = ({
     issueState,
     activeViewId
   );
-  const visibleIssues =
-    activeViewId === "all"
-      ? filterIssuesBySearchQuery(baseVisibleIssues, searchQuery)
-      : baseVisibleIssues;
+  const visibleIssues = filterIssuesBySearchQuery(
+    baseVisibleIssues,
+    searchQuery
+  );
+  const hasSearchQuery = searchQuery.trim().length > 0;
+  const emptyReason: IssueListEmptyReason | null =
+    issueState.status === "success"
+      ? getIssueListEmptyReason({
+          baseIssueCount: baseVisibleIssues.length,
+          hasSearchQuery,
+          visibleIssueCount: visibleIssues.length,
+        })
+      : null;
   const isSearchDisabled = issueState.status !== "success";
   const selectedIssue: Issue | null =
     issueState.status === "success"
@@ -523,6 +559,7 @@ export const IssueExplorer = ({
         </div>
         <div className="flex-1 overflow-y-auto">
           <IssueListContent
+            emptyReason={emptyReason}
             onSelect={handleSelect}
             selectedIssueId={selectedIssueId}
             state={issueState}
