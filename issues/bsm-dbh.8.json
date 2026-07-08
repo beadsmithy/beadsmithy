@@ -13,9 +13,15 @@
     "ready-for-agent"
   ],
   "parent": "bsm-dbh",
+  "comments": [
+    {
+      "text": "Implemented the empty/loading/failure taxonomy. Loading copy now reads 'Loading issue views' / 'Reading All, Ready, and Blocked views from Beadwork…'. True-empty ('No issues found' / 'Beadwork returned an empty issue list for this workspace.') takes precedence whenever allIssues.length === 0, even with view switches or non-empty search text. Base-empty renders 'No issues in {ViewLabel}.' per active view. Search-filtered-empty renders 'No matching issues' + 'No issues in {ViewLabel} match \"{query}\".' with raw query safely rendered as a text node. Failure stays whole-explorer (one role=alert with message + kind). Search remains enabled across all three empty states.",
+      "timestamp": "2026-07-08T06:15:15Z"
+    }
+  ],
   "priority": 2,
   "status": "in_progress",
   "title": "Implement Issue Explorer loading failure and empty-state taxonomy",
   "type": "task",
-  "updated_at": "2026-07-08T06:08:06Z"
+  "updated_at": "2026-07-08T06:15:15Z"
 }
