@@ -1,9 +1,7 @@
 {
   "assignee": "Tomas Thor Jonsson",
   "blocked_by": [],
-  "blocks": [
-    "bsm-6qw"
-  ],
+  "blocks": [],
   "closed_at": "2026-07-08T21:01:52Z",
   "close_reason": "All 12 children closed: bsm-dbh.1/.2/.3/.4/.5/.6/.7/.8/.9/.10/.11/.12 verified in the codebase. bsm-dbh.12 was closed by reason 'Folded into bsm-6qw side-quest refactor', which is now unblocked.",
   "created": "2026-07-06T20:41:20Z",
@@ -16,5 +14,5 @@
   "status": "closed",
   "title": "Epic: Filtering and search issue list views",
   "type": "epic",
-  "updated_at": "2026-07-08T21:01:52Z"
+  "updated_at": "2026-07-08T21:35:55Z"
 }
