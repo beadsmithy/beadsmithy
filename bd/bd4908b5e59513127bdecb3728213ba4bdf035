@@ -1,0 +1,19 @@
+.gitignore
+  s_f6a924fc91a6cd::t_5ba260be77b3b0 28
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.10",
+  "base_commit_sha": "bdbd4908b5e59513127bdecb3728213ba4bdf035",
+  "prompts": {},
+  "sessions": {
+    "s_f6a924fc91a6cd": {
+      "agent_id": {
+        "tool": "pi",
+        "id": "019f4387-826c-7e58-976f-06102936ac74",
+        "model": "MiniMax-M3"
+      },
+      "human_author": "Tomas Thor Jonsson <benregn@gmail.com>"
+    }
+  }
+}
