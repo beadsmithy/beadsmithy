@@ -481,10 +481,10 @@ export const IssueExplorer = ({
     issueState,
     activeViewId
   );
-  const visibleIssues =
-    activeViewId === "all"
-      ? filterIssuesBySearchQuery(baseVisibleIssues, searchQuery)
-      : baseVisibleIssues;
+  const visibleIssues = filterIssuesBySearchQuery(
+    baseVisibleIssues,
+    searchQuery
+  );
   const isSearchDisabled = issueState.status !== "success";
   const selectedIssue: Issue | null =
     issueState.status === "success"

@@ -226,6 +226,33 @@ describe("App issue list view sidebar", () => {
     expect(screen.queryByText("All only one")).toBeNull();
   });
 
+  it("keeps sidebar counts based on base collections while search narrows rows", async () => {
+    const user = userEvent.setup();
+    const matchingIssue = buildIssue({ id: "bsm-match", title: "needle" });
+    const hiddenIssue = buildIssue({ id: "bsm-hidden", title: "haystack" });
+    const readyIssue = buildIssue({ id: "bsm-ready", title: "needle ready" });
+
+    loadIssueExplorerStateFromTauRpc.mockResolvedValue(
+      successState({
+        allIssues: [matchingIssue, hiddenIssue],
+        readyIssues: [readyIssue],
+      })
+    );
+
+    render(<App />);
+
+    await screen.findByRole("button", { name: "All, 2 issues" });
+    await user.type(
+      screen.getByRole("textbox", { name: "Search issues" }),
+      "needle"
+    );
+
+    expect(sidebarButton(/^All, 2 issues$/u)).toBeEnabled();
+    expect(sidebarButton(/^Ready, 1 issue$/u)).toBeEnabled();
+    expect(screen.getByText("needle")).toBeInTheDocument();
+    expect(screen.queryByText("haystack")).toBeNull();
+  });
+
   it("does not re-run the Beadwork load when switching to the Ready view after load", async () => {
     const user = userEvent.setup();
     const readyIssue = buildIssue({ id: "bsm-ready" });

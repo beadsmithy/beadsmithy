@@ -209,26 +209,98 @@ describe("IssueExplorer", () => {
     expect(getRenderedIssueIds()).toEqual(["bsm-z", "bsm-a"]);
   });
 
-  it("does not apply search to non-All Issue List Views in this slice", async () => {
+  it("applies the same search query to the active Issue List View", async () => {
     const user = userEvent.setup();
-    const openIssue = buildIssue({
-      id: "bsm-open",
-      status: "open",
-      title: "Open",
+    const allMatch = buildIssue({
+      id: "bsm-all",
+      status: "triaged",
+      title: "needle in All",
     });
-    const closedIssue = buildIssue({
+    const readyMatch = buildIssue({
+      id: "bsm-ready",
+      title: "needle in Ready",
+    });
+    const blockedMatch = buildIssue({
+      id: "bsm-blocked",
+      title: "needle in Blocked",
+    });
+    const closedMatch = buildIssue({
       id: "bsm-closed",
       status: "closed",
-      title: "Closed",
+      title: "needle in Closed",
     });
-
-    renderExplorer([openIssue, closedIssue], {
-      activeIssueListViewId: "closed",
+    const openMatch = buildIssue({
+      id: "bsm-open",
+      status: "open",
+      title: "needle in Open",
     });
+    const closedMiss = buildIssue({
+      id: "bsm-closed-miss",
+      status: "closed",
+      title: "Closed miss",
+    });
+    const state = {
+      ...successState([allMatch, closedMatch, closedMiss, openMatch]),
+      blockedIssues: [blockedMatch],
+      readyIssues: [readyMatch],
+    };
 
-    await user.type(getSearchInput(), "does-not-match");
+    const { rerender } = render(
+      <IssueExplorer activeIssueListViewId="all" issueState={state} />
+    );
 
+    await user.type(getSearchInput(), "needle");
+    expect(getRenderedIssueIds()).toEqual([
+      "bsm-all",
+      "bsm-closed",
+      "bsm-open",
+    ]);
+
+    rerender(
+      <IssueExplorer activeIssueListViewId="ready" issueState={state} />
+    );
+    expect(getSearchInput()).toHaveValue("needle");
+    expect(getRenderedIssueIds()).toEqual(["bsm-ready"]);
+
+    rerender(
+      <IssueExplorer activeIssueListViewId="blocked" issueState={state} />
+    );
+    expect(getRenderedIssueIds()).toEqual(["bsm-blocked"]);
+
+    rerender(
+      <IssueExplorer activeIssueListViewId="closed" issueState={state} />
+    );
     expect(getRenderedIssueIds()).toEqual(["bsm-closed"]);
+
+    rerender(<IssueExplorer activeIssueListViewId="open" issueState={state} />);
+    expect(getRenderedIssueIds()).toEqual(["bsm-open"]);
+  });
+
+  it("does not leak search matches from another active Issue List View", async () => {
+    const user = userEvent.setup();
+    const readyOnlyMatch = buildIssue({
+      id: "bsm-ready-only",
+      title: "ready-only needle",
+    });
+    const blockedMiss = buildIssue({
+      id: "bsm-blocked-miss",
+      title: "Blocked miss",
+    });
+    const state = {
+      ...successState([readyOnlyMatch]),
+      blockedIssues: [blockedMiss],
+      readyIssues: [readyOnlyMatch],
+    };
+
+    renderExplorer([], {
+      activeIssueListViewId: "blocked",
+      state,
+    });
+
+    await user.type(getSearchInput(), "ready-only");
+
+    expect(screen.getByText("No issues found")).toBeInTheDocument();
+    expect(screen.queryByRole("list", { name: "Issues" })).toBeNull();
   });
 
   it("renders the All Issue List View from All Issues in original order", () => {
