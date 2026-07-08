@@ -40,6 +40,10 @@ _Avoid_: Locally ready, unblocked open issue
 The Beadwork-authored view of Issues that cannot proceed because of unresolved blockers. Beadsmith treats Beadwork's blocked calculation as authoritative instead of reimplementing blocking rules.
 _Avoid_: Locally blocked, has dependencies
 
+**Workspace**:
+A local directory initialized as a Beadwork workspace that Beadsmith has been configured to show. Each Workspace has a user-visible name and a filesystem path. Beadsmith remembers Workspaces across restarts.
+_Avoid_: Project, repository, folder, directory (when referring to the Beadsmith concept)
+
 **Current Workspace**:
-The local directory whose Beadwork issues Beadsmith is currently showing.
-_Avoid_: Project setting, saved workspace, selected folder
+The Workspace whose Beadwork issues Beadsmith is currently showing. The user selects the Current Workspace from their known Workspaces.
+_Avoid_: Active workspace, selected folder
