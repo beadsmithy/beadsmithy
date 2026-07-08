@@ -17,6 +17,7 @@ import {
 } from "./issue-list-view";
 import type { IssueListViewId } from "./issue-list-view";
 import type { IssueExplorerLoadState } from "./issue-loader";
+import { filterIssuesBySearchQuery } from "./issue-search";
 import { toIssueViewModel } from "./issue-view";
 import type { IssueTone } from "./issue-view";
 
@@ -473,9 +474,18 @@ export const IssueExplorer = ({
   openExternalLink?: ExternalLinkOpener;
 }) => {
   void onIssueListViewChange;
+  const [searchQuery, setSearchQuery] = useState("");
   const [selectedIssueId, setSelectedIssueId] = useState<string | null>(null);
   const activeViewId = activeIssueListViewId ?? DEFAULT_ISSUE_LIST_VIEW_ID;
-  const visibleIssues = getVisibleIssuesForListView(issueState, activeViewId);
+  const baseVisibleIssues = getVisibleIssuesForListView(
+    issueState,
+    activeViewId
+  );
+  const visibleIssues =
+    activeViewId === "all"
+      ? filterIssuesBySearchQuery(baseVisibleIssues, searchQuery)
+      : baseVisibleIssues;
+  const isSearchDisabled = issueState.status !== "success";
   const selectedIssue: Issue | null =
     issueState.status === "success"
       ? (visibleIssues.find((issue) => issue.id === selectedIssueId) ?? null)
@@ -499,10 +509,12 @@ export const IssueExplorer = ({
             <Search className="absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted" />
             <input
               className="w-full rounded-md border border-border-main bg-surface py-1.5 pr-12 pl-9 text-sm text-text-main placeholder:text-muted focus:border-accent focus:outline-none disabled:opacity-50"
-              disabled
+              disabled={isSearchDisabled}
               id="issue-search"
+              onChange={(event) => setSearchQuery(event.target.value)}
               placeholder="Search issues..."
               type="text"
+              value={searchQuery}
             />
             <div className="absolute top-1/2 right-2 -translate-y-1/2 rounded border border-border-main px-1.5 py-0.5 font-mono text-[10px] text-muted">
               Cmd+F
