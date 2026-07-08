@@ -1,5 +1,5 @@
 {
-  "assignee": "",
+  "assignee": "Tomas Thor Jonsson",
   "blocked_by": [
     "bsm-dbh.8",
     "bsm-dbh.9"
@@ -15,8 +15,8 @@
   ],
   "parent": "bsm-dbh",
   "priority": 2,
-  "status": "open",
+  "status": "in_progress",
   "title": "Prove Issue List View selection and search in desktop WebDriver",
   "type": "task",
-  "updated_at": "2026-07-07T15:19:58Z"
+  "updated_at": "2026-07-08T12:59:21Z"
 }
