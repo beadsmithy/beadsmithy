@@ -1,0 +1,25 @@
+src/issues/IssueExplorer.tsx
+  s_d776d0cd9d6fa7::t_c0894a9b49976d 484-487
+src/App.test.tsx
+  s_d776d0cd9d6fa7::t_4f5fbdf3550e31 229-255
+src/issues/IssueExplorer.test.tsx
+  s_d776d0cd9d6fa7::t_b21edfee7b1077 212,219-232,235,237-238,240,242-250,252-257,259-268,270-272,274-297,301-302
+  s_d776d0cd9d6fa7::t_3a869550271d4b 214-218
+  s_d776d0cd9d6fa7::t_bf70a9656d6fe2 298-300,303
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.10",
+  "base_commit_sha": "241bc6fc381048580afd77f870d407274c77cd2e",
+  "prompts": {},
+  "sessions": {
+    "s_d776d0cd9d6fa7": {
+      "agent_id": {
+        "tool": "pi",
+        "id": "019f4007-debc-7d67-9ed7-ac08695ee927",
+        "model": "gpt-5.5"
+      },
+      "human_author": "Tomas Thor Jonsson <benregn@gmail.com>"
+    }
+  }
+}
