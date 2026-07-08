@@ -1,0 +1,24 @@
+src/issues/IssueExplorer.test.tsx
+  s_8cbc797c3eb131::t_09d9b1251f2f26 103-113
+  s_8cbc797c3eb131::t_68fd26d4605c0f 1194-1533
+  s_8cbc797c3eb131::t_ae4f4aa26017cc 1534-1536
+src/issues/IssueExplorer.tsx
+  s_8cbc797c3eb131::t_41888ad38578e5 8,506,531-556,587
+  s_8cbc797c3eb131::t_00f5fbd41cc664 588-590
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.10",
+  "base_commit_sha": "829a78c3827bea9193341694ef6f9528496a0dc9",
+  "prompts": {},
+  "sessions": {
+    "s_8cbc797c3eb131": {
+      "agent_id": {
+        "tool": "pi",
+        "id": "019f4066-b81b-75be-9b4a-fd559795a090",
+        "model": "MiniMax-M3"
+      },
+      "human_author": "Tomas Thor Jonsson <benregn@gmail.com>"
+    }
+  }
+}
