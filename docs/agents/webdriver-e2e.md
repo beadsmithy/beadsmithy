@@ -5,7 +5,7 @@ launches the real, built Beadsmith desktop binary and drives it through
 WebdriverIO, proving real Beadwork `Issue` data flows from the Rust `bw`
 adapter -> TauRPC boundary -> Effect service -> React. The success scenario
 also selects an Issue row and verifies representative Issue Detail content from
-that same `list_issues` payload.
+that same combined Issue explorer payload.
 
 Unit tests (`cargo test`, `pnpm test`) already cover each layer in isolation.
 This suite exists because those can all pass while the actual desktop launch
@@ -38,12 +38,15 @@ if `bw` isn't found or the debug binary hasn't been built yet.
 
 - **Fixtures** (`e2e/issue-list/fixtures/workspace.ts`): each scenario gets a
   throwaway git repository under the OS temp directory, initialized with
-  `bw init` and (for the "issues" scenario) populated with `bw create`,
-  `bw create --description`, `bw label`, `bw dep add`, and `bw comment` so the
-  selected detail view has labels, dependency context, Markdown description
-  output, and authored comments to render. Nothing is committed to this repo
-  and no machine-specific path is baked in -- everything is created fresh per
-  run and removed afterward.
+  `bw init` and (for the "issues" scenario) populated with real `bw create`,
+  `bw label`, `bw dep add`, `bw close`, `bw defer`, and `bw comment` calls. The
+  fixture includes a Ready Issue with a unique search token, a Blocked Issue
+  with an unresolved blocker, a Closed Issue, and a Deferred Issue, so the
+  sidebar views exercise real Beadwork state while the selected detail view has
+  labels, dependency context, Markdown description output, and authored
+  comments to render. Nothing is committed to this repo and no
+  machine-specific path is baked in -- everything is created fresh per run and
+  removed afterward.
 - **Scenario runner** (`e2e/issue-list/scripts/run-scenario.ts`): creates the
   workspace, launches `wdio` with `BEADSMITH_E2E_WORKSPACE` set, and removes
   the workspace when the run finishes (pass or fail). Workspace creation lives
@@ -73,12 +76,13 @@ if `bw` isn't found or the debug binary hasn't been built yet.
   default capability.
 - **Specs** (`e2e/issue-list/*.spec.ts`): assert on the native RPC path and
   the rendered DOM. `issue-list.success.spec.ts` invokes
-  `TauRPC__list_issues` as a direct command sanity check, waits for the
-  fixture Issue row (matched by title in its `aria-label`), asserts row label
-  and blocking-dependency metadata, clicks the Issue row, and asserts
-  representative selected Issue Detail content: title/ID, Markdown description
-  output, dependency context, and comments. It also asserts the sidebar's
-  reported workspace path matches the launched fixture.
+  `TauRPC__load_issue_explorer_data` as a direct command sanity check, waits
+  for the combined Issue explorer load, verifies representative sidebar counts,
+  switches Issue List Views, proves local Issue Search narrows the active view
+  and preserves the query while switching views, then selects a visible Issue
+  and asserts representative Issue Detail content: title/ID, Markdown
+  description output, dependency context, and comments. It also asserts the
+  sidebar's reported workspace path matches the launched fixture.
   `issue-list.empty.spec.ts` asserts the true-empty state renders (and that
   neither the failure nor the populated-list state does) for a workspace with
   zero issues.
@@ -110,4 +114,5 @@ so the service crashes on startup. `pnpm-workspace.yaml` overrides
 - Broad visual regression coverage.
 - Issue mutations.
 - Workspace switching.
-- Search and filter coverage beyond the selected fixture row path.
+- Exhaustive search/filter matrices beyond the focused Issue List View and
+  local Issue Search happy path.
