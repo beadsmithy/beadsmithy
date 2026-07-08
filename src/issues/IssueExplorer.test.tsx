@@ -120,6 +120,10 @@ describe("IssueExplorer", () => {
     renderExplorer([]);
 
     expect(screen.getByText("No issues found")).toBeInTheDocument();
+    expect(screen.getByText("No issues found").closest("div")).toHaveAttribute(
+      "data-empty-reason",
+      "base-empty"
+    );
     expect(
       screen.getByText(
         "Beadwork returned an empty issue list for this workspace."
@@ -300,6 +304,10 @@ describe("IssueExplorer", () => {
     await user.type(getSearchInput(), "ready-only");
 
     expect(screen.getByText("No issues found")).toBeInTheDocument();
+    expect(screen.getByText("No issues found").closest("div")).toHaveAttribute(
+      "data-empty-reason",
+      "search-filtered-empty"
+    );
     expect(screen.queryByRole("list", { name: "Issues" })).toBeNull();
   });
 
