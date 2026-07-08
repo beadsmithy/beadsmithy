@@ -1,5 +1,5 @@
 {
-  "assignee": "",
+  "assignee": "Tomas Thor Jonsson",
   "blocked_by": [
     "bsm-dbh.7"
   ],
@@ -14,8 +14,8 @@
   ],
   "parent": "bsm-dbh",
   "priority": 2,
-  "status": "open",
+  "status": "in_progress",
   "title": "Implement Issue Explorer loading failure and empty-state taxonomy",
   "type": "task",
-  "updated_at": "2026-07-08T05:58:36Z"
+  "updated_at": "2026-07-08T06:08:06Z"
 }
