@@ -87,9 +87,9 @@ export const FIXTURE_COMMENT_TEXT =
   "The detail pane should show this authored fixture comment.";
 
 /**
- * A real Beadwork workspace with one issue that has labels, a blocking
- * dependency, a Markdown description, and comments, plus the blocker issue
- * itself.
+ * A real Beadwork workspace with Issues for the selectable list views: a
+ * blocked detail Issue with labels, a dependency, Markdown, and comments;
+ * its blocker; a searchable Ready Issue; a Closed Issue; and a Deferred Issue.
  */
 export const createIssueListWorkspace = (): BeadworkWorkspace => {
   const workspacePath = mkdtempSync(

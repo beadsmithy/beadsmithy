@@ -152,6 +152,7 @@ describe("Issue explorer (WebDriver e2e): workspace with selectable Issue List V
 
     await selectSidebarView("Ready", "ready");
     await expectIssueVisible(FIXTURE_READY_TITLE);
+    await expectIssueVisible(FIXTURE_BLOCKER_TITLE);
     await expectIssueNotVisible(FIXTURE_ISSUE_TITLE);
 
     console.log(
