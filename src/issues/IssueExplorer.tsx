@@ -5,7 +5,7 @@ import {
   LoaderCircle,
   Search,
 } from "lucide-react";
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 import type { ExternalLinkOpener } from "../components/external-link-opener";
 import { openExternalLink as defaultOpenExternalLink } from "../components/external-link-opener";
@@ -503,6 +503,7 @@ export const IssueExplorer = ({
   void onIssueListViewChange;
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedIssueId, setSelectedIssueId] = useState<string | null>(null);
+  const issueListScrollContainerRef = useRef<HTMLDivElement>(null);
   const activeViewId = activeIssueListViewId ?? DEFAULT_ISSUE_LIST_VIEW_ID;
   const baseVisibleIssues = getVisibleIssuesForListView(
     issueState,
@@ -526,6 +527,32 @@ export const IssueExplorer = ({
     issueState.status === "success"
       ? (visibleIssues.find((issue) => issue.id === selectedIssueId) ?? null)
       : null;
+
+  // Reset the Issue List scroll position to the top when the active
+  // Issue List View changes. Search changes intentionally do not reset
+  // scroll; only view changes do.
+  useEffect(() => {
+    if (issueListScrollContainerRef.current !== null) {
+      issueListScrollContainerRef.current.scrollTop = 0;
+    }
+  }, [activeViewId]);
+
+  // Clear the selected Issue ID when it is no longer visible after a
+  // view or search change. The cleared state is not auto-restored if a
+  // later view/search change makes the Issue visible again.
+  useEffect(() => {
+    if (selectedIssueId === null) {
+      return;
+    }
+
+    const isStillVisible = visibleIssues.some(
+      (issue) => issue.id === selectedIssueId
+    );
+
+    if (!isStillVisible) {
+      setSelectedIssueId(null);
+    }
+  }, [selectedIssueId, visibleIssues]);
 
   const handleSelect = (issueId: string) => {
     setSelectedIssueId(issueId);
@@ -557,7 +584,10 @@ export const IssueExplorer = ({
             </div>
           </div>
         </div>
-        <div className="flex-1 overflow-y-auto">
+        <div
+          className="flex-1 overflow-y-auto"
+          ref={issueListScrollContainerRef}
+        >
           <IssueListContent
             emptyReason={emptyReason}
             onSelect={handleSelect}

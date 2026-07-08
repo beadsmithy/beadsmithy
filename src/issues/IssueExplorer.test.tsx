@@ -100,6 +100,17 @@ const getRenderedIssueIds = () =>
 const getSearchInput = () =>
   screen.getByRole("textbox", { name: "Search issues" });
 
+const getIssueListScrollContainer = (): HTMLElement => {
+  const list = screen.getByRole("list", { name: "Issues" });
+  const container = list.parentElement;
+  if (!(container instanceof HTMLElement)) {
+    throw new Error(
+      "Expected the Issue List scroll container to be an HTMLElement"
+    );
+  }
+  return container;
+};
+
 const getDetailSectionFlow = () =>
   [...getDetailElement().children].map((child) => {
     if (child.tagName === "HEADER") {
@@ -1179,5 +1190,348 @@ describe("IssueExplorer", () => {
     expect(screen.getByText("No issues found")).toBeInTheDocument();
     expect(screen.queryByRole("list", { name: "Issues" })).toBeNull();
     expect(screen.queryByText("Only in All Issues")).toBeNull();
+  });
+
+  describe("selection coordination with view and search changes", () => {
+    it("keeps the selected Issue Detail populated when switching Issue List Views still includes the selected Issue", async () => {
+      const user = userEvent.setup();
+      const crossViewIssue = buildIssue({
+        blockedBy: ["bsm-real-blocker"],
+        id: "bsm-cross-view",
+        status: "in_progress",
+        title: "Cross-view issue",
+      });
+      const state = {
+        ...successState([crossViewIssue]),
+        readyIssues: [crossViewIssue],
+      };
+
+      const { rerender } = render(
+        <IssueExplorer activeIssueListViewId="all" issueState={state} />
+      );
+
+      await user.click(getRowButton(crossViewIssue));
+      expect(getDetail().getByText(crossViewIssue.title)).toBeInTheDocument();
+
+      // Switching from All to Ready: the same Issue is still visible.
+      rerender(
+        <IssueExplorer activeIssueListViewId="ready" issueState={state} />
+      );
+
+      const row = getRowButton(crossViewIssue);
+      expect(row).toHaveAttribute("aria-current", "true");
+      expect(row).toHaveAttribute("data-selected", "true");
+      expect(
+        getDetail().getByRole("heading", {
+          level: 2,
+          name: crossViewIssue.title,
+        })
+      ).toBeInTheDocument();
+    });
+
+    it("keeps the selected Issue Detail populated when a search change still matches the selected Issue", async () => {
+      const user = userEvent.setup();
+      const selected = buildIssue({
+        id: "bsm-search-keep",
+        title: "Keyboard foundation",
+      });
+      const other = buildIssue({
+        id: "bsm-search-other",
+        title: "Mouse foundation",
+      });
+
+      renderExplorer([selected, other]);
+
+      await user.click(getRowButton(selected));
+      expect(getDetail().getByText(selected.title)).toBeInTheDocument();
+
+      await user.type(getSearchInput(), "keyboard");
+
+      expect(getRenderedIssueIds()).toEqual(["bsm-search-keep"]);
+      const row = getRowButton(selected);
+      expect(row).toHaveAttribute("aria-current", "true");
+      expect(row).toHaveAttribute("data-selected", "true");
+      expect(
+        getDetail().getByRole("heading", { level: 2, name: selected.title })
+      ).toBeInTheDocument();
+    });
+
+    it("clears the selection when a view change hides the selected Issue and leaves the empty Issue Detail state", async () => {
+      const user = userEvent.setup();
+      const selected = buildIssue({
+        id: "bsm-open-selected",
+        status: "open",
+        title: "Open selected",
+      });
+      const closedIssue = buildIssue({
+        id: "bsm-closed",
+        status: "closed",
+        title: "Closed only",
+      });
+
+      const { rerender } = render(
+        <IssueExplorer
+          activeIssueListViewId="open"
+          issueState={successState([selected, closedIssue])}
+        />
+      );
+
+      await user.click(getRowButton(selected));
+      expect(getDetail().getByText(selected.title)).toBeInTheDocument();
+
+      // Switching to Closed hides the selected open Issue.
+      rerender(
+        <IssueExplorer
+          activeIssueListViewId="closed"
+          issueState={successState([selected, closedIssue])}
+        />
+      );
+
+      expect(getRenderedIssueIds()).toEqual(["bsm-closed"]);
+      expect(getDetail().getByText(/No issue selected/u)).toBeInTheDocument();
+
+      const closedRow = getRowButton(closedIssue);
+      expect(closedRow).not.toHaveAttribute("aria-current");
+      expect(closedRow).toHaveAttribute("data-selected", "false");
+    });
+
+    it("clears the selection when a search query hides the selected Issue and leaves the empty Issue Detail state", async () => {
+      const user = userEvent.setup();
+      const selected = buildIssue({
+        id: "bsm-search-selected",
+        title: "Needle in selected row",
+      });
+      const other = buildIssue({
+        id: "bsm-search-other",
+        title: "Other needle",
+      });
+
+      renderExplorer([selected, other]);
+
+      await user.click(getRowButton(selected));
+      expect(getDetail().getByText(selected.title)).toBeInTheDocument();
+
+      // Narrow the visible rows to the other Issue only.
+      await user.type(getSearchInput(), "other needle");
+
+      expect(getRenderedIssueIds()).toEqual(["bsm-search-other"]);
+      expect(getDetail().getByText(/No issue selected/u)).toBeInTheDocument();
+
+      const otherRow = getRowButton(other);
+      expect(otherRow).not.toHaveAttribute("aria-current");
+      expect(otherRow).toHaveAttribute("data-selected", "false");
+    });
+
+    it("does not auto-restore a cleared selection after clearing the hiding search query", async () => {
+      const user = userEvent.setup();
+      const selected = buildIssue({
+        id: "bsm-search-selected",
+        title: "Needle in selected row",
+      });
+      const other = buildIssue({
+        id: "bsm-search-other",
+        title: "Other needle",
+      });
+
+      renderExplorer([selected, other]);
+
+      await user.click(getRowButton(selected));
+      await user.type(getSearchInput(), "other needle");
+
+      // Selection was cleared while the query hid the row.
+      expect(getDetail().getByText(/No issue selected/u)).toBeInTheDocument();
+
+      // Clear the search query so the row becomes visible again.
+      await user.clear(getSearchInput());
+
+      expect(getRenderedIssueIds()).toEqual([
+        "bsm-search-selected",
+        "bsm-search-other",
+      ]);
+      expect(getDetail().getByText(/No issue selected/u)).toBeInTheDocument();
+
+      const restoredRow = getRowButton(selected);
+      expect(restoredRow).not.toHaveAttribute("aria-current");
+      expect(restoredRow).toHaveAttribute("data-selected", "false");
+    });
+
+    it("does not auto-restore a cleared selection after switching back to a view that includes the Issue", async () => {
+      const user = userEvent.setup();
+      const selected = buildIssue({
+        id: "bsm-view-selected",
+        status: "open",
+        title: "Open selected",
+      });
+      const closedIssue = buildIssue({
+        id: "bsm-view-closed",
+        status: "closed",
+        title: "Closed only",
+      });
+      const state = successState([selected, closedIssue]);
+
+      const { rerender } = render(
+        <IssueExplorer activeIssueListViewId="open" issueState={state} />
+      );
+
+      await user.click(getRowButton(selected));
+      expect(getDetail().getByText(selected.title)).toBeInTheDocument();
+
+      // View change hides the selected Issue and clears the selection.
+      rerender(
+        <IssueExplorer activeIssueListViewId="closed" issueState={state} />
+      );
+      expect(getDetail().getByText(/No issue selected/u)).toBeInTheDocument();
+
+      // Switching back to Open must not auto-restore the cleared selection.
+      rerender(
+        <IssueExplorer activeIssueListViewId="open" issueState={state} />
+      );
+
+      expect(getRenderedIssueIds()).toEqual(["bsm-view-selected"]);
+      expect(getDetail().getByText(/No issue selected/u)).toBeInTheDocument();
+      const restoredRow = getRowButton(selected);
+      expect(restoredRow).not.toHaveAttribute("aria-current");
+      expect(restoredRow).toHaveAttribute("data-selected", "false");
+    });
+
+    it("does not auto-select the first visible row after a view change leaves rows without a prior selection", () => {
+      const firstOpen = buildIssue({
+        id: "bsm-no-autoselect-first",
+        status: "open",
+        title: "First open row",
+      });
+      const closedIssue = buildIssue({
+        id: "bsm-no-autoselect-closed",
+        status: "closed",
+        title: "Closed only",
+      });
+
+      const { rerender } = render(
+        <IssueExplorer
+          activeIssueListViewId="open"
+          issueState={successState([firstOpen, closedIssue])}
+        />
+      );
+
+      expect(getRowButton(firstOpen)).not.toHaveAttribute("aria-current");
+
+      rerender(
+        <IssueExplorer
+          activeIssueListViewId="closed"
+          issueState={successState([firstOpen, closedIssue])}
+        />
+      );
+
+      const closedRow = getRowButton(closedIssue);
+      expect(closedRow).not.toHaveAttribute("aria-current");
+      expect(closedRow).toHaveAttribute("data-selected", "false");
+      expect(getDetail().getByText(/No issue selected/u)).toBeInTheDocument();
+    });
+
+    it("renders the detail pane from the active visible Issue collection when the selected Issue spans multiple views", async () => {
+      const user = userEvent.setup();
+      const allIssue = buildIssue({
+        id: "bsm-cross-collection",
+        title: "All collection title",
+      });
+      const readyIssue = buildIssue({
+        blockedBy: ["bsm-ready-only-blocker"],
+        id: "bsm-cross-collection",
+        status: "in_progress",
+        title: "Ready collection title",
+      });
+
+      const state = {
+        ...successState([allIssue]),
+        readyIssues: [readyIssue],
+      };
+
+      const { rerender } = render(
+        <IssueExplorer activeIssueListViewId="all" issueState={state} />
+      );
+
+      await user.click(getRowButton(allIssue));
+
+      expect(getDetail().getByText("All collection title")).toBeInTheDocument();
+      expect(getDetail().queryByText("Ready collection title")).toBeNull();
+      expect(getDetail().queryByText("bsm-ready-only-blocker")).toBeNull();
+
+      // Switch to Ready: the same ID is still visible, but the detail must
+      // reflect the Ready collection's record, not the All-only one.
+      rerender(
+        <IssueExplorer activeIssueListViewId="ready" issueState={state} />
+      );
+
+      const row = getRowButton(readyIssue);
+      expect(row).toHaveAttribute("aria-current", "true");
+
+      expect(
+        getDetail().getByText("Ready collection title")
+      ).toBeInTheDocument();
+      expect(getDetail().queryByText("All collection title")).toBeNull();
+      expect(
+        getDetail().getByText("bsm-ready-only-blocker")
+      ).toBeInTheDocument();
+    });
+  });
+
+  describe("Issue List scroll position reset", () => {
+    it("resets the Issue List scroll position to the top when the active Issue List View changes", () => {
+      const openIssue = buildIssue({
+        id: "bsm-scroll-open",
+        status: "open",
+        title: "Scroll open",
+      });
+      const closedIssue = buildIssue({
+        id: "bsm-scroll-closed",
+        status: "closed",
+        title: "Scroll closed",
+      });
+      const state = successState([openIssue, closedIssue]);
+
+      const { rerender } = render(
+        <IssueExplorer activeIssueListViewId="open" issueState={state} />
+      );
+
+      const scrollContainer = getIssueListScrollContainer();
+
+      // Simulate the user having scrolled the list.
+      scrollContainer.scrollTop = 100;
+      expect(scrollContainer.scrollTop).toBe(100);
+
+      // Switching views resets the scroll position to the top.
+      rerender(
+        <IssueExplorer activeIssueListViewId="closed" issueState={state} />
+      );
+
+      expect(scrollContainer.scrollTop).toBe(0);
+
+      // Switching back also resets the scroll position.
+      scrollContainer.scrollTop = 75;
+      expect(scrollContainer.scrollTop).toBe(75);
+
+      rerender(
+        <IssueExplorer activeIssueListViewId="ready" issueState={state} />
+      );
+      expect(scrollContainer.scrollTop).toBe(0);
+    });
+
+    it("does not reset the Issue List scroll position when only the search query changes", async () => {
+      const user = userEvent.setup();
+      const first = buildIssue({ id: "bsm-search-alpha", title: "Alpha" });
+      const second = buildIssue({ id: "bsm-search-beta", title: "Beta" });
+      const third = buildIssue({ id: "bsm-search-gamma", title: "Gamma" });
+
+      renderExplorer([first, second, third]);
+
+      const scrollContainer = getIssueListScrollContainer();
+      scrollContainer.scrollTop = 50;
+      expect(scrollContainer.scrollTop).toBe(50);
+
+      await user.type(getSearchInput(), "alpha");
+
+      // Search-only changes must preserve the existing scroll offset.
+      expect(scrollContainer.scrollTop).toBe(50);
+    });
   });
 });
