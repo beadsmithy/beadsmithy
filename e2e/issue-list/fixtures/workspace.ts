@@ -62,10 +62,20 @@ export const createEmptyWorkspace = (): BeadworkWorkspace => {
 
 export const FIXTURE_BLOCKER_TITLE = "Wire up the deterministic e2e fixture";
 export const FIXTURE_ISSUE_TITLE = "Render selected issue details end to end";
+export const FIXTURE_READY_TITLE = "Ready Orchid Issue Search fixture";
+export const FIXTURE_READY_SEARCH_QUERY = "orchid-ready-token";
+export const FIXTURE_READY_DESCRIPTION = `This ready Issue carries the unique ${FIXTURE_READY_SEARCH_QUERY} description token for local search.`;
+export const FIXTURE_CLOSED_TITLE = "Closed Cobalt archived fixture";
+export const FIXTURE_CLOSED_DESCRIPTION =
+  "Closed through bw close so the Closed view uses real Beadwork state.";
+export const FIXTURE_DEFERRED_TITLE = "Deferred Amber waiting fixture";
+export const FIXTURE_DEFERRED_DESCRIPTION =
+  "Deferred through bw defer so the Deferred view uses real Beadwork state.";
+export const FIXTURE_DEFER_UNTIL = "2035-01-01";
 export const FIXTURE_DESCRIPTION_HEADING = "Detail-ready fixture";
 export const FIXTURE_DESCRIPTION_BULLET =
   "Markdown bullets survive the Beadwork round trip.";
-export const FIXTURE_DESCRIPTION_INLINE_CODE = "list_issues";
+export const FIXTURE_DESCRIPTION_INLINE_CODE = "load_issue_explorer_data";
 export const FIXTURE_ISSUE_DESCRIPTION = `## ${FIXTURE_DESCRIPTION_HEADING}
 
 This description proves the desktop app renders selected Issue Detail content from ${FIXTURE_DESCRIPTION_INLINE_CODE}.
@@ -77,9 +87,9 @@ export const FIXTURE_COMMENT_TEXT =
   "The detail pane should show this authored fixture comment.";
 
 /**
- * A real Beadwork workspace with one issue that has labels, a blocking
- * dependency, a Markdown description, and comments, plus the blocker issue
- * itself.
+ * A real Beadwork workspace with Issues for the selectable list views: a
+ * blocked detail Issue with labels, a dependency, Markdown, and comments;
+ * its blocker; a searchable Ready Issue; a Closed Issue; and a Deferred Issue.
  */
 export const createIssueListWorkspace = (): BeadworkWorkspace => {
   const workspacePath = mkdtempSync(
@@ -116,8 +126,59 @@ export const createIssueListWorkspace = (): BeadworkWorkspace => {
     ],
     workspacePath
   );
+  const readyIssueId = runBw(
+    [
+      "create",
+      FIXTURE_READY_TITLE,
+      "--type",
+      "task",
+      "--priority",
+      "2",
+      "--description",
+      FIXTURE_READY_DESCRIPTION,
+      "--silent",
+    ],
+    workspacePath
+  );
+  const closedIssueId = runBw(
+    [
+      "create",
+      FIXTURE_CLOSED_TITLE,
+      "--type",
+      "task",
+      "--priority",
+      "3",
+      "--description",
+      FIXTURE_CLOSED_DESCRIPTION,
+      "--silent",
+    ],
+    workspacePath
+  );
+  const deferredIssueId = runBw(
+    [
+      "create",
+      FIXTURE_DEFERRED_TITLE,
+      "--type",
+      "task",
+      "--priority",
+      "3",
+      "--description",
+      FIXTURE_DEFERRED_DESCRIPTION,
+      "--silent",
+    ],
+    workspacePath
+  );
+
+  console.log(
+    `[e2e:fixture] created issues: blocker=${blockerId}, blocked=${issueId}, ready=${readyIssueId}, closed=${closedIssueId}, deferred=${deferredIssueId}`
+  );
   runBw(["label", issueId, "+e2e-fixture", "+ready-for-agent"], workspacePath);
   runBw(["dep", "add", blockerId, "blocks", issueId], workspacePath);
+  runBw(
+    ["close", closedIssueId, "--reason", "e2e closed fixture"],
+    workspacePath
+  );
+  runBw(["defer", deferredIssueId, FIXTURE_DEFER_UNTIL], workspacePath);
   runBw(
     [
       "comment",
@@ -130,7 +191,7 @@ export const createIssueListWorkspace = (): BeadworkWorkspace => {
   );
 
   console.log(
-    `[e2e:fixture] workspace ready at ${workspacePath}: issue ${issueId} (blocked by ${blockerId})`
+    `[e2e:fixture] workspace ready at ${workspacePath}: blocked issue ${issueId} (blocked by ${blockerId}), ready issue ${readyIssueId}, closed issue ${closedIssueId}, deferred issue ${deferredIssueId}`
   );
   return {
     issue: { id: issueId, title: FIXTURE_ISSUE_TITLE },
