@@ -1,6 +1,8 @@
 {
   "assignee": "",
-  "blocked_by": [],
+  "blocked_by": [
+    "bsm-dbh"
+  ],
   "blocks": [],
   "created": "2026-07-08T05:26:49Z",
   "description": "## Background\n\n`IssueExplorer.tsx` is carrying more than rendering concerns. As the issue explorer grows, it has accumulated UI state coordination and derived view-model logic alongside JSX:\n\n- resolving the active Issue List View\n- composing base vs searched visible rows\n- deriving list empty-state signals\n- coordinating selected issue lookup\n- passing derived values through list/detail panes\n\nSome of this belongs near the React shell, but much of it is issue-explorer model logic that would be easier to test and evolve from a focused non-React module. This is a side-quest refactor to do after the filtering/search epic work settles, not part of that epic.\n\n## What to build\n\nRefactor `src/issues/IssueExplorer.tsx` so it is primarily a rendering and event-wiring component. Move reusable/derivable issue-explorer logic into a focused `lib`/model file, for example one of:\n\n- `src/issues/issue-explorer-state.ts`\n- `src/issues/issue-explorer-model.ts`\n- `src/issues/lib/issue-explorer-state.ts`\n\nThe exact path can be chosen during implementation, but the intent is a non-React module that owns issue explorer derived state.\n\nLikely candidates to extract:\n\n- active view normalization/defaulting\n- base collection + searched visible collection composition\n- selected issue lookup from the visible collection\n- empty/list state derivation that is not purely presentational\n- any small derived booleans or values that currently require multi-line logic in the component\n\nKeep React-only concerns in the component, such as `useState`, event handlers, DOM refs, JSX, and accessibility attributes.\n\n## Constraints\n\n- This is a behavior-preserving refactor.\n- Do not change user-facing copy or visual layout.\n- Do not add new product behavior unless a separate issue asks for it.\n- Avoid creating a vague grab-bag utility file. The extracted module should have a clear domain name and cohesive API.\n- Prefer direct unit tests for extracted logic over expanding DOM-heavy component tests.\n\n## Acceptance criteria\n\n- [ ] `IssueExplorer.tsx` has less inline derived-state logic and is mostly rendering/event wiring.\n- [ ] Extracted issue-explorer logic lives in a focused non-React module with a cohesive API.\n- [ ] The extracted module has direct unit tests for important derived-state cases.\n- [ ] Existing Issue Explorer behavior remains unchanged.\n- [ ] Existing component tests continue to pass.\n- [ ] No new product behavior, copy changes, or layout changes are introduced.\n\n## Test Plan\n\n- Add unit tests for the extracted state/model module.\n- Run `pnpm test`.\n- Run `pnpm check`.\n- Run `pnpm exec tsc --noEmit`.",
@@ -10,5 +12,5 @@
   "status": "open",
   "title": "Refactor IssueExplorer UI logic into a model module",
   "type": "task",
-  "updated_at": "2026-07-08T05:26:49Z"
+  "updated_at": "2026-07-08T05:26:55Z"
 }
