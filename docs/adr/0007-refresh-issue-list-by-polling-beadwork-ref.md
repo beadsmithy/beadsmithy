@@ -16,17 +16,17 @@ The Ready view is time-sensitive in addition to data-sensitive: a deferred Issue
 
 ## Decision
 
-We will add a single in-process poller in the Rust backend, bound to the Current Workspace:
+We will add a refresh service in the Rust backend, bound to the Current Workspace, with three trigger sources routing through one single-flight loader:
 
-1. Every ~2 seconds, we will run `git -C <workspace> rev-parse --verify refs/heads/beadwork^{commit}` and compare the result to the last observed SHA. The fully qualified ref avoids ambiguity.
-2. On SHA change, we will run the existing Beadwork loaders (`bw list --all --json`, `bw ready --json`, `bw blocked --json`) single-flight, then emit a Tauri event carrying the new `IssueExplorerData` and the observed SHA. If a reload is already in flight and a new change is observed, we will mark dirty and re-run once after the active load completes if the ref still differs.
-3. In parallel, we will run a low-cadence time-driven refresh (once per minute) so deferred Issues correctly transition into Ready when their `defer_until` boundary passes, even when the ref does not move.
-4. We will refresh once on window focus events (`WindowEvent::Focused`) so returning to the app is always fresh.
-5. We will treat up to 5 consecutive failures (~10 seconds at 2s polling) as transient: keep the last good state, do not surface to the user. After 5, we will drop to the existing failure UI.
-6. On workspace switch (per ADR-0006), we will tear down the old poller, start a new one for the new workspace, and let the first poll tick fire the initial load (no last-seen SHA → comparison fails → reload triggered).
-7. We will not ship a manual refresh button.
+1. **Data change:** every ~2 seconds, we will run `git -C <workspace> rev-parse --verify refs/heads/beadwork^{commit}` and compare the result to the last observed SHA for the current workspace. The fully qualified ref avoids ambiguity.
+2. **Time tick:** every 60 seconds, a low-cadence timer fires so deferred Issues correctly transition into Ready when their `defer_until` boundary passes, even when the ref does not move.
+3. **Window focus gain:** when the window gains focus (not when it loses focus), we will refresh once, so returning to the app is always fresh. We will skip the first focus event of a session, since the initial load already covers it.
+4. **Single-flight loader:** all three triggers route through one single-flight loader that runs the existing Beadwork loaders (`bw list --all --json`, `bw ready --json`, `bw blocked --json`). If a reload is already in flight, a new trigger sets a dirty flag and the loader re-runs once after the active load completes if the data is still stale. The loader emits a Tauri event carrying the new `IssueExplorerData` and the observed SHA.
+5. **Error handling:** we will classify errors at the call site. Transient errors (git command failure, lock, IO) follow the 5-strike rule — up to 5 consecutive failures (~10 seconds at 2s polling) keep the last good state silently; after 5, we show a banner above the list, not a full replacement. Structural errors (`NotBeadworkWorkspace`, `MissingBinary`) surface immediately via the banner, since retrying will not help.
+6. **Workspace switch:** on workspace switch (per ADR-0006), we will trigger an immediate load for the new workspace and start the poller for subsequent ticks. We will keep a per-workspace `last_seen_sha` map so a re-visited workspace with no change does not re-run the loaders; a fresh workspace (no prior SHA) always fires the initial load.
+7. **No manual refresh button:** we will not ship one in the UI.
 
-The frontend will listen for the Tauri event and atomically replace its `IssueExplorerLoadState`. The user will see no indicator; the list updates in place. The initial-load spinner stays for the first-ever load of a session; subsequent refreshes are silent.
+The frontend will listen for the Tauri event and atomically replace its `IssueExplorerLoadState`. The user will see no indicator; the list updates in place. The initial-load spinner stays for the first-ever load of a session; subsequent refreshes are silent. When the loader hits the 5-strike threshold or a structural error, the frontend renders a banner above the list while keeping the last good state visible.
 
 ## Consequences
 
@@ -42,3 +42,4 @@ Follow-up work flagged for later ADRs:
 
 - The current loader pipeline runs three `bw` subprocesses per refresh. A single `bw state --json` or backend aggregation could collapse this.
 - Polling interval is hard-coded at 2 seconds. Configurability is a future concern.
+- The "~3 seconds" acceptance budget for end-to-end refresh latency is on the edge of CI flakiness; e2e coverage of auto-refresh will need generous timeouts.
