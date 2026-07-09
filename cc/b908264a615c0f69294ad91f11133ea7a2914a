@@ -1,0 +1,22 @@
+docs/adr/0007-refresh-issue-list-by-polling-beadwork-ref.md
+  s_77bf5e542490ef::t_e85743923ca811 1-12,14-18,20,28,30-32,34,36,38,40-42,44
+  s_77bf5e542490ef::t_0b5e7ad4713e7b 13,19,21-27,29,33,35,37,39,43
+CONTEXT.md
+  s_77bf5e542490ef::t_b4339d7e8dbb5d 36
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.10",
+  "base_commit_sha": "ccb908264a615c0f69294ad91f11133ea7a2914a",
+  "prompts": {},
+  "sessions": {
+    "s_77bf5e542490ef": {
+      "agent_id": {
+        "tool": "pi",
+        "id": "019f4399-d552-7f13-a27a-5386e5c69e0d",
+        "model": "MiniMax-M3"
+      },
+      "human_author": "Tomas Thor Jonsson <benregn@gmail.com>"
+    }
+  }
+}
