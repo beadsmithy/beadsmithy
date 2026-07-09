@@ -16,17 +16,30 @@ The Ready view is time-sensitive in addition to data-sensitive: a deferred Issue
 
 ## Decision
 
-We will add a refresh service in the Rust backend, bound to the Current Workspace, with three trigger sources routing through one single-flight loader:
+We will add a refresh service in the Rust backend, bound to the Current Workspace, with three trigger sources routing through one single-flight loader. The service is idle when no Current Workspace is set (the empty-workspace state from ADR-0006); no probes run, no errors are surfaced.
 
 1. **Data change:** every ~2 seconds, we will run `git -C <workspace> rev-parse --verify refs/heads/beadwork^{commit}` and compare the result to the last observed SHA for the current workspace. The fully qualified ref avoids ambiguity.
 2. **Time tick:** every 60 seconds, a low-cadence timer fires so deferred Issues correctly transition into Ready when their `defer_until` boundary passes, even when the ref does not move.
 3. **Window focus gain:** when the window gains focus (not when it loses focus), we will refresh once, so returning to the app is always fresh. We will skip the first focus event of a session, since the initial load already covers it.
-4. **Single-flight loader:** all three triggers route through one single-flight loader that runs the existing Beadwork loaders (`bw list --all --json`, `bw ready --json`, `bw blocked --json`). If a reload is already in flight, a new trigger sets a dirty flag and the loader re-runs once after the active load completes if the data is still stale. The loader emits a Tauri event carrying the new `IssueExplorerData` and the observed SHA.
-5. **Error handling:** we will classify errors at the call site. Transient errors (git command failure, lock, IO) follow the 5-strike rule — up to 5 consecutive failures (~10 seconds at 2s polling) keep the last good state silently; after 5, we show a banner above the list, not a full replacement. Structural errors (`NotBeadworkWorkspace`, `MissingBinary`) surface immediately via the banner, since retrying will not help.
+4. **Single-flight loader:** all three triggers route through one single-flight loader that runs the existing Beadwork loaders (`bw list --all --json`, `bw ready --json`, `bw blocked --json`). If a reload is already in flight, a new trigger sets a dirty flag and the loader re-runs once after the active load completes if the data is still stale. The loader emits a Tauri event carrying the new `IssueExplorerData`, the observed SHA, the current workspace's path, and the workspace's poller generation token.
+5. **Error handling:** we will classify errors at the call site.
+
+| Failure class | Example | Treatment |
+|---|---|---|
+| ref probe failure | `git rev-parse` exit non-zero, lock, IO | Transient, 5-strike rule, banner after |
+| loader failure | any of `bw list/ready/blocked` exit non-zero | Transient, 5-strike rule, banner after |
+| missing `git` | spawn `ENOENT` for `git` binary | Structural, banner immediately |
+| missing `bw` | spawn `ENOENT` for `bw` binary | Structural, banner immediately |
+| no active workspace | backend has no Current Workspace | Service is idle; no error, no banner |
+| workspace deleted during operation | workspace path becomes invalid | Treated as no active workspace; service becomes idle |
+
+The 5-strike threshold applies to consecutive failures of the same transient class (~10 seconds at 2s polling). While failures are accumulating, the last good state is preserved silently; after 5, a banner above the list renders while the last good state remains visible. Structural errors (missing `git`/`bw`, `NotBeadworkWorkspace`) surface immediately via the banner, since retrying will not help.
+
 6. **Workspace switch:** on workspace switch (per ADR-0006), we will trigger an immediate load for the new workspace and start the poller for subsequent ticks. We will keep a per-workspace `last_seen_sha` map so a re-visited workspace with no change does not re-run the loaders; a fresh workspace (no prior SHA) always fires the initial load.
 7. **No manual refresh button:** we will not ship one in the UI.
+8. **Workspace generation guard:** every emitted refresh event carries a monotonically-increasing generation token scoped to the current workspace, in addition to the workspace path. A workspace switch increments the active generation. The frontend drops events whose generation does not match the active one, so an in-flight loader from a previous workspace cannot overwrite the new workspace's state.
 
-The frontend will listen for the Tauri event and atomically replace its `IssueExplorerLoadState`. The user will see no indicator; the list updates in place. The initial-load spinner stays for the first-ever load of a session; subsequent refreshes are silent. When the loader hits the 5-strike threshold or a structural error, the frontend renders a banner above the list while keeping the last good state visible.
+The frontend will listen for the Tauri event and atomically replace its `IssueExplorerLoadState` when the event's generation matches the active one. The user will see no indicator; the list updates in place. The initial-load spinner stays for the first-ever load of a session; subsequent refreshes are silent. When the loader hits the 5-strike threshold or a structural error, the frontend renders a banner above the list while keeping the last good state visible.
 
 ## Consequences
 
@@ -34,7 +47,7 @@ The Issue List becomes truly live in the glossary's sense. Robustness across loo
 
 Cost: ~30 `git rev-parse` subprocess calls per minute per watched workspace, plus up to 3 `bw` calls per change. Acceptable on a desktop app watching one workspace. Worst-case refresh latency is ~2 seconds plus loader time, plus the 60-second tick for time-driven Ready transitions. Imperceptible to humans.
 
-Beadsmith now depends on a `git` binary in addition to `bw`. ADR-0003 established `bw` as the structured-output integration surface; this ADR extends that surface to `git` for one specific purpose (a ref-tip probe). The structured-output contract with `bw` is unchanged.
+Beadsmith now depends on a `git` binary in addition to `bw`. ADR-0003 established `bw` as the structured-output integration surface; this ADR extends that surface to `git` for one specific purpose (a ref-tip probe). The structured-output contract with `bw` is unchanged. If `git` is missing or not on PATH, the user sees a banner explaining Beadsmith needs `git` to detect changes automatically; this is the only place the new `git` dependency surfaces in the UI.
 
 The frontend replacement model means the user has no visual signal that data is current or stale. If that becomes a UX problem, a heartbeat indicator can be added later without changing this design. Polling does not provide per-issue deltas; the frontend receives the full refreshed state each time.
 
