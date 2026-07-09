@@ -33,7 +33,7 @@ Every Beadwork issue in the current workspace across Beadwork's stored statuses.
 _Avoid_: Actionable issues, default list, open issues, ready issues, blocked issues
 
 **Ready**:
-The Beadwork-authored view of Issues available to work next. Beadsmith treats Beadwork's ready calculation as authoritative instead of reimplementing readiness rules.
+The Beadwork-authored view of Issues available to work next. Membership is computed from stored data and the current time — a deferred Issue becomes Ready when its `defer_until` boundary passes, without a new Beadwork commit. Beadsmith treats Beadwork's ready calculation as authoritative instead of reimplementing readiness rules.
 _Avoid_: Locally ready, unblocked open issue
 
 **Blocked**:
