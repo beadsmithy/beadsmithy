@@ -1,0 +1,19 @@
+docs/adr/0006-workspace-management-and-switching.md
+  s_a5eae973cbe31f::t_ca150b610ea3e0 11,15,17,19,23
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.10",
+  "base_commit_sha": "3e75806412891aab9b3c918f1bb48ba268a131a1",
+  "prompts": {},
+  "sessions": {
+    "s_a5eae973cbe31f": {
+      "agent_id": {
+        "tool": "pi",
+        "id": "019f43a1-9261-7235-bce3-b6db3d61c8d7",
+        "model": "unknown"
+      },
+      "human_author": "Tomas Thor Jonsson <benregn@gmail.com>"
+    }
+  }
+}
