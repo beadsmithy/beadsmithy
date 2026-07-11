@@ -1,0 +1,19 @@
+CONTEXT.md
+  s_cd4ca2be6f1756::t_38a6a497971cce 44
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.12",
+  "base_commit_sha": "f55b5cafd5a721a0ea4ca154c0f1199082d09bac",
+  "prompts": {},
+  "sessions": {
+    "s_cd4ca2be6f1756": {
+      "agent_id": {
+        "tool": "pi",
+        "id": "019f506a-c623-7116-9dfd-ba4fc4d0658e",
+        "model": "gpt-5.6-terra"
+      },
+      "human_author": "Tomas Thor Jonsson <benregn@gmail.com>"
+    }
+  }
+}
