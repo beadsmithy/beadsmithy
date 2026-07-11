@@ -2,7 +2,8 @@
   "assignee": "",
   "blocked_by": [],
   "blocks": [
-    "bsm-muz.3"
+    "bsm-muz.3",
+    "bsm-muz.4"
   ],
   "created": "2026-07-11T09:37:08Z",
   "description": "## Question\n\nWhat exactly is a remembered Workspace and how is its catalog managed: canonical identity, duplicate path handling, MRU update rules, removal, deleted-directory recovery, persistence bounds, and basename/path presentation? Resolve the remaining domain terminology and behavior into a decision suitable for the final specification.",
