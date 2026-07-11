@@ -1,5 +1,5 @@
 {
-  "assignee": "",
+  "assignee": "Tomas Thor Jonsson",
   "blocked_by": [],
   "blocks": [
     "bsm-muz.3",
@@ -13,8 +13,8 @@
   ],
   "parent": "bsm-muz",
   "priority": 2,
-  "status": "open",
+  "status": "in_progress",
   "title": "Specify the remembered Workspace catalog",
   "type": "task",
-  "updated_at": "2026-07-11T09:37:33Z"
+  "updated_at": "2026-07-11T21:54:23Z"
 }
