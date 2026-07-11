@@ -12,9 +12,15 @@
     "wayfinder:grilling"
   ],
   "parent": "bsm-muz",
+  "comments": [
+    {
+      "text": "HITL decision: retain a remembered Workspace whose path is missing or unreadable as an unavailable catalog entry. Do not silently remove it; it can be retried if the path returns or removed explicitly by the user.",
+      "timestamp": "2026-07-11T21:54:35Z"
+    }
+  ],
   "priority": 2,
   "status": "in_progress",
   "title": "Specify the remembered Workspace catalog",
   "type": "task",
-  "updated_at": "2026-07-11T21:54:23Z"
+  "updated_at": "2026-07-11T21:54:35Z"
 }
