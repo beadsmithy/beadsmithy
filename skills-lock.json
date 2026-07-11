@@ -19,6 +19,12 @@
       "skillPath": "skills/engineering/domain-modeling/SKILL.md",
       "computedHash": "67343881f5def98487d56243155716110afbcbf22ec92421c882d532b941cb17"
     },
+    "grill-for-unknowns": {
+      "source": "nicobailon/grill-for-unknowns",
+      "sourceType": "github",
+      "skillPath": "plugins/grill-for-unknowns/SKILL.md",
+      "computedHash": "7220d1515113863f0a1c30831c21b63095f4ee56adbb60a04d10324a2faf6ad5"
+    },
     "grill-with-docs": {
       "source": "mattpocock/skills",
       "sourceType": "github",
