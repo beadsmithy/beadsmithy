@@ -1,0 +1,19 @@
+docs/research/workspace-picker-store-and-validation.md
+  s_a6647a5d494c09::t_ebc50bd43c196e 1-51
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.12",
+  "base_commit_sha": "6dc3f62c35adc51552a1d8e66d0b15b9543c280f",
+  "prompts": {},
+  "sessions": {
+    "s_a6647a5d494c09": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "019f528a-af8c-7722-8519-7fa209fcbc77",
+        "model": "gpt-5.6-terra"
+      },
+      "human_author": "Tomas Thor Jonsson <benregn@gmail.com>"
+    }
+  }
+}
