@@ -1,0 +1,14 @@
+{
+  "assignee": "",
+  "blocked_by": [],
+  "blocks": [],
+  "created": "2026-07-11T09:37:08Z",
+  "description": "## Destination\n\nProduce an implementation-ready specification for choosing, remembering, validating, and atomically switching Beadsmith's Current Workspace. It must make multi-workspace switching reliable without relying on the desktop process working directory.\n\n## Notes\n\nPlanning only: resolve decisions and produce linked research/prototype assets; do not implement the feature in this map. Consult the `grilling` and `domain-modeling` skills for every HITL decision. Existing ADR 0006 and the PRD are evidence to reconcile with the specification, not implementation proof.\n\nStanding decisions from the destination interview: use the native directory picker; a Workspace is a Beadwork-initialized Git repository root; persist a removable MRU-ordered catalog and restore the last Current Workspace; show basename plus full path without custom renaming; reject invalid directories; keep the old Current Workspace and Issue List visible until the target data loads; on switch failure retain the old workspace and show a dismissible banner; retain valid workspaces that fail loading so they can be retried.\n\n## Decisions so far\n\n\u003c!-- the index — one line per closed ticket: enough to judge relevance, then zoom the link for the detail the ticket holds --\u003e\n\n## Not yet specified\n\n- The precise picker state model, including how pending selection and retry are represented without exposing a stale workspace as current.\n- The workspace catalog's canonical identity, duplicate and deleted-directory handling, capacity, and persistence schema.\n- The concrete backend/RPC transaction and test strategy for path-threaded Beadwork commands and atomic workspace switches.\n\n## Out of scope\n\n- [Automatically refresh issues from Beadwork](bsm-wj1) — ongoing refresh while a Workspace remains selected is a separate effort; this map covers only initial load and switching.\n- Custom Workspace renaming — the picker will use the directory basename with its full path as supporting text.\n- Selecting a Beadwork subdirectory — a Workspace is the initialized Git repository root.",
+  "id": "bsm-muz",
+  "labels": [],
+  "priority": 2,
+  "status": "open",
+  "title": "Wayfind workspace selection and switching specification",
+  "type": "epic",
+  "updated_at": "2026-07-11T09:37:08Z"
+}
