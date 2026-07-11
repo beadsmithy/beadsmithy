@@ -5,7 +5,9 @@
   "created": "2026-07-11T09:37:09Z",
   "description": "## Question\n\nWhat should the sidebar Current Workspace control and its picker look and feel like across: no Current Workspace, choosing a directory through the native picker, browsing remembered Workspaces, pending selection, validation failure, load failure with retry, and removal? Create a cheap visual/interaction prototype for human review and link it from the resolution.",
   "id": "bsm-muz.3",
-  "labels": [],
+  "labels": [
+    "wayfinder:prototype"
+  ],
   "parent": "bsm-muz",
   "priority": 2,
   "status": "open",
