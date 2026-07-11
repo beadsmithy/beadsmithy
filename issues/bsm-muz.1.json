@@ -1,7 +1,9 @@
 {
   "assignee": "",
   "blocked_by": [],
-  "blocks": [],
+  "blocks": [
+    "bsm-muz.3"
+  ],
   "created": "2026-07-11T09:37:08Z",
   "description": "## Question\n\nWhat do the supported Tauri APIs and Beadwork CLI actually guarantee for native directory picking, durable local storage, and validating that a chosen path is the root of a Beadwork-initialized Git repository? Record an evidence-backed markdown summary as a linked asset, including API versions, error behavior, and implications for the workspace specification.",
   "id": "bsm-muz.1",
@@ -13,5 +15,5 @@
   "status": "open",
   "title": "Research workspace picker, store, and Beadwork validation capabilities",
   "type": "task",
-  "updated_at": "2026-07-11T09:37:08Z"
+  "updated_at": "2026-07-11T09:37:33Z"
 }
