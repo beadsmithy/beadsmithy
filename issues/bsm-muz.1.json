@@ -12,9 +12,15 @@
     "wayfinder:research"
   ],
   "parent": "bsm-muz",
+  "comments": [
+    {
+      "text": "## Resolution\n\nThe evidence is recorded in [workspace-picker-store-and-validation.md](docs/research/workspace-picker-store-and-validation.md).\n\nTauri 2.11.3 can use the dialog picker and backend-owned store plugins. The switcher must normalize a selected directory to the Beadwork Git root: bw config list succeeds from subdirectories, so success alone does not make the selected path a Workspace. Validate through the CLI, resolve the canonical root independently, then deduplicate, load, and persist the root path. Explicit store save belongs in the successful switch commit; failed persistence retains the old Current Workspace.",
+      "timestamp": "2026-07-11T19:08:59Z"
+    }
+  ],
   "priority": 2,
   "status": "in_progress",
   "title": "Research workspace picker, store, and Beadwork validation capabilities",
   "type": "task",
-  "updated_at": "2026-07-11T19:00:10Z"
+  "updated_at": "2026-07-11T19:08:59Z"
 }
