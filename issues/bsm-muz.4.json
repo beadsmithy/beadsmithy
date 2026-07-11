@@ -5,7 +5,9 @@
   "created": "2026-07-11T09:37:09Z",
   "description": "## Question\n\nHow must the backend, RPC boundary, and Issue Explorer coordinate a switch so a target Workspace is validated and loaded through Beadwork before it becomes Current, while the old workspace remains authoritative on failures? Resolve path threading, startup restoration, concurrent/in-flight load safety, error/banner semantics, and the boundary between persisted known and active Workspaces.",
   "id": "bsm-muz.4",
-  "labels": [],
+  "labels": [
+    "wayfinder:grilling"
+  ],
   "parent": "bsm-muz",
   "priority": 2,
   "status": "open",
