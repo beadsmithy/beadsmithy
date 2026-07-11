@@ -41,7 +41,7 @@ The Beadwork-authored view of Issues that cannot proceed because of unresolved b
 _Avoid_: Locally blocked, has dependencies
 
 **Workspace**:
-A local directory initialized as a Beadwork workspace that Beadsmith has been configured to show. Each Workspace has a user-visible name and a filesystem path. Beadsmith remembers Workspaces across restarts.
+The root directory of a local Git repository initialized as a Beadwork workspace that Beadsmith has been configured to show. Each Workspace has a user-visible name and a filesystem path. Beadsmith remembers Workspaces across restarts.
 _Avoid_: Project, repository, folder, directory (when referring to the Beadsmith concept)
 
 **Current Workspace**:
