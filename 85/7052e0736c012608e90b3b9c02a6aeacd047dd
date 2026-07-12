@@ -1,0 +1,19 @@
+CONTEXT.md
+  s_a6647a5d494c09::t_bcbe180b8ace44 50-53
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.12",
+  "base_commit_sha": "857052e0736c012608e90b3b9c02a6aeacd047dd",
+  "prompts": {},
+  "sessions": {
+    "s_a6647a5d494c09": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "019f528a-af8c-7722-8519-7fa209fcbc77",
+        "model": "gpt-5.6-terra"
+      },
+      "human_author": "Tomas Thor Jonsson <benregn@gmail.com>"
+    }
+  }
+}
