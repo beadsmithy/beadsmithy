@@ -16,11 +16,15 @@
     {
       "text": "HITL decision: retain a remembered Workspace whose path is missing or unreadable as an unavailable catalog entry. Do not silently remove it; it can be retried if the path returns or removed explicitly by the user.",
       "timestamp": "2026-07-11T21:54:35Z"
+    },
+    {
+      "text": "HITL decision: do not add special symlink handling in this version. Catalog identity is the validated root path under ordinary path handling; symlink aliases are not canonicalized or deduplicated.",
+      "timestamp": "2026-07-12T07:11:04Z"
     }
   ],
   "priority": 2,
   "status": "in_progress",
   "title": "Specify the remembered Workspace catalog",
   "type": "task",
-  "updated_at": "2026-07-11T21:54:35Z"
+  "updated_at": "2026-07-12T07:11:04Z"
 }
