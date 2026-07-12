@@ -5,6 +5,7 @@
     "bsm-muz.4"
   ],
   "blocks": [],
+  "closed_at": "2026-07-12T08:41:53Z",
   "created": "2026-07-11T09:37:09Z",
   "description": "## Question\n\nWhat acceptance evidence and test layers make the workspace-management specification safe to implement? Resolve unit, integration, and real desktop WebDriver coverage; define how existing launch-directory and `--workspace` test setup migrates; and identify any documentation or ADR updates required by the final decisions.",
   "id": "bsm-muz.5",
@@ -23,7 +24,7 @@
     }
   ],
   "priority": 2,
-  "status": "in_progress",
+  "status": "closed",
   "title": "Specify workspace-management verification and migration",
   "type": "task",
   "updated_at": "2026-07-12T08:41:53Z"
