@@ -8,9 +8,15 @@
   "labels": [
     "wayfinder:map"
   ],
+  "comments": [
+    {
+      "text": "## Map complete\n\nAll five workspace-selection and switching questions are resolved and linked from the map. The resulting specification is ready to hand off for implementation; automatic refresh remains a separate epic.",
+      "timestamp": "2026-07-12T08:41:53Z"
+    }
+  ],
   "priority": 2,
   "status": "open",
   "title": "Wayfind workspace selection and switching specification",
   "type": "epic",
-  "updated_at": "2026-07-12T08:22:56Z"
+  "updated_at": "2026-07-12T08:41:53Z"
 }
