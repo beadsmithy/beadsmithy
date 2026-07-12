@@ -28,11 +28,15 @@
     {
       "text": "HITL decision: removing the Current Workspace clears Current Workspace and shows the empty chooser. Do not automatically switch to the next MRU entry.",
       "timestamp": "2026-07-12T07:12:18Z"
+    },
+    {
+      "text": "## Resolution\n\nThe Workspace Catalog is a locally persisted, MRU-ordered collection of remembered Workspaces, capped at 100 entries as ADR 0006 already establishes.\n\n- Identity is the validated Git-root path under ordinary path handling. This version intentionally does not canonicalize or deduplicate symlink aliases.\n- An exact already-known path remains one catalog entry. It moves to the MRU head only after validation and loading succeed as Current Workspace; picker selection, failed validation, and failed load retries do not change MRU order.\n- A missing or unreadable path remains as an Unavailable Workspace until explicitly removed. It is retryable if it returns, but cannot become Current Workspace until validation and loading succeed.\n- Removing a remembered Workspace needs no confirmation because it only changes Beadsmith's local catalog. Removing Current Workspace clears it and shows the empty chooser; it does not silently switch to another repository.\n- Presentation remains the directory basename with full path as supporting text, with no custom renaming.\n\nThe glossary now defines Workspace Catalog and Unavailable Workspace in CONTEXT.md.",
+      "timestamp": "2026-07-12T07:13:21Z"
     }
   ],
   "priority": 2,
   "status": "in_progress",
   "title": "Specify the remembered Workspace catalog",
   "type": "task",
-  "updated_at": "2026-07-12T07:12:18Z"
+  "updated_at": "2026-07-12T07:13:21Z"
 }
