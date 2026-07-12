@@ -20,11 +20,15 @@
     {
       "text": "HITL decision: do not add special symlink handling in this version. Catalog identity is the validated root path under ordinary path handling; symlink aliases are not canonicalized or deduplicated.",
       "timestamp": "2026-07-12T07:11:04Z"
+    },
+    {
+      "text": "HITL decision: move a catalog entry to the MRU head only after it successfully validates and loads as the Current Workspace. Mere selection, adding through the picker, and failed validation or load retries do not change recency.",
+      "timestamp": "2026-07-12T07:11:44Z"
     }
   ],
   "priority": 2,
   "status": "in_progress",
   "title": "Specify the remembered Workspace catalog",
   "type": "task",
-  "updated_at": "2026-07-12T07:11:04Z"
+  "updated_at": "2026-07-12T07:11:44Z"
 }
