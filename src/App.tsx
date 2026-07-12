@@ -27,7 +27,6 @@ import {
 } from "./issues/issue-loader";
 import type { IssueExplorerLoadState } from "./issues/issue-loader";
 import { IssueExplorer } from "./issues/IssueExplorer";
-import { WorkspaceSwitcherPrototype } from "./workspace-switcher.prototype";
 
 const ISSUE_LIST_VIEW_ICONS: Record<IssueListViewId, LucideIcon> = {
   all: Inbox,
@@ -96,10 +95,6 @@ const SidebarNavButton = ({
 };
 
 export default function App() {
-  const isWorkspaceSwitcherPrototype =
-    import.meta.env.DEV &&
-    new URLSearchParams(window.location.search).get("prototype") ===
-      "workspace-switcher";
   const [issueState, setIssueState] = useState<IssueExplorerLoadState>(
     ISSUE_EXPLORER_LOADING_STATE
   );
@@ -120,10 +115,6 @@ export default function App() {
       setIssueState(await loadIssueExplorerStateFromTauRpc());
     })();
   }, []);
-
-  if (isWorkspaceSwitcherPrototype) {
-    return <WorkspaceSwitcherPrototype />;
-  }
 
   return (
     <div className="flex h-screen w-screen overflow-hidden bg-background font-primary text-text-main antialiased">
