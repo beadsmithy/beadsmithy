@@ -1,0 +1,19 @@
+docs/research/workspace-management-verification-and-migration.md
+  s_a6647a5d494c09::t_3a0bc90841c6c8 1-52
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.12",
+  "base_commit_sha": "59cbd387ef37ef92f0591721f1402ca7f3300af1",
+  "prompts": {},
+  "sessions": {
+    "s_a6647a5d494c09": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "019f528a-af8c-7722-8519-7fa209fcbc77",
+        "model": "gpt-5.6-terra"
+      },
+      "human_author": "Tomas Thor Jonsson <benregn@gmail.com>"
+    }
+  }
+}
