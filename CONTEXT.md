@@ -47,3 +47,7 @@ _Avoid_: Project, repository, folder, directory (when referring to the Beadsmith
 **Current Workspace**:
 The Workspace whose Beadwork issues Beadsmith is currently showing. The user selects the Current Workspace from their known Workspaces.
 _Avoid_: Active workspace, selected folder
+
+**Unavailable Workspace**:
+A remembered Workspace whose saved path is currently missing or unreadable. It remains in the catalog until the user explicitly removes it, but cannot become the Current Workspace until validation and loading succeed.
+_Avoid_: Deleted workspace, invalid workspace (unless validation has established that it is not a Beadwork Workspace)
