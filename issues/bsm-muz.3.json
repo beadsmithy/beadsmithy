@@ -18,11 +18,15 @@
     {
       "text": "## Prototype ready for review\n\nThree dev-only Current Workspace switcher variants are available on the existing Issue Explorer host: [workspace-switcher.prototype.tsx](src/workspace-switcher.prototype.tsx).\n\nOpen http://127.0.0.1:1420/?prototype=workspace-switcher\u0026variant=A\u0026scenario=ready in a development build. Use left/right arrows to compare A (inline selector), B (workspace drawer), and C (status dock); the scenario selector covers no workspace, validation, validation failure, load failure/retry, and removal. This is explicitly throwaway code, gated to development only.",
       "timestamp": "2026-07-12T07:21:18Z"
+    },
+    {
+      "text": "## Resolution\n\nThe review selected **Variant A — Inline selector**.\n\nThe future product control belongs in the existing sidebar's Current Workspace area: show the active Workspace basename and its full path, then reveal remembered Workspaces and the native Choose folder action from that compact control. Keep the catalog adjacent to the control rather than taking over the Issue Explorer or adding a permanent workspace drawer.\n\nThe selected direction must still expose the specified states in-place: an empty chooser when none is Current, a pending validation/load state, inline validation feedback, a retryable load-failure banner while the old Issue List remains visible, unavailable remembered entries, and local-only removal. The prototype has been deleted rather than promoted; this is a design direction, not feature implementation.",
+      "timestamp": "2026-07-12T08:01:00Z"
     }
   ],
   "priority": 2,
   "status": "in_progress",
   "title": "Prototype the Current Workspace switcher",
   "type": "task",
-  "updated_at": "2026-07-12T07:21:18Z"
+  "updated_at": "2026-07-12T08:01:00Z"
 }
