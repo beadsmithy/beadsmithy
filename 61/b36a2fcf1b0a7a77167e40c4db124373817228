@@ -1,0 +1,22 @@
+CONTEXT.md
+  s_a6647a5d494c09::t_d89a5f37306c52 55-58
+docs/research/atomic-workspace-switch-transaction.md
+  s_a6647a5d494c09::t_3cd362f9f177b6 1-18,20-29,31-54
+  s_a6647a5d494c09::t_22452e702fe95e 19,30
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.12",
+  "base_commit_sha": "61b36a2fcf1b0a7a77167e40c4db124373817228",
+  "prompts": {},
+  "sessions": {
+    "s_a6647a5d494c09": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "019f528a-af8c-7722-8519-7fa209fcbc77",
+        "model": "gpt-5.6-terra"
+      },
+      "human_author": "Tomas Thor Jonsson <benregn@gmail.com>"
+    }
+  }
+}
