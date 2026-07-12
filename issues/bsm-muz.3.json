@@ -14,9 +14,15 @@
     "wayfinder:prototype"
   ],
   "parent": "bsm-muz",
+  "comments": [
+    {
+      "text": "## Prototype ready for review\n\nThree dev-only Current Workspace switcher variants are available on the existing Issue Explorer host: [workspace-switcher.prototype.tsx](src/workspace-switcher.prototype.tsx).\n\nOpen http://127.0.0.1:1420/?prototype=workspace-switcher\u0026variant=A\u0026scenario=ready in a development build. Use left/right arrows to compare A (inline selector), B (workspace drawer), and C (status dock); the scenario selector covers no workspace, validation, validation failure, load failure/retry, and removal. This is explicitly throwaway code, gated to development only.",
+      "timestamp": "2026-07-12T07:21:18Z"
+    }
+  ],
   "priority": 2,
   "status": "in_progress",
   "title": "Prototype the Current Workspace switcher",
   "type": "task",
-  "updated_at": "2026-07-12T07:14:47Z"
+  "updated_at": "2026-07-12T07:21:18Z"
 }
