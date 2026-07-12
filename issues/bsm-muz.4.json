@@ -14,9 +14,15 @@
     "wayfinder:grilling"
   ],
   "parent": "bsm-muz",
+  "comments": [
+    {
+      "text": "HITL decision: latest selection wins. When a new Workspace is chosen while another candidate is validating or loading, it replaces the pending target immediately. The prior attempt may finish, but its result is discarded by request generation; the old Current Workspace remains authoritative until the newest candidate commits.",
+      "timestamp": "2026-07-12T08:12:16Z"
+    }
+  ],
   "priority": 2,
   "status": "in_progress",
   "title": "Specify the atomic workspace-switch transaction",
   "type": "task",
-  "updated_at": "2026-07-12T08:05:21Z"
+  "updated_at": "2026-07-12T08:12:16Z"
 }
