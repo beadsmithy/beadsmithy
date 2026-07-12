@@ -1,5 +1,5 @@
 {
-  "assignee": "",
+  "assignee": "Tomas Thor Jonsson",
   "blocked_by": [
     "bsm-muz.1",
     "bsm-muz.2"
@@ -15,8 +15,8 @@
   ],
   "parent": "bsm-muz",
   "priority": 2,
-  "status": "open",
+  "status": "in_progress",
   "title": "Specify the atomic workspace-switch transaction",
   "type": "task",
-  "updated_at": "2026-07-11T09:37:33Z"
+  "updated_at": "2026-07-12T08:05:21Z"
 }
