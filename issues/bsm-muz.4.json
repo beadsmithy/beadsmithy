@@ -22,11 +22,15 @@
     {
       "text": "HITL decision: startup restoration is provisional. A remembered last Workspace becomes Current Workspace only after validation and a complete Issue Explorer load succeed. If loading fails, retain it as a retryable remembered Workspace and leave the app with no Current Workspace rather than presenting a failed workspace as Current.",
       "timestamp": "2026-07-12T08:13:21Z"
+    },
+    {
+      "text": "## Resolution\n\nThe complete transaction specification is in [atomic-workspace-switch-transaction.md](docs/research/atomic-workspace-switch-transaction.md).\n\nThe backend owns catalog, Pending Workspace, and Current Workspace; issue-loading RPCs stay path-free and every bw subprocess receives an explicit backend-selected cwd. A candidate is known after validation but becomes Current only after all Issue Explorer views load and the Current/MRU store update saves. The old snapshot remains visible throughout a switch and every failure.\n\nHITL decisions captured: latest selection wins via generation checks; startup restoration is provisional and a failed load leaves no Current Workspace; persistence failure prevents the visual switch.",
+      "timestamp": "2026-07-12T08:22:56Z"
     }
   ],
   "priority": 2,
   "status": "in_progress",
   "title": "Specify the atomic workspace-switch transaction",
   "type": "task",
-  "updated_at": "2026-07-12T08:13:21Z"
+  "updated_at": "2026-07-12T08:22:56Z"
 }
