@@ -24,11 +24,15 @@
     {
       "text": "HITL decision: move a catalog entry to the MRU head only after it successfully validates and loads as the Current Workspace. Mere selection, adding through the picker, and failed validation or load retries do not change recency.",
       "timestamp": "2026-07-12T07:11:44Z"
+    },
+    {
+      "text": "HITL decision: removing the Current Workspace clears Current Workspace and shows the empty chooser. Do not automatically switch to the next MRU entry.",
+      "timestamp": "2026-07-12T07:12:18Z"
     }
   ],
   "priority": 2,
   "status": "in_progress",
   "title": "Specify the remembered Workspace catalog",
   "type": "task",
-  "updated_at": "2026-07-12T07:11:44Z"
+  "updated_at": "2026-07-12T07:12:18Z"
 }
