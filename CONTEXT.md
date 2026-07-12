@@ -52,6 +52,10 @@ _Avoid_: Active workspace, selected folder
 The locally persisted, MRU-ordered collection of remembered Workspaces. It may contain both available and Unavailable Workspaces. Removing an entry affects only this collection, never its Git repository or Beadwork data.
 _Avoid_: Recent-files list, local repository registry
 
+**Pending Workspace**:
+A candidate Workspace being validated and loaded before it may become Current Workspace. Only the most recently selected Pending Workspace may commit; a newer selection supersedes the earlier attempt.
+_Avoid_: Current Workspace, active Workspace
+
 **Unavailable Workspace**:
 A remembered Workspace whose saved path is currently missing or unreadable. It remains in the catalog until the user explicitly removes it, but cannot become the Current Workspace until validation and loading succeed.
 _Avoid_: Deleted workspace, invalid workspace (unless validation has established that it is not a Beadwork Workspace)
