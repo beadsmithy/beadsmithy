@@ -16,11 +16,15 @@
     {
       "text": "HITL decision: require real desktop WebDriver coverage for switching between two disposable Beadwork repositories and for an invalid-directory failure that preserves the prior workspace. Unit and integration coverage remains required for the state machine and explicit cwd threading.",
       "timestamp": "2026-07-12T08:41:01Z"
+    },
+    {
+      "text": "## Resolution\n\nThe detailed verification and migration plan is in [workspace-management-verification-and-migration.md](docs/research/workspace-management-verification-and-migration.md).\n\nAcceptance requires Rust unit coverage for explicit cwd/state transitions/generations; RPC/frontend integration coverage for snapshot preservation and error states; and real desktop WebDriver coverage for A to B switching plus invalid-target preservation. The existing launch cwd and --workspace suite migrates to an empty launch seeded only through the normal typed workspace-switch transport.",
+      "timestamp": "2026-07-12T08:41:53Z"
     }
   ],
   "priority": 2,
   "status": "in_progress",
   "title": "Specify workspace-management verification and migration",
   "type": "task",
-  "updated_at": "2026-07-12T08:41:01Z"
+  "updated_at": "2026-07-12T08:41:53Z"
 }
