@@ -1,0 +1,22 @@
+src/App.tsx
+  s_a6647a5d494c09::t_bc863500daad5c 30,99-102,124-126
+  s_a6647a5d494c09::t_b2c94a1718832e 127
+src/workspace-switcher.prototype.tsx
+  s_a6647a5d494c09::t_bc863500daad5c 1-352
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.12",
+  "base_commit_sha": "df7e776081b318a7471c2e57736304afbd6b91a2",
+  "prompts": {},
+  "sessions": {
+    "s_a6647a5d494c09": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "019f528a-af8c-7722-8519-7fa209fcbc77",
+        "model": "gpt-5.6-terra"
+      },
+      "human_author": "Tomas Thor Jonsson <benregn@gmail.com>"
+    }
+  }
+}
