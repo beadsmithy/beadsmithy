@@ -21,11 +21,15 @@
     {
       "text": "Changelog: this slice is now blocked by the two foundation subtasks, not by a monolithic foundation task. It must consume the explicit command scope and transactional state service; it may not recreate cwd, store, root-normalization, or mutation-ordering logic in the UI layer.",
       "timestamp": "2026-07-13T12:45:14Z"
+    },
+    {
+      "text": "Changelog: absorbed and replaced the former foundation subtree. Because there are no legacy users, this task now removes cwd and startup-override behavior outright and delivers the complete initial-selection path in one coherent slice. It retains the transactional persistence, root-validation, test-isolation, and explicit-reset safeguards that protect the new feature itself.",
+      "timestamp": "2026-07-13T13:18:15Z"
     }
   ],
   "priority": 2,
   "status": "open",
   "title": "Select and persist an initial Current Workspace",
   "type": "task",
-  "updated_at": "2026-07-13T13:18:14Z"
+  "updated_at": "2026-07-13T13:18:15Z"
 }
