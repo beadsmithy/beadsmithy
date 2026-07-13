@@ -1,0 +1,71 @@
+src/rpc/bindings.ts
+  s_e4d2bffb4ccf90::t_8a15f1d34ac86c 22,77-82
+  s_e4d2bffb4ccf90::t_08aa322d669f41 43-75,83
+  s_e4d2bffb4ccf90::t_74f6d7f9a7ff6c 76
+src/components/WorkspaceSelector.tsx
+  s_e4d2bffb4ccf90::t_57ee231ba13201 8
+  s_e4d2bffb4ccf90::t_c599272bf812b7 1-7,9-11,19-47,49-70,72-77,79-81,85-93,98,116-119,124-126,130-160
+  s_e4d2bffb4ccf90::t_a42fd981133ef7 12-18,48,94-97,112-113,120-123,127-129
+  s_e4d2bffb4ccf90::t_c2d6c49ca776e0 82-84
+  s_e4d2bffb4ccf90::t_a1056315cead06 71,78,99-111,114-115
+src/App.tsx
+  s_e4d2bffb4ccf90::t_dafe9afb382f60 157-160
+  s_e4d2bffb4ccf90::t_c11dd7b19e72d9 1,15-18,35-36,98-100,114-121,124-156,161-168
+  s_e4d2bffb4ccf90::t_b6ae831e8a114e 248
+  s_e4d2bffb4ccf90::t_4eca6be0a6dc73 219-226,229-247
+  s_e4d2bffb4ccf90::t_ea7d13fb6e8b1c 169-175,249-256
+src-tauri/src/lib.rs
+  s_e4d2bffb4ccf90::t_e58398b756eabf 28-33,44-46
+src/components/WorkspaceSelector.test.tsx
+  s_e4d2bffb4ccf90::t_042cdd5676c830 1-54,56-63,65-70,72-88,90-102,104-106
+  s_e4d2bffb4ccf90::t_74f6d7f9a7ff6c 55,89
+  s_e4d2bffb4ccf90::t_53e65108f92831 103
+  s_e4d2bffb4ccf90::t_29a4517399433d 64
+  s_e4d2bffb4ccf90::t_fbd985410679e3 71
+src-tauri/src/workspace.rs
+  s_e4d2bffb4ccf90::t_8c62f4055ad9fb 505-506,508
+  s_e4d2bffb4ccf90::t_8086f9bf397428 23,34,67,74,92,104
+  s_e4d2bffb4ccf90::t_8490474f1eb6be 280-282,377,386-392,394
+  s_e4d2bffb4ccf90::t_74ebccbbf8639c 820,852,983
+  s_e4d2bffb4ccf90::t_9f269ab5370643 1106-1131,1135-1156,1160-1170,1173-1207
+  s_e4d2bffb4ccf90::t_68f886934d1269 27-33,35-39,278-279,283-285,292,306,373,378-385,393,395-423,495-504,507,511-515
+  s_e4d2bffb4ccf90::t_a72328e3844f74 722-742,1085-1102
+  s_e4d2bffb4ccf90::t_34ca11ae7acf74 456-463
+  s_e4d2bffb4ccf90::t_572913f256ed0f 958,994
+  s_e4d2bffb4ccf90::t_08aa322d669f41 155
+  s_e4d2bffb4ccf90::t_5e858a03108986 1171-1172
+  s_e4d2bffb4ccf90::t_d47e22b465e6eb 424,509,1208-1251,1253-1258,1261-1264
+  s_e4d2bffb4ccf90::t_7a072d1b69fce6 244,578,821,832,853,864,984,1063
+  s_e4d2bffb4ccf90::t_2920e881605f46 1252,1259-1260
+  s_e4d2bffb4ccf90::t_5e69e5d9a78476 425
+  s_e4d2bffb4ccf90::t_ca56d25e19090c 510
+src-tauri/capabilities/default.json
+  s_e4d2bffb4ccf90::t_1fb4c4d345a5f5 6
+src-tauri/src/rpc.rs
+  s_e4d2bffb4ccf90::t_b2f3852a9254ed 740-755
+  s_e4d2bffb4ccf90::t_d9b5d1482a425a 7,301
+  s_e4d2bffb4ccf90::t_725e3ef71248cd 98-105,124-133,287,289
+  s_e4d2bffb4ccf90::t_d892cb40749ef3 9,12-18,20-22,25,30,38-39,44-46,48,53-59,61-63,65-75,80-97,106-110,113,115-123,134-150,162-187,288,290-293
+  s_e4d2bffb4ccf90::t_79afca7f012684 19,47,60,64,151-161
+  s_e4d2bffb4ccf90::t_a3880c1e0716b8 370-407,685
+package.json
+  s_e4d2bffb4ccf90::t_4473fa779bbd60 24
+pnpm-lock.yaml
+  s_e4d2bffb4ccf90::t_613e1e0eb7e867 17-19,1880-1882,6053-6056
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.13",
+  "base_commit_sha": "09cc837a4d5070c2be5e00d5ad20a91faa3ccea6",
+  "prompts": {},
+  "sessions": {
+    "s_e4d2bffb4ccf90": {
+      "agent_id": {
+        "tool": "pi",
+        "id": "019f5d7d-796b-7d5b-ad62-b12e9621a439",
+        "model": "gpt-5.6-terra"
+      },
+      "human_author": "Tomas Thor Jonsson <benregn@gmail.com>"
+    }
+  }
+}
