@@ -7,7 +7,7 @@
 
 pub mod issues;
 pub mod rpc;
-mod workspace;
+pub mod workspace;
 
 // Dev bridge for the `tauri-agent-tools` CLI (DOM/eval/screenshot inspection for
 // agent-driven debugging). Debug builds only; compiled out entirely in release.
