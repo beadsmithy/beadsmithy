@@ -26,6 +26,10 @@
     {
       "text": "Changelog: incorporated audit amendments into the PRD description and affected task descriptions. The PRD now states transactional save rollback, serialized removal and generation invalidation, recoverable catalog-storage health, isolated desktop storage, cancellable pending selection, and Workspace-scoped Issue Explorer interaction reset.",
       "timestamp": "2026-07-13T12:46:28Z"
+    },
+    {
+      "text": "## Revised delivery graph\\n\\n\\n\\nThe two foundation tasks make persistence and command scope independently reviewable. The automatic-refresh effort is now explicitly downstream of the completed Workspace-management epic.",
+      "timestamp": "2026-07-13T12:46:28Z"
     }
   ],
   "priority": 2,
