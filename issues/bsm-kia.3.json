@@ -18,11 +18,15 @@
     {
       "text": "## Catalog rule of thumb\n\nThe catalog remembers successful user choices; it does not assert that every saved repository remains available. Availability is re-established only by validation and a complete load, which is why unavailable entries stay retryable instead of disappearing.",
       "timestamp": "2026-07-13T12:35:06Z"
+    },
+    {
+      "text": "Changelog: catalog behavior must use the transactional state service, including its typed storage-health state. The selector should retain user data on a corrupted catalog and expose explicit recovery rather than silently resetting Workspace memory.",
+      "timestamp": "2026-07-13T12:45:14Z"
     }
   ],
   "priority": 2,
   "status": "open",
   "title": "Restore and manage the Workspace Catalog",
   "type": "task",
-  "updated_at": "2026-07-13T12:35:06Z"
+  "updated_at": "2026-07-13T12:45:14Z"
 }
