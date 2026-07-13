@@ -22,11 +22,15 @@
     {
       "text": "Changelog: hardened the implementation plan after a persistence and concurrency audit. The delivery graph now expands the foundation into explicit command scope and transactional state/persistence work. Added invariants cover failed-save rollback, serialized mutation ordering, removal during pending work, corrupted-store recovery, isolated desktop test storage, cancellation, and Issue Explorer interaction-state reset after a successful switch.",
       "timestamp": "2026-07-13T12:45:15Z"
+    },
+    {
+      "text": "Changelog: incorporated audit amendments into the PRD description and affected task descriptions. The PRD now states transactional save rollback, serialized removal and generation invalidation, recoverable catalog-storage health, isolated desktop storage, cancellable pending selection, and Workspace-scoped Issue Explorer interaction reset.",
+      "timestamp": "2026-07-13T12:46:28Z"
     }
   ],
   "priority": 2,
   "status": "open",
   "title": "Implement Workspace management",
   "type": "epic",
-  "updated_at": "2026-07-13T12:46:27Z"
+  "updated_at": "2026-07-13T12:46:28Z"
 }
