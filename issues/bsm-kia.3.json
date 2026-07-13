@@ -22,6 +22,10 @@
     {
       "text": "Changelog: catalog behavior must use the transactional state service, including its typed storage-health state. The selector should retain user data on a corrupted catalog and expose explicit recovery rather than silently resetting Workspace memory.",
       "timestamp": "2026-07-13T12:45:14Z"
+    },
+    {
+      "text": "Changelog: expanded the task body with explicit storage-health recovery and picker default-location behavior so unavailable repositories and unreadable catalog memory cannot be conflated.",
+      "timestamp": "2026-07-13T12:46:28Z"
     }
   ],
   "priority": 2,
