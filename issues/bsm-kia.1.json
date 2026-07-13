@@ -1,9 +1,7 @@
 {
   "assignee": "",
   "blocked_by": [],
-  "blocks": [
-    "bsm-kia.2"
-  ],
+  "blocks": [],
   "created": "2026-07-13T12:35:04Z",
   "description": "## Background\n\nWorkspace management cannot be safely built on the desktop process working directory. The existing Issue Explorer command path inherits process cwd, while selecting and persisting Workspaces introduces asynchronous validation, loading, store writes, retries, removal, and concurrent user intent. A correct implementation needs both an explicit command scope and a transactional state/persistence boundary before product UI can migrate.\n\nThis epic is an intentional expand-stage prefactor. It has two narrow children: the first defines path-scoped Beadwork validation and loading; the second makes Workspace state and persistence serialized, durable, recoverable, and safe for isolated desktop tests. The product path contracts away cwd behavior only after both are complete.\n\n## What to build\n\nDeliver the internal Workspace foundation that makes later first-time selection, catalog management, and atomic switching safe. It must expose a cohesive backend Workspace contract without exposing persistence or command-path choices to the frontend.\n\n## Technical Approach\n\n1. Establish an explicit working-directory and root-validation boundary for every Beadwork view command.\n2. Build a backend-owned Workspace state service whose proposed catalog/current snapshots are serialized and saved transactionally before they become observable.\n\n## Considerations\n\n- This is the sole intentionally non-UI-first stage. It exists to keep the repository green during a shared contract migration, not to create a second Workspace mode.\n- Process cwd and startup override behavior remain temporary compatibility only until the initial-selection bead contracts them away.\n- The foundation must keep test storage isolated from developer catalog data and must not introduce frontend store access.\n\n## Acceptance criteria\n\n- [ ] Both child beads provide an explicit, testable backend Workspace contract.\n- [ ] A later UI slice can validate, load, retry, remove, and switch Workspaces without relying on ambient cwd or mutable partial store state.\n- [ ] The compatibility path is isolated and ready to be removed by the first user-facing selection slice.\n\n## Test Plan\n\n- Each child owns Rust unit and contract tests for its boundary.\n- Child seams use fakes rather than real filesystem or subprocess state where possible.\n- The first user-facing slice verifies the two seams compose through TauRPC and the desktop binary.",
   "id": "bsm-kia.1",
@@ -21,5 +19,5 @@
   "status": "open",
   "title": "Establish the path-scoped Workspace foundation",
   "type": "epic",
-  "updated_at": "2026-07-13T12:45:12Z"
+  "updated_at": "2026-07-13T12:45:13Z"
 }

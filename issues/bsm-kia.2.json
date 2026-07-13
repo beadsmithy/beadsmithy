@@ -1,8 +1,6 @@
 {
   "assignee": "",
-  "blocked_by": [
-    "bsm-kia.1"
-  ],
+  "blocked_by": [],
   "blocks": [
     "bsm-kia.3",
     "bsm-kia.4",
@@ -25,5 +23,5 @@
   "status": "open",
   "title": "Choose and load an initial Current Workspace",
   "type": "task",
-  "updated_at": "2026-07-13T12:35:05Z"
+  "updated_at": "2026-07-13T12:45:13Z"
 }
