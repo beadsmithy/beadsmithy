@@ -19,7 +19,7 @@ export type IssueComment = { text: string; author: string; timestamp: string }
 /**
  * User-displayable typed issue-list error payload.
  */
-export type IssueListError = { 
+export type IssueListError = {
 /**
  * Machine-readable error kind.
  */
@@ -40,9 +40,47 @@ export type ListIssuesResponse = { workspacePath: string; issues: Issue[] }
  */
 export type LoadIssueExplorerDataResponse = { workspacePath: string; allIssues: Issue[]; readyIssues: Issue[]; blockedIssues: Issue[] }
 
-const ARGS_MAP = { '':'{"list_issues":[],"load_issue_explorer_data":[]}', 'devBridge':'{"result":["id","value"]}' }
-export type Router = { "": {list_issues: () => Promise<ListIssuesResponse>, 
-load_issue_explorer_data: () => Promise<LoadIssueExplorerDataResponse>},
+/**
+ * A workspace known to Beadsmith, represented by its Git root.
+ */
+export type Workspace = { path: string; availability?: WorkspaceAvailability }
+
+/**
+ * Whether a catalog entry was last reachable during startup restoration.
+ * This is intentionally distinct from catalog storage health: an unavailable
+ * repository remains a recoverable local catalog entry.
+ */
+export type WorkspaceAvailability = "available" | "unavailable"
+
+/**
+ * A typed workspace failure suitable for a later RPC/UI boundary.
+ */
+export type WorkspaceError = { kind: WorkspaceErrorKind; message: string; retryable: boolean }
+
+/**
+ * A typed machine-readable workspace failure category.
+ */
+export type WorkspaceErrorKind = "storeReadFailed" | "storeSaveFailed" | "validationFailed" | "gitRootFailed" | "loadFailed" | "staleGeneration"
+
+/**
+ * Public, serializable workspace state for a later typed RPC boundary.
+ */
+export type WorkspaceState = { version: number; catalog: Workspace[]; currentWorkspace: Workspace | null; pendingWorkspace: Workspace | null; generation: number; error: WorkspaceError | null }
+
+/**
+ * Result of a successful switch; the frontend receives its complete snapshot
+ * only after the service's durable Current commit.
+ */
+export type WorkspaceSwitchResponse = { state: WorkspaceState; issueData: LoadIssueExplorerDataResponse }
+
+const ARGS_MAP = { '':'{"list_issues":[],"load_issue_explorer_data":[],"remove_workspace":["path"],"reset_workspace_memory":[],"retry_workspace_memory":[],"switch_workspace":["candidate_path"],"workspace_state":[]}', 'devBridge':'{"result":["id","value"]}' }
+export type Router = { "": {list_issues: () => Promise<ListIssuesResponse>,
+load_issue_explorer_data: () => Promise<LoadIssueExplorerDataResponse>,
+remove_workspace: (path: string) => Promise<WorkspaceState>,
+reset_workspace_memory: () => Promise<WorkspaceState>,
+retry_workspace_memory: () => Promise<WorkspaceState>,
+switch_workspace: (candidatePath: string) => Promise<WorkspaceSwitchResponse>,
+workspace_state: () => Promise<WorkspaceState>},
 "devBridge": {result: (id: string, value: string) => Promise<void>} };
 
 

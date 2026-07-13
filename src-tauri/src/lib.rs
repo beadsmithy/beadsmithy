@@ -25,9 +25,12 @@ fn start_dev_bridge(app: &tauri::AppHandle) {
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub async fn run() {
-    workspace::apply_workspace_override(std::env::args());
-
-    let builder = tauri::Builder::default().plugin(tauri_plugin_opener::init());
+    let workspace_api = rpc::BeadsmithApiImpl::default();
+    let workspace_setup_api = workspace_api.clone();
+    let builder = tauri::Builder::default()
+        .plugin(tauri_plugin_opener::init())
+        .plugin(tauri_plugin_store::Builder::default().build())
+        .plugin(tauri_plugin_dialog::init());
 
     // WebDriver plugins back the end-to-end suite (see
     // docs/agents/webdriver-e2e.md). They are never registered outside debug
@@ -38,8 +41,9 @@ pub async fn run() {
         .plugin(tauri_plugin_wdio_webdriver::init());
 
     builder
-        .invoke_handler(rpc::router::<tauri::Wry>().into_handler())
-        .setup(|_app| {
+        .invoke_handler(rpc::router::<tauri::Wry>(workspace_api).into_handler())
+        .setup(move |_app| {
+            workspace_setup_api.initialize_workspace(_app.handle().clone());
             #[cfg(debug_assertions)]
             start_dev_bridge(_app.handle());
             Ok(())
