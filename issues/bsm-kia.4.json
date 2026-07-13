@@ -14,9 +14,15 @@
     "ready-for-agent"
   ],
   "parent": "bsm-kia",
+  "comments": [
+    {
+      "text": "## Atomicity rule\n\nThe visible Current Workspace and Issue Explorer snapshot are one unit. No target title, path, or issue data may become current until the entire candidate transaction and its durability commit succeed. Generation checks protect this rule when user selections overlap.",
+      "timestamp": "2026-07-13T12:35:06Z"
+    }
+  ],
   "priority": 2,
   "status": "open",
   "title": "Switch Workspaces atomically and recover from failures",
   "type": "task",
-  "updated_at": "2026-07-13T12:35:05Z"
+  "updated_at": "2026-07-13T12:35:06Z"
 }
