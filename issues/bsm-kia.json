@@ -38,6 +38,10 @@
     {
       "text": "Changelog: simplified the graph for a pre-release application. Deleted the compatibility-oriented foundation subtree and made Select and persist an initial Current Workspace the unblocked, complete replacement slice. The remaining plan is four product stages with no dual cwd/store/RPC path or schema migration obligation.",
       "timestamp": "2026-07-13T13:18:15Z"
+    },
+    {
+      "text": "## Simplified delivery graph\n\n```mermaid\ngraph LR\n  A[Select and persist an initial Current Workspace] --\u003e B[Restore and manage the Workspace Catalog]\n  A --\u003e C[Switch Workspaces atomically and recover from failures]\n  B --\u003e C\n  A --\u003e D[Prove and document Workspace management end to end]\n  B --\u003e D\n  C --\u003e D\n  D --\u003e R[Automatically refresh issues from Beadwork]\n```\n\nNo compatibility branch remains: the initial-selection task replaces cwd-based launch behavior directly.",
+      "timestamp": "2026-07-13T13:18:15Z"
     }
   ],
   "priority": 2,
