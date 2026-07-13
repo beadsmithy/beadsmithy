@@ -34,11 +34,15 @@
     {
       "text": "Changelog correction: the prior revised-graph comment lost its Mermaid payload during shell parsing. The authoritative dependency graph is:\n\n```mermaid\ngraph LR\n  A1[Establish explicit Workspace command scope and validation] --\u003e A2[Make Workspace persistence transactional and test-isolated]\n  A1 --\u003e B[Choose and load an initial Current Workspace]\n  A2 --\u003e B\n  B --\u003e C[Restore and manage the Workspace Catalog]\n  B --\u003e D[Switch Workspaces atomically and recover from failures]\n  C --\u003e D\n  B --\u003e E[Prove and document Workspace management end to end]\n  C --\u003e E\n  D --\u003e E\n  E --\u003e R[Automatically refresh issues from Beadwork]\n```\n\nThe two foundation tasks make persistence and command scope independently reviewable. The automatic-refresh effort is explicitly downstream of the completed Workspace-management epic.",
       "timestamp": "2026-07-13T12:46:48Z"
+    },
+    {
+      "text": "Changelog: simplified the graph for a pre-release application. Deleted the compatibility-oriented foundation subtree and made Select and persist an initial Current Workspace the unblocked, complete replacement slice. The remaining plan is four product stages with no dual cwd/store/RPC path or schema migration obligation.",
+      "timestamp": "2026-07-13T13:18:15Z"
     }
   ],
   "priority": 2,
   "status": "open",
   "title": "Implement Workspace management",
   "type": "epic",
-  "updated_at": "2026-07-13T13:18:14Z"
+  "updated_at": "2026-07-13T13:18:15Z"
 }
