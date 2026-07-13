@@ -12,9 +12,15 @@
     "ready-for-agent"
   ],
   "parent": "bsm-kia.1",
+  "comments": [
+    {
+      "text": "Planning rationale: Beadwork can validate from a subdirectory, so this task makes independent root discovery a first-class contract. It deliberately stops before catalog mutation; that separation prevents command interpretation from becoming persistence policy.",
+      "timestamp": "2026-07-13T12:45:14Z"
+    }
+  ],
   "priority": 2,
   "status": "open",
   "title": "Establish explicit Workspace command scope and validation",
   "type": "task",
-  "updated_at": "2026-07-13T12:45:13Z"
+  "updated_at": "2026-07-13T12:45:14Z"
 }
