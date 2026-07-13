@@ -13,9 +13,15 @@
     "ready-for-agent"
   ],
   "parent": "bsm-kia.1",
+  "comments": [
+    {
+      "text": "Planning rationale: explicit  is not sufficient on its own because a failed save can leave mutable store memory behind. This task requires proposed-state commit/rollback and serialized mutations so later retries, removals, and switches cannot resurrect stale state.",
+      "timestamp": "2026-07-13T12:45:14Z"
+    }
+  ],
   "priority": 2,
   "status": "open",
   "title": "Make Workspace persistence transactional and test-isolated",
   "type": "task",
-  "updated_at": "2026-07-13T12:45:13Z"
+  "updated_at": "2026-07-13T12:45:14Z"
 }
