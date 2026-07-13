@@ -15,6 +15,12 @@
     "ready-for-agent"
   ],
   "parent": "bsm-kia",
+  "comments": [
+    {
+      "text": "## Product boundary\n\nDone means a first-time user can actually select one valid Workspace and use Beadsmith normally. The selector must not expose a candidate as Current until validation, all three Beadwork views, and store save have succeeded.",
+      "timestamp": "2026-07-13T12:35:05Z"
+    }
+  ],
   "priority": 2,
   "status": "open",
   "title": "Choose and load an initial Current Workspace",
