@@ -5,6 +5,7 @@
 //! serializable, user-displayable payloads.
 
 use std::env;
+use std::path::Path;
 
 use crate::issues::{self, ListIssuesError, ProcessRunner};
 
@@ -36,13 +37,15 @@ pub struct BeadsmithApiImpl;
 #[taurpc::resolvers]
 impl BeadsmithApi for BeadsmithApiImpl {
     async fn list_issues(self) -> Result<ListIssuesResponse, IssueListError> {
-        list_issues_from_adapter(&ProcessRunner::new())
+        let workspace = env::current_dir().unwrap_or_else(|_| std::path::PathBuf::from("."));
+        list_issues_from_adapter(&ProcessRunner::new(), &workspace)
     }
 
     async fn load_issue_explorer_data(
         self,
     ) -> Result<LoadIssueExplorerDataResponse, IssueListError> {
-        load_issue_explorer_data_from_adapter(&ProcessRunner::new())
+        let workspace = env::current_dir().unwrap_or_else(|_| std::path::PathBuf::from("."));
+        load_issue_explorer_data_from_adapter(&ProcessRunner::new(), &workspace)
     }
 }
 
@@ -143,10 +146,12 @@ pub struct IssueListError {
 
 fn list_issues_from_adapter(
     runner: &dyn issues::CommandRunner,
+    workspace: &Path,
 ) -> Result<ListIssuesResponse, IssueListError> {
-    let workspace_path = current_workspace_path();
-    let issues =
-        map_issue_collection(issues::list_all_issues(runner).map_err(IssueListError::from)?);
+    let workspace_path = workspace.display().to_string();
+    let issues = map_issue_collection(
+        issues::list_all_issues(runner, workspace).map_err(IssueListError::from)?,
+    );
 
     Ok(ListIssuesResponse {
         workspace_path,
@@ -156,18 +161,19 @@ fn list_issues_from_adapter(
 
 fn load_issue_explorer_data_from_adapter(
     runner: &dyn issues::CommandRunner,
+    workspace: &Path,
 ) -> Result<LoadIssueExplorerDataResponse, IssueListError> {
-    let workspace_path = current_workspace_path();
+    let workspace_path = workspace.display().to_string();
     let all_issues = map_issue_collection(
-        issues::list_all_issues(runner)
+        issues::list_all_issues(runner, workspace)
             .map_err(|error| issue_list_error_with_view_context(error, "All Issues"))?,
     );
     let ready_issues = map_issue_collection(
-        issues::list_ready_issues(runner)
+        issues::list_ready_issues(runner, workspace)
             .map_err(|error| issue_list_error_with_view_context(error, "Ready Issues"))?,
     );
     let blocked_issues = map_issue_collection(
-        issues::list_blocked_issues(runner)
+        issues::list_blocked_issues(runner, workspace)
             .map_err(|error| issue_list_error_with_view_context(error, "Blocked Issues"))?,
     );
 
@@ -177,12 +183,6 @@ fn load_issue_explorer_data_from_adapter(
         ready_issues,
         blocked_issues,
     })
-}
-
-fn current_workspace_path() -> String {
-    env::current_dir()
-        .map(|path| path.display().to_string())
-        .unwrap_or_else(|_| ".".to_string())
 }
 
 fn map_issue_collection(issues: Vec<issues::Issue>) -> Vec<Issue> {
@@ -263,10 +263,19 @@ mod tests {
     use crate::issues::{CommandOutput, CommandRunner};
     use std::collections::VecDeque;
     use std::io;
+    use std::path::PathBuf;
     use std::sync::Mutex;
+
+    #[derive(Debug, Clone, PartialEq, Eq)]
+    struct Invocation {
+        program: String,
+        args: Vec<String>,
+        cwd: PathBuf,
+    }
 
     struct FakeRunner {
         outputs: Mutex<VecDeque<Result<CommandOutput, io::ErrorKind>>>,
+        recorded: Mutex<Vec<Invocation>>,
     }
 
     impl FakeRunner {
@@ -295,12 +304,22 @@ mod tests {
         ) -> Self {
             Self {
                 outputs: Mutex::new(VecDeque::from(outputs)),
+                recorded: Mutex::new(Vec::new()),
             }
+        }
+
+        fn recorded(&self) -> Vec<Invocation> {
+            self.recorded.lock().unwrap().clone()
         }
     }
 
     impl CommandRunner for FakeRunner {
-        fn run(&self, _program: &str, _args: &[&str]) -> io::Result<CommandOutput> {
+        fn run(&self, program: &str, args: &[&str], cwd: &Path) -> io::Result<CommandOutput> {
+            self.recorded.lock().unwrap().push(Invocation {
+                program: program.to_string(),
+                args: args.iter().map(|arg| (*arg).to_string()).collect(),
+                cwd: cwd.to_path_buf(),
+            });
             let output = self
                 .outputs
                 .lock()
@@ -313,6 +332,37 @@ mod tests {
                 Err(kind) => Err(io::Error::from(kind)),
             }
         }
+    }
+
+    fn test_workspace() -> PathBuf {
+        PathBuf::from("selected-workspace")
+    }
+
+    fn assert_recorded_view_commands(runner: &FakeRunner, workspace: &Path) {
+        assert_eq!(
+            runner.recorded(),
+            vec![
+                Invocation {
+                    program: "bw".to_string(),
+                    args: vec![
+                        "list".to_string(),
+                        "--all".to_string(),
+                        "--json".to_string()
+                    ],
+                    cwd: workspace.to_path_buf(),
+                },
+                Invocation {
+                    program: "bw".to_string(),
+                    args: vec!["ready".to_string(), "--json".to_string()],
+                    cwd: workspace.to_path_buf(),
+                },
+                Invocation {
+                    program: "bw".to_string(),
+                    args: vec!["blocked".to_string(), "--json".to_string()],
+                    cwd: workspace.to_path_buf(),
+                },
+            ]
+        );
     }
 
     fn issue_json(id: &str, title: &str) -> String {
@@ -377,7 +427,8 @@ mod tests {
             ]"#,
         );
 
-        let response = list_issues_from_adapter(&runner).expect("expected success");
+        let ws = test_workspace();
+        let response = list_issues_from_adapter(&runner, &ws).expect("expected success");
         assert!(!response.workspace_path.is_empty());
         let issue = response.issues.first().expect("expected issue");
         assert_eq!(issue.id, "bsm-b");
@@ -398,7 +449,8 @@ mod tests {
 
     #[test]
     fn empty_issue_list_is_success_not_error() {
-        let response = list_issues_from_adapter(&FakeRunner::ok("[]"))
+        let ws = test_workspace();
+        let response = list_issues_from_adapter(&FakeRunner::ok("[]"), &ws)
             .expect("expected successful empty list");
         assert!(response.issues.is_empty());
     }
@@ -414,12 +466,15 @@ mod tests {
             successful_output(&blocked_json),
         ]);
 
-        let response = load_issue_explorer_data_from_adapter(&runner).expect("expected success");
+        let ws = test_workspace();
+        let response =
+            load_issue_explorer_data_from_adapter(&runner, &ws).expect("expected success");
 
-        assert!(!response.workspace_path.is_empty());
+        assert_eq!(response.workspace_path, ws.display().to_string());
         assert_eq!(response.all_issues[0].id, "bsm-all");
         assert_eq!(response.ready_issues[0].id, "bsm-ready");
         assert_eq!(response.blocked_issues[0].id, "bsm-blocked");
+        assert_recorded_view_commands(&runner, &ws);
     }
 
     #[test]
@@ -430,11 +485,14 @@ mod tests {
             successful_output(""),
         ]);
 
-        let response = load_issue_explorer_data_from_adapter(&runner).expect("expected success");
+        let ws = test_workspace();
+        let response =
+            load_issue_explorer_data_from_adapter(&runner, &ws).expect("expected success");
 
         assert!(response.all_issues.is_empty());
         assert!(response.ready_issues.is_empty());
         assert!(response.blocked_issues.is_empty());
+        assert_recorded_view_commands(&runner, &ws);
     }
 
     #[test]
@@ -461,8 +519,10 @@ mod tests {
             ),
         ];
 
+        let ws = test_workspace();
         for (runner, expected_view) in cases {
-            let error = load_issue_explorer_data_from_adapter(&runner).expect_err("expected error");
+            let error =
+                load_issue_explorer_data_from_adapter(&runner, &ws).expect_err("expected error");
             assert_eq!(error.kind, IssueListErrorKind::CommandFailed);
             assert!(
                 error.message.contains(expected_view),
@@ -552,8 +612,9 @@ mod tests {
             (FakeRunner::ok("not json"), IssueListErrorKind::ParseFailed),
         ];
 
+        let ws = test_workspace();
         for (runner, expected_kind) in cases {
-            let error = list_issues_from_adapter(&runner).expect_err("expected error");
+            let error = list_issues_from_adapter(&runner, &ws).expect_err("expected error");
             assert_eq!(error.kind, expected_kind);
             assert!(!error.message.is_empty());
         }
