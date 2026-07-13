@@ -18,11 +18,15 @@
     {
       "text": "Replaced the initial epic summary with the self-contained Workspace management PRD, including product behavior, architectural decisions, testing seams, and scope boundaries.",
       "timestamp": "2026-07-13T12:38:41Z"
+    },
+    {
+      "text": "Changelog: hardened the implementation plan after a persistence and concurrency audit. The delivery graph now expands the foundation into explicit command scope and transactional state/persistence work. Added invariants cover failed-save rollback, serialized mutation ordering, removal during pending work, corrupted-store recovery, isolated desktop test storage, cancellation, and Issue Explorer interaction-state reset after a successful switch.",
+      "timestamp": "2026-07-13T12:45:15Z"
     }
   ],
   "priority": 2,
   "status": "open",
   "title": "Implement Workspace management",
   "type": "epic",
-  "updated_at": "2026-07-13T12:45:13Z"
+  "updated_at": "2026-07-13T12:45:15Z"
 }
