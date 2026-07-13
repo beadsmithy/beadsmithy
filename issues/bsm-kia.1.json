@@ -11,6 +11,12 @@
     "ready-for-agent"
   ],
   "parent": "bsm-kia",
+  "comments": [
+    {
+      "text": "## Why this is a prefactor\n\nThis is the only intentionally non-UI-first bead. It expands a cohesive explicit-path seam before the application stops using process cwd. Keeping the old path temporarily isolated prevents a repository-wide broken intermediate state; the following bead contracts it by moving the product and E2E path to normal workspace selection.",
+      "timestamp": "2026-07-13T12:35:05Z"
+    }
+  ],
   "priority": 2,
   "status": "open",
   "title": "Establish the path-scoped Workspace foundation",
