@@ -13,9 +13,15 @@
     "ready-for-agent"
   ],
   "parent": "bsm-kia",
+  "comments": [
+    {
+      "text": "## Why direct transport is acceptable in WebDriver\n\nThe native picker is intentionally exercised through frontend integration tests. Desktop WebDriver invokes the same typed backend switch transport because operating-system dialogs are not a stable WebDriver surface; this still proves the assembled binary, persistence, TauRPC, backend loader, and rendered UI together.",
+      "timestamp": "2026-07-13T12:35:06Z"
+    }
+  ],
   "priority": 2,
   "status": "open",
   "title": "Prove and document Workspace management end to end",
   "type": "task",
-  "updated_at": "2026-07-13T12:35:05Z"
+  "updated_at": "2026-07-13T12:35:06Z"
 }
