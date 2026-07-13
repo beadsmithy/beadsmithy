@@ -12,6 +12,10 @@
     {
       "text": "## Delivery graph and planning rationale\n\nThis epic intentionally begins with a narrow expand-stage seam because explicit cwd threading, validation, persistence, and typed workspace state are shared mechanics. It then delivers vertical user outcomes in order: first selection, remembered catalog, and safe multi-workspace switching. The final task is a real-desktop integration gate; it does not replace the per-slice test obligations.\n\n```mermaid\ngraph LR\n  A[Establish path-scoped Workspace foundation] --\u003e B[Choose and load an initial Current Workspace]\n  B --\u003e C[Restore and manage the Workspace Catalog]\n  B --\u003e D[Switch Workspaces atomically and recover from failures]\n  C --\u003e D\n  B --\u003e E[Prove and document Workspace management end to end]\n  C --\u003e E\n  D --\u003e E\n```\n\nThe graph is deliberately mostly sequential: each later behavior relies on the same backend-owned Workspace state and makes stronger promises about it. This avoids parallel work inventing incompatible catalog, persistence, or generation semantics.",
       "timestamp": "2026-07-13T12:35:05Z"
+    },
+    {
+      "text": "Replaced the initial epic summary with the self-contained Workspace management PRD, including product behavior, architectural decisions, testing seams, and scope boundaries.",
+      "timestamp": "2026-07-13T12:38:41Z"
     }
   ],
   "priority": 2,
