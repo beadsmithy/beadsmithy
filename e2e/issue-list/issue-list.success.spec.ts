@@ -29,6 +29,87 @@ interface LoadIssueExplorerDataResponse {
   workspacePath: string;
 }
 
+interface WorkspaceStateResponse {
+  currentWorkspace: { path: string } | null;
+}
+
+interface WorkspaceSwitchResponse {
+  issueData: LoadIssueExplorerDataResponse;
+}
+
+const invokeTypedWorkspaceSwitch = async (
+  candidatePath: string
+): Promise<WorkspaceSwitchResponse | { failure: string }> =>
+  (await browser.executeAsync((candidate, done) => {
+    const tauriWindow = window as typeof window & {
+      __TAURI__?: {
+        core?: {
+          invoke: (command: string, arguments_: object) => Promise<unknown>;
+        };
+      };
+    };
+    const invoke = tauriWindow.__TAURI__?.core?.invoke;
+
+    if (!invoke) {
+      done({ failure: "window.__TAURI__.core.invoke is not available" });
+      return;
+    }
+
+    invoke("TauRPC__switch_workspace", { candidate_path: candidate })
+      // WDIO executeAsync requires calling the injected completion callback.
+      // oxlint-disable-next-line promise/no-callback-in-promise
+      .then(done)
+      // oxlint-disable-next-line promise/no-callback-in-promise
+      .catch((error: unknown) => done({ failure: String(error) }));
+  }, candidatePath)) as WorkspaceSwitchResponse | { failure: string };
+
+const invokeWorkspaceMemoryRetry = async (): Promise<
+  WorkspaceStateResponse | { failure: string }
+> =>
+  (await browser.executeAsync((done) => {
+    const tauriWindow = window as typeof window & {
+      __TAURI__?: {
+        core?: {
+          invoke: (command: string) => Promise<WorkspaceStateResponse>;
+        };
+      };
+    };
+    const invoke = tauriWindow.__TAURI__?.core?.invoke;
+
+    if (!invoke) {
+      done({ failure: "window.__TAURI__.core.invoke is not available" });
+      return;
+    }
+
+    invoke("TauRPC__retry_workspace_memory")
+      // WDIO executeAsync requires calling the injected completion callback.
+      // oxlint-disable-next-line promise/no-callback-in-promise
+      .then(done)
+      // oxlint-disable-next-line promise/no-callback-in-promise
+      .catch((error: unknown) => done({ failure: String(error) }));
+  })) as WorkspaceStateResponse | { failure: string };
+
+const invokeWorkspaceState = async (): Promise<WorkspaceStateResponse> =>
+  (await browser.executeAsync((done) => {
+    const tauriWindow = window as typeof window & {
+      __TAURI__?: {
+        core?: {
+          invoke: (command: string) => Promise<WorkspaceStateResponse>;
+        };
+      };
+    };
+    const invoke = tauriWindow.__TAURI__?.core?.invoke;
+
+    if (!invoke) {
+      done({ currentWorkspace: null });
+      return;
+    }
+
+    // WDIO executeAsync requires calling the injected completion callback.
+    // oxlint-disable-next-line promise/no-callback-in-promise
+    invoke("TauRPC__workspace_state").then(done);
+  })) as WorkspaceStateResponse;
+
 const issueRowSelector = (title: string): string =>
   `article[aria-label*="${title}"]`;
 
@@ -87,59 +168,50 @@ const expectSidebarCount = async (label: string, countLabel: string) => {
 };
 
 describe("Issue explorer (WebDriver e2e): workspace with selectable Issue List Views and Issue Detail", () => {
-  it("can reach the native issue-list RPC path", async () => {
-    const result = (await browser.executeAsync((done) => {
-      const tauriWindow = window as typeof window & {
-        __TAURI__?: {
-          core?: {
-            invoke: (command: string) => Promise<LoadIssueExplorerDataResponse>;
-          };
-        };
-      };
+  it("starts empty and seeds the populated fixture through typed workspace switch", async () => {
+    const initialState = await invokeWorkspaceState();
+    expect(initialState.currentWorkspace).toBeNull();
 
-      const invoke = tauriWindow.__TAURI__?.core?.invoke;
-
-      if (!invoke) {
-        done({ error: "window.__TAURI__.core.invoke is not available" });
-        return;
-      }
-
-      invoke("TauRPC__load_issue_explorer_data")
-        // WDIO executeAsync requires calling the injected completion callback.
-        // oxlint-disable-next-line promise/no-callback-in-promise
-        .then(done)
-        // oxlint-disable-next-line promise/no-callback-in-promise
-        .catch((error: unknown) => done({ error: String(error) }));
-    })) as LoadIssueExplorerDataResponse | { error: string };
-
-    if ("error" in result) {
-      throw new Error(result.error);
+    const fixturePath = process.env.BEADSMITH_E2E_WORKSPACE_A;
+    if (!fixturePath) {
+      throw new Error("BEADSMITH_E2E_WORKSPACE_A is not set");
+    }
+    const result = await invokeTypedWorkspaceSwitch(fixturePath);
+    if ("failure" in result) {
+      throw new Error(result.failure);
     }
 
+    const { issueData } = result;
     console.log(
-      `[e2e:spec] native issue-explorer RPC returned ${result.allIssues.length} issue(s)`
+      `[e2e:spec] typed workspace switch returned ${issueData.allIssues.length} issue(s)`
     );
     expect(
-      result.allIssues.some((issue) => issue.title === FIXTURE_ISSUE_TITLE)
+      issueData.allIssues.some((issue) => issue.title === FIXTURE_ISSUE_TITLE)
     ).toBe(true);
     expect(
-      result.allIssues.some(
+      issueData.allIssues.some(
         (issue) =>
           issue.title === FIXTURE_CLOSED_TITLE && issue.status === "closed"
       )
     ).toBe(true);
     expect(
-      result.allIssues.some(
+      issueData.allIssues.some(
         (issue) =>
           issue.title === FIXTURE_DEFERRED_TITLE && issue.status === "deferred"
       )
     ).toBe(true);
     expect(
-      result.readyIssues.some((issue) => issue.title === FIXTURE_READY_TITLE)
+      issueData.readyIssues.some((issue) => issue.title === FIXTURE_READY_TITLE)
     ).toBe(true);
     expect(
-      result.blockedIssues.some((issue) => issue.title === FIXTURE_ISSUE_TITLE)
+      issueData.blockedIssues.some(
+        (issue) => issue.title === FIXTURE_ISSUE_TITLE
+      )
     ).toBe(true);
+
+    // The direct typed transport changes backend state; reload so the real
+    // frontend performs its normal startup state read before DOM assertions.
+    await browser.refresh();
   });
 
   it("renders sidebar counts, switches Issue List Views, and searches the active view", async () => {
@@ -272,21 +344,54 @@ describe("Issue explorer (WebDriver e2e): workspace with selectable Issue List V
     expect(detailText).toContain(blockerId);
   });
 
-  it("shows the launched Beadwork workspace path in the sidebar", async () => {
-    const launchedWorkspace = process.env.BEADSMITH_E2E_WORKSPACE ?? "";
+  it("shows the selected Beadwork workspace path in the sidebar", async () => {
+    const selectedWorkspace = process.env.BEADSMITH_E2E_WORKSPACE_A ?? "";
     console.log(
-      `[e2e:spec] asserting sidebar reports workspace: ${launchedWorkspace}`
+      `[e2e:spec] asserting sidebar reports workspace: ${selectedWorkspace}`
     );
 
-    const workspaceLabel = await browser.$(
-      ".truncate.font-mono.text-xs.text-text-main"
+    const workspacePath = await browser.$(
+      "[aria-label='Workspace'] p.text-muted"
     );
-    const workspacePath = await workspaceLabel.getAttribute("title");
-    console.log(`[e2e:spec] sidebar reported workspace path: ${workspacePath}`);
+    await workspacePath.waitForExist({ timeout: 30_000 });
+    expect(await workspacePath.getText()).toContain(
+      path.basename(selectedWorkspace)
+    );
+  });
 
-    // Compare by directory name, not full path equality: Beadsmith reports
-    // std::env::current_dir(), which can be OS-canonicalized (e.g. macOS
-    // resolves /var to /private/var) and differ from the raw fixture path.
-    expect(workspacePath).toContain(path.basename(launchedWorkspace));
+  it("switches to the second fixture and preserves it after an invalid typed switch", async () => {
+    const workspaceB = process.env.BEADSMITH_E2E_WORKSPACE_B;
+    if (!workspaceB) {
+      throw new Error("BEADSMITH_E2E_WORKSPACE_B is not set");
+    }
+
+    const switched = await invokeTypedWorkspaceSwitch(workspaceB);
+    if ("failure" in switched) {
+      throw new Error(switched.failure);
+    }
+    expect(switched.issueData.allIssues).toHaveLength(0);
+    await browser.refresh();
+
+    const invalid = await invokeTypedWorkspaceSwitch(
+      "/definitely-not-a-workspace"
+    );
+    expect("failure" in invalid).toBe(true);
+
+    const restored = await invokeWorkspaceMemoryRetry();
+    if ("failure" in restored) {
+      throw new Error(restored.failure);
+    }
+    expect(restored.currentWorkspace?.path).toContain(
+      path.basename(workspaceB)
+    );
+    await browser.refresh();
+
+    const workspacePath = await browser.$(
+      "[aria-label='Workspace'] p.text-muted"
+    );
+    await workspacePath.waitForExist({ timeout: 30_000 });
+    expect(await workspacePath.getText()).toContain(path.basename(workspaceB));
+    const emptyState = await browser.$("h2=No issues found");
+    await emptyState.waitForExist({ timeout: 30_000 });
   });
 });

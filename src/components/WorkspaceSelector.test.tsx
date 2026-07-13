@@ -43,7 +43,7 @@ describe("pickerDefaultPath", () => {
 });
 
 describe("WorkspaceSelector", () => {
-  it("renders known unavailable entries with full-path titles and local remove actions", async () => {
+  it("renders known unavailable entries with visible full paths, retryable semantics, and local remove actions", async () => {
     const user = userEvent.setup();
     const onRemove = vi.fn();
     const onSelect = vi.fn();
@@ -68,9 +68,11 @@ describe("WorkspaceSelector", () => {
     );
 
     const unavailable = screen.getByRole("button", {
-      name: "missing (Unavailable)",
+      name: "missing, /work/missing, Unavailable; select to retry",
     });
-    expect(unavailable).toHaveAttribute("title", "/work/missing");
+    expect(unavailable).toHaveTextContent("/work/missing");
+    expect(unavailable).toHaveTextContent("Unavailable");
+    expect(unavailable).toBeEnabled();
     await user.click(unavailable);
     expect(onSelect).toHaveBeenCalledWith("/work/missing");
     await user.click(

@@ -5,7 +5,7 @@ import type { Workspace, WorkspaceState } from "../rpc/bindings";
 export const workspaceBasename = (path: string): string => {
   const trimmed = path.replace(/[\\/]+$/u, "");
   const segments = trimmed.split(/[\\/]/u);
-  return segments[segments.length - 1] || path;
+  return segments.pop() || path;
 };
 
 /** The native picker starts from a useful known root without changing MRU. */
@@ -37,20 +37,27 @@ const WorkspaceEntry = ({
   workspace: Workspace;
 }) => {
   const unavailable = workspace.availability === "unavailable";
-  const label = unavailable
-    ? `${workspaceBasename(workspace.path)} (Unavailable)`
-    : workspaceBasename(workspace.path);
+  const basename = workspaceBasename(workspace.path);
+  const availabilityLabel = unavailable
+    ? "Unavailable; select to retry"
+    : "Available";
 
   return (
     <li className="flex min-w-0 items-center gap-1 rounded-md px-1 py-0.5 hover:bg-white/5">
       <button
         aria-current={current ? "true" : undefined}
-        className="min-w-0 flex-1 truncate p-1 text-left font-mono text-xs text-text-main disabled:text-muted"
+        aria-label={`${basename}, ${workspace.path}, ${availabilityLabel}`}
+        className="min-w-0 flex-1 p-1 text-left font-mono text-xs text-text-main"
         onClick={() => onSelect(workspace.path)}
-        title={workspace.path}
         type="button"
       >
-        {label}
+        <span className="block truncate">{basename}</span>
+        <span className="block text-[10px] break-all text-muted">
+          {workspace.path}
+        </span>
+        {unavailable ? (
+          <span className="block text-[10px] text-red-200">Unavailable</span>
+        ) : null}
       </button>
       <button
         aria-label={`Remove ${workspace.path}`}
@@ -117,12 +124,10 @@ export const WorkspaceSelector = ({
       ) : (
         <>
           {current ? (
-            <p
-              className="truncate font-mono text-xs text-text-main"
-              title={current.path}
-            >
-              {workspaceBasename(current.path)}
-            </p>
+            <div className="font-mono text-xs text-text-main">
+              <p className="truncate">{workspaceBasename(current.path)}</p>
+              <p className="text-[10px] break-all text-muted">{current.path}</p>
+            </div>
           ) : (
             <p className="font-mono text-xs text-muted">
               No workspace selected

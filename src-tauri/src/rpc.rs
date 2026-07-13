@@ -95,9 +95,8 @@ impl BeadsmithApi for BeadsmithApiImpl {
     async fn load_issue_explorer_data(self) -> Result<LoadIssueExplorerDataResponse, IssueListError> {
         self.with_runtime(|runtime| {
             let data = runtime.snapshot.as_ref().ok_or_else(no_current_workspace_error)?;
-            let path = runtime
-                .service
-                .state()
+            let state = runtime.service.state();
+            let path = state
                 .current_workspace
                 .as_ref()
                 .map(|workspace| workspace.path.as_str())
@@ -684,8 +683,21 @@ mod tests {
     async fn generates_typescript_bindings() {
         let _handler = router::<tauri::Wry>(BeadsmithApiImpl::default()).into_handler();
 
-        let bindings = std::fs::read_to_string("../src/rpc/bindings.ts")
+        let bindings_path = "../src/rpc/bindings.ts";
+        let generated_bindings = std::fs::read_to_string(bindings_path)
             .expect("expected generated TauRPC bindings");
+        // TauRPC currently emits trailing whitespace in a few type rows. Keep
+        // the generated source stable so a binding verification test does not
+        // leave the worktree dirty.
+        let bindings = generated_bindings
+            .lines()
+            .map(str::trim_end)
+            .collect::<Vec<_>>()
+            .join("\n");
+        if bindings != generated_bindings.trim_end() {
+            std::fs::write(bindings_path, format!("{bindings}\n"))
+                .expect("normalized bindings should be written");
+        }
         assert!(bindings.contains("export type Issue"));
         assert!(bindings.contains("export type IssueComment"));
         assert!(bindings.contains("export type ListIssuesResponse"));

@@ -9,7 +9,7 @@ import {
   PlayCircle,
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 
 import "./App.css";
 import {
@@ -107,19 +107,30 @@ export default function App() {
     (item) => item.group === "status"
   );
 
+  const refreshWorkspaceState = useCallback(async () => {
+    try {
+      setWorkspaceState(await createTauRPCProxy().workspace_state());
+    } catch {
+      // No typed state is available if the transport itself is unavailable.
+    }
+  }, []);
+
   useEffect(() => {
     void (async () => {
-      setIssueState(await loadIssueExplorerStateFromTauRpc());
-    })();
-    void (async () => {
       try {
-        setWorkspaceState(await createTauRPCProxy().workspace_state());
+        setIssueState(await loadIssueExplorerStateFromTauRpc());
       } catch {
-        // The issue loader reports backend availability; keep selector neutral
-        // until its typed state is available.
+        setIssueState({
+          error: {
+            kind: "unknown",
+            message: "Beadsmith could not load issues.",
+          },
+          status: "failure",
+        });
       }
     })();
-  }, []);
+    void refreshWorkspaceState();
+  }, [refreshWorkspaceState]);
 
   const selectWorkspace = async (path: string) => {
     try {
@@ -127,26 +138,56 @@ export default function App() {
       setWorkspaceState(response.state);
       setIssueState({ ...response.issueData, status: "success" });
     } catch {
-      setWorkspaceState(await createTauRPCProxy().workspace_state());
+      await refreshWorkspaceState();
     }
   };
 
   const chooseWorkspace = async () => {
-    const selection = await open({
-      defaultPath: pickerDefaultPath(workspaceState) ?? undefined,
-      directory: true,
-      multiple: false,
-    });
-    if (typeof selection === "string") {
-      await selectWorkspace(selection);
+    try {
+      const selection = await open({
+        defaultPath: pickerDefaultPath(workspaceState) ?? undefined,
+        directory: true,
+        multiple: false,
+      });
+      if (typeof selection === "string") {
+        await selectWorkspace(selection);
+      }
+    } catch {
+      await refreshWorkspaceState();
     }
   };
 
   const removeWorkspace = async (path: string) => {
     const removingCurrent = workspaceState?.currentWorkspace?.path === path;
-    const state = await createTauRPCProxy().remove_workspace(path);
-    setWorkspaceState(state);
-    if (removingCurrent) {
+    try {
+      const state = await createTauRPCProxy().remove_workspace(path);
+      setWorkspaceState(state);
+      if (removingCurrent) {
+        setIssueState({
+          error: {
+            kind: "noWorkspace",
+            message: "Select a workspace to load issues.",
+          },
+          status: "failure",
+        });
+      }
+    } catch {
+      await refreshWorkspaceState();
+    }
+  };
+
+  const retryWorkspaceMemory = async () => {
+    try {
+      setWorkspaceState(await createTauRPCProxy().retry_workspace_memory());
+    } catch {
+      await refreshWorkspaceState();
+    }
+  };
+
+  const resetWorkspaceMemory = async () => {
+    try {
+      const state = await createTauRPCProxy().reset_workspace_memory();
+      setWorkspaceState(state);
       setIssueState({
         error: {
           kind: "noWorkspace",
@@ -154,23 +195,9 @@ export default function App() {
         },
         status: "failure",
       });
+    } catch {
+      await refreshWorkspaceState();
     }
-  };
-
-  const retryWorkspaceMemory = async () => {
-    setWorkspaceState(await createTauRPCProxy().retry_workspace_memory());
-  };
-
-  const resetWorkspaceMemory = async () => {
-    const state = await createTauRPCProxy().reset_workspace_memory();
-    setWorkspaceState(state);
-    setIssueState({
-      error: {
-        kind: "noWorkspace",
-        message: "Select a workspace to load issues.",
-      },
-      status: "failure",
-    });
   };
 
   return (

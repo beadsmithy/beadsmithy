@@ -1,16 +1,17 @@
 /**
- * Creates a disposable Beadwork workspace for one Issue List e2e scenario,
- * runs the WebDriver suite against it in a single Beadsmith launch, and
- * removes the workspace afterward regardless of pass/fail.
+ * Creates both disposable Beadwork workspaces and an isolated backend store
+ * for one Issue List e2e scenario. The WebDriver app always starts empty;
+ * specs seed fixtures with the typed `switch_workspace` RPC before asserting.
  *
  * WDIO's local runner re-evaluates `wdio.issue-list.conf.ts` in more than one
- * Node process (the launcher and each spec worker), so workspace creation
- * cannot safely live at config module scope -- it would run more than once
- * and desync from the already-launched app. Creating it here, once, and
- * handing the resolved path down via `BEADSMITH_E2E_WORKSPACE` keeps every
- * process reading the same fixture.
+ * Node process (the launcher and each spec worker), so fixture creation cannot
+ * safely live at config module scope. Creating the paths here once keeps every
+ * process and the spawned desktop binary on the same isolated inputs.
  */
 import { spawnSync } from "node:child_process";
+import { mkdtempSync, rmSync } from "node:fs";
+import { tmpdir } from "node:os";
+import path from "node:path";
 
 import {
   createEmptyWorkspace,
@@ -41,8 +42,10 @@ try {
   process.exit(1);
 }
 
-const workspace =
-  scenario === "empty" ? createEmptyWorkspace() : createIssueListWorkspace();
+const workspaceA = createIssueListWorkspace();
+const workspaceB = createEmptyWorkspace();
+const storeDirectory = mkdtempSync(path.join(tmpdir(), "beadsmith-e2e-store-"));
+const storePath = path.join(storeDirectory, "workspace-catalog.json");
 
 try {
   const result = spawnSync(
@@ -52,12 +55,16 @@ try {
       env: {
         ...process.env,
         BEADSMITH_E2E_SCENARIO: scenario,
-        BEADSMITH_E2E_WORKSPACE: workspace.path,
+        BEADSMITH_E2E_WORKSPACE_A: workspaceA.path,
+        BEADSMITH_E2E_WORKSPACE_B: workspaceB.path,
+        BEADSMITH_WORKSPACE_STORE_PATH: storePath,
       },
       stdio: "inherit",
     }
   );
   process.exitCode = result.status ?? 1;
 } finally {
-  removeWorkspace(workspace);
+  removeWorkspace(workspaceA);
+  removeWorkspace(workspaceB);
+  rmSync(storeDirectory, { force: true, recursive: true });
 }

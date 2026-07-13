@@ -204,9 +204,16 @@ impl<S: WorkspaceStore> WorkspaceService<S> {
         }
     }
 
-    /// Return the currently published state.
-    pub fn state(&self) -> &WorkspaceState {
-        &self.state
+    /// Return the currently published state with catalog availability derived
+    /// from the local filesystem. Availability is deliberately not inferred
+    /// from Beadwork validation: a readable directory can be a retryable,
+    /// non-Beadwork workspace without being unavailable.
+    pub fn state(&self) -> WorkspaceState {
+        let mut state = self.state.clone();
+        for workspace in &mut state.catalog {
+            workspace.availability = workspace_availability(Path::new(&workspace.path));
+        }
+        state
     }
 
     /// Start a new user-initiated selection request and return its generation
@@ -275,14 +282,7 @@ impl<S: WorkspaceStore> WorkspaceService<S> {
 
         let workspace = match validate_workspace(runner, &request.candidate) {
             Ok(workspace) => workspace,
-            Err(error) => {
-                if self.restoration_candidate.as_deref() == Some(request.candidate.as_path()) {
-                    if let Err(store_error) = self.mark_unavailable(&request.candidate) {
-                        return self.fail_current_request(&request, store_error);
-                    }
-                }
-                return self.fail_current_request(&request, error);
-            }
+            Err(error) => return self.fail_current_request(&request, error),
         };
         self.ensure_current(&request)?;
 
@@ -372,26 +372,6 @@ impl<S: WorkspaceStore> WorkspaceService<S> {
                 .as_ref()
                 .map(|workspace| workspace.path.clone()),
         }
-    }
-
-    fn mark_unavailable(&mut self, candidate: &Path) -> Result<(), WorkspaceError> {
-        let candidate = candidate.display().to_string();
-        if let Some(workspace) = self
-            .state
-            .catalog
-            .iter_mut()
-            .find(|workspace| workspace.path == candidate)
-        {
-            workspace.availability = WorkspaceAvailability::Unavailable;
-            self.store.save(&self.persisted_from_state(&self.state)).map_err(|message| {
-                WorkspaceError::new(
-                    WorkspaceErrorKind::StoreSaveFailed,
-                    format!("Could not save local workspace memory: {message}"),
-                    true,
-                )
-            })?;
-        }
-        Ok(())
     }
 
     /// Remove one locally remembered workspace without touching the repository.
@@ -494,6 +474,13 @@ fn state_from_persisted(
 
 /// Retain a validated workspace without changing MRU order. A new entry is
 /// appended, so promotion is reserved for the final durable Current commit.
+fn workspace_availability(path: &Path) -> WorkspaceAvailability {
+    match std::fs::read_dir(path) {
+        Ok(_) => WorkspaceAvailability::Available,
+        Err(_) => WorkspaceAvailability::Unavailable,
+    }
+}
+
 fn retain_catalog(catalog: &mut Vec<Workspace>, workspace: Workspace) {
     if let Some(known) = catalog
         .iter_mut()
@@ -1103,32 +1090,65 @@ mod tests {
     }
 
     #[test]
-    fn failed_startup_restore_marks_the_known_workspace_unavailable() {
+    fn missing_catalog_path_is_unavailable_but_remains_known() {
+        let path = std::env::temp_dir().join(format!(
+            "beadsmith-missing-workspace-{}",
+            std::process::id()
+        ));
+        let _ = std::fs::remove_dir_all(&path);
+        let path_string = path.display().to_string();
         let store = FakeStore::empty();
         *store.load_result.borrow_mut() = Ok(Some(PersistedWorkspaceState {
             catalog: vec![Workspace {
-                path: "/work/missing".to_string(),
+                path: path_string,
                 availability: WorkspaceAvailability::Available,
             }],
-            current_workspace_path: Some("/work/missing".to_string()),
+            ..PersistedWorkspaceState::default()
+        }));
+
+        let service = WorkspaceService::from_store(store);
+
+        assert_eq!(service.state().catalog.len(), 1);
+        assert_eq!(
+            service.state().catalog[0].availability,
+            WorkspaceAvailability::Unavailable
+        );
+    }
+
+    #[test]
+    fn availability_is_derived_from_path_access_not_validation_failure() {
+        let path = std::env::temp_dir().join(format!(
+            "beadsmith-readable-workspace-{}",
+            std::process::id()
+        ));
+        std::fs::create_dir_all(&path).expect("temporary directory should be created");
+        let path_string = path.display().to_string();
+        let store = FakeStore::empty();
+        *store.load_result.borrow_mut() = Ok(Some(PersistedWorkspaceState {
+            catalog: vec![Workspace {
+                path: path_string.clone(),
+                availability: WorkspaceAvailability::Unavailable,
+            }],
+            current_workspace_path: Some(path_string),
             ..PersistedWorkspaceState::default()
         }));
         let mut service = WorkspaceService::from_store(store);
         let runner = FakeRunner::with_outputs([Ok(CommandOutput {
             status: 1,
             stdout: String::new(),
-            stderr: "not a git repository".to_string(),
+            stderr: "not a Beadwork workspace".to_string(),
         })]);
 
         service
             .restore_current(&runner)
-            .expect_err("missing workspace must not restore");
+            .expect_err("invalid workspace must not restore");
 
         assert!(service.state().current_workspace.is_none());
         assert_eq!(
             service.state().catalog[0].availability,
-            WorkspaceAvailability::Unavailable
+            WorkspaceAvailability::Available
         );
+        std::fs::remove_dir_all(path).expect("temporary directory should be removed");
     }
 
     #[test]
@@ -1218,10 +1238,19 @@ impl<R: tauri::Runtime> TauriWorkspaceStore<R> {
         Self { app }
     }
 
+    fn store_path(&self) -> PathBuf {
+        // Desktop acceptance supplies a fresh absolute path before launch so
+        // it cannot read or overwrite a developer's catalog. Product builds
+        // keep the supported app-data default.
+        std::env::var_os("BEADSMITH_WORKSPACE_STORE_PATH")
+            .map(PathBuf::from)
+            .unwrap_or_else(|| PathBuf::from("workspace-catalog.json"))
+    }
+
     fn store(&self) -> Result<std::sync::Arc<tauri_plugin_store::Store<R>>, String> {
         use tauri_plugin_store::StoreExt;
         self.app
-            .store("workspace-catalog.json")
+            .store(self.store_path())
             .map_err(|error| error.to_string())
     }
 }
@@ -1250,11 +1279,15 @@ impl<R: tauri::Runtime> WorkspaceStore for TauriWorkspaceStore<R> {
             }
             Err(_) => {
                 use tauri::{Manager, path::BaseDirectory};
-                let path = self
-                    .app
-                    .path()
-                    .resolve("workspace-catalog.json", BaseDirectory::AppData)
-                    .map_err(|error| error.to_string())?;
+                let store_path = self.store_path();
+                let path = if store_path.is_absolute() {
+                    store_path
+                } else {
+                    self.app
+                        .path()
+                        .resolve(store_path, BaseDirectory::AppData)
+                        .map_err(|error| error.to_string())?
+                };
                 match std::fs::remove_file(path) {
                     Ok(()) => Ok(()),
                     Err(error) if error.kind() == io::ErrorKind::NotFound => Ok(()),

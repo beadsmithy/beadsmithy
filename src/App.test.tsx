@@ -4,10 +4,24 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import type { IssueExplorerLoadState } from "./issues/issue-loader";
 import type * as IssueLoaderModule from "./issues/issue-loader";
-import type { Issue } from "./rpc/bindings";
+import type * as BindingsModule from "./rpc/bindings";
+import type { Issue, WorkspaceState } from "./rpc/bindings";
 
 const loadIssueExplorerStateFromTauRpc =
   vi.fn<() => Promise<IssueExplorerLoadState>>();
+const open = vi.fn();
+const workspaceState = vi.fn<() => Promise<WorkspaceState>>();
+const switchWorkspace = vi.fn();
+const removeWorkspace = vi.fn();
+const retryWorkspaceMemory = vi.fn();
+const resetWorkspaceMemory = vi.fn();
+const createTauRPCProxy = vi.fn(() => ({
+  remove_workspace: removeWorkspace,
+  reset_workspace_memory: resetWorkspaceMemory,
+  retry_workspace_memory: retryWorkspaceMemory,
+  switch_workspace: switchWorkspace,
+  workspace_state: workspaceState,
+}));
 
 vi.mock("./issues/issue-loader", async (importOriginal) => {
   const actual = await importOriginal<typeof IssueLoaderModule>();
@@ -17,6 +31,14 @@ vi.mock("./issues/issue-loader", async (importOriginal) => {
     loadIssueExplorerStateFromTauRpc,
   };
 });
+
+vi.mock("./rpc/bindings", async (importOriginal) => {
+  const actual = await importOriginal<typeof BindingsModule>();
+
+  return { ...actual, createTauRPCProxy };
+});
+
+vi.mock("@tauri-apps/plugin-dialog", () => ({ open }));
 
 const { default: App } = await import("./App");
 
@@ -59,6 +81,18 @@ const failureState: IssueExplorerLoadState = {
   status: "failure",
 };
 
+const workspace = (
+  overrides: Partial<WorkspaceState> = {}
+): WorkspaceState => ({
+  catalog: [],
+  currentWorkspace: null,
+  error: null,
+  generation: 0,
+  pendingWorkspace: null,
+  version: 1,
+  ...overrides,
+});
+
 const sidebar = () => screen.getByRole("navigation");
 
 const sidebarButton = (name: RegExp) =>
@@ -67,6 +101,13 @@ const sidebarButton = (name: RegExp) =>
 describe("App issue list view sidebar", () => {
   beforeEach(() => {
     loadIssueExplorerStateFromTauRpc.mockReset();
+    open.mockReset();
+    removeWorkspace.mockReset();
+    resetWorkspaceMemory.mockReset();
+    retryWorkspaceMemory.mockReset();
+    switchWorkspace.mockReset();
+    workspaceState.mockReset();
+    workspaceState.mockRejectedValue(new Error("workspace unavailable"));
   });
 
   it("keeps sidebar view controls unavailable with hidden counts while issues are loading", () => {
@@ -271,5 +312,137 @@ describe("App issue list view sidebar", () => {
 
     await user.click(sidebarButton(/^Ready, 1 issue$/u));
     expect(loadIssueExplorerStateFromTauRpc).toHaveBeenCalledTimes(1);
+  });
+
+  it("renders backend-owned catalog order as MRU order", async () => {
+    loadIssueExplorerStateFromTauRpc.mockResolvedValue(failureState);
+    workspaceState.mockResolvedValue(
+      workspace({
+        catalog: [
+          { availability: "available", path: "/work/most-recent" },
+          { availability: "available", path: "/work/older" },
+        ],
+      })
+    );
+
+    render(<App />);
+
+    const catalog = await screen.findByRole("list", {
+      name: "Known workspaces",
+    });
+    expect(
+      within(catalog)
+        .getAllByRole("listitem")
+        .map((entry) => entry.textContent)
+    ).toEqual([
+      expect.stringContaining("/work/most-recent"),
+      expect.stringContaining("/work/older"),
+    ]);
+  });
+
+  it("leaves the app unchanged when the native picker is cancelled and defaults to the latest available workspace", async () => {
+    const user = userEvent.setup();
+    loadIssueExplorerStateFromTauRpc.mockResolvedValue(failureState);
+    workspaceState.mockResolvedValue(
+      workspace({
+        catalog: [
+          { availability: "unavailable", path: "/work/missing" },
+          { availability: "available", path: "/work/available" },
+        ],
+      })
+    );
+    open.mockResolvedValue(null);
+
+    render(<App />);
+
+    const choose = await within(sidebar()).findByRole("button", {
+      name: "Choose folder",
+    });
+    await user.click(choose);
+
+    await waitFor(() => {
+      expect(open).toHaveBeenCalledWith({
+        defaultPath: "/work/available",
+        directory: true,
+        multiple: false,
+      });
+    });
+    expect(switchWorkspace).not.toHaveBeenCalled();
+  });
+
+  it("clears the Issue Explorer to the empty chooser after removing Current Workspace", async () => {
+    const user = userEvent.setup();
+    const currentPath = "/work/current";
+    loadIssueExplorerStateFromTauRpc.mockResolvedValue(
+      successState({ allIssues: [buildIssue()] })
+    );
+    workspaceState.mockResolvedValue(
+      workspace({
+        catalog: [
+          { availability: "available", path: currentPath },
+          { availability: "available", path: "/work/other" },
+        ],
+        currentWorkspace: { availability: "available", path: currentPath },
+      })
+    );
+    removeWorkspace.mockResolvedValue(
+      workspace({
+        catalog: [{ availability: "available", path: "/work/other" }],
+      })
+    );
+
+    render(<App />);
+
+    const remove = await screen.findByRole("button", {
+      name: `Remove ${currentPath}`,
+    });
+    await user.click(remove);
+
+    expect(removeWorkspace).toHaveBeenCalledWith(currentPath);
+    expect(
+      await screen.findByRole("heading", { name: "Choose a workspace" })
+    ).toBeInTheDocument();
+  });
+
+  it("refreshes and renders typed workspace failure after a rejected switch RPC", async () => {
+    const user = userEvent.setup();
+    loadIssueExplorerStateFromTauRpc.mockResolvedValue(failureState);
+    workspaceState
+      .mockResolvedValueOnce(
+        workspace({
+          catalog: [{ availability: "available", path: "/work/current" }],
+          currentWorkspace: {
+            availability: "available",
+            path: "/work/current",
+          },
+        })
+      )
+      .mockResolvedValueOnce(
+        workspace({
+          catalog: [{ availability: "available", path: "/work/current" }],
+          currentWorkspace: {
+            availability: "available",
+            path: "/work/current",
+          },
+          error: {
+            kind: "validationFailed",
+            message: "Not a Beadwork workspace",
+            retryable: true,
+          },
+        })
+      );
+    switchWorkspace.mockRejectedValue(new Error("validation failed"));
+
+    render(<App />);
+
+    const current = await screen.findByRole("button", {
+      name: "current, /work/current, Available",
+    });
+    await user.click(current);
+
+    expect(await screen.findByText("Not a Beadwork workspace")).toHaveAttribute(
+      "role",
+      "alert"
+    );
   });
 });
