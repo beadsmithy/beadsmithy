@@ -10,9 +10,15 @@
   "labels": [
     "ready-for-agent"
   ],
+  "comments": [
+    {
+      "text": "Changelog: declared this automatic-refresh epic blocked by Implement Workspace management. Refresh must build on backend-owned explicit Workspace state and generation semantics rather than reintroducing process-cwd assumptions or competing switch ownership.",
+      "timestamp": "2026-07-13T12:45:15Z"
+    }
+  ],
   "priority": 2,
   "status": "open",
   "title": "Automatically refresh issues from Beadwork",
   "type": "epic",
-  "updated_at": "2026-07-13T12:45:13Z"
+  "updated_at": "2026-07-13T12:45:15Z"
 }
