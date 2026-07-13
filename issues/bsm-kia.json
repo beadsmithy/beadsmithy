@@ -1,0 +1,14 @@
+{
+  "assignee": "",
+  "blocked_by": [],
+  "blocks": [],
+  "created": "2026-07-13T12:35:04Z",
+  "description": "## Background\n\nBeadsmith currently derives the Current Workspace from the desktop process working directory. That development shortcut makes launch location an ambient, process-global input, prevents dependable workspace switching, and lets an in-flight load risk associating one repository data with another.\n\nThis epic delivers the completed workspace-management specification as an implementation roadmap. A Workspace is the Git repository root initialized for Beadwork. The backend owns the persisted Workspace Catalog, Pending Workspace, and optional Current Workspace; frontend issue-loading calls never supply a path. A Workspace becomes Current only after validation, all Issue Explorer views load, and persistence succeeds.\n\n## What to build\n\nDeliver a compact sidebar Current Workspace selector that lets a user choose, remember, restore, remove, and atomically switch local Beadwork Workspaces. The app must keep the old Current Workspace and its Issue Explorer snapshot visible until a new candidate is completely loaded and durably committed.\n\n## Technical Approach\n\nThe child beads deliberately sequence an expand-and-contract foundation, initial selection, catalog lifecycle, atomic switching, and final real-desktop proof. Every product slice includes its own tests; the final bead consolidates cross-slice evidence and removes obsolete cwd-launch documentation.\n\n## Considerations\n\n- Use the native directory picker and validate selected paths through Beadwork, then store the validated Git root rather than a selected subdirectory.\n- Persist a 100-entry MRU Workspace Catalog in a backend-owned Tauri store.\n- Automatic issue refresh, custom Workspace names, and special symlink alias deduplication are out of scope.\n- Existing process-cwd and `--workspace` test support must disappear by the end of this epic; it is not an alternate product mode.\n\n## Acceptance criteria\n\n- [ ] A user can select and use multiple local Beadwork Workspaces without relaunching Beadsmith.\n- [ ] Current Workspace never changes before a complete candidate load and durable store commit succeed.\n- [ ] Known, unavailable, pending, and Current Workspace behavior is covered by automated tests and real desktop acceptance.\n\n## Test Plan\n\n- Run Rust unit and integration tests plus frontend unit and integration tests in every child slice.\n- Run the real desktop WebDriver suite after the final migration.\n- Run `pnpm check` and generated TauRPC binding checks before closing the epic.",
+  "id": "bsm-kia",
+  "labels": [],
+  "priority": 2,
+  "status": "open",
+  "title": "Implement Workspace management",
+  "type": "epic",
+  "updated_at": "2026-07-13T12:35:04Z"
+}
