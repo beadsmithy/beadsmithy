@@ -18,11 +18,15 @@
     {
       "text": "## Atomicity rule\n\nThe visible Current Workspace and Issue Explorer snapshot are one unit. No target title, path, or issue data may become current until the entire candidate transaction and its durability commit succeed. Generation checks protect this rule when user selections overlap.",
       "timestamp": "2026-07-13T12:35:06Z"
+    },
+    {
+      "text": "Changelog: atomic switching now has additional invariants. A successful switch must clear the selected Issue and local Issue Search before the new snapshot is interactive, while preserving the selected Issue List View when it remains meaningful. The selector must expose Cancel while Pending; cancel increments/invalidate generation, retains the old snapshot, and prevents a late result from publishing. Dismissing a failure banner hides only that session feedback, not the retryable catalog entry. Removal of a Pending or Current Workspace must invalidate pending work through the state service.",
+      "timestamp": "2026-07-13T12:45:14Z"
     }
   ],
   "priority": 2,
   "status": "open",
   "title": "Switch Workspaces atomically and recover from failures",
   "type": "task",
-  "updated_at": "2026-07-13T12:35:06Z"
+  "updated_at": "2026-07-13T12:45:14Z"
 }
