@@ -22,6 +22,10 @@
     {
       "text": "Changelog: atomic switching now has additional invariants. A successful switch must clear the selected Issue and local Issue Search before the new snapshot is interactive, while preserving the selected Issue List View when it remains meaningful. The selector must expose Cancel while Pending; cancel increments/invalidate generation, retains the old snapshot, and prevents a late result from publishing. Dismissing a failure banner hides only that session feedback, not the retryable catalog entry. Removal of a Pending or Current Workspace must invalidate pending work through the state service.",
       "timestamp": "2026-07-13T12:45:14Z"
+    },
+    {
+      "text": "Changelog: expanded the task body with cancellation, selection/search reset, banner-dismissal semantics, removal races, and explicit acceptance/tests. These are product-safety requirements, not optional polish.",
+      "timestamp": "2026-07-13T12:46:28Z"
     }
   ],
   "priority": 2,
