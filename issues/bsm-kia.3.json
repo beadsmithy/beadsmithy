@@ -14,9 +14,15 @@
     "ready-for-agent"
   ],
   "parent": "bsm-kia",
+  "comments": [
+    {
+      "text": "## Catalog rule of thumb\n\nThe catalog remembers successful user choices; it does not assert that every saved repository remains available. Availability is re-established only by validation and a complete load, which is why unavailable entries stay retryable instead of disappearing.",
+      "timestamp": "2026-07-13T12:35:06Z"
+    }
+  ],
   "priority": 2,
   "status": "open",
   "title": "Restore and manage the Workspace Catalog",
   "type": "task",
-  "updated_at": "2026-07-13T12:35:05Z"
+  "updated_at": "2026-07-13T12:35:06Z"
 }
