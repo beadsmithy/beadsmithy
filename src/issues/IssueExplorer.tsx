@@ -5,20 +5,20 @@ import {
   LoaderCircle,
   Search,
 } from "lucide-react";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 
 import type { ExternalLinkOpener } from "../components/external-link-opener";
 import { openExternalLink as defaultOpenExternalLink } from "../components/external-link-opener";
 import { MarkdownContent } from "../components/MarkdownContent";
 import type { Issue, IssueComment } from "../rpc/bindings";
 import {
-  DEFAULT_ISSUE_LIST_VIEW_ID,
-  getVisibleIssuesForListView,
-  ISSUE_LIST_VIEW_DEFINITIONS,
-} from "./issue-list-view";
+  deriveIssueExplorerState,
+  getIssueListEmptySupportingCopy,
+  getIssueListEmptyTitle,
+} from "./issue-explorer-state";
+import type { IssueListEmptyReason } from "./issue-explorer-state";
 import type { IssueListViewId } from "./issue-list-view";
 import type { IssueExplorerLoadState } from "./issue-loader";
-import { filterIssuesBySearchQuery } from "./issue-search";
 import { toIssueViewModel } from "./issue-view";
 import type { IssueTone } from "./issue-view";
 
@@ -125,60 +125,6 @@ const IssueRow = ({
       </article>
     </li>
   );
-};
-
-type IssueListEmptyReason =
-  | "true-empty"
-  | "base-empty"
-  | "search-filtered-empty";
-
-const ISSUE_LIST_VIEW_LABEL_BY_ID = new Map(
-  ISSUE_LIST_VIEW_DEFINITIONS.map((definition) => [
-    definition.id,
-    definition.label,
-  ])
-);
-
-const getActiveIssueListViewLabel = (viewId: IssueListViewId): string =>
-  ISSUE_LIST_VIEW_LABEL_BY_ID.get(viewId) ?? "view";
-
-const getIssueListEmptyTitle = ({
-  activeViewLabel,
-  reason,
-}: {
-  activeViewLabel: string;
-  reason: IssueListEmptyReason;
-}): string => {
-  if (reason === "search-filtered-empty") {
-    return "No matching issues";
-  }
-
-  if (reason === "base-empty") {
-    return `No issues in ${activeViewLabel}.`;
-  }
-
-  return "No issues found";
-};
-
-const getIssueListEmptySupportingCopy = ({
-  activeViewLabel,
-  rawSearchQuery,
-  reason,
-}: {
-  activeViewLabel: string;
-  rawSearchQuery: string;
-  reason: IssueListEmptyReason;
-}): string => {
-  if (reason === "true-empty") {
-    return "Beadwork returned an empty issue list for this workspace.";
-  }
-
-  if (reason === "search-filtered-empty") {
-    const trimmedQuery = rawSearchQuery.trim();
-    return `No issues in ${activeViewLabel} match "${trimmedQuery}".`;
-  }
-
-  return `The ${activeViewLabel} Issue List View has no issues.`;
 };
 
 const IssueListEmptyState = ({
@@ -550,33 +496,6 @@ const IssueDetailPane = ({
     />
   );
 
-const getIssueListEmptyReason = ({
-  allIssuesCount,
-  baseIssueCount,
-  hasSearchQuery,
-  visibleIssueCount,
-}: {
-  allIssuesCount: number;
-  baseIssueCount: number;
-  hasSearchQuery: boolean;
-  visibleIssueCount: number;
-}): IssueListEmptyReason | null => {
-  if (visibleIssueCount > 0) {
-    return null;
-  }
-
-  // True-empty workspace: nothing in All Issues, regardless of view or query.
-  if (allIssuesCount === 0) {
-    return "true-empty";
-  }
-
-  if (baseIssueCount === 0 || !hasSearchQuery) {
-    return "base-empty";
-  }
-
-  return "search-filtered-empty";
-};
-
 export const IssueExplorer = ({
   activeIssueListViewId,
   issueState,
@@ -592,31 +511,26 @@ export const IssueExplorer = ({
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedIssueId, setSelectedIssueId] = useState<string | null>(null);
   const issueListScrollContainerRef = useRef<HTMLDivElement>(null);
-  const activeViewId = activeIssueListViewId ?? DEFAULT_ISSUE_LIST_VIEW_ID;
-  const activeViewLabel = getActiveIssueListViewLabel(activeViewId);
-  const baseVisibleIssues = getVisibleIssuesForListView(
-    issueState,
-    activeViewId
+
+  const derivedState = useMemo(
+    () =>
+      deriveIssueExplorerState({
+        activeIssueListViewId,
+        issueState,
+        searchQuery,
+        selectedIssueId,
+      }),
+    [activeIssueListViewId, issueState, searchQuery, selectedIssueId]
   );
-  const visibleIssues = filterIssuesBySearchQuery(
-    baseVisibleIssues,
-    searchQuery
-  );
-  const hasSearchQuery = searchQuery.trim().length > 0;
-  const emptyReason: IssueListEmptyReason | null =
-    issueState.status === "success"
-      ? getIssueListEmptyReason({
-          allIssuesCount: issueState.allIssues.length,
-          baseIssueCount: baseVisibleIssues.length,
-          hasSearchQuery,
-          visibleIssueCount: visibleIssues.length,
-        })
-      : null;
-  const isSearchDisabled = issueState.status !== "success";
-  const selectedIssue: Issue | null =
-    issueState.status === "success"
-      ? (visibleIssues.find((issue) => issue.id === selectedIssueId) ?? null)
-      : null;
+
+  const {
+    activeViewId,
+    activeViewLabel,
+    emptyReason,
+    isSearchDisabled,
+    selectedIssue,
+    visibleIssues,
+  } = derivedState;
 
   // Reset the Issue List scroll position to the top when the active
   // Issue List View changes. Search changes intentionally do not reset
@@ -630,19 +544,12 @@ export const IssueExplorer = ({
   // Clear the selected Issue ID when it is no longer visible after a
   // view or search change. The cleared state is not auto-restored if a
   // later view/search change makes the Issue visible again.
-  useEffect(() => {
-    if (selectedIssueId === null) {
-      return;
-    }
-
-    const isStillVisible = visibleIssues.some(
-      (issue) => issue.id === selectedIssueId
-    );
-
-    if (!isStillVisible) {
-      setSelectedIssueId(null);
-    }
-  }, [selectedIssueId, visibleIssues]);
+  if (
+    selectedIssueId !== null &&
+    !visibleIssues.some((issue) => issue.id === selectedIssueId)
+  ) {
+    setSelectedIssueId(null);
+  }
 
   const handleSelect = (issueId: string) => {
     setSelectedIssueId(issueId);
