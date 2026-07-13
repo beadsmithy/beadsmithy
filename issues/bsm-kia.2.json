@@ -1,9 +1,6 @@
 {
   "assignee": "",
-  "blocked_by": [
-    "bsm-kia.1.1",
-    "bsm-kia.1.2"
-  ],
+  "blocked_by": [],
   "blocks": [
     "bsm-kia.3",
     "bsm-kia.4",
