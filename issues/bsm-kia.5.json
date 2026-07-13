@@ -21,6 +21,10 @@
     {
       "text": "Changelog: desktop acceptance must use a fresh, supported test-only application-data/store location per scenario. It must prove that neither the developer catalog nor an earlier scenario can affect startup, restoration, or switching assertions; writing the store file directly remains prohibited.",
       "timestamp": "2026-07-13T12:45:14Z"
+    },
+    {
+      "text": "Changelog: expanded the task body with per-scenario application-data isolation and new desktop proofs for cancellation and cross-Workspace interaction-state reset.",
+      "timestamp": "2026-07-13T12:46:28Z"
     }
   ],
   "priority": 2,
