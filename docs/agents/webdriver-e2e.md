@@ -47,26 +47,25 @@ if `bw` isn't found or the debug binary hasn't been built yet.
   comments to render. Nothing is committed to this repo and no
   machine-specific path is baked in -- everything is created fresh per run and
   removed afterward.
-- **Scenario runner** (`e2e/issue-list/scripts/run-scenario.ts`): creates the
-  workspace, launches `wdio` with `BEADSMITH_E2E_WORKSPACE` set, and removes
-  the workspace when the run finishes (pass or fail). Workspace creation lives
-  here rather than in the wdio config because `@wdio/tauri-service`'s
-  `embedded` driver provider spawns a single Beadsmith process for the whole
-  run, and WDIO's local runner re-evaluates the config module in more than one
-  Node process -- so anything stateful at config-module scope would run more
-  than once and desync from the already-launched app.
+- **Scenario runner** (`e2e/issue-list/scripts/run-scenario.ts`): creates a
+  populated fixture, a true-empty fixture, and a fresh temporary backend-store
+  path for every scenario. It launches `wdio` with those paths and removes all
+  temporary data on pass or fail. The runner never writes the store file;
+  fixtures are selected only through the normal typed `switch_workspace` RPC.
+  Workspace creation lives here rather than in the wdio config because
+  `@wdio/tauri-service`'s `embedded` driver provider spawns a single Beadsmith
+  process for the whole run, and WDIO's local runner re-evaluates the config
+  module in more than one Node process.
 - **wdio config** (`wdio.issue-list.conf.ts`): points `@wdio/tauri-service` at
   the built binary (`src-tauri/target/debug/beadsmith`) using the `embedded`
   driver provider, so no external `tauri-driver` install is needed (this is
   also the only provider that works natively on macOS). The suite uses a
   non-default embedded WebDriver port (`46245`) and preflights that port before
   launching so it fails clearly instead of silently attaching to a stale debug
-  app. The workspace path is passed as a `--workspace <path>` launch argument,
-  which `src-tauri/src/workspace.rs` uses to switch the process's current
-  directory before Beadsmith starts -- the same directory the `issues` adapter
-  and RPC layer already read from (ADR-0003). Backend and frontend log capture
-  are both enabled so failures show Rust/TauRPC/Effect/UI signals, not just a
-  WebDriver timeout.
+  app. The binary starts with an isolated empty catalog; it receives no
+  `--workspace` launch argument and never changes process cwd. Backend and
+  frontend log capture are both enabled so failures show Rust/TauRPC/Effect/UI
+  signals, not just a WebDriver timeout.
 - **WDIO plugin wiring**: debug builds register both `tauri-plugin-wdio` and
   `tauri-plugin-wdio-webdriver`. `pnpm e2e:build` merges
   `src-tauri/tauri.e2e.conf.json` so `withGlobalTauri` is enabled only for the
@@ -75,17 +74,16 @@ if `bw` isn't found or the debug binary hasn't been built yet.
   in `src-tauri/capabilities/webdriver-e2e.json`, separate from the app's
   default capability.
 - **Specs** (`e2e/issue-list/*.spec.ts`): assert on the native RPC path and
-  the rendered DOM. `issue-list.success.spec.ts` invokes
-  `TauRPC__load_issue_explorer_data` as a direct command sanity check, waits
-  for the combined Issue explorer load, verifies representative sidebar counts,
-  switches Issue List Views, proves local Issue Search narrows the active view
-  and preserves the query while switching views, then selects a visible Issue
-  and asserts representative Issue Detail content: title/ID, Markdown
-  description output, dependency context, and comments. It also asserts the
-  sidebar's reported workspace path matches the launched fixture.
-  `issue-list.empty.spec.ts` asserts the true-empty state renders (and that
-  neither the failure nor the populated-list state does) for a workspace with
-  zero issues.
+  the rendered DOM. `issue-list.success.spec.ts` first proves empty startup,
+  invokes `TauRPC__switch_workspace` directly for the populated fixture, then
+  reloads the renderer through its normal backend-state startup path before
+  verifying sidebar counts, Issue List Views, local search, and Issue Detail.
+  It then switches to the true-empty fixture and proves an invalid target
+  preserves that Current Workspace. `issue-list.empty.spec.ts` selects the
+  zero-issue fixture through the same typed operation before asserting the
+  true-empty state. Direct typed transport is intentional: native macOS
+  directory dialogs are not a reliable WebDriver surface, while frontend tests
+  cover picker wiring and cancellation.
 
 ## Why the embedded WebDriver server, not `tauri-driver`
 
@@ -113,6 +111,8 @@ so the service crashes on startup. `pnpm-workspace.yaml` overrides
 
 - Broad visual regression coverage.
 - Issue mutations.
-- Workspace switching.
+- Pending/concurrency presentation: TauRPC workspace selection is synchronous
+  today, so a visible pending state requires the separately planned bsm-kia.4
+  asynchronous switch work.
 - Exhaustive search/filter matrices beyond the focused Issue List View and
   local Issue Search happy path.

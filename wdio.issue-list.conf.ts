@@ -4,13 +4,12 @@
  * Launches the built Beadsmith debug binary through `@wdio/tauri-service`'s
  * embedded driver provider (no external `tauri-driver` needed; the app embeds
  * `tauri-plugin-wdio-webdriver` in debug builds only, see
- * src-tauri/src/lib.rs). The embedded provider spawns a single app process
- * for the whole run, so the target Beadwork workspace is fixed per
- * invocation.
+ * src-tauri/src/lib.rs). The app starts with an isolated empty catalog;
+ * specs select disposable repositories through `switch_workspace`.
  *
  * Do not run this file directly: use `pnpm e2e:issue-list:success` /
  * `pnpm e2e:issue-list:empty`, which create the disposable Beadwork
- * workspace and pass it in via `BEADSMITH_E2E_WORKSPACE` (see
+ * repositories and isolated backend store used by the specs (see
  * e2e/issue-list/scripts/run-scenario.ts and
  * docs/agents/webdriver-e2e.md).
  */
@@ -33,11 +32,13 @@ const APP_BINARY_PATH = path.resolve(
 
 const scenario =
   process.env.BEADSMITH_E2E_SCENARIO === "empty" ? "empty" : "issues";
-const workspacePath = process.env.BEADSMITH_E2E_WORKSPACE;
+const workspaceA = process.env.BEADSMITH_E2E_WORKSPACE_A;
+const workspaceB = process.env.BEADSMITH_E2E_WORKSPACE_B;
+const storePath = process.env.BEADSMITH_WORKSPACE_STORE_PATH;
 
-if (!workspacePath) {
+if (!workspaceA || !workspaceB || !storePath) {
   throw new Error(
-    "BEADSMITH_E2E_WORKSPACE is not set. Run `pnpm e2e:issue-list:success` or " +
+    "E2E fixture paths are not set. Run `pnpm e2e:issue-list:success` or " +
       "`pnpm e2e:issue-list:empty` instead of invoking wdio directly."
   );
 }
@@ -89,9 +90,10 @@ export const config: WebdriverIO.Config = {
       );
     }
     console.log(`[e2e] using Beadsmith binary at ${APP_BINARY_PATH}`);
-    console.log(
-      `[e2e] launching Beadsmith against workspace: ${workspacePath}`
-    );
+    console.log("[e2e] launching Beadsmith with an isolated empty catalog");
+    console.log(`[e2e] workspace A: ${workspaceA}`);
+    console.log(`[e2e] workspace B: ${workspaceB}`);
+    console.log(`[e2e] isolated store: ${storePath}`);
     console.log(
       `[e2e] using embedded WebDriver port: ${EMBEDDED_WEBDRIVER_PORT}`
     );
@@ -102,7 +104,7 @@ export const config: WebdriverIO.Config = {
     [
       "@wdio/tauri-service",
       {
-        appArgs: ["--workspace", workspacePath],
+        appArgs: [],
         appBinaryPath: APP_BINARY_PATH,
         backendLogLevel: "debug",
         captureBackendLogs: true,

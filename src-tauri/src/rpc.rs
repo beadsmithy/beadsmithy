@@ -4,18 +4,30 @@
 //! access to the pure Rust `issues` adapter and maps adapter results/errors into
 //! serializable, user-displayable payloads.
 
-use std::env;
+#[cfg(test)]
 use std::path::Path;
+use std::sync::{Arc, Mutex};
 
 use crate::issues::{self, ListIssuesError, ProcessRunner};
+use crate::workspace::{
+    IssueExplorerData, TauriWorkspaceStore, WorkspaceError, WorkspaceService, WorkspaceState,
+};
+
+/// In-memory data is only published after the workspace service's durable
+/// Current commit. It lets Issue Explorer reload without accepting a path.
+struct WorkspaceRuntime {
+    app: tauri::AppHandle<tauri::Wry>,
+    service: WorkspaceService<TauriWorkspaceStore<tauri::Wry>>,
+    snapshot: Option<IssueExplorerData>,
+}
 
 /// Build the TauRPC router, including TypeScript export configuration.
-pub fn router<R: tauri::Runtime>() -> taurpc::Router<R> {
+pub fn router<R: tauri::Runtime>(api: BeadsmithApiImpl) -> taurpc::Router<R> {
     let router = taurpc::Router::new()
         .export_config(specta_typescript::Typescript::default().header(
             "// oxlint-disable no-unused-vars typescript/ban-ts-comment import/consistent-type-specifier-style import/newline-after-import typescript/consistent-type-definitions\n// @ts-nocheck\n",
         ))
-        .merge(BeadsmithApiImpl.into_handler());
+        .merge(api.into_handler());
 
     #[cfg(debug_assertions)]
     let router = router.merge(DevBridgeApiImpl.into_handler());
@@ -23,29 +35,155 @@ pub fn router<R: tauri::Runtime>() -> taurpc::Router<R> {
     router
 }
 
-/// Beadsmith's typed application RPC surface.
+/// Beadsmith's typed application RPC surface. Issue-loading methods deliberately
+/// have no caller-provided workspace path.
 #[taurpc::procedures(export_to = "../src/rpc/bindings.ts")]
 pub trait BeadsmithApi {
     async fn list_issues() -> Result<ListIssuesResponse, IssueListError>;
     async fn load_issue_explorer_data() -> Result<LoadIssueExplorerDataResponse, IssueListError>;
+    async fn workspace_state() -> WorkspaceState;
+    async fn switch_workspace(candidate_path: String) -> Result<WorkspaceSwitchResponse, WorkspaceError>;
+    async fn remove_workspace(path: String) -> Result<WorkspaceState, WorkspaceError>;
+    async fn retry_workspace_memory() -> WorkspaceState;
+    async fn reset_workspace_memory() -> Result<WorkspaceState, WorkspaceError>;
 }
 
 /// Resolver implementation for Beadsmith's application RPC surface.
 #[derive(Clone, Default)]
-pub struct BeadsmithApiImpl;
+pub struct BeadsmithApiImpl {
+    workspace: Arc<Mutex<Option<WorkspaceRuntime>>>,
+}
+
+impl BeadsmithApiImpl {
+    /// Called once from Tauri setup after the store plugin has been registered.
+    pub fn initialize_workspace(&self, app: tauri::AppHandle<tauri::Wry>) {
+        let store = TauriWorkspaceStore::new(app.clone());
+        let mut service = WorkspaceService::from_store(store);
+        let snapshot = service.restore_current(&ProcessRunner::new()).ok().flatten();
+        *self.workspace.lock().expect("workspace runtime lock poisoned") =
+            Some(WorkspaceRuntime { app, service, snapshot });
+    }
+
+    fn with_runtime<T>(&self, operation: impl FnOnce(&mut WorkspaceRuntime) -> T) -> T {
+        let mut runtime = self.workspace.lock().expect("workspace runtime lock poisoned");
+        operation(
+            runtime
+                .as_mut()
+                .expect("workspace runtime must initialize during Tauri setup"),
+        )
+    }
+}
 
 #[taurpc::resolvers]
 impl BeadsmithApi for BeadsmithApiImpl {
     async fn list_issues(self) -> Result<ListIssuesResponse, IssueListError> {
-        let workspace = env::current_dir().unwrap_or_else(|_| std::path::PathBuf::from("."));
-        list_issues_from_adapter(&ProcessRunner::new(), &workspace)
+        self.with_runtime(|runtime| {
+            let data = runtime.snapshot.as_ref().ok_or_else(no_current_workspace_error)?;
+            Ok(ListIssuesResponse {
+                workspace_path: runtime
+                    .service
+                    .state()
+                    .current_workspace
+                    .as_ref()
+                    .map(|workspace| workspace.path.clone())
+                    .unwrap_or_default(),
+                issues: map_issue_collection(data.all_issues.clone()),
+            })
+        })
     }
 
-    async fn load_issue_explorer_data(
+    async fn load_issue_explorer_data(self) -> Result<LoadIssueExplorerDataResponse, IssueListError> {
+        self.with_runtime(|runtime| {
+            let data = runtime.snapshot.as_ref().ok_or_else(no_current_workspace_error)?;
+            let state = runtime.service.state();
+            let path = state
+                .current_workspace
+                .as_ref()
+                .map(|workspace| workspace.path.as_str())
+                .unwrap_or_default();
+            Ok(workspace_data_response(data, path))
+        })
+    }
+
+    async fn workspace_state(self) -> WorkspaceState {
+        self.with_runtime(|runtime| runtime.service.state().clone())
+    }
+
+    async fn switch_workspace(
         self,
-    ) -> Result<LoadIssueExplorerDataResponse, IssueListError> {
-        let workspace = env::current_dir().unwrap_or_else(|_| std::path::PathBuf::from("."));
-        load_issue_explorer_data_from_adapter(&ProcessRunner::new(), &workspace)
+        candidate_path: String,
+    ) -> Result<WorkspaceSwitchResponse, WorkspaceError> {
+        self.with_runtime(|runtime| {
+            let data = runtime
+                .service
+                .select_workspace(&ProcessRunner::new(), candidate_path)?;
+            runtime.snapshot = Some(data.clone());
+            Ok(WorkspaceSwitchResponse {
+                state: runtime.service.state().clone(),
+                issue_data: workspace_data_response(
+                    &data,
+                    runtime
+                        .service
+                        .state()
+                        .current_workspace
+                        .as_ref()
+                        .map(|workspace| workspace.path.as_str())
+                        .unwrap_or_default(),
+                ),
+            })
+        })
+    }
+
+    async fn remove_workspace(self, path: String) -> Result<WorkspaceState, WorkspaceError> {
+        self.with_runtime(|runtime| {
+            let removed_current = runtime
+                .service
+                .state()
+                .current_workspace
+                .as_ref()
+                .is_some_and(|workspace| workspace.path == path);
+            runtime.service.remove_workspace(&path)?;
+            if removed_current {
+                runtime.snapshot = None;
+            }
+            Ok(runtime.service.state().clone())
+        })
+    }
+
+    async fn retry_workspace_memory(self) -> WorkspaceState {
+        self.with_runtime(|runtime| {
+            let store = TauriWorkspaceStore::new(runtime.app.clone());
+            let mut service = WorkspaceService::from_store(store);
+            let snapshot = service.restore_current(&ProcessRunner::new()).ok().flatten();
+            runtime.service = service;
+            runtime.snapshot = snapshot;
+            runtime.service.state().clone()
+        })
+    }
+
+    async fn reset_workspace_memory(self) -> Result<WorkspaceState, WorkspaceError> {
+        self.with_runtime(|runtime| {
+            runtime.service.reset_memory()?;
+            runtime.snapshot = None;
+            Ok(runtime.service.state().clone())
+        })
+    }
+}
+
+/// Result of a successful switch; the frontend receives its complete snapshot
+/// only after the service's durable Current commit.
+#[taurpc::ipc_type]
+#[derive(Debug, PartialEq, Eq)]
+#[serde(rename_all = "camelCase")]
+pub struct WorkspaceSwitchResponse {
+    pub state: WorkspaceState,
+    pub issue_data: LoadIssueExplorerDataResponse,
+}
+
+fn no_current_workspace_error() -> IssueListError {
+    IssueListError {
+        kind: IssueListErrorKind::NotBeadworkWorkspace,
+        message: "Select a workspace to load issues.".to_string(),
     }
 }
 
@@ -144,51 +282,22 @@ pub struct IssueListError {
     pub message: String,
 }
 
-fn list_issues_from_adapter(
-    runner: &dyn issues::CommandRunner,
-    workspace: &Path,
-) -> Result<ListIssuesResponse, IssueListError> {
-    let workspace_path = workspace.display().to_string();
-    let issues = map_issue_collection(
-        issues::list_all_issues(runner, workspace).map_err(IssueListError::from)?,
-    );
 
-    Ok(ListIssuesResponse {
-        workspace_path,
-        issues,
-    })
+fn workspace_data_response(data: &IssueExplorerData, workspace_path: &str) -> LoadIssueExplorerDataResponse {
+    LoadIssueExplorerDataResponse {
+        workspace_path: workspace_path.to_string(),
+        all_issues: map_issue_collection(data.all_issues.clone()),
+        ready_issues: map_issue_collection(data.ready_issues.clone()),
+        blocked_issues: map_issue_collection(data.blocked_issues.clone()),
+    }
 }
 
-fn load_issue_explorer_data_from_adapter(
-    runner: &dyn issues::CommandRunner,
-    workspace: &Path,
-) -> Result<LoadIssueExplorerDataResponse, IssueListError> {
-    let workspace_path = workspace.display().to_string();
-    let all_issues = map_issue_collection(
-        issues::list_all_issues(runner, workspace)
-            .map_err(|error| issue_list_error_with_view_context(error, "All Issues"))?,
-    );
-    let ready_issues = map_issue_collection(
-        issues::list_ready_issues(runner, workspace)
-            .map_err(|error| issue_list_error_with_view_context(error, "Ready Issues"))?,
-    );
-    let blocked_issues = map_issue_collection(
-        issues::list_blocked_issues(runner, workspace)
-            .map_err(|error| issue_list_error_with_view_context(error, "Blocked Issues"))?,
-    );
-
-    Ok(LoadIssueExplorerDataResponse {
-        workspace_path,
-        all_issues,
-        ready_issues,
-        blocked_issues,
-    })
-}
 
 fn map_issue_collection(issues: Vec<issues::Issue>) -> Vec<Issue> {
     issues.into_iter().map(Issue::from).collect()
 }
 
+#[cfg(test)]
 fn issue_list_error_with_view_context(error: ListIssuesError, view_label: &str) -> IssueListError {
     let mut mapped = IssueListError::from(error);
     mapped.message = format!("Could not load {view_label}: {}", mapped.message);
@@ -256,6 +365,44 @@ impl From<ListIssuesError> for IssueListError {
         }
     }
 }
+
+#[cfg(test)]
+fn list_issues_from_adapter(
+    runner: &dyn issues::CommandRunner,
+    workspace: &Path,
+) -> Result<ListIssuesResponse, IssueListError> {
+    let workspace_path = workspace.display().to_string();
+    let issues = map_issue_collection(
+        issues::list_all_issues(runner, workspace).map_err(IssueListError::from)?,
+    );
+    Ok(ListIssuesResponse { workspace_path, issues })
+}
+
+#[cfg(test)]
+fn load_issue_explorer_data_from_adapter(
+    runner: &dyn issues::CommandRunner,
+    workspace: &Path,
+) -> Result<LoadIssueExplorerDataResponse, IssueListError> {
+    let all_issues = map_issue_collection(
+        issues::list_all_issues(runner, workspace)
+            .map_err(|error| issue_list_error_with_view_context(error, "All Issues"))?,
+    );
+    let ready_issues = map_issue_collection(
+        issues::list_ready_issues(runner, workspace)
+            .map_err(|error| issue_list_error_with_view_context(error, "Ready Issues"))?,
+    );
+    let blocked_issues = map_issue_collection(
+        issues::list_blocked_issues(runner, workspace)
+            .map_err(|error| issue_list_error_with_view_context(error, "Blocked Issues"))?,
+    );
+    Ok(LoadIssueExplorerDataResponse {
+        workspace_path: workspace.display().to_string(),
+        all_issues,
+        ready_issues,
+        blocked_issues,
+    })
+}
+
 
 #[cfg(test)]
 mod tests {
@@ -534,10 +681,23 @@ mod tests {
 
     #[tokio::test]
     async fn generates_typescript_bindings() {
-        let _handler = router::<tauri::Wry>().into_handler();
+        let _handler = router::<tauri::Wry>(BeadsmithApiImpl::default()).into_handler();
 
-        let bindings = std::fs::read_to_string("../src/rpc/bindings.ts")
+        let bindings_path = "../src/rpc/bindings.ts";
+        let generated_bindings = std::fs::read_to_string(bindings_path)
             .expect("expected generated TauRPC bindings");
+        // TauRPC currently emits trailing whitespace in a few type rows. Keep
+        // the generated source stable so a binding verification test does not
+        // leave the worktree dirty.
+        let bindings = generated_bindings
+            .lines()
+            .map(str::trim_end)
+            .collect::<Vec<_>>()
+            .join("\n");
+        if bindings != generated_bindings.trim_end() {
+            std::fs::write(bindings_path, format!("{bindings}\n"))
+                .expect("normalized bindings should be written");
+        }
         assert!(bindings.contains("export type Issue"));
         assert!(bindings.contains("export type IssueComment"));
         assert!(bindings.contains("export type ListIssuesResponse"));
@@ -589,6 +749,22 @@ mod tests {
         }
         assert!(bindings.contains("list_issues"));
         assert!(bindings.contains("load_issue_explorer_data"));
+        for method in [
+            "workspace_state",
+            "switch_workspace",
+            "remove_workspace",
+            "retry_workspace_memory",
+            "reset_workspace_memory",
+        ] {
+            assert!(bindings.contains(method), "missing workspace RPC {method}");
+        }
+        for type_name in [
+            "WorkspaceState",
+            "WorkspaceSwitchResponse",
+            "WorkspaceAvailability",
+        ] {
+            assert!(bindings.contains(type_name), "missing workspace type {type_name}");
+        }
         let old_method_name = ["list_issue", "_summaries"].concat();
         assert!(!bindings.contains(&old_method_name));
         assert!(bindings.contains("createTauRPCProxy"));

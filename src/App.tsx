@@ -1,3 +1,4 @@
+import { open } from "@tauri-apps/plugin-dialog";
 import {
   CheckCircle2,
   Circle,
@@ -8,9 +9,13 @@ import {
   PlayCircle,
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 
 import "./App.css";
+import {
+  WorkspaceSelector,
+  pickerDefaultPath,
+} from "./components/WorkspaceSelector";
 import {
   DEFAULT_ISSUE_LIST_VIEW_ID,
   formatIssueCountLabel,
@@ -27,6 +32,8 @@ import {
 } from "./issues/issue-loader";
 import type { IssueExplorerLoadState } from "./issues/issue-loader";
 import { IssueExplorer } from "./issues/IssueExplorer";
+import { createTauRPCProxy } from "./rpc/bindings";
+import type { WorkspaceState } from "./rpc/bindings";
 
 const ISSUE_LIST_VIEW_ICONS: Record<IssueListViewId, LucideIcon> = {
   all: Inbox,
@@ -36,18 +43,6 @@ const ISSUE_LIST_VIEW_ICONS: Record<IssueListViewId, LucideIcon> = {
   in_progress: PlayCircle,
   open: Circle,
   ready: CheckCircle2,
-};
-
-const workspaceTextFor = (state: IssueExplorerLoadState): string => {
-  if (state.status === "success") {
-    return state.workspacePath;
-  }
-
-  if (state.status === "failure") {
-    return "Unavailable";
-  }
-
-  return "Loading workspace…";
 };
 
 const SidebarNavButton = ({
@@ -100,7 +95,9 @@ export default function App() {
   );
   const [activeIssueListViewId, setActiveIssueListViewId] =
     useState<IssueListViewId>(DEFAULT_ISSUE_LIST_VIEW_ID);
-  const workspacePath = workspaceTextFor(issueState);
+  const [workspaceState, setWorkspaceState] = useState<WorkspaceState | null>(
+    null
+  );
   const issueListViewCounts = getIssueListViewCounts(issueState);
   const sidebarDisabled = issueState.status !== "success";
   const viewItems = ISSUE_LIST_VIEW_DEFINITIONS.filter(
@@ -110,11 +107,98 @@ export default function App() {
     (item) => item.group === "status"
   );
 
+  const refreshWorkspaceState = useCallback(async () => {
+    try {
+      setWorkspaceState(await createTauRPCProxy().workspace_state());
+    } catch {
+      // No typed state is available if the transport itself is unavailable.
+    }
+  }, []);
+
   useEffect(() => {
     void (async () => {
-      setIssueState(await loadIssueExplorerStateFromTauRpc());
+      try {
+        setIssueState(await loadIssueExplorerStateFromTauRpc());
+      } catch {
+        setIssueState({
+          error: {
+            kind: "unknown",
+            message: "Beadsmith could not load issues.",
+          },
+          status: "failure",
+        });
+      }
     })();
-  }, []);
+    void refreshWorkspaceState();
+  }, [refreshWorkspaceState]);
+
+  const selectWorkspace = async (path: string) => {
+    try {
+      const response = await createTauRPCProxy().switch_workspace(path);
+      setWorkspaceState(response.state);
+      setIssueState({ ...response.issueData, status: "success" });
+    } catch {
+      await refreshWorkspaceState();
+    }
+  };
+
+  const chooseWorkspace = async () => {
+    try {
+      const selection = await open({
+        defaultPath: pickerDefaultPath(workspaceState) ?? undefined,
+        directory: true,
+        multiple: false,
+      });
+      if (typeof selection === "string") {
+        await selectWorkspace(selection);
+      }
+    } catch {
+      await refreshWorkspaceState();
+    }
+  };
+
+  const removeWorkspace = async (path: string) => {
+    const removingCurrent = workspaceState?.currentWorkspace?.path === path;
+    try {
+      const state = await createTauRPCProxy().remove_workspace(path);
+      setWorkspaceState(state);
+      if (removingCurrent) {
+        setIssueState({
+          error: {
+            kind: "noWorkspace",
+            message: "Select a workspace to load issues.",
+          },
+          status: "failure",
+        });
+      }
+    } catch {
+      await refreshWorkspaceState();
+    }
+  };
+
+  const retryWorkspaceMemory = async () => {
+    try {
+      setWorkspaceState(await createTauRPCProxy().retry_workspace_memory());
+    } catch {
+      await refreshWorkspaceState();
+    }
+  };
+
+  const resetWorkspaceMemory = async () => {
+    try {
+      const state = await createTauRPCProxy().reset_workspace_memory();
+      setWorkspaceState(state);
+      setIssueState({
+        error: {
+          kind: "noWorkspace",
+          message: "Select a workspace to load issues.",
+        },
+        status: "failure",
+      });
+    } catch {
+      await refreshWorkspaceState();
+    }
+  };
 
   return (
     <div className="flex h-screen w-screen overflow-hidden bg-background font-primary text-text-main antialiased">
@@ -159,27 +243,44 @@ export default function App() {
           </div>
         </div>
 
-        <div className="border-t border-border-main p-4">
-          <div className="mb-1 flex items-center justify-between font-mono text-[10px] tracking-wider text-muted uppercase">
-            <span>Current Workspace</span>
-            <span className="opacity-50" aria-hidden="true">
-              ⇄
-            </span>
-          </div>
-          <div
-            className="truncate font-mono text-xs text-text-main"
-            title={workspacePath}
-          >
-            {workspacePath}
-          </div>
-        </div>
+        <WorkspaceSelector
+          onChoose={() => void chooseWorkspace()}
+          onRemove={(path) => void removeWorkspace(path)}
+          onResetMemory={() => void resetWorkspaceMemory()}
+          onRetryMemory={() => void retryWorkspaceMemory()}
+          onSelect={(path) => void selectWorkspace(path)}
+          state={workspaceState}
+        />
       </nav>
 
-      <IssueExplorer
-        activeIssueListViewId={activeIssueListViewId}
-        issueState={issueState}
-        onIssueListViewChange={setActiveIssueListViewId}
-      />
+      {workspaceState !== null && workspaceState.currentWorkspace === null ? (
+        <main
+          aria-label="Choose a workspace"
+          className="flex flex-1 items-center justify-center bg-background p-8 text-center"
+        >
+          <div>
+            <h1 className="text-lg font-semibold text-primary">
+              Choose a workspace
+            </h1>
+            <p className="mt-2 text-sm text-muted">
+              Select a Beadwork repository to load its issue views.
+            </p>
+            <button
+              className="mt-4 rounded border border-border-main px-3 py-2 text-sm hover:bg-white/5"
+              onClick={() => void chooseWorkspace()}
+              type="button"
+            >
+              Choose folder
+            </button>
+          </div>
+        </main>
+      ) : (
+        <IssueExplorer
+          activeIssueListViewId={activeIssueListViewId}
+          issueState={issueState}
+          onIssueListViewChange={setActiveIssueListViewId}
+        />
+      )}
     </div>
   );
 }

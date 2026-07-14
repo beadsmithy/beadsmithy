@@ -6,7 +6,6 @@
 //! or installed `bw`/`git` binaries. Tauri store and dialog wiring deliberately
 //! belongs to a later integration chunk.
 
-use std::env;
 use std::fmt;
 use std::io;
 use std::path::{Component, Path, PathBuf};
@@ -15,17 +14,29 @@ use serde::{Deserialize, Serialize};
 
 use crate::issues::{self, CommandOutput, CommandRunner, ListIssuesError};
 
-const WORKSPACE_FLAG: &str = "--workspace";
 const WORKSPACE_STATE_VERSION: u32 = 1;
 const MAX_CATALOG_ENTRIES: usize = 100;
 const BW_PROGRAM: &str = "bw";
 const GIT_PROGRAM: &str = "git";
 
 /// A workspace known to Beadsmith, represented by its Git root.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, specta::Type)]
 #[serde(rename_all = "camelCase")]
 pub struct Workspace {
     pub path: String,
+    #[serde(default)]
+    pub availability: WorkspaceAvailability,
+}
+
+/// Whether a catalog entry was last reachable during startup restoration.
+/// This is intentionally distinct from catalog storage health: an unavailable
+/// repository remains a recoverable local catalog entry.
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize, specta::Type)]
+#[serde(rename_all = "camelCase")]
+pub enum WorkspaceAvailability {
+    #[default]
+    Available,
+    Unavailable,
 }
 
 /// The durable subset of workspace state.
@@ -53,14 +64,14 @@ impl Default for PersistedWorkspaceState {
 }
 
 /// Public, serializable workspace state for a later typed RPC boundary.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, specta::Type)]
 #[serde(rename_all = "camelCase")]
 pub struct WorkspaceState {
     pub version: u32,
     pub catalog: Vec<Workspace>,
     pub current_workspace: Option<Workspace>,
     pub pending_workspace: Option<Workspace>,
-    pub generation: u64,
+    pub generation: u32,
     pub error: Option<WorkspaceError>,
 }
 
@@ -78,7 +89,7 @@ impl Default for WorkspaceState {
 }
 
 /// A typed machine-readable workspace failure category.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, specta::Type)]
 #[serde(rename_all = "camelCase")]
 pub enum WorkspaceErrorKind {
     StoreReadFailed,
@@ -90,7 +101,7 @@ pub enum WorkspaceErrorKind {
 }
 
 /// A typed workspace failure suitable for a later RPC/UI boundary.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, specta::Type)]
 #[serde(rename_all = "camelCase")]
 pub struct WorkspaceError {
     pub kind: WorkspaceErrorKind,
@@ -141,7 +152,7 @@ pub trait WorkspaceStore {
 /// late result cannot overwrite a newer selection.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct WorkspaceRequest {
-    generation: u64,
+    generation: u32,
     candidate: PathBuf,
 }
 
@@ -159,7 +170,6 @@ pub struct WorkspaceService<S> {
     store: S,
     state: WorkspaceState,
     restoration_candidate: Option<PathBuf>,
-    remembered_current_path: Option<String>,
 }
 
 impl<S: WorkspaceStore> WorkspaceService<S> {
@@ -169,7 +179,7 @@ impl<S: WorkspaceStore> WorkspaceService<S> {
     /// An unreadable or unsupported store is retained as a typed error until
     /// the caller explicitly invokes reset.
     pub fn from_store(store: S) -> Self {
-        let (state, restoration_candidate, remembered_current_path) =
+        let (state, restoration_candidate) =
             match store.load().and_then(validate_persisted_state) {
                 Ok(persisted) => state_from_persisted(persisted.unwrap_or_default()),
                 Err(message) => (
@@ -182,27 +192,31 @@ impl<S: WorkspaceStore> WorkspaceService<S> {
                         ..WorkspaceState::default()
                     },
                     None,
-                    None,
                 ),
             };
         Self {
             store,
             state,
             restoration_candidate,
-            remembered_current_path,
         }
     }
 
-    /// Return the currently published state.
-    pub fn state(&self) -> &WorkspaceState {
-        &self.state
+    /// Return the currently published state with catalog availability derived
+    /// from the local filesystem. Availability is deliberately not inferred
+    /// from Beadwork validation: a readable directory can be a retryable,
+    /// non-Beadwork workspace without being unavailable.
+    pub fn state(&self) -> WorkspaceState {
+        let mut state = self.state.clone();
+        for workspace in &mut state.catalog {
+            workspace.availability = workspace_availability(Path::new(&workspace.path));
+        }
+        state
     }
 
     /// Start a new user-initiated selection request and return its generation
     /// token. A manual selection supersedes any deferred startup restoration.
     pub fn begin_selection(&mut self, candidate: impl Into<PathBuf>) -> WorkspaceRequest {
         self.restoration_candidate = None;
-        self.remembered_current_path = None;
         self.begin_request(candidate.into())
     }
 
@@ -221,7 +235,6 @@ impl<S: WorkspaceStore> WorkspaceService<S> {
         let result = self.complete_selection(runner, request).map(Some);
         if result.is_ok() {
             self.restoration_candidate = None;
-            self.remembered_current_path = None;
         }
         result
     }
@@ -230,6 +243,7 @@ impl<S: WorkspaceStore> WorkspaceService<S> {
         self.state.generation = self.state.generation.saturating_add(1);
         self.state.pending_workspace = Some(Workspace {
             path: candidate.display().to_string(),
+            availability: WorkspaceAvailability::Available,
         });
         self.state.error = None;
 
@@ -253,47 +267,69 @@ impl<S: WorkspaceStore> WorkspaceService<S> {
     ///
     /// A valid root is first durably added to the catalog so a later load
     /// failure remains retryable. The root is not Current until all three views
-    /// have loaded and the final save has succeeded.
+    /// have loaded and the final save has succeeded. Each durable step is a
+    /// single `commit_proposed` call so the generation check and store write
+    /// cannot drift apart.
     pub fn complete_selection(
         &mut self,
         runner: &dyn CommandRunner,
         request: WorkspaceRequest,
     ) -> Result<IssueExplorerData, WorkspaceError> {
-        self.ensure_current(&request)?;
+        if self.ensure_current(&request).is_err() {
+            return Err(WorkspaceError::stale());
+        }
 
         let workspace = match validate_workspace(runner, &request.candidate) {
             Ok(workspace) => workspace,
             Err(error) => return self.fail_current_request(&request, error),
         };
-        self.ensure_current(&request)?;
 
         let mut known_state = self.state.clone();
         known_state.pending_workspace = Some(workspace.clone());
         known_state.error = None;
-        upsert_catalog(&mut known_state.catalog, workspace.clone());
-        if let Err(error) = self.save_proposed(&request, &known_state) {
+        retain_catalog(&mut known_state.catalog, workspace.clone());
+        if let Err(error) = self.commit_proposed(&request, known_state) {
             return self.fail_current_request(&request, error);
         }
-        self.ensure_current(&request)?;
-        self.state = known_state;
 
         let data = match load_issue_explorer_data(runner, Path::new(&workspace.path)) {
             Ok(data) => data,
             Err(error) => return self.fail_current_request(&request, error),
         };
-        self.ensure_current(&request)?;
 
         let mut published_state = self.state.clone();
+        promote_catalog(&mut published_state.catalog, &workspace.path);
         published_state.current_workspace = Some(workspace);
         published_state.pending_workspace = None;
         published_state.error = None;
-        if let Err(error) = self.save_proposed(&request, &published_state) {
+        if let Err(error) = self.commit_proposed(&request, published_state) {
             return self.fail_current_request(&request, error);
         }
-        self.ensure_current(&request)?;
-        self.state = published_state;
 
         Ok(data)
+    }
+
+    /// Persist a proposed state and, only on success, make it current. The
+    /// generation is checked before and after the store write so a stale
+    /// request cannot leak into durable memory or `self.state`.
+    fn commit_proposed(
+        &mut self,
+        request: &WorkspaceRequest,
+        proposed: WorkspaceState,
+    ) -> Result<(), WorkspaceError> {
+        self.ensure_current(request)?;
+        self.store
+            .save(&self.persisted_from_state(&proposed))
+            .map_err(|message| {
+                WorkspaceError::new(
+                    WorkspaceErrorKind::StoreSaveFailed,
+                    format!("Could not save local workspace memory: {message}"),
+                    true,
+                )
+            })?;
+        self.ensure_current(request)?;
+        self.state = proposed;
+        Ok(())
     }
 
     /// Explicitly discard only Beadsmith's local workspace memory.
@@ -314,7 +350,6 @@ impl<S: WorkspaceStore> WorkspaceService<S> {
             ..WorkspaceState::default()
         };
         self.restoration_candidate = None;
-        self.remembered_current_path = None;
         Ok(())
     }
 
@@ -326,23 +361,6 @@ impl<S: WorkspaceStore> WorkspaceService<S> {
         }
     }
 
-    fn save_proposed(
-        &self,
-        request: &WorkspaceRequest,
-        proposed: &WorkspaceState,
-    ) -> Result<(), WorkspaceError> {
-        self.ensure_current(request)?;
-        self.store
-            .save(&self.persisted_from_state(proposed))
-            .map_err(|message| {
-                WorkspaceError::new(
-                    WorkspaceErrorKind::StoreSaveFailed,
-                    format!("Could not save local workspace memory: {message}"),
-                    true,
-                )
-            })
-    }
-
     fn persisted_from_state(&self, state: &WorkspaceState) -> PersistedWorkspaceState {
         PersistedWorkspaceState {
             version: state.version,
@@ -350,9 +368,36 @@ impl<S: WorkspaceStore> WorkspaceService<S> {
             current_workspace_path: state
                 .current_workspace
                 .as_ref()
-                .map(|workspace| workspace.path.clone())
-                .or_else(|| self.remembered_current_path.clone()),
+                .map(|workspace| workspace.path.clone()),
         }
+    }
+
+    /// Remove one locally remembered workspace without touching the repository.
+    /// Removing the Current workspace explicitly leaves no Current workspace;
+    /// another catalog entry is never implicitly selected.
+    pub fn remove_workspace(&mut self, path: &str) -> Result<(), WorkspaceError> {
+        let mut next = self.state.clone();
+        next.generation = next.generation.saturating_add(1);
+        next.catalog.retain(|workspace| workspace.path != path);
+        if next
+            .current_workspace
+            .as_ref()
+            .is_some_and(|workspace| workspace.path == path)
+        {
+            next.current_workspace = None;
+        }
+        next.pending_workspace = None;
+        next.error = None;
+        self.store.save(&self.persisted_from_state(&next)).map_err(|message| {
+            WorkspaceError::new(
+                WorkspaceErrorKind::StoreSaveFailed,
+                format!("Could not save local workspace memory: {message}"),
+                true,
+            )
+        })?;
+        self.state = next;
+        self.restoration_candidate = None;
+        Ok(())
     }
 
     fn fail_current_request(
@@ -385,6 +430,14 @@ fn validate_persisted_state(
             "workspace catalog exceeds its {MAX_CATALOG_ENTRIES}-entry limit"
         ));
     }
+    let mut paths = std::collections::HashSet::new();
+    if persisted
+        .catalog
+        .iter()
+        .any(|workspace| !paths.insert(&workspace.path))
+    {
+        return Err("workspace catalog contains duplicate paths".to_string());
+    }
     if let Some(current) = &persisted.current_workspace_path {
         if !persisted
             .catalog
@@ -397,11 +450,8 @@ fn validate_persisted_state(
     Ok(Some(persisted))
 }
 
-fn state_from_persisted(
-    persisted: PersistedWorkspaceState,
-) -> (WorkspaceState, Option<PathBuf>, Option<String>) {
+fn state_from_persisted(persisted: PersistedWorkspaceState) -> (WorkspaceState, Option<PathBuf>) {
     let restoration_candidate = persisted.current_workspace_path.clone().map(PathBuf::from);
-    let remembered_current_path = persisted.current_workspace_path;
     (
         WorkspaceState {
             version: persisted.version,
@@ -412,14 +462,37 @@ fn state_from_persisted(
             ..WorkspaceState::default()
         },
         restoration_candidate,
-        remembered_current_path,
     )
 }
 
-fn upsert_catalog(catalog: &mut Vec<Workspace>, workspace: Workspace) {
-    catalog.retain(|known| known.path != workspace.path);
-    catalog.insert(0, workspace);
-    catalog.truncate(MAX_CATALOG_ENTRIES);
+/// Retain a validated workspace without changing MRU order. A new entry is
+/// appended, so promotion is reserved for the final durable Current commit.
+fn workspace_availability(path: &Path) -> WorkspaceAvailability {
+    match std::fs::read_dir(path) {
+        Ok(_) => WorkspaceAvailability::Available,
+        Err(_) => WorkspaceAvailability::Unavailable,
+    }
+}
+
+fn retain_catalog(catalog: &mut Vec<Workspace>, workspace: Workspace) {
+    if let Some(known) = catalog
+        .iter_mut()
+        .find(|known| known.path == workspace.path)
+    {
+        known.availability = WorkspaceAvailability::Available;
+        return;
+    }
+    if catalog.len() == MAX_CATALOG_ENTRIES {
+        catalog.pop();
+    }
+    catalog.push(workspace);
+}
+
+fn promote_catalog(catalog: &mut Vec<Workspace>, path: &str) {
+    if let Some(index) = catalog.iter().position(|workspace| workspace.path == path) {
+        let workspace = catalog.remove(index);
+        catalog.insert(0, workspace);
+    }
 }
 
 fn validate_workspace(
@@ -482,6 +555,7 @@ fn validate_workspace(
 
     Ok(Workspace {
         path: normalize_root(Path::new(root)).display().to_string(),
+        availability: WorkspaceAvailability::Available,
     })
 }
 
@@ -541,39 +615,6 @@ fn map_load_error(view: &str, error: ListIssuesError) -> WorkspaceError {
     )
 }
 
-/// Extract the path following a `--workspace <path>` argument, if present.
-/// Only the first occurrence is honored; unrecognized arguments are ignored.
-///
-/// This legacy test-launch override remains temporarily untouched by this
-/// foundation-only chunk; it is not used by [`WorkspaceService`].
-pub(crate) fn workspace_arg<I, S>(args: I) -> Option<String>
-where
-    I: IntoIterator<Item = S>,
-    S: Into<String>,
-{
-    let args: Vec<String> = args.into_iter().map(Into::into).collect();
-    args.iter()
-        .position(|arg| arg == WORKSPACE_FLAG)
-        .and_then(|index| args.get(index + 1))
-        .cloned()
-}
-
-/// Switch the process current directory to the legacy workspace override, if
-/// one was requested. This compatibility path is not used by the new service.
-pub(crate) fn apply_workspace_override<I, S>(args: I)
-where
-    I: IntoIterator<Item = S>,
-    S: Into<String>,
-{
-    let Some(path) = workspace_arg(args) else {
-        return;
-    };
-
-    match env::set_current_dir(&path) {
-        Ok(()) => eprintln!("Beadsmith: launched against workspace override {path}"),
-        Err(err) => eprintln!("Beadsmith: failed to switch to workspace override {path}: {err}"),
-    }
-}
 
 #[cfg(test)]
 mod tests {
@@ -658,6 +699,27 @@ mod tests {
         }
     }
 
+    #[derive(Clone, Default)]
+    struct PersistentTestStore {
+        state: std::rc::Rc<RefCell<Option<PersistedWorkspaceState>>>,
+    }
+
+    impl WorkspaceStore for PersistentTestStore {
+        fn load(&self) -> Result<Option<PersistedWorkspaceState>, String> {
+            Ok(self.state.borrow().clone())
+        }
+
+        fn save(&self, state: &PersistedWorkspaceState) -> Result<(), String> {
+            *self.state.borrow_mut() = Some(state.clone());
+            Ok(())
+        }
+
+        fn reset(&self) -> Result<(), String> {
+            *self.state.borrow_mut() = None;
+            Ok(())
+        }
+    }
+
     impl WorkspaceStore for FakeStore {
         fn load(&self) -> Result<Option<PersistedWorkspaceState>, String> {
             self.load_result.borrow().clone()
@@ -735,7 +797,8 @@ mod tests {
         assert_eq!(
             service.state().current_workspace,
             Some(Workspace {
-                path: "/work/repo".to_string()
+                path: "/work/repo".to_string(),
+                availability: WorkspaceAvailability::Available,
             })
         );
     }
@@ -746,6 +809,7 @@ mod tests {
         *store.load_result.borrow_mut() = Ok(Some(PersistedWorkspaceState {
             catalog: vec![Workspace {
                 path: "/work/remembered".to_string(),
+                availability: WorkspaceAvailability::Available,
             }],
             current_workspace_path: Some("/work/remembered".to_string()),
             ..PersistedWorkspaceState::default()
@@ -765,7 +829,8 @@ mod tests {
         assert_eq!(
             service.state().current_workspace,
             Some(Workspace {
-                path: "/work/remembered".to_string()
+                path: "/work/remembered".to_string(),
+                availability: WorkspaceAvailability::Available,
             })
         );
     }
@@ -776,6 +841,7 @@ mod tests {
         *store.load_result.borrow_mut() = Ok(Some(PersistedWorkspaceState {
             catalog: vec![Workspace {
                 path: "/work/remembered".to_string(),
+                availability: WorkspaceAvailability::Available,
             }],
             current_workspace_path: Some("/work/remembered".to_string()),
             ..PersistedWorkspaceState::default()
@@ -869,7 +935,7 @@ mod tests {
     }
 
     #[test]
-    fn post_validation_load_failure_keeps_known_candidate_and_old_current() {
+    fn post_validation_load_failure_keeps_known_candidate_without_mru_promotion() {
         let store = FakeStore::empty();
         let mut service = WorkspaceService::from_store(store);
         let first = FakeRunner::with_outputs(command_outputs("/work/first"));
@@ -894,7 +960,8 @@ mod tests {
         assert_eq!(
             service.state().current_workspace,
             Some(Workspace {
-                path: "/work/first".to_string()
+                path: "/work/first".to_string(),
+                availability: WorkspaceAvailability::Available,
             })
         );
         assert_eq!(
@@ -904,7 +971,7 @@ mod tests {
                 .iter()
                 .map(|workspace| workspace.path.as_str())
                 .collect::<Vec<_>>(),
-            vec!["/work/second", "/work/first"]
+            vec!["/work/first", "/work/second"]
         );
         assert!(service.state().pending_workspace.is_none());
     }
@@ -973,6 +1040,7 @@ mod tests {
         persisted.catalog = (0..100)
             .map(|index| Workspace {
                 path: format!("/work/{index}"),
+                availability: WorkspaceAvailability::Available,
             })
             .collect();
         let store = FakeStore::empty();
@@ -994,26 +1062,231 @@ mod tests {
     }
 
     #[test]
-    fn finds_workspace_path_after_flag() {
-        let args = ["beadsmith", "--workspace", "/tmp/ws"];
-        assert_eq!(workspace_arg(args).as_deref(), Some("/tmp/ws"));
+    fn persisted_current_restores_through_the_backend_store_on_restart() {
+        let store = PersistentTestStore::default();
+        WorkspaceService::from_store(store.clone())
+            .select_workspace(
+                &FakeRunner::with_outputs(command_outputs("/work/persisted")),
+                "/work/persisted",
+            )
+            .expect("initial selection should durably save");
+
+        let mut restarted = WorkspaceService::from_store(store);
+        assert!(restarted.state().current_workspace.is_none());
+        restarted
+            .restore_current(&FakeRunner::with_outputs(command_outputs("/work/persisted")))
+            .expect("restart should restore through the normal transaction");
+        assert_eq!(
+            restarted.state().current_workspace.as_ref().map(|workspace| &workspace.path),
+            Some(&"/work/persisted".to_string())
+        );
     }
 
     #[test]
-    fn returns_none_without_flag() {
-        let args = ["beadsmith"];
-        assert_eq!(workspace_arg(args), None);
+    fn missing_catalog_path_is_unavailable_but_remains_known() {
+        let path = std::env::temp_dir().join(format!(
+            "beadsmith-missing-workspace-{}",
+            std::process::id()
+        ));
+        let _ = std::fs::remove_dir_all(&path);
+        let path_string = path.display().to_string();
+        let store = FakeStore::empty();
+        *store.load_result.borrow_mut() = Ok(Some(PersistedWorkspaceState {
+            catalog: vec![Workspace {
+                path: path_string,
+                availability: WorkspaceAvailability::Available,
+            }],
+            ..PersistedWorkspaceState::default()
+        }));
+
+        let service = WorkspaceService::from_store(store);
+
+        assert_eq!(service.state().catalog.len(), 1);
+        assert_eq!(
+            service.state().catalog[0].availability,
+            WorkspaceAvailability::Unavailable
+        );
     }
 
     #[test]
-    fn returns_none_when_flag_is_last_argument() {
-        let args = ["beadsmith", "--workspace"];
-        assert_eq!(workspace_arg(args), None);
+    fn availability_is_derived_from_path_access_not_validation_failure() {
+        let path = std::env::temp_dir().join(format!(
+            "beadsmith-readable-workspace-{}",
+            std::process::id()
+        ));
+        std::fs::create_dir_all(&path).expect("temporary directory should be created");
+        let path_string = path.display().to_string();
+        let store = FakeStore::empty();
+        *store.load_result.borrow_mut() = Ok(Some(PersistedWorkspaceState {
+            catalog: vec![Workspace {
+                path: path_string.clone(),
+                availability: WorkspaceAvailability::Unavailable,
+            }],
+            current_workspace_path: Some(path_string),
+            ..PersistedWorkspaceState::default()
+        }));
+        let mut service = WorkspaceService::from_store(store);
+        let runner = FakeRunner::with_outputs([Ok(CommandOutput {
+            status: 1,
+            stdout: String::new(),
+            stderr: "not a Beadwork workspace".to_string(),
+        })]);
+
+        service
+            .restore_current(&runner)
+            .expect_err("invalid workspace must not restore");
+
+        assert!(service.state().current_workspace.is_none());
+        assert_eq!(
+            service.state().catalog[0].availability,
+            WorkspaceAvailability::Available
+        );
+        std::fs::remove_dir_all(path).expect("temporary directory should be removed");
     }
 
     #[test]
-    fn honors_first_occurrence_only() {
-        let args = ["beadsmith", "--workspace", "/a", "--workspace", "/b"];
-        assert_eq!(workspace_arg(args).as_deref(), Some("/a"));
+    fn removing_current_clears_it_without_selecting_another_catalog_entry() {
+        let mut service = WorkspaceService::from_store(FakeStore::empty());
+        service
+            .select_workspace(
+                &FakeRunner::with_outputs(command_outputs("/work/first")),
+                "/work/first",
+            )
+            .expect("first selection should succeed");
+        service
+            .select_workspace(
+                &FakeRunner::with_outputs(command_outputs("/work/second")),
+                "/work/second",
+            )
+            .expect("second selection should succeed");
+
+        service
+            .remove_workspace("/work/second")
+            .expect("removal should persist");
+
+        assert!(service.state().current_workspace.is_none());
+        assert_eq!(service.state().catalog[0].path, "/work/first");
+        assert!(service.state().pending_workspace.is_none());
+    }
+
+    #[test]
+    fn validation_and_load_failure_retains_without_promoting_until_retry_succeeds() {
+        let mut service = WorkspaceService::from_store(FakeStore::empty());
+        service
+            .select_workspace(
+                &FakeRunner::with_outputs(command_outputs("/work/first")),
+                "/work/first",
+            )
+            .expect("first selection should succeed");
+        service
+            .select_workspace(
+                &FakeRunner::with_outputs([
+                    FakeRunner::success("setting=value\n"),
+                    FakeRunner::success("/work/second\n"),
+                    Ok(CommandOutput {
+                        status: 2,
+                        stdout: String::new(),
+                        stderr: "load failed".to_string(),
+                    }),
+                ]),
+                "/work/second",
+            )
+            .expect_err("failed load must not promote");
+        assert_eq!(
+            service
+                .state()
+                .catalog
+                .iter()
+                .map(|workspace| workspace.path.as_str())
+                .collect::<Vec<_>>(),
+            vec!["/work/first", "/work/second"]
+        );
+
+        service
+            .select_workspace(
+                &FakeRunner::with_outputs(command_outputs("/work/second")),
+                "/work/second",
+            )
+            .expect("successful retry should promote");
+        assert_eq!(
+            service
+                .state()
+                .catalog
+                .iter()
+                .map(|workspace| workspace.path.as_str())
+                .collect::<Vec<_>>(),
+            vec!["/work/second", "/work/first"]
+        );
+    }
+}
+
+/// Backend-owned adapter for the supported Tauri store plugin. The frontend
+/// never receives direct store access.
+pub struct TauriWorkspaceStore<R: tauri::Runtime> {
+    app: tauri::AppHandle<R>,
+}
+
+impl<R: tauri::Runtime> TauriWorkspaceStore<R> {
+    pub fn new(app: tauri::AppHandle<R>) -> Self {
+        Self { app }
+    }
+
+    fn store_path(&self) -> PathBuf {
+        // Desktop acceptance supplies a fresh absolute path before launch so
+        // it cannot read or overwrite a developer's catalog. Product builds
+        // keep the supported app-data default.
+        std::env::var_os("BEADSMITH_WORKSPACE_STORE_PATH")
+            .map(PathBuf::from)
+            .unwrap_or_else(|| PathBuf::from("workspace-catalog.json"))
+    }
+
+    fn store(&self) -> Result<std::sync::Arc<tauri_plugin_store::Store<R>>, String> {
+        use tauri_plugin_store::StoreExt;
+        self.app
+            .store(self.store_path())
+            .map_err(|error| error.to_string())
+    }
+}
+
+impl<R: tauri::Runtime> WorkspaceStore for TauriWorkspaceStore<R> {
+    fn load(&self) -> Result<Option<PersistedWorkspaceState>, String> {
+        let store = self.store()?;
+        let Some(value) = store.get("workspaceState") else {
+            return Ok(None);
+        };
+        serde_json::from_value(value).map(Some).map_err(|error| error.to_string())
+    }
+
+    fn save(&self, state: &PersistedWorkspaceState) -> Result<(), String> {
+        let value = serde_json::to_value(state).map_err(|error| error.to_string())?;
+        let store = self.store()?;
+        store.set("workspaceState", value);
+        store.save().map_err(|error| error.to_string())
+    }
+
+    fn reset(&self) -> Result<(), String> {
+        match self.store() {
+            Ok(store) => {
+                store.clear();
+                store.save().map_err(|error| error.to_string())
+            }
+            Err(_) => {
+                use tauri::{Manager, path::BaseDirectory};
+                let store_path = self.store_path();
+                let path = if store_path.is_absolute() {
+                    store_path
+                } else {
+                    self.app
+                        .path()
+                        .resolve(store_path, BaseDirectory::AppData)
+                        .map_err(|error| error.to_string())?
+                };
+                match std::fs::remove_file(path) {
+                    Ok(()) => Ok(()),
+                    Err(error) if error.kind() == io::ErrorKind::NotFound => Ok(()),
+                    Err(error) => Err(error.to_string()),
+                }
+            }
+        }
     }
 }
