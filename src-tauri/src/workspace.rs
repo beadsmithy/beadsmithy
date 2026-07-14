@@ -267,48 +267,69 @@ impl<S: WorkspaceStore> WorkspaceService<S> {
     ///
     /// A valid root is first durably added to the catalog so a later load
     /// failure remains retryable. The root is not Current until all three views
-    /// have loaded and the final save has succeeded.
+    /// have loaded and the final save has succeeded. Each durable step is a
+    /// single `commit_proposed` call so the generation check and store write
+    /// cannot drift apart.
     pub fn complete_selection(
         &mut self,
         runner: &dyn CommandRunner,
         request: WorkspaceRequest,
     ) -> Result<IssueExplorerData, WorkspaceError> {
-        self.ensure_current(&request)?;
+        if self.ensure_current(&request).is_err() {
+            return Err(WorkspaceError::stale());
+        }
 
         let workspace = match validate_workspace(runner, &request.candidate) {
             Ok(workspace) => workspace,
             Err(error) => return self.fail_current_request(&request, error),
         };
-        self.ensure_current(&request)?;
 
         let mut known_state = self.state.clone();
         known_state.pending_workspace = Some(workspace.clone());
         known_state.error = None;
         retain_catalog(&mut known_state.catalog, workspace.clone());
-        if let Err(error) = self.save_proposed(&request, &known_state) {
+        if let Err(error) = self.commit_proposed(&request, known_state) {
             return self.fail_current_request(&request, error);
         }
-        self.ensure_current(&request)?;
-        self.state = known_state;
 
         let data = match load_issue_explorer_data(runner, Path::new(&workspace.path)) {
             Ok(data) => data,
             Err(error) => return self.fail_current_request(&request, error),
         };
-        self.ensure_current(&request)?;
 
         let mut published_state = self.state.clone();
         promote_catalog(&mut published_state.catalog, &workspace.path);
         published_state.current_workspace = Some(workspace);
         published_state.pending_workspace = None;
         published_state.error = None;
-        if let Err(error) = self.save_proposed(&request, &published_state) {
+        if let Err(error) = self.commit_proposed(&request, published_state) {
             return self.fail_current_request(&request, error);
         }
-        self.ensure_current(&request)?;
-        self.state = published_state;
 
         Ok(data)
+    }
+
+    /// Persist a proposed state and, only on success, make it current. The
+    /// generation is checked before and after the store write so a stale
+    /// request cannot leak into durable memory or `self.state`.
+    fn commit_proposed(
+        &mut self,
+        request: &WorkspaceRequest,
+        proposed: WorkspaceState,
+    ) -> Result<(), WorkspaceError> {
+        self.ensure_current(request)?;
+        self.store
+            .save(&self.persisted_from_state(&proposed))
+            .map_err(|message| {
+                WorkspaceError::new(
+                    WorkspaceErrorKind::StoreSaveFailed,
+                    format!("Could not save local workspace memory: {message}"),
+                    true,
+                )
+            })?;
+        self.ensure_current(request)?;
+        self.state = proposed;
+        Ok(())
     }
 
     /// Explicitly discard only Beadsmith's local workspace memory.
@@ -338,23 +359,6 @@ impl<S: WorkspaceStore> WorkspaceService<S> {
         } else {
             Err(WorkspaceError::stale())
         }
-    }
-
-    fn save_proposed(
-        &self,
-        request: &WorkspaceRequest,
-        proposed: &WorkspaceState,
-    ) -> Result<(), WorkspaceError> {
-        self.ensure_current(request)?;
-        self.store
-            .save(&self.persisted_from_state(proposed))
-            .map_err(|message| {
-                WorkspaceError::new(
-                    WorkspaceErrorKind::StoreSaveFailed,
-                    format!("Could not save local workspace memory: {message}"),
-                    true,
-                )
-            })
     }
 
     fn persisted_from_state(&self, state: &WorkspaceState) -> PersistedWorkspaceState {
