@@ -1,0 +1,20 @@
+src-tauri/src/workspace.rs
+  s_1768e621637394::t_319ba51bb686ff 182
+  s_1768e621637394::t_95644c4c610931 449
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.13",
+  "base_commit_sha": "a33c455018b298df84052fc3c00adae4a0188784",
+  "prompts": {},
+  "sessions": {
+    "s_1768e621637394": {
+      "agent_id": {
+        "tool": "pi",
+        "id": "019f5d74-8758-7f7e-aad7-6e60db54afcb",
+        "model": "gpt-5.6-terra"
+      },
+      "human_author": "Tomas Thor Jonsson <benregn@gmail.com>"
+    }
+  }
+}
