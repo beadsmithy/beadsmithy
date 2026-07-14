@@ -19,14 +19,15 @@ running.
 # Build the debug binary once (rebuild after any Rust or frontend change):
 pnpm e2e:build
 
-# Run both scenarios against it:
-pnpm e2e:issue-list
+# Run all scenarios against it:
+pnpm e2e:issue-list:all
 
 # Or one at a time:
 pnpm e2e:issue-list:success
 pnpm e2e:issue-list:empty
+pnpm e2e:issue-list:atomic-switch
 
-# Build + run both scenarios in one step:
+# Build + run the issue-list slice in one step:
 pnpm test:e2e:issue-list
 ```
 
@@ -34,11 +35,33 @@ Requires `bw` on `PATH` (used both to build the disposable fixture workspaces
 and by the running app). `pnpm e2e:issue-list:*` fails fast with a clear error
 if `bw` isn't found or the debug binary hasn't been built yet.
 
+## Scenarios
+
+- `issues` (`e2e/issue-list/issue-list.success.spec.ts`): the populated
+  Workspace A is selected through the typed RPC, sidebar counts and Issue
+  List View interactions are asserted against real Beadwork state, and the
+  empty Workspace B is used to prove that an invalid typed switch preserves
+  the Current Workspace.
+- `empty` (`e2e/issue-list/issue-list.empty.spec.ts`): the empty Workspace B
+  is selected through the typed RPC and the true-empty Issue Explorer state
+  is asserted end to end.
+- `atomic-switch` (`e2e/issue-list/issue-list.atomic-switch.spec.ts`):
+  bsm-kia.4 atomic workspace-switch coverage. Two distinguishable populated
+  workspaces (A with the original `FIXTURE_*` titles; B with `FIXTURE_SECOND_*`
+  markers) are switched between through the typed RPC. The spec asserts that
+  Workspace A's Issue Explorer snapshot, Issue Detail, and local Issue
+  Search query remain visible while Workspace B is Pending; that Cancel
+  preserves A without committing B; that a subsequent commit swaps the
+  Issue Explorer snapshot to B (clearing prior Detail/search via the
+  `workspaceKey` remount); and that an invalid typed switch preserves B as
+  Current.
+
 ## How it works
 
-- **Fixtures** (`e2e/issue-list/fixtures/workspace.ts`): each scenario gets a
-  throwaway git repository under the OS temp directory, initialized with
-  `bw init` and (for the "issues" scenario) populated with real `bw create`,
+- **Fixtures** (`e2e/issue-list/fixtures/workspace.ts`): each scenario gets
+  throwaway git repositories under the OS temp directory, initialized with
+  `bw init` and (for the populated `issues` and `atomic-switch` scenarios)
+  populated with real `bw create`,
   `bw label`, `bw dep add`, `bw close`, `bw defer`, and `bw comment` calls. The
   fixture includes a Ready Issue with a unique search token, a Blocked Issue
   with an unresolved blocker, a Closed Issue, and a Deferred Issue, so the
@@ -48,9 +71,11 @@ if `bw` isn't found or the debug binary hasn't been built yet.
   machine-specific path is baked in -- everything is created fresh per run and
   removed afterward.
 - **Scenario runner** (`e2e/issue-list/scripts/run-scenario.ts`): creates a
-  populated fixture, a true-empty fixture, and a fresh temporary backend-store
-  path for every scenario. It launches `wdio` with those paths and removes all
-  temporary data on pass or fail. The runner never writes the store file;
+  populated Workspace A, a true-empty fixture, and a fresh temporary
+  backend-store path for every scenario; `atomic-switch` also creates its
+  distinguishable populated Workspace B. It launches `wdio` with those paths
+  and removes all temporary data on pass or fail. The runner never writes the
+  store file;
   fixtures are selected only through the normal typed `switch_workspace` RPC.
   Workspace creation lives here rather than in the wdio config because
   `@wdio/tauri-service`'s `embedded` driver provider spawns a single Beadsmith
@@ -111,8 +136,38 @@ so the service crashes on startup. `pnpm-workspace.yaml` overrides
 
 - Broad visual regression coverage.
 - Issue mutations.
-- Pending/concurrency presentation: TauRPC workspace selection is synchronous
-  today, so a visible pending state requires the separately planned bsm-kia.4
-  asynchronous switch work.
 - Exhaustive search/filter matrices beyond the focused Issue List View and
   local Issue Search happy path.
+- The native macOS directory picker is not a reliable WebDriver surface, so
+  picker wiring and picker cancellation are covered by the frontend unit
+  suite; this WebDriver suite drives all workspace selection through the
+  typed `TauRPC__switch_workspace` / `TauRPC__cancel_workspace` boundary.
+
+## Atomic workspace-switch: deterministic delay mechanism
+
+The `atomic-switch` scenario needs to observe the renderer's Pending phase
+between typed `switch_workspace` invocations and the durable commit. The
+backend normally completes the switch in tens of milliseconds, so without
+artificial delay the Pending window would be unobservable.
+
+`e2e/issue-list/scripts/run-scenario.ts` creates a temporary, scenario-owned
+PATH prefix for `atomic-switch`. It writes executable `bw` and `git` shell
+wrappers into an OS-temporary directory; each wrapper sleeps for the
+configured `BEADSMITH_E2E_COMMAND_DELAY_MS` (1000 ms by default) and then
+`exec`s the resolved real executable with its original arguments. The runner
+prepends that directory to the environment passed to WDIO/the spawned desktop
+app, then removes it with the disposable fixtures. Therefore the delay is
+outside the production binary and Rust command runner: release and ordinary
+debug launches always invoke the real commands directly.
+
+## Known limitations
+
+- The atomic-switch scenario depends on temporary, scenario-owned PATH
+  wrappers controlled by `BEADSMITH_E2E_COMMAND_DELAY_MS`; production
+  binaries and application command runners are unaffected.
+- The native macOS directory dialog cannot be exercised through WebDriver,
+  so picker cancellation is asserted in the frontend unit suite instead.
+- Typed-RPC reordering races are tested deterministically only at the
+  renderer layer (frontend `App.test.tsx`); the desktop scenario
+  complements those with full IPC + renderer + Beadwork end-to-end
+  coverage of the asynchronous Pending window and Cancel path.

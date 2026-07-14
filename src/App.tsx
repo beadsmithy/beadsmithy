@@ -122,6 +122,16 @@ export default function App() {
   // Generation guard for stale responses and transition events. A ref avoids
   // stale callback closures while events and RPC completions race.
   const acceptedGenerationRef = useRef(0);
+  // Highest generation that has produced a committed success on the renderer
+  // side. Once a generation has been promoted to Current with its Issue
+  // Explorer snapshot, that generation is terminal: a delayed same-generation
+  // Pending event must not be allowed to roll the workspace state back to
+  // "pending=B, current=null" while the Issue Explorer still shows B's data.
+  // `acceptedGenerationRef` alone only rejects strictly older generations,
+  // so without this marker a late Pending for the same generation could
+  // overwrite an already accepted commit. Use `<=` so the committed
+  // generation itself and anything older are dropped.
+  const committedGenerationRef = useRef(-1);
   // Tracks the confirmed snapshot currently rendered by Issue Explorer. It
   // lets a remove-current transition replace that snapshot with the chooser
   // state without clearing A during Pending/failure for B.
@@ -151,6 +161,16 @@ export default function App() {
       transition: WorkspaceTransition,
       expectedGeneration: number | null
     ): boolean => {
+      // Committed-success terminal guard: once a generation has produced a
+      // typed success, that generation is terminal. Any later transition at
+      // or below it — including a delayed same-generation Pending event
+      // emitted before the backend observed the commit — is silently
+      // dropped. Without this, a late Pending transition would call
+      // `setWorkspaceState(pending=B, current=null)` while the committed
+      // Issue Explorer snapshot remained on B, producing a mixed state.
+      if (transition.state.generation <= committedGenerationRef.current) {
+        return false;
+      }
       if (
         (expectedGeneration !== null &&
           transition.state.generation !== expectedGeneration) ||
@@ -168,6 +188,9 @@ export default function App() {
         confirmedWorkspacePathRef.current = currentPath;
         setIssueState({ ...issueData, status: "success" });
         setWorkspaceKey(issueData.workspacePath);
+        // Promote this generation to terminal so any subsequent event for it
+        // (e.g., a delayed Pending) cannot regress the committed state.
+        committedGenerationRef.current = transition.state.generation;
       } else if (
         currentPath === null &&
         confirmedWorkspacePathRef.current !== null

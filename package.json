@@ -16,7 +16,9 @@
     "e2e:build": "tsx e2e/issue-list/scripts/build.ts",
     "e2e:issue-list:success": "tsx e2e/issue-list/scripts/run-scenario.ts issues",
     "e2e:issue-list:empty": "tsx e2e/issue-list/scripts/run-scenario.ts empty",
+    "e2e:issue-list:atomic-switch": "tsx e2e/issue-list/scripts/run-scenario.ts atomic-switch",
     "e2e:issue-list": "pnpm e2e:issue-list:success && pnpm e2e:issue-list:empty",
+    "e2e:issue-list:all": "pnpm e2e:issue-list && pnpm e2e:issue-list:atomic-switch",
     "test:e2e:issue-list": "pnpm e2e:build && pnpm e2e:issue-list"
   },
   "dependencies": {
