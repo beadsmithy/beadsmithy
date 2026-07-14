@@ -1,0 +1,57 @@
+e2e/issue-list/fixtures/workspace.ts
+  s_434c76b6cd75f0::t_3689b1eea92d7a 95-96,200-233
+  s_434c76b6cd75f0::t_f57f7a62cfbfee 91-94,234-237
+e2e/issue-list/scripts/run-scenario.ts
+  s_434c76b6cd75f0::t_ed664ebb04a16f 89-91,102-108,112-114,127
+  s_434c76b6cd75f0::t_3e3a82bffffcd9 19,25,28,32,88,101,111,128,132
+  s_434c76b6cd75f0::t_3689b1eea92d7a 119
+  s_434c76b6cd75f0::t_6d7e26ef2312da 11-12,46-72,76-86,100,109-110,129-131
+  s_434c76b6cd75f0::t_c9e0479e46fc99 73-75
+  s_434c76b6cd75f0::t_7fc21302c28afa 94,97-99
+package.json
+  s_434c76b6cd75f0::t_aabcf28525ae11 19,21
+e2e/issue-list/issue-list.atomic-switch.spec.ts
+  s_434c76b6cd75f0::t_60147f9d72dde5 71,125
+  s_434c76b6cd75f0::t_c9e0479e46fc99 73,78-80,260-262,330
+  s_434c76b6cd75f0::t_cd79d2dca9b010 77,81-92,105-107,244-248,254-256,259,281,283,331-336
+  s_434c76b6cd75f0::t_9c2148801a7553 93-104,367-368
+  s_434c76b6cd75f0::t_3938360da7ecbc 1-70,72,74-76,108-124,126-157,161-165,167-223,228-235,239-240,243,249,257-258,273-276,284-305,309-329,337-347,351-366,369-372
+  s_434c76b6cd75f0::t_8511933eebfd40 265-269
+  s_434c76b6cd75f0::t_0d83f91b4078b4 270-272,306-308
+  s_434c76b6cd75f0::t_3689b1eea92d7a 158-160,166,224-227,348-350,373
+  s_434c76b6cd75f0::t_74e21f3dc1bac8 236-238,241-242
+  s_434c76b6cd75f0::t_0a22344ac82a15 250-253,263-264,277-280,282
+src/App.test.tsx
+  s_434c76b6cd75f0::t_3689b1eea92d7a 8-12
+  s_434c76b6cd75f0::t_b94b5e6b8e5189 778,780-849,851-988
+  s_434c76b6cd75f0::t_310fc142a1d52d 779
+  s_434c76b6cd75f0::t_4eff81fdcaba97 850
+  s_434c76b6cd75f0::t_788a8626bba04c 989-991
+wdio.issue-list.conf.ts
+  s_434c76b6cd75f0::t_79e14f937d435a 33-41,134-142
+  s_434c76b6cd75f0::t_22fa25d60c951f 44,49-57
+docs/agents/webdriver-e2e.md
+  s_434c76b6cd75f0::t_06b63282f1b7cd 61-64,74-78
+  s_434c76b6cd75f0::t_eefb56ca9e07d8 153-167
+  s_434c76b6cd75f0::t_b48b1264ecd3ec 150-152
+  s_434c76b6cd75f0::t_d862a72c736efd 168-170
+  s_434c76b6cd75f0::t_f7cbfc115a27f9 22-23,28,30,38-58,141-149,171-173
+src/App.tsx
+  s_434c76b6cd75f0::t_6c79910ef44549 125-134,164-173,191-193
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.14",
+  "base_commit_sha": "fbc2f2c4012d1354b722ec4ca5aed30c8c0f8d9a",
+  "prompts": {},
+  "sessions": {
+    "s_434c76b6cd75f0": {
+      "agent_id": {
+        "tool": "pi",
+        "id": "019f600e-87b2-7cff-8efa-a3a570f77977",
+        "model": "gpt-5.6-terra"
+      },
+      "human_author": "Tomas Thor Jonsson <benregn@gmail.com>"
+    }
+  }
+}
