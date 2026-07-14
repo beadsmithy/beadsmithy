@@ -53,6 +53,20 @@ export type Workspace = { path: string; availability?: WorkspaceAvailability }
 export type WorkspaceAvailability = "available" | "unavailable"
 
 /**
+ * Result of a `cancel_workspace` call. The state mirrors what a normal
+ * in-flight cancel would publish; the optional `issue_data` is set only
+ * when the cancel arrives after the durable commit has already cleared
+ * the in-flight pending request but before its success publication has
+ * reached the renderer. In that race window, pairing the matching Issue
+ * Explorer snapshot with the new state keeps the renderer from briefly
+ * rendering a Current Workspace identity without its corresponding
+ * snapshot. A real Pending cancellation that was cleared by Cancel
+ * itself never carries `issue_data`: leaving the prior workspace's
+ * issue list untouched is the desired outcome.
+ */
+export type WorkspaceCancelResponse = { state: WorkspaceState; issueData: LoadIssueExplorerDataResponse | null }
+
+/**
  * A typed workspace failure suitable for a later RPC/UI boundary.
  */
 export type WorkspaceError = { kind: WorkspaceErrorKind; message: string; retryable: boolean }
@@ -61,6 +75,14 @@ export type WorkspaceError = { kind: WorkspaceErrorKind; message: string; retrya
  * A typed machine-readable workspace failure category.
  */
 export type WorkspaceErrorKind = "storeReadFailed" | "storeSaveFailed" | "validationFailed" | "gitRootFailed" | "loadFailed" | "staleGeneration"
+
+/**
+ * Result of a successful startup-memory retry; the frontend receives its
+ * complete snapshot only when the remembered Current was restored and
+ * validated through the normal selection transaction. `issue_data` is `None`
+ * when nothing was restored (no remembered Current or restore failed).
+ */
+export type WorkspaceRetryMemoryResponse = { state: WorkspaceState; issueData: LoadIssueExplorerDataResponse | null }
 
 /**
  * Public, serializable workspace state for a later typed RPC boundary.
@@ -82,12 +104,12 @@ retryWorkspace: Workspace | null; generation: number; error: WorkspaceError | nu
 export type WorkspaceSwitchResponse = { state: WorkspaceState; issueData: LoadIssueExplorerDataResponse }
 
 const ARGS_MAP = { '':'{"cancel_workspace":[],"list_issues":[],"load_issue_explorer_data":[],"remove_workspace":["path"],"reset_workspace_memory":[],"retry_workspace_memory":[],"switch_workspace":["candidate_path"],"workspace_state":[]}', 'devBridge':'{"result":["id","value"]}' }
-export type Router = { "": {cancel_workspace: () => Promise<WorkspaceState>,
+export type Router = { "": {cancel_workspace: () => Promise<WorkspaceCancelResponse>,
 list_issues: () => Promise<ListIssuesResponse>,
 load_issue_explorer_data: () => Promise<LoadIssueExplorerDataResponse>,
 remove_workspace: (path: string) => Promise<WorkspaceState>,
 reset_workspace_memory: () => Promise<WorkspaceState>,
-retry_workspace_memory: () => Promise<WorkspaceState>,
+retry_workspace_memory: () => Promise<WorkspaceRetryMemoryResponse>,
 switch_workspace: (candidatePath: string) => Promise<WorkspaceSwitchResponse>,
 workspace_state: () => Promise<WorkspaceState>},
 "devBridge": {result: (id: string, value: string) => Promise<void>} };

@@ -27,7 +27,7 @@ pnpm e2e:issue-list:success
 pnpm e2e:issue-list:empty
 pnpm e2e:issue-list:atomic-switch
 
-# Build + run the issue-list slice in one step:
+# Build + run the issue-list slice in one step (success, empty, and atomic-switch):
 pnpm test:e2e:issue-list
 ```
 
@@ -41,7 +41,10 @@ if `bw` isn't found or the debug binary hasn't been built yet.
   Workspace A is selected through the typed RPC, sidebar counts and Issue
   List View interactions are asserted against real Beadwork state, and the
   empty Workspace B is used to prove that an invalid typed switch preserves
-  the Current Workspace.
+  the Current Workspace. The same spec exercises the typed
+  `TauRPC__retry_workspace_memory` boundary to prove its response shape
+  and post-refresh rendering; the renderer-level recovery panel that calls
+  `App.retryWorkspaceMemory` is covered in `App.test.tsx`.
 - `empty` (`e2e/issue-list/issue-list.empty.spec.ts`): the empty Workspace B
   is selected through the typed RPC and the true-empty Issue Explorer state
   is asserted end to end.

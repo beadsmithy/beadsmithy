@@ -162,19 +162,21 @@ const expectSidebarWorkspacePath = async (expected: string) => {
   expect(await workspacePath.getText()).toContain(path.basename(expected));
 };
 
-const selectAllView = async () => {
-  const allButton = await browser.$(`button[aria-label^="All,"]`);
-  await allButton.waitForExist({ timeout: 30_000 });
-  await allButton.click();
+const selectIssueListView = async (label: string, viewId: string) => {
+  const button = await browser.$(`button[aria-label^="${label},"]`);
+  await button.waitForExist({ timeout: 30_000 });
+  await button.click();
 
   const active = await browser.$(
-    `section[data-active-issue-list-view-id="all"]`
+    `section[data-active-issue-list-view-id="${viewId}"]`
   );
   await active.waitForExist({
     timeout: 30_000,
-    timeoutMsg: "Expected the All Issue List View to be active",
+    timeoutMsg: `Expected the ${label} Issue List View to be active`,
   });
 };
+
+const selectAllView = () => selectIssueListView("All", "all");
 
 describe("Atomic workspace switch (WebDriver e2e): two disposable Beadwork repositories", () => {
   let workspaceA: string;
@@ -309,6 +311,12 @@ describe("Atomic workspace switch (WebDriver e2e): two disposable Beadwork repos
   });
 
   it("commits B, clears prior Issue Detail and search across switch", async () => {
+    // Keep a non-default view selected before the successful switch. The
+    // IssueExplorer remount clears workspace-scoped search/detail state,
+    // but `activeIssueListViewId` belongs to App and must survive the
+    // confirmed commit.
+    await selectIssueListView("Blocked", "blocked");
+
     // Second attempt to switch to B; this time let it commit.
     const result = await invokeTypedWorkspaceSwitch(workspaceB);
     if ("failure" in result) {
@@ -324,6 +332,15 @@ describe("Atomic workspace switch (WebDriver e2e): two disposable Beadwork repos
     // be gone — the prior Issue Explorer remount on `workspaceKey` must
     // have cleared A's selection and search.
     await expectSidebarWorkspacePath(workspaceB);
+    const activeBlockedView = await browser.$(
+      'section[data-active-issue-list-view-id="blocked"]'
+    );
+    await activeBlockedView.waitForExist({
+      timeout: 30_000,
+      timeoutMsg:
+        "Expected the non-default Blocked Issue List View to survive the Workspace B remount",
+    });
+    await expect(activeBlockedView).toBeDisplayed();
     await expectIssueNotVisible(FIXTURE_ISSUE_TITLE);
     await expectIssueVisible(FIXTURE_SECOND_ISSUE_TITLE);
 
@@ -363,6 +380,24 @@ describe("Atomic workspace switch (WebDriver e2e): two disposable Beadwork repos
       "/definitely-not-a-workspace"
     );
     expect("failure" in invalid).toBe(true);
+
+    // Invalid targets remain inline selector feedback, not a retry banner.
+    // This proves the real desktop renderer receives and presents the typed
+    // validation failure while retaining B's committed identity/snapshot.
+    const inlineValidationError = await browser.$(
+      "[aria-label='Workspace'] [role='alert']"
+    );
+    await inlineValidationError.waitForExist({
+      timeout: 30_000,
+      timeoutMsg: "Expected inline invalid-workspace feedback in the selector",
+    });
+    expect(await inlineValidationError.getText()).toContain(
+      "Could not validate this folder as a Beadwork workspace"
+    );
+    const retryBanner = await browser.$(
+      "[data-testid='switch-failure-banner']"
+    );
+    expect(await retryBanner.isExisting()).toBe(false);
 
     // The renderer receives the typed failure transition but must preserve its
     // already committed B snapshot and Current Workspace.

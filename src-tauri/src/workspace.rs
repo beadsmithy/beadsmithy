@@ -382,11 +382,24 @@ impl<S: WorkspaceStore> WorkspaceService<S> {
     /// No `store.save` is issued; the catalog is already durable from the
     /// validated-candidate commit, and Current is never changed.
     ///
-    /// A no-op when there is nothing pending. The generation bump is
-    /// unconditional so a Cancel-then-retry sequence still invalidates a
-    /// stale result that resolves after the cancel.
+    /// Bumps the generation only when there is an actual pending request to
+    /// cancel. A Cancel that races with the final commit (the commit already
+    /// ran, but its success publication has not yet reached the renderer)
+    /// must not bump the generation: doing so would let the renderer drop
+    /// the in-flight success transition as "older than accepted", keeping
+    /// the prior Workspace's snapshot paired with the new Current identity
+    /// ("B Current with A snapshot").
+    ///
+    /// When there is nothing pending, it preserves the generation while still
+    /// clearing transient retry/error presentation. Cancel-then-retry still
+    /// invalidates a stale result because a real pending request always
+    /// bumps the generation here, and a fresh retry starts a new request
+    /// with its own bumped generation.
     pub fn cancel_pending(&mut self) -> WorkspaceState {
-        self.state.generation = self.state.generation.saturating_add(1);
+        let had_pending = self.state.pending_workspace.is_some();
+        if had_pending {
+            self.state.generation = self.state.generation.saturating_add(1);
+        }
         self.state.pending_workspace = None;
         self.state.retry_workspace = None;
         self.state.error = None;
@@ -1385,7 +1398,13 @@ mod tests {
     }
 
     #[test]
-    fn cancel_pending_with_no_pending_workspace_is_a_noop_generation_bump() {
+    fn cancel_pending_with_no_pending_workspace_is_a_noop() {
+        // Cancel-after-commit-before-success-publication safety: when there
+        // is no actual pending request to cancel, the generation must not
+        // bump. Bumping would race the in-flight success transition for the
+        // just-committed request and let the renderer reject the success
+        // transition as "older than accepted", leaving B Current paired
+        // with A's snapshot.
         let store = FakeStore::empty();
         let mut service = WorkspaceService::from_store(store);
         let first = FakeRunner::with_outputs(command_outputs("/work/first"));
@@ -1395,7 +1414,10 @@ mod tests {
 
         let before = service.state().generation;
         let returned = service.cancel_pending();
-        assert_eq!(returned.generation, before + 1);
+        assert_eq!(
+            returned.generation, before,
+            "cancel_pending without a pending request must not bump the generation"
+        );
         assert!(returned.pending_workspace.is_none());
         assert_eq!(
             returned.current_workspace.as_ref().map(|w| w.path.as_str()),
@@ -1479,6 +1501,64 @@ mod tests {
         assert_eq!(
             returned.current_workspace.as_ref().map(|w| w.path.as_str()),
             Some("/work/first")
+        );
+    }
+
+    #[test]
+    fn cancel_pending_after_commit_does_not_bump_generation() {
+        // Reproduces the bsm-kia.7 cancel-after-final-commit-before-success-
+        // publication race: the user-visible commit has already landed in
+        // `self.state` (current=B), but Taurpc has not yet published the
+        // typed success transition. A Cancel that races the success
+        // publication must not bump the generation; otherwise the renderer
+        // would reject the in-flight success transition as "older than
+        // accepted" and show B Current paired with A's snapshot.
+        let store = FakeStore::empty();
+        let mut service = WorkspaceService::from_store(store);
+        let first = FakeRunner::with_outputs(command_outputs("/work/first"));
+        service
+            .select_workspace(&first, "/work/first")
+            .expect("first selection should succeed");
+        let before = service.state().generation;
+
+        // Successful switch to B commits (current=B, generation stays the
+        // request's generation), then the user-visible Pending window has
+        // already cleared because Phase 5 ran commit_loaded.
+        let second = FakeRunner::with_outputs(command_outputs("/work/second"));
+        service
+            .select_workspace(&second, "/work/second")
+            .expect("second switch should succeed");
+        assert_eq!(
+            service
+                .state()
+                .current_workspace
+                .as_ref()
+                .map(|w| w.path.as_str()),
+            Some("/work/second")
+        );
+        assert!(
+            service.state().pending_workspace.is_none(),
+            "commit clears pending; the success transition is what has not yet been published"
+        );
+
+        // The Cancel arrives between commit and success publication. It
+        // must not bump the generation, otherwise the in-flight success
+        // transition would be rejected at the renderer as older than
+        // accepted.
+        let returned = service.cancel_pending();
+        assert_eq!(
+            returned.generation,
+            before + 1,
+            "cancel_pending after a successful commit must not bump the generation"
+        );
+        assert_eq!(
+            returned.current_workspace.as_ref().map(|w| w.path.as_str()),
+            Some("/work/second"),
+            "current must remain the just-committed B"
+        );
+        assert!(
+            returned.pending_workspace.is_none(),
+            "no pending workspace was set by Cancel"
         );
     }
 

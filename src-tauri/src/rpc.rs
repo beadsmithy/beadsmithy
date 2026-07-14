@@ -76,9 +76,9 @@ pub trait BeadsmithApi {
         candidate_path: String,
     ) -> Result<WorkspaceSwitchResponse, WorkspaceError>;
     async fn remove_workspace(path: String) -> Result<WorkspaceState, WorkspaceError>;
-    async fn retry_workspace_memory() -> WorkspaceState;
+    async fn retry_workspace_memory() -> WorkspaceRetryMemoryResponse;
     async fn reset_workspace_memory() -> Result<WorkspaceState, WorkspaceError>;
-    async fn cancel_workspace() -> WorkspaceState;
+    async fn cancel_workspace() -> WorkspaceCancelResponse;
 }
 
 /// Resolver implementation for Beadsmith's application RPC surface.
@@ -276,8 +276,14 @@ impl BeadsmithApi for BeadsmithApiImpl {
         Ok(state)
     }
 
-    async fn retry_workspace_memory(self) -> WorkspaceState {
-        self.with_runtime(|runtime| {
+    async fn retry_workspace_memory(self) -> WorkspaceRetryMemoryResponse {
+        // Retry-memory restores the remembered Current through the same
+        // validate/load/save transaction as a new selection. The renderer
+        // only learns the restored snapshot via the typed response plus the
+        // transition event; an earlier implementation returned just the
+        // state without `issue_data`, leaving the Issue Explorer stuck on
+        // the prior identity even though backend memory had moved on.
+        let (state, app, issue_data) = self.with_runtime(|runtime| {
             let store = TauriWorkspaceStore::new(runtime.app.clone());
             let mut service = WorkspaceService::from_store(store);
             let snapshot = service
@@ -285,9 +291,21 @@ impl BeadsmithApi for BeadsmithApiImpl {
                 .ok()
                 .flatten();
             runtime.service = service;
-            runtime.snapshot = snapshot;
-            runtime.service.state().clone()
-        })
+            runtime.snapshot = snapshot.clone();
+            let state = runtime.service.state().clone();
+            let app = runtime.app.clone();
+            let issue_data = snapshot
+                .as_ref()
+                .zip(state.current_workspace.as_ref())
+                .map(|(data, workspace)| workspace_data_response(data, workspace.path.as_str()));
+            (state, app, issue_data)
+        });
+        if let Some(issue_data) = issue_data.as_ref() {
+            emit_transition(&app, state.clone(), Some(issue_data.clone()));
+        } else {
+            emit_transition(&app, state.clone(), None);
+        }
+        WorkspaceRetryMemoryResponse { state, issue_data }
     }
 
     async fn reset_workspace_memory(self) -> Result<WorkspaceState, WorkspaceError> {
@@ -302,14 +320,54 @@ impl BeadsmithApi for BeadsmithApiImpl {
         Ok(state)
     }
 
-    async fn cancel_workspace(self) -> WorkspaceState {
-        let (state, app) = self.with_runtime(|runtime| {
+    async fn cancel_workspace(self) -> WorkspaceCancelResponse {
+        // When the durable commit has already landed but its success
+        // publication has not yet reached the renderer, the user-initiated
+        // Cancel will see `pending_workspace == None`. Pairing the matching
+        // Issue Explorer snapshot with the new state in the response and
+        // event lets the renderer apply both atomically; otherwise the UI
+        // would briefly render "B Current with A snapshot" between the
+        // Cancel RPC resolution and the delayed success publication. A
+        // genuine Cancel (where a real pending was cleared) intentionally
+        // carries no snapshot so the prior workspace's issue list is left
+        // exactly as it was before the switch attempt.
+        let (state, snapshot, app, had_pending) = self.with_runtime(|runtime| {
+            let had_pending = runtime.service.state().pending_workspace.is_some();
+            let snapshot = runtime.snapshot.clone();
             let state = runtime.service.cancel_pending();
             let app = runtime.app.clone();
-            (state, app)
+            (state, snapshot, app, had_pending)
         });
-        emit_transition(&app, state.clone(), None);
-        state
+        let issue_data = cancel_response_issue_data(&state, snapshot.as_ref(), had_pending);
+        if let Some(data) = issue_data.as_ref() {
+            emit_transition(&app, state.clone(), Some(data.clone()));
+        } else {
+            emit_transition(&app, state.clone(), None);
+        }
+        WorkspaceCancelResponse { state, issue_data }
+    }
+}
+
+/// Decide whether `cancel_workspace` should pair its returned/emit state
+/// with the locally-stored Issue Explorer snapshot.
+///
+/// This helper is intentionally small and pure so it can be unit-tested at
+/// the order-statistics seam without standing up a Tauri runtime. It is
+/// the only consumer of the post-commit invariant "runtime.snapshot is
+/// Some if and only if state.current_workspace is the workspace it was
+/// loaded for"; reversing that pairing would re-introduce the transient
+/// identity/snapshot tear the cancel RPC is meant to close.
+fn cancel_response_issue_data(
+    state: &WorkspaceState,
+    snapshot: Option<&IssueExplorerData>,
+    had_pending: bool,
+) -> Option<LoadIssueExplorerDataResponse> {
+    if !had_pending && state.current_workspace.is_some() {
+        snapshot
+            .zip(state.current_workspace.as_ref())
+            .map(|(data, workspace)| workspace_data_response(data, workspace.path.as_str()))
+    } else {
+        None
     }
 }
 
@@ -353,6 +411,36 @@ async fn load_issue_explorer_data_outside_lock(
 pub struct WorkspaceSwitchResponse {
     pub state: WorkspaceState,
     pub issue_data: LoadIssueExplorerDataResponse,
+}
+
+/// Result of a successful startup-memory retry; the frontend receives its
+/// complete snapshot only when the remembered Current was restored and
+/// validated through the normal selection transaction. `issue_data` is `None`
+/// when nothing was restored (no remembered Current or restore failed).
+#[taurpc::ipc_type]
+#[derive(Debug, PartialEq, Eq)]
+#[serde(rename_all = "camelCase")]
+pub struct WorkspaceRetryMemoryResponse {
+    pub state: WorkspaceState,
+    pub issue_data: Option<LoadIssueExplorerDataResponse>,
+}
+
+/// Result of a `cancel_workspace` call. The state mirrors what a normal
+/// in-flight cancel would publish; the optional `issue_data` is set only
+/// when the cancel arrives after the durable commit has already cleared
+/// the in-flight pending request but before its success publication has
+/// reached the renderer. In that race window, pairing the matching Issue
+/// Explorer snapshot with the new state keeps the renderer from briefly
+/// rendering a Current Workspace identity without its corresponding
+/// snapshot. A real Pending cancellation that was cleared by Cancel
+/// itself never carries `issue_data`: leaving the prior workspace's
+/// issue list untouched is the desired outcome.
+#[taurpc::ipc_type]
+#[derive(Debug, PartialEq, Eq)]
+#[serde(rename_all = "camelCase")]
+pub struct WorkspaceCancelResponse {
+    pub state: WorkspaceState,
+    pub issue_data: Option<LoadIssueExplorerDataResponse>,
 }
 
 fn no_current_workspace_error() -> IssueListError {
@@ -586,6 +674,7 @@ fn load_issue_explorer_data_from_adapter(
 mod tests {
     use super::*;
     use crate::issues::{CommandOutput, CommandRunner};
+    use crate::workspace::WorkspaceAvailability;
     use std::collections::VecDeque;
     use std::io;
     use std::path::PathBuf;
@@ -940,6 +1029,8 @@ mod tests {
         for type_name in [
             "WorkspaceState",
             "WorkspaceSwitchResponse",
+            "WorkspaceRetryMemoryResponse",
+            "WorkspaceCancelResponse",
             "WorkspaceAvailability",
         ] {
             assert!(
@@ -980,5 +1071,90 @@ mod tests {
             assert_eq!(error.kind, expected_kind);
             assert!(!error.message.is_empty());
         }
+    }
+
+    fn empty_snapshot() -> IssueExplorerData {
+        IssueExplorerData {
+            all_issues: Vec::new(),
+            ready_issues: Vec::new(),
+            blocked_issues: Vec::new(),
+        }
+    }
+
+    fn state_with_current(path: &str) -> WorkspaceState {
+        WorkspaceState {
+            catalog: vec![Workspace {
+                path: path.to_string(),
+                availability: WorkspaceAvailability::Available,
+            }],
+            current_workspace: Some(Workspace {
+                path: path.to_string(),
+                availability: WorkspaceAvailability::Available,
+            }),
+            ..WorkspaceState::default()
+        }
+    }
+
+    #[test]
+    fn cancel_response_pairs_snapshot_with_state_after_commit() {
+        // Cancel-after-commit-before-success-publication race: the durable
+        // commit has already cleared the pending request and the local
+        // snapshot matches the just-committed Current Workspace. The
+        // renderer's response must include the matching Issue Explorer
+        // snapshot so it can apply state and snapshot atomically.
+        let state = state_with_current("/work/b");
+        let snapshot = empty_snapshot();
+        let response = cancel_response_issue_data(&state, Some(&snapshot), false);
+        let response = response.expect("after-commit cancel must surface a snapshot");
+        assert_eq!(response.workspace_path, "/work/b");
+    }
+
+    #[test]
+    fn cancel_response_omits_snapshot_for_a_real_cancellation() {
+        // The user-initiated Cancel cleared an actual Pending request; the
+        // renderer's prior Issue Explorer snapshot must remain untouched.
+        // Returning the local snapshot here would force the renderer to
+        // re-render the prior workspace's issue list just because Cancel
+        // happened, contradicting the user intent.
+        let state = WorkspaceState {
+            current_workspace: Some(Workspace {
+                path: "/work/a".to_string(),
+                availability: WorkspaceAvailability::Available,
+            }),
+            ..WorkspaceState::default()
+        };
+        let snapshot = empty_snapshot();
+        let response = cancel_response_issue_data(&state, Some(&snapshot), true);
+        assert!(
+            response.is_none(),
+            "real Pending cancellation must not package any snapshot"
+        );
+    }
+
+    #[test]
+    fn cancel_response_omits_snapshot_when_no_current_is_set() {
+        // No committed snapshot to pair with (the catalog is empty and
+        // there is no current workspace); the response stays snapshot-free
+        // regardless of any local data.
+        let snapshot = empty_snapshot();
+        let response =
+            cancel_response_issue_data(&WorkspaceState::default(), Some(&snapshot), false);
+        assert!(
+            response.is_none(),
+            "no current workspace means there is nothing to pair a snapshot with"
+        );
+    }
+
+    #[test]
+    fn cancel_response_omits_snapshot_when_locally_unavailable() {
+        // The cancel races with a future commit publication that has not
+        // yet populated the runtime snapshot. Returning an empty
+        // workspace-path response here would be a regression.
+        let state = state_with_current("/work/b");
+        let response = cancel_response_issue_data(&state, None, false);
+        assert!(
+            response.is_none(),
+            "absent runtime snapshot must not be invented"
+        );
     }
 }
