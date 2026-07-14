@@ -1,0 +1,15 @@
+{
+  "assignee": "",
+  "blocked_by": [],
+  "blocks": [],
+  "created": "2026-07-14T21:39:20Z",
+  "description": "Fix the confirmed workspace-transition delivery defects identified during review of bsm-kia.4.\n\nThe renderer must never show a Current Workspace identity without its matching Issue Explorer snapshot. Fix: (1) Cancel racing after backend commit but before success publication; (2) startup issue loading racing with a later switch; (3) successful retry of workspace memory that restores a backend snapshot but leaves the renderer stale; and (4) delayed same-generation Pending events overwriting an accepted retryable failure.\n\nAlso make the documented issue-list acceptance command run the atomic-switch desktop scenario, and extend desktop assertions for inline invalid-target feedback and preservation of a non-default Issue List View.\n\nPreserve the bsm-kia.4 transaction semantics; add deterministic Rust/frontend/E2E regressions for each delivery race.",
+  "id": "bsm-kia.7",
+  "labels": [],
+  "parent": "bsm-kia",
+  "priority": 1,
+  "status": "open",
+  "title": "Harden workspace transition delivery races",
+  "type": "bug",
+  "updated_at": "2026-07-14T21:39:20Z"
+}
