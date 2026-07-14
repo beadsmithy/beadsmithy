@@ -21,7 +21,7 @@ Hard constraints: do not edit project/source files; surface ambiguities instead 
 phase: Planning
 label: Plan implementation
 as: implementationPlan
-model: openai-codex/gpt-5.5:high
+model: openai-codex/gpt-5.6-terra:high
 outputMode: file-only
 
 Plan the implementation of Beadwork issue `{task}`.

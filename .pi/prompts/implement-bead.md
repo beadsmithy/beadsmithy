@@ -74,7 +74,7 @@ Review the committed change for Beadwork issue `$1`. Run `bw show $1 --json` to 
 const reviewerRun = subagent({
   agent: "reviewer",
   skill: "review",
-  model: "openai-codex/gpt-5.5:high",
+  model: "openai-codex/gpt-5.6-terra:high",
   cwd: "<worktree-path>",
   async: true,
   timeoutMs: 1800000,
