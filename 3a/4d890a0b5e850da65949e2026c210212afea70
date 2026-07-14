@@ -1,0 +1,20 @@
+src-tauri/src/workspace.rs
+  s_10b3957a159d33::t_2ddb18792af6e1 270-272,278-280,291,305,312-332
+  s_10b3957a159d33::t_8eeaea132f0d92 333-334
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.14",
+  "base_commit_sha": "3a4d890a0b5e850da65949e2026c210212afea70",
+  "prompts": {},
+  "sessions": {
+    "s_10b3957a159d33": {
+      "agent_id": {
+        "tool": "pi",
+        "id": "019f5fad-807d-7ad2-85f3-7ef91b1e73aa",
+        "model": "MiniMax-M3"
+      },
+      "human_author": null
+    }
+  }
+}
