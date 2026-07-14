@@ -170,7 +170,6 @@ pub struct WorkspaceService<S> {
     store: S,
     state: WorkspaceState,
     restoration_candidate: Option<PathBuf>,
-    remembered_current_path: Option<String>,
 }
 
 impl<S: WorkspaceStore> WorkspaceService<S> {
@@ -180,7 +179,7 @@ impl<S: WorkspaceStore> WorkspaceService<S> {
     /// An unreadable or unsupported store is retained as a typed error until
     /// the caller explicitly invokes reset.
     pub fn from_store(store: S) -> Self {
-        let (state, restoration_candidate, remembered_current_path) =
+        let (state, restoration_candidate) =
             match store.load().and_then(validate_persisted_state) {
                 Ok(persisted) => state_from_persisted(persisted.unwrap_or_default()),
                 Err(message) => (
@@ -193,14 +192,12 @@ impl<S: WorkspaceStore> WorkspaceService<S> {
                         ..WorkspaceState::default()
                     },
                     None,
-                    None,
                 ),
             };
         Self {
             store,
             state,
             restoration_candidate,
-            remembered_current_path,
         }
     }
 
@@ -220,7 +217,6 @@ impl<S: WorkspaceStore> WorkspaceService<S> {
     /// token. A manual selection supersedes any deferred startup restoration.
     pub fn begin_selection(&mut self, candidate: impl Into<PathBuf>) -> WorkspaceRequest {
         self.restoration_candidate = None;
-        self.remembered_current_path = None;
         self.begin_request(candidate.into())
     }
 
@@ -239,7 +235,6 @@ impl<S: WorkspaceStore> WorkspaceService<S> {
         let result = self.complete_selection(runner, request).map(Some);
         if result.is_ok() {
             self.restoration_candidate = None;
-            self.remembered_current_path = None;
         }
         result
     }
@@ -334,7 +329,6 @@ impl<S: WorkspaceStore> WorkspaceService<S> {
             ..WorkspaceState::default()
         };
         self.restoration_candidate = None;
-        self.remembered_current_path = None;
         Ok(())
     }
 
@@ -399,7 +393,6 @@ impl<S: WorkspaceStore> WorkspaceService<S> {
         })?;
         self.state = next;
         self.restoration_candidate = None;
-        self.remembered_current_path = None;
         Ok(())
     }
 
@@ -453,11 +446,8 @@ fn validate_persisted_state(
     Ok(Some(persisted))
 }
 
-fn state_from_persisted(
-    persisted: PersistedWorkspaceState,
-) -> (WorkspaceState, Option<PathBuf>, Option<String>) {
+fn state_from_persisted(persisted: PersistedWorkspaceState) -> (WorkspaceState, Option<PathBuf>) {
     let restoration_candidate = persisted.current_workspace_path.clone().map(PathBuf::from);
-    let remembered_current_path = persisted.current_workspace_path;
     (
         WorkspaceState {
             version: persisted.version,
@@ -468,7 +458,6 @@ fn state_from_persisted(
             ..WorkspaceState::default()
         },
         restoration_candidate,
-        remembered_current_path,
     )
 }
 
