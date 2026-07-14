@@ -1,0 +1,62 @@
+src-tauri/src/rpc.rs
+  s_19e49f6abe6639::t_0298475f9beb26 98-99
+  s_19e49f6abe6639::t_63a88a5b605cbe 686-687,689-700
+src/components/WorkspaceSelector.tsx
+  s_19e49f6abe6639::t_7c04d9d4c71340 8
+  s_19e49f6abe6639::t_e7ce26995a2394 40-43,49-50,54,56-60,127-128,130
+  s_19e49f6abe6639::t_26411dff9a6948 55,129
+src/components/WorkspaceSelector.test.tsx
+  s_19e49f6abe6639::t_48d849b486e376 46,71,73-75
+docs/agents/webdriver-e2e.md
+  s_19e49f6abe6639::t_dae8b0ff96617f 50-58,65-68,77-86,114-116
+e2e/issue-list/issue-list.empty.spec.ts
+  s_19e49f6abe6639::t_b4ccebad2e8565 23
+  s_19e49f6abe6639::t_0037c169146d45 2-3,7-8,10-19,21-22,24-27,29-30,33-37,40-42
+  s_19e49f6abe6639::t_53bac4577ce5bc 9
+  s_19e49f6abe6639::t_8b963fa9c98a16 20
+  s_19e49f6abe6639::t_306272f57a19a7 28
+  s_19e49f6abe6639::t_7d7a159c47068d 38-39
+src/App.test.tsx
+  s_19e49f6abe6639::t_095c70a68b0eaa 8,12-24,35,37-42,84-95,104-109
+  s_19e49f6abe6639::t_10f462623dce55 7,36
+  s_19e49f6abe6639::t_8877fb08ec2820 110,443-445
+  s_19e49f6abe6639::t_7967588ac6aac2 316-330,332-415,417-424,426-442,446-447
+  s_19e49f6abe6639::t_9e1dc3ede4f805 331,416,425
+e2e/issue-list/issue-list.success.spec.ts
+  s_19e49f6abe6639::t_4ce49866ca29a2 54,64-90
+  s_19e49f6abe6639::t_e32f4e0b42adca 43,108-109,184
+  s_19e49f6abe6639::t_274d9c4c1b1a85 387-391
+  s_19e49f6abe6639::t_422cb23cc2ec9e 32-41,44-49,51-52,55,59-62,91-107,110-112,171-173,175-179,186,189,192,198,204,207-209,211-214
+  s_19e49f6abe6639::t_fe3b4eb5d121a6 56,380-384
+  s_19e49f6abe6639::t_eb9ebf1cac030f 347-348,350-354,356-368,371-373,375-376,385-386,392-394
+  s_19e49f6abe6639::t_a64202057ef8a1 58
+  s_19e49f6abe6639::t_dd8bfc4818de1d 42,50,53,57,63,180-181,369-370,378,395
+src-tauri/src/workspace.rs
+  s_19e49f6abe6639::t_668bdc8647862d 207-216,285,477-483
+  s_19e49f6abe6639::t_ac0c4ace89d1bf 1241-1249,1253,1282-1290
+  s_19e49f6abe6639::t_b47a767d311075 1093-1099,1103,1106-1118
+  s_19e49f6abe6639::t_292f4dc527223d 1119-1132,1139,1144,1149,1151
+src/App.tsx
+  s_19e49f6abe6639::t_1aae60b5aafe9c 111-115,117,121,123-129,132,141,146-156,162-190,198-199
+  s_19e49f6abe6639::t_f2d5d8e76937b3 12,110,116,133
+wdio.issue-list.conf.ts
+  s_19e49f6abe6639::t_5c3ebef60c6071 7-8,12,35-37,39,41,93-96,107
+e2e/issue-list/scripts/run-scenario.ts
+  s_19e49f6abe6639::t_f3f0a7c45d9af9 2-4,7-9,12-14,45-48,58-60,67-69
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.13",
+  "base_commit_sha": "aa394675ccbd6bd7157a7c04e91df5dfdd6b9367",
+  "prompts": {},
+  "sessions": {
+    "s_19e49f6abe6639": {
+      "agent_id": {
+        "tool": "pi",
+        "id": "019f5d8f-f568-7401-8abb-9fa1bbf18715",
+        "model": "gpt-5.6-terra"
+      },
+      "human_author": "Tomas Thor Jonsson <benregn@gmail.com>"
+    }
+  }
+}
