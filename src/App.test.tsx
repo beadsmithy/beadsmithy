@@ -1,4 +1,4 @@
-import { render, screen, waitFor, within } from "@testing-library/react";
+import { act, render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -15,7 +15,10 @@ const switchWorkspace = vi.fn();
 const removeWorkspace = vi.fn();
 const retryWorkspaceMemory = vi.fn();
 const resetWorkspaceMemory = vi.fn();
+const cancelWorkspace = vi.fn();
+const listen = vi.fn().mockResolvedValue(vi.fn());
 const createTauRPCProxy = vi.fn(() => ({
+  cancel_workspace: cancelWorkspace,
   remove_workspace: removeWorkspace,
   reset_workspace_memory: resetWorkspaceMemory,
   retry_workspace_memory: retryWorkspaceMemory,
@@ -39,6 +42,7 @@ vi.mock("./rpc/bindings", async (importOriginal) => {
 });
 
 vi.mock("@tauri-apps/plugin-dialog", () => ({ open }));
+vi.mock("@tauri-apps/api/event", () => ({ listen }));
 
 const { default: App } = await import("./App");
 
@@ -89,6 +93,7 @@ const workspace = (
   error: null,
   generation: 0,
   pendingWorkspace: null,
+  retryWorkspace: null,
   version: 1,
   ...overrides,
 });
@@ -106,6 +111,9 @@ describe("App issue list view sidebar", () => {
     resetWorkspaceMemory.mockReset();
     retryWorkspaceMemory.mockReset();
     switchWorkspace.mockReset();
+    cancelWorkspace.mockReset();
+    listen.mockClear();
+    listen.mockResolvedValue(vi.fn());
     workspaceState.mockReset();
     workspaceState.mockRejectedValue(new Error("workspace unavailable"));
   });
@@ -314,6 +322,74 @@ describe("App issue list view sidebar", () => {
     expect(loadIssueExplorerStateFromTauRpc).toHaveBeenCalledTimes(1);
   });
 
+  it("drops a late older-generation workspace transition", async () => {
+    let transitionListener:
+      | ((event: {
+          payload: { issueData: unknown; state: WorkspaceState };
+        }) => void)
+      | undefined;
+    // oxlint-disable-next-line promise/prefer-await-to-callbacks
+    listen.mockImplementation((_eventName, callback) => {
+      transitionListener = callback;
+      return Promise.resolve(vi.fn());
+    });
+
+    const aIssue = buildIssue({ id: "shared", title: "A issue" });
+    const bIssue = buildIssue({ id: "shared", title: "B issue" });
+    loadIssueExplorerStateFromTauRpc.mockResolvedValue(
+      successState({ allIssues: [aIssue] })
+    );
+    workspaceState.mockResolvedValue(
+      workspace({
+        currentWorkspace: { availability: "available", path: "/work/a" },
+        generation: 1,
+      })
+    );
+
+    render(<App />);
+    await waitFor(() => {
+      expect(transitionListener).toBeDefined();
+    });
+
+    act(() => {
+      transitionListener?.({
+        payload: {
+          issueData: {
+            allIssues: [bIssue],
+            blockedIssues: [],
+            readyIssues: [],
+            workspacePath: "/work/b",
+          },
+          state: workspace({
+            currentWorkspace: { availability: "available", path: "/work/b" },
+            generation: 2,
+          }),
+        },
+      });
+    });
+    expect(await screen.findByText("B issue")).toBeInTheDocument();
+
+    act(() => {
+      transitionListener?.({
+        payload: {
+          issueData: {
+            allIssues: [aIssue],
+            blockedIssues: [],
+            readyIssues: [],
+            workspacePath: "/work/a",
+          },
+          state: workspace({
+            currentWorkspace: { availability: "available", path: "/work/a" },
+            generation: 1,
+          }),
+        },
+      });
+    });
+
+    expect(screen.getByText("B issue")).toBeInTheDocument();
+    expect(screen.queryByText("A issue")).toBeNull();
+  });
+
   it("renders backend-owned catalog order as MRU order", async () => {
     loadIssueExplorerStateFromTauRpc.mockResolvedValue(failureState);
     workspaceState.mockResolvedValue(
@@ -444,5 +520,255 @@ describe("App issue list view sidebar", () => {
       "role",
       "alert"
     );
+  });
+});
+
+describe("App workspace switch atomicity", () => {
+  beforeEach(() => {
+    cancelWorkspace.mockReset();
+    loadIssueExplorerStateFromTauRpc.mockReset();
+    open.mockReset();
+    removeWorkspace.mockReset();
+    resetWorkspaceMemory.mockReset();
+    retryWorkspaceMemory.mockReset();
+    switchWorkspace.mockReset();
+    workspaceState.mockReset();
+    workspaceState.mockRejectedValue(new Error("workspace unavailable"));
+  });
+
+  it("calls cancel_workspace when the in-flight Cancel control is clicked", async () => {
+    const user = userEvent.setup();
+    loadIssueExplorerStateFromTauRpc.mockResolvedValue(
+      successState({ allIssues: [buildIssue()] })
+    );
+    workspaceState
+      .mockResolvedValueOnce(
+        workspace({
+          catalog: [{ availability: "available", path: "/work/current" }],
+          currentWorkspace: {
+            availability: "available",
+            path: "/work/current",
+          },
+        })
+      )
+      .mockResolvedValue(
+        workspace({
+          catalog: [{ availability: "available", path: "/work/current" }],
+          currentWorkspace: {
+            availability: "available",
+            path: "/work/current",
+          },
+          pendingWorkspace: {
+            availability: "available",
+            path: "/work/second",
+          },
+        })
+      );
+    cancelWorkspace.mockResolvedValue(
+      workspace({
+        catalog: [{ availability: "available", path: "/work/current" }],
+        currentWorkspace: {
+          availability: "available",
+          path: "/work/current",
+        },
+      })
+    );
+    // A failed switch leaves the catch branch to refresh workspaceState;
+    // the second mock surfaces a pending workspace, which is what the
+    // selector needs to render the Cancel control.
+    switchWorkspace.mockRejectedValue(new Error("transient failure"));
+
+    render(<App />);
+
+    const trigger = await screen.findByRole("button", {
+      name: "current, /work/current, Available",
+    });
+    await user.click(trigger);
+
+    const cancelButton = await screen.findByTestId("cancel-workspace-switch");
+    await user.click(cancelButton);
+    expect(cancelWorkspace).toHaveBeenCalledTimes(1);
+    expect(
+      within(screen.getByRole("navigation")).getByRole("button", {
+        name: "current, /work/current, Available",
+      })
+    ).toHaveAttribute("aria-current", "true");
+  });
+
+  it("preserves the prior Issue Explorer snapshot when switch_workspace rejects", async () => {
+    const user = userEvent.setup();
+    const aIssue = buildIssue({ id: "bsm-current", title: "Current issue" });
+    loadIssueExplorerStateFromTauRpc.mockResolvedValue(
+      successState({ allIssues: [aIssue] })
+    );
+    workspaceState
+      .mockResolvedValueOnce(
+        workspace({
+          catalog: [{ availability: "available", path: "/work/current" }],
+          currentWorkspace: {
+            availability: "available",
+            path: "/work/current",
+          },
+        })
+      )
+      .mockResolvedValue(
+        workspace({
+          catalog: [{ availability: "available", path: "/work/current" }],
+          currentWorkspace: {
+            availability: "available",
+            path: "/work/current",
+          },
+        })
+      );
+    switchWorkspace.mockRejectedValue(new Error("load failed"));
+
+    render(<App />);
+
+    await user.click(
+      await screen.findByRole("button", {
+        name: "current, /work/current, Available",
+      })
+    );
+
+    // Rejection never swapped snapshots: the prior issue is still listed.
+    expect(await screen.findByText("Current issue")).toBeInTheDocument();
+  });
+
+  it("renders a dismissible Retry banner for a loadFailed switch and hides both controls when dismissed", async () => {
+    const user = userEvent.setup();
+    loadIssueExplorerStateFromTauRpc.mockResolvedValue(
+      successState({ allIssues: [buildIssue()] })
+    );
+    workspaceState
+      .mockResolvedValueOnce(
+        workspace({
+          catalog: [
+            { availability: "available", path: "/work/first" },
+            { availability: "available", path: "/work/second" },
+          ],
+          currentWorkspace: {
+            availability: "available",
+            path: "/work/first",
+          },
+        })
+      )
+      .mockResolvedValue(
+        workspace({
+          catalog: [
+            { availability: "available", path: "/work/first" },
+            { availability: "available", path: "/work/second" },
+          ],
+          currentWorkspace: {
+            availability: "available",
+            path: "/work/first",
+          },
+          error: {
+            kind: "loadFailed",
+            message: "Snapshot bytes could not be loaded",
+            retryable: true,
+          },
+          retryWorkspace: {
+            availability: "available",
+            path: "/work/second",
+          },
+        })
+      );
+    switchWorkspace.mockRejectedValue(new Error("load failed"));
+
+    render(<App />);
+
+    await user.click(
+      await screen.findByRole("button", {
+        name: "second, /work/second, Available",
+      })
+    );
+
+    const banner = await screen.findByTestId("switch-failure-banner");
+    expect(banner).toBeInTheDocument();
+    expect(switchWorkspace).toHaveBeenCalledWith("/work/second");
+
+    // Dismiss hides the banner but does not touch the catalog or Current.
+    await user.click(
+      within(banner).getByRole("button", { name: "Dismiss switch failure" })
+    );
+    await waitFor(() => {
+      expect(screen.queryByTestId("switch-failure-banner")).toBeNull();
+    });
+    expect(
+      within(screen.getByRole("navigation")).getByRole("button", {
+        name: "first, /work/first, Available",
+      })
+    ).toHaveAttribute("aria-current", "true");
+  });
+
+  it("Retry replays the backend retry target through selectWorkspace", async () => {
+    const user = userEvent.setup();
+    loadIssueExplorerStateFromTauRpc.mockResolvedValue(
+      successState({ allIssues: [buildIssue()] })
+    );
+    workspaceState
+      .mockResolvedValueOnce(
+        workspace({
+          catalog: [{ availability: "available", path: "/work/current" }],
+          currentWorkspace: {
+            availability: "available",
+            path: "/work/current",
+          },
+        })
+      )
+      .mockResolvedValueOnce(
+        workspace({
+          catalog: [{ availability: "available", path: "/work/current" }],
+          currentWorkspace: {
+            availability: "available",
+            path: "/work/current",
+          },
+          error: {
+            kind: "loadFailed",
+            message: "Snapshot bytes could not be loaded",
+            retryable: true,
+          },
+          retryWorkspace: {
+            availability: "available",
+            path: "/work/second",
+          },
+        })
+      );
+    let calls = 0;
+    switchWorkspace.mockImplementation((path: string) => {
+      calls += 1;
+      if (calls === 1) {
+        return Promise.reject(new Error("first attempt fails"));
+      }
+      return Promise.resolve({
+        issueData: {
+          allIssues: [],
+          blockedIssues: [],
+          readyIssues: [],
+          workspacePath: path,
+        },
+        state: workspace({
+          catalog: [{ availability: "available", path }],
+          currentWorkspace: { availability: "available", path },
+        }),
+      });
+    });
+
+    render(<App />);
+
+    open.mockResolvedValue("/work/second");
+    await user.click(
+      await screen.findByRole("button", { name: "Choose folder" })
+    );
+
+    const banner = await screen.findByTestId("switch-failure-banner");
+    expect(banner).toBeInTheDocument();
+    expect(switchWorkspace).toHaveBeenCalledTimes(1);
+
+    await user.click(within(banner).getByRole("button", { name: "Retry" }));
+    await waitFor(() => {
+      expect(switchWorkspace).toHaveBeenCalledTimes(2);
+    });
+    expect(switchWorkspace).toHaveBeenNthCalledWith(2, "/work/second");
   });
 });

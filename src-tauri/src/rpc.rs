@@ -4,14 +4,33 @@
 //! access to the pure Rust `issues` adapter and maps adapter results/errors into
 //! serializable, user-displayable payloads.
 
-#[cfg(test)]
-use std::path::Path;
+use std::path::{Path, PathBuf};
 use std::sync::{Arc, Mutex};
+
+use serde::Serialize;
+use tauri::Emitter;
 
 use crate::issues::{self, ListIssuesError, ProcessRunner};
 use crate::workspace::{
-    IssueExplorerData, TauriWorkspaceStore, WorkspaceError, WorkspaceService, WorkspaceState,
+    load_issue_explorer_data, validate_workspace, IssueExplorerData, TauriWorkspaceStore,
+    Workspace, WorkspaceError, WorkspaceErrorKind, WorkspaceRequest, WorkspaceService,
+    WorkspaceState,
 };
+
+/// Name of the Tauri event used to publish workspace transition updates.
+pub const WORKSPACE_TRANSITION_EVENT: &str = "workspace-transition";
+
+/// Typed workspace transition payload published on [`WORKSPACE_TRANSITION_EVENT`]
+/// after Pending, current-request failure, cancellation/removal, and successful
+/// publication. `issue_data` is set only on a committed success so the frontend
+/// can promote Issue Explorer state through the same generation-guarded
+/// handler as the typed RPC response.
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct WorkspaceTransition {
+    pub state: WorkspaceState,
+    pub issue_data: Option<LoadIssueExplorerDataResponse>,
+}
 
 /// In-memory data is only published after the workspace service's durable
 /// Current commit. It lets Issue Explorer reload without accepting a path.
@@ -19,6 +38,17 @@ struct WorkspaceRuntime {
     app: tauri::AppHandle<tauri::Wry>,
     service: WorkspaceService<TauriWorkspaceStore<tauri::Wry>>,
     snapshot: Option<IssueExplorerData>,
+}
+
+fn emit_transition(
+    app: &tauri::AppHandle<tauri::Wry>,
+    state: WorkspaceState,
+    issue_data: Option<LoadIssueExplorerDataResponse>,
+) {
+    let transition = WorkspaceTransition { state, issue_data };
+    if let Err(error) = app.emit(WORKSPACE_TRANSITION_EVENT, transition) {
+        eprintln!("Beadsmith: failed to emit workspace transition: {error}");
+    }
 }
 
 /// Build the TauRPC router, including TypeScript export configuration.
@@ -42,10 +72,13 @@ pub trait BeadsmithApi {
     async fn list_issues() -> Result<ListIssuesResponse, IssueListError>;
     async fn load_issue_explorer_data() -> Result<LoadIssueExplorerDataResponse, IssueListError>;
     async fn workspace_state() -> WorkspaceState;
-    async fn switch_workspace(candidate_path: String) -> Result<WorkspaceSwitchResponse, WorkspaceError>;
+    async fn switch_workspace(
+        candidate_path: String,
+    ) -> Result<WorkspaceSwitchResponse, WorkspaceError>;
     async fn remove_workspace(path: String) -> Result<WorkspaceState, WorkspaceError>;
     async fn retry_workspace_memory() -> WorkspaceState;
     async fn reset_workspace_memory() -> Result<WorkspaceState, WorkspaceError>;
+    async fn cancel_workspace() -> WorkspaceState;
 }
 
 /// Resolver implementation for Beadsmith's application RPC surface.
@@ -59,18 +92,54 @@ impl BeadsmithApiImpl {
     pub fn initialize_workspace(&self, app: tauri::AppHandle<tauri::Wry>) {
         let store = TauriWorkspaceStore::new(app.clone());
         let mut service = WorkspaceService::from_store(store);
-        let snapshot = service.restore_current(&ProcessRunner::new()).ok().flatten();
-        *self.workspace.lock().expect("workspace runtime lock poisoned") =
-            Some(WorkspaceRuntime { app, service, snapshot });
+        let snapshot = service
+            .restore_current(&ProcessRunner::new())
+            .ok()
+            .flatten();
+        *self
+            .workspace
+            .lock()
+            .expect("workspace runtime lock poisoned") = Some(WorkspaceRuntime {
+            app,
+            service,
+            snapshot,
+        });
     }
 
     fn with_runtime<T>(&self, operation: impl FnOnce(&mut WorkspaceRuntime) -> T) -> T {
-        let mut runtime = self.workspace.lock().expect("workspace runtime lock poisoned");
+        let mut runtime = self
+            .workspace
+            .lock()
+            .expect("workspace runtime lock poisoned");
         operation(
             runtime
                 .as_mut()
                 .expect("workspace runtime must initialize during Tauri setup"),
         )
+    }
+
+    /// Mark a still-current switch as failed and publish its transition. A
+    /// stale worker completion returns its typed error to the direct caller
+    /// but emits no transition or state mutation.
+    fn fail_switch_request(
+        &self,
+        request: &WorkspaceRequest,
+        validated: Option<&Workspace>,
+        error: WorkspaceError,
+    ) -> WorkspaceError {
+        let transition = self.with_runtime(|runtime| {
+            if !runtime.service.is_request_current(request) {
+                return None;
+            }
+            let _ = runtime
+                .service
+                .fail_request(request, validated, error.clone());
+            Some((runtime.app.clone(), runtime.service.state().clone()))
+        });
+        if let Some((app, state)) = transition {
+            emit_transition(&app, state, None);
+        }
+        error
     }
 }
 
@@ -78,7 +147,10 @@ impl BeadsmithApiImpl {
 impl BeadsmithApi for BeadsmithApiImpl {
     async fn list_issues(self) -> Result<ListIssuesResponse, IssueListError> {
         self.with_runtime(|runtime| {
-            let data = runtime.snapshot.as_ref().ok_or_else(no_current_workspace_error)?;
+            let data = runtime
+                .snapshot
+                .as_ref()
+                .ok_or_else(no_current_workspace_error)?;
             Ok(ListIssuesResponse {
                 workspace_path: runtime
                     .service
@@ -92,9 +164,14 @@ impl BeadsmithApi for BeadsmithApiImpl {
         })
     }
 
-    async fn load_issue_explorer_data(self) -> Result<LoadIssueExplorerDataResponse, IssueListError> {
+    async fn load_issue_explorer_data(
+        self,
+    ) -> Result<LoadIssueExplorerDataResponse, IssueListError> {
         self.with_runtime(|runtime| {
-            let data = runtime.snapshot.as_ref().ok_or_else(no_current_workspace_error)?;
+            let data = runtime
+                .snapshot
+                .as_ref()
+                .ok_or_else(no_current_workspace_error)?;
             let state = runtime.service.state();
             let path = state
                 .current_workspace
@@ -113,29 +190,74 @@ impl BeadsmithApi for BeadsmithApiImpl {
         self,
         candidate_path: String,
     ) -> Result<WorkspaceSwitchResponse, WorkspaceError> {
-        self.with_runtime(|runtime| {
-            let data = runtime
+        let candidate = PathBuf::from(candidate_path);
+
+        // Phase 1: begin the request under the lock and publish Pending before
+        // any command runs. The lock is released immediately so Cancel and a
+        // newer selection can acquire the runtime while the worker is blocked.
+        let (request, app, pending_state) = self.with_runtime(|runtime| {
+            let request = runtime.service.begin_selection(candidate.clone());
+            (
+                request,
+                runtime.app.clone(),
+                runtime.service.state().clone(),
+            )
+        });
+        emit_transition(&app, pending_state, None);
+
+        // Phase 2: validate outside the runtime mutex.
+        let validated = match validate_workspace_outside_lock(candidate).await {
+            Ok(workspace) => workspace,
+            Err(error) => return Err(self.fail_switch_request(&request, None, error)),
+        };
+
+        // Phase 3: persist the validated catalog entry before loading. This is
+        // the first durable transaction boundary and intentionally does not
+        // promote MRU or replace Current.
+        if let Err(error) = self.with_runtime(|runtime| {
+            runtime
                 .service
-                .select_workspace(&ProcessRunner::new(), candidate_path)?;
+                .retain_validated(&request, validated.clone())
+        }) {
+            return Err(self.fail_switch_request(&request, Some(&validated), error));
+        }
+
+        // Phase 4: load all Issue Explorer views outside the runtime mutex.
+        let data = match load_issue_explorer_data_outside_lock(validated.clone()).await {
+            Ok(data) => data,
+            Err(error) => {
+                return Err(self.fail_switch_request(&request, Some(&validated), error));
+            }
+        };
+
+        // Phase 5: the final save publishes Current and MRU together. The
+        // snapshot assignment happens in this same critical section, never
+        // during Pending or failure.
+        let result = self.with_runtime(|runtime| {
+            runtime
+                .service
+                .commit_loaded(&request, validated.clone(), data.clone())?;
             runtime.snapshot = Some(data.clone());
-            Ok(WorkspaceSwitchResponse {
-                state: runtime.service.state().clone(),
-                issue_data: workspace_data_response(
-                    &data,
-                    runtime
-                        .service
-                        .state()
-                        .current_workspace
-                        .as_ref()
-                        .map(|workspace| workspace.path.as_str())
-                        .unwrap_or_default(),
-                ),
-            })
-        })
+            let state = runtime.service.state().clone();
+            let issue_data = workspace_data_response(&data, validated.path.as_str());
+            Ok((runtime.app.clone(), state, issue_data))
+        });
+        let (app, state, issue_data) = match result {
+            Ok(success) => success,
+            Err(error) => {
+                return Err(self.fail_switch_request(&request, Some(&validated), error));
+            }
+        };
+        let response = WorkspaceSwitchResponse {
+            state: state.clone(),
+            issue_data: issue_data.clone(),
+        };
+        emit_transition(&app, state, Some(issue_data));
+        Ok(response)
     }
 
     async fn remove_workspace(self, path: String) -> Result<WorkspaceState, WorkspaceError> {
-        self.with_runtime(|runtime| {
+        let (state, app) = self.with_runtime(|runtime| {
             let removed_current = runtime
                 .service
                 .state()
@@ -146,15 +268,22 @@ impl BeadsmithApi for BeadsmithApiImpl {
             if removed_current {
                 runtime.snapshot = None;
             }
-            Ok(runtime.service.state().clone())
-        })
+            let state = runtime.service.state().clone();
+            let app = runtime.app.clone();
+            Ok((state, app))
+        })?;
+        emit_transition(&app, state.clone(), None);
+        Ok(state)
     }
 
     async fn retry_workspace_memory(self) -> WorkspaceState {
         self.with_runtime(|runtime| {
             let store = TauriWorkspaceStore::new(runtime.app.clone());
             let mut service = WorkspaceService::from_store(store);
-            let snapshot = service.restore_current(&ProcessRunner::new()).ok().flatten();
+            let snapshot = service
+                .restore_current(&ProcessRunner::new())
+                .ok()
+                .flatten();
             runtime.service = service;
             runtime.snapshot = snapshot;
             runtime.service.state().clone()
@@ -162,12 +291,58 @@ impl BeadsmithApi for BeadsmithApiImpl {
     }
 
     async fn reset_workspace_memory(self) -> Result<WorkspaceState, WorkspaceError> {
-        self.with_runtime(|runtime| {
+        let (state, app) = self.with_runtime(|runtime| {
             runtime.service.reset_memory()?;
             runtime.snapshot = None;
-            Ok(runtime.service.state().clone())
-        })
+            let state = runtime.service.state().clone();
+            let app = runtime.app.clone();
+            Ok((state, app))
+        })?;
+        emit_transition(&app, state.clone(), None);
+        Ok(state)
     }
+
+    async fn cancel_workspace(self) -> WorkspaceState {
+        let (state, app) = self.with_runtime(|runtime| {
+            let state = runtime.service.cancel_pending();
+            let app = runtime.app.clone();
+            (state, app)
+        });
+        emit_transition(&app, state.clone(), None);
+        state
+    }
+}
+
+/// Validate a switch candidate on Tokio's blocking pool. No runtime mutex is
+/// held while `bw config list` or `git rev-parse` execute.
+async fn validate_workspace_outside_lock(candidate: PathBuf) -> Result<Workspace, WorkspaceError> {
+    tokio::task::spawn_blocking(move || validate_workspace(&ProcessRunner::new(), &candidate))
+        .await
+        .unwrap_or_else(|error| {
+            Err(WorkspaceError::new(
+                WorkspaceErrorKind::LoadFailed,
+                format!("Workspace validation worker failed: {error}"),
+                true,
+            ))
+        })
+}
+
+/// Load the complete Issue Explorer snapshot on Tokio's blocking pool. No
+/// runtime mutex is held while any Beadwork view command executes.
+async fn load_issue_explorer_data_outside_lock(
+    workspace: Workspace,
+) -> Result<IssueExplorerData, WorkspaceError> {
+    tokio::task::spawn_blocking(move || {
+        load_issue_explorer_data(&ProcessRunner::new(), Path::new(&workspace.path))
+    })
+    .await
+    .unwrap_or_else(|error| {
+        Err(WorkspaceError::new(
+            WorkspaceErrorKind::LoadFailed,
+            format!("Issue loading worker failed: {error}"),
+            true,
+        ))
+    })
 }
 
 /// Result of a successful switch; the frontend receives its complete snapshot
@@ -282,8 +457,10 @@ pub struct IssueListError {
     pub message: String,
 }
 
-
-fn workspace_data_response(data: &IssueExplorerData, workspace_path: &str) -> LoadIssueExplorerDataResponse {
+fn workspace_data_response(
+    data: &IssueExplorerData,
+    workspace_path: &str,
+) -> LoadIssueExplorerDataResponse {
     LoadIssueExplorerDataResponse {
         workspace_path: workspace_path.to_string(),
         all_issues: map_issue_collection(data.all_issues.clone()),
@@ -291,7 +468,6 @@ fn workspace_data_response(data: &IssueExplorerData, workspace_path: &str) -> Lo
         blocked_issues: map_issue_collection(data.blocked_issues.clone()),
     }
 }
-
 
 fn map_issue_collection(issues: Vec<issues::Issue>) -> Vec<Issue> {
     issues.into_iter().map(Issue::from).collect()
@@ -375,7 +551,10 @@ fn list_issues_from_adapter(
     let issues = map_issue_collection(
         issues::list_all_issues(runner, workspace).map_err(IssueListError::from)?,
     );
-    Ok(ListIssuesResponse { workspace_path, issues })
+    Ok(ListIssuesResponse {
+        workspace_path,
+        issues,
+    })
 }
 
 #[cfg(test)]
@@ -402,7 +581,6 @@ fn load_issue_explorer_data_from_adapter(
         blocked_issues,
     })
 }
-
 
 #[cfg(test)]
 mod tests {
@@ -684,8 +862,8 @@ mod tests {
         let _handler = router::<tauri::Wry>(BeadsmithApiImpl::default()).into_handler();
 
         let bindings_path = "../src/rpc/bindings.ts";
-        let generated_bindings = std::fs::read_to_string(bindings_path)
-            .expect("expected generated TauRPC bindings");
+        let generated_bindings =
+            std::fs::read_to_string(bindings_path).expect("expected generated TauRPC bindings");
         // TauRPC currently emits trailing whitespace in a few type rows. Keep
         // the generated source stable so a binding verification test does not
         // leave the worktree dirty.
@@ -755,6 +933,7 @@ mod tests {
             "remove_workspace",
             "retry_workspace_memory",
             "reset_workspace_memory",
+            "cancel_workspace",
         ] {
             assert!(bindings.contains(method), "missing workspace RPC {method}");
         }
@@ -763,8 +942,15 @@ mod tests {
             "WorkspaceSwitchResponse",
             "WorkspaceAvailability",
         ] {
-            assert!(bindings.contains(type_name), "missing workspace type {type_name}");
+            assert!(
+                bindings.contains(type_name),
+                "missing workspace type {type_name}"
+            );
         }
+        assert!(
+            bindings.contains("retryWorkspace"),
+            "missing generated retry_workspace field"
+        );
         let old_method_name = ["list_issue", "_summaries"].concat();
         assert!(!bindings.contains(&old_method_name));
         assert!(bindings.contains("createTauRPCProxy"));

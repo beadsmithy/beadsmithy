@@ -11,6 +11,7 @@ const state = (overrides: Partial<WorkspaceState> = {}): WorkspaceState => ({
   error: null,
   generation: 0,
   pendingWorkspace: null,
+  retryWorkspace: null,
   version: 1,
   ...overrides,
 });
@@ -104,5 +105,79 @@ describe("WorkspaceSelector", () => {
     expect(
       screen.getByRole("button", { name: /reset local memory/iu })
     ).toBeInTheDocument();
+  });
+
+  it("shows the Pending identity and Cancel even when no Current Workspace exists", async () => {
+    const user = userEvent.setup();
+    const onCancel = vi.fn();
+    render(
+      <WorkspaceSelector
+        onCancel={onCancel}
+        onChoose={vi.fn()}
+        onRemove={vi.fn()}
+        onResetMemory={vi.fn()}
+        onRetryMemory={vi.fn()}
+        onSelect={vi.fn()}
+        state={state({
+          pendingWorkspace: {
+            availability: "available",
+            path: "/work/pending",
+          },
+        })}
+      />
+    );
+
+    expect(screen.getByText("Loading pending…")).toBeInTheDocument();
+    await user.click(
+      screen.getByRole("button", { name: "Cancel workspace switch" })
+    );
+    expect(onCancel).toHaveBeenCalledOnce();
+  });
+
+  it("keeps validation feedback inline but renders retryable load failure as a banner", () => {
+    const props = {
+      onChoose: vi.fn(),
+      onRemove: vi.fn(),
+      onResetMemory: vi.fn(),
+      onRetryMemory: vi.fn(),
+      onSelect: vi.fn(),
+    };
+    const { rerender } = render(
+      <WorkspaceSelector
+        {...props}
+        onRetryLastSwitch={vi.fn()}
+        state={state({
+          error: {
+            kind: "validationFailed",
+            message: "Not a Beadwork workspace",
+            retryable: true,
+          },
+        })}
+      />
+    );
+
+    expect(screen.getByRole("alert")).toHaveTextContent(
+      "Not a Beadwork workspace"
+    );
+    expect(screen.queryByTestId("switch-failure-banner")).toBeNull();
+
+    rerender(
+      <WorkspaceSelector
+        {...props}
+        onRetryLastSwitch={vi.fn()}
+        state={state({
+          error: {
+            kind: "loadFailed",
+            message: "Could not load All Issues",
+            retryable: true,
+          },
+          retryWorkspace: { availability: "available", path: "/work/retry" },
+        })}
+      />
+    );
+
+    expect(screen.getByTestId("switch-failure-banner")).toHaveTextContent(
+      "Could not load All Issues"
+    );
   });
 });

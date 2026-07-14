@@ -65,7 +65,15 @@ export type WorkspaceErrorKind = "storeReadFailed" | "storeSaveFailed" | "valida
 /**
  * Public, serializable workspace state for a later typed RPC boundary.
  */
-export type WorkspaceState = { version: number; catalog: Workspace[]; currentWorkspace: Workspace | null; pendingWorkspace: Workspace | null; generation: number; error: WorkspaceError | null }
+export type WorkspaceState = { version: number; catalog: Workspace[]; currentWorkspace: Workspace | null; pendingWorkspace: Workspace | null;
+/**
+ * Ephemeral retry target surfaced when a post-validation switch attempt
+ * fails (load or final save). It is the validated candidate that the UI's
+ * Retry banner must replay. Cleared on new selection, cancel, removal,
+ * reset, and successful commit. Never persisted: durable retry state
+ * would let a saved failure look active after restart.
+ */
+retryWorkspace: Workspace | null; generation: number; error: WorkspaceError | null }
 
 /**
  * Result of a successful switch; the frontend receives its complete snapshot
@@ -73,8 +81,9 @@ export type WorkspaceState = { version: number; catalog: Workspace[]; currentWor
  */
 export type WorkspaceSwitchResponse = { state: WorkspaceState; issueData: LoadIssueExplorerDataResponse }
 
-const ARGS_MAP = { '':'{"list_issues":[],"load_issue_explorer_data":[],"remove_workspace":["path"],"reset_workspace_memory":[],"retry_workspace_memory":[],"switch_workspace":["candidate_path"],"workspace_state":[]}', 'devBridge':'{"result":["id","value"]}' }
-export type Router = { "": {list_issues: () => Promise<ListIssuesResponse>,
+const ARGS_MAP = { '':'{"cancel_workspace":[],"list_issues":[],"load_issue_explorer_data":[],"remove_workspace":["path"],"reset_workspace_memory":[],"retry_workspace_memory":[],"switch_workspace":["candidate_path"],"workspace_state":[]}', 'devBridge':'{"result":["id","value"]}' }
+export type Router = { "": {cancel_workspace: () => Promise<WorkspaceState>,
+list_issues: () => Promise<ListIssuesResponse>,
 load_issue_explorer_data: () => Promise<LoadIssueExplorerDataResponse>,
 remove_workspace: (path: string) => Promise<WorkspaceState>,
 reset_workspace_memory: () => Promise<WorkspaceState>,
