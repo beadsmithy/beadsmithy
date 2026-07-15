@@ -37,6 +37,11 @@ interface WorkspaceSwitchResponse {
   issueData: LoadIssueExplorerDataResponse;
 }
 
+interface WorkspaceRetryMemoryResponse {
+  issueData: LoadIssueExplorerDataResponse | null;
+  state: WorkspaceStateResponse;
+}
+
 const invokeTypedWorkspaceSwitch = async (
   candidatePath: string
 ): Promise<WorkspaceSwitchResponse | { failure: string }> =>
@@ -64,13 +69,13 @@ const invokeTypedWorkspaceSwitch = async (
   }, candidatePath)) as WorkspaceSwitchResponse | { failure: string };
 
 const invokeWorkspaceMemoryRetry = async (): Promise<
-  WorkspaceStateResponse | { failure: string }
+  WorkspaceRetryMemoryResponse | { failure: string }
 > =>
   (await browser.executeAsync((done) => {
     const tauriWindow = window as typeof window & {
       __TAURI__?: {
         core?: {
-          invoke: (command: string) => Promise<WorkspaceStateResponse>;
+          invoke: (command: string) => Promise<WorkspaceRetryMemoryResponse>;
         };
       };
     };
@@ -87,7 +92,7 @@ const invokeWorkspaceMemoryRetry = async (): Promise<
       .then(done)
       // oxlint-disable-next-line promise/no-callback-in-promise
       .catch((error: unknown) => done({ failure: String(error) }));
-  })) as WorkspaceStateResponse | { failure: string };
+  })) as WorkspaceRetryMemoryResponse | { failure: string };
 
 const invokeWorkspaceState = async (): Promise<WorkspaceStateResponse> =>
   (await browser.executeAsync((done) => {
@@ -376,16 +381,44 @@ describe("Issue explorer (WebDriver e2e): workspace with selectable Issue List V
       "/definitely-not-a-workspace"
     );
     expect("failure" in invalid).toBe(true);
+    // After a typed validation failure the renderer surfaces inline
+    // selector feedback and does not regress the committed Current. The
+    // renderer-level Retry banner is reserved for load / store-save
+    // failures; the Recovery panel for storeReadFailed is exercised in
+    // `App.test.tsx`.
+    await expectIssueNotVisible(FIXTURE_ISSUE_TITLE);
+    const workspacePath = await browser.$(
+      "[aria-label='Workspace'] p.text-muted"
+    );
+    await workspacePath.waitForExist({ timeout: 30_000 });
+    expect(await workspacePath.getText()).toContain(path.basename(workspaceB));
+  });
+
+  it("retry_workspace_memory typed RPC returns B's state and snapshot for post-refresh rendering", async () => {
+    // Desktop-boundary check for `TauRPC__retry_workspace_memory`. The
+    // call exercises the typed boundary directly so it never relies on a
+    // renderer control or writes the store file from the spec. The
+    // storage-failure-driven `App.retryWorkspaceMemory` button is
+    // covered by `App.test.tsx`; this test only proves the typed RPC
+    // returns a fresh state + matching snapshot and that the post-refresh
+    // startup read renders B again.
+    const workspaceB = process.env.BEADSMITH_E2E_WORKSPACE_B;
+    if (!workspaceB) {
+      throw new Error("BEADSMITH_E2E_WORKSPACE_B is not set");
+    }
 
     const restored = await invokeWorkspaceMemoryRetry();
     if ("failure" in restored) {
       throw new Error(restored.failure);
     }
-    expect(restored.currentWorkspace?.path).toContain(
+    expect(restored.state.currentWorkspace?.path).toContain(
       path.basename(workspaceB)
     );
-    await browser.refresh();
+    expect(restored.issueData?.workspacePath).toContain(
+      path.basename(workspaceB)
+    );
 
+    await browser.refresh();
     const workspacePath = await browser.$(
       "[aria-label='Workspace'] p.text-muted"
     );

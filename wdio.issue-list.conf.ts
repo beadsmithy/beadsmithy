@@ -30,16 +30,31 @@ const APP_BINARY_PATH = path.resolve(
   BINARY_NAME
 );
 
-const scenario =
-  process.env.BEADSMITH_E2E_SCENARIO === "empty" ? "empty" : "issues";
+const rawScenario = process.env.BEADSMITH_E2E_SCENARIO;
+let scenario: "empty" | "issues" | "atomic-switch";
+if (rawScenario === "empty") {
+  scenario = "empty";
+} else if (rawScenario === "atomic-switch") {
+  scenario = "atomic-switch";
+} else {
+  scenario = "issues";
+}
 const workspaceA = process.env.BEADSMITH_E2E_WORKSPACE_A;
 const workspaceB = process.env.BEADSMITH_E2E_WORKSPACE_B;
+const workspaceBSecond = process.env.BEADSMITH_E2E_WORKSPACE_B_SECOND;
 const storePath = process.env.BEADSMITH_WORKSPACE_STORE_PATH;
 
 if (!workspaceA || !workspaceB || !storePath) {
   throw new Error(
-    "E2E fixture paths are not set. Run `pnpm e2e:issue-list:success` or " +
-      "`pnpm e2e:issue-list:empty` instead of invoking wdio directly."
+    "E2E fixture paths are not set. Run `pnpm e2e:issue-list:success`, " +
+      "`pnpm e2e:issue-list:empty`, or `pnpm e2e:issue-list:atomic-switch` " +
+      "instead of invoking wdio directly."
+  );
+}
+if (scenario === "atomic-switch" && !workspaceBSecond) {
+  throw new Error(
+    "Atomic-switch scenario requires BEADSMITH_E2E_WORKSPACE_B_SECOND. Run " +
+      "`pnpm e2e:issue-list:atomic-switch` instead of invoking wdio directly."
   );
 }
 
@@ -116,10 +131,14 @@ export const config: WebdriverIO.Config = {
       },
     ],
   ],
-  specs: [
-    scenario === "empty"
-      ? "./e2e/issue-list/issue-list.empty.spec.ts"
-      : "./e2e/issue-list/issue-list.success.spec.ts",
-  ],
+  specs: (() => {
+    if (scenario === "empty") {
+      return ["./e2e/issue-list/issue-list.empty.spec.ts"];
+    }
+    if (scenario === "atomic-switch") {
+      return ["./e2e/issue-list/issue-list.atomic-switch.spec.ts"];
+    }
+    return ["./e2e/issue-list/issue-list.success.spec.ts"];
+  })(),
   waitforTimeout: 30_000,
 };

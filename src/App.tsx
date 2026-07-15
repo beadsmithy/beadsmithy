@@ -1,3 +1,5 @@
+import { listen } from "@tauri-apps/api/event";
+import type { UnlistenFn } from "@tauri-apps/api/event";
 import { open } from "@tauri-apps/plugin-dialog";
 import {
   CheckCircle2,
@@ -9,7 +11,7 @@ import {
   PlayCircle,
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 
 import "./App.css";
 import {
@@ -33,7 +35,18 @@ import {
 import type { IssueExplorerLoadState } from "./issues/issue-loader";
 import { IssueExplorer } from "./issues/IssueExplorer";
 import { createTauRPCProxy } from "./rpc/bindings";
-import type { WorkspaceState } from "./rpc/bindings";
+import type {
+  LoadIssueExplorerDataResponse,
+  WorkspaceState,
+} from "./rpc/bindings";
+import { isRetryableSwitchFailureKind } from "./workspace-switch-failure";
+
+const WORKSPACE_TRANSITION_EVENT = "workspace-transition";
+
+interface WorkspaceTransition {
+  issueData: LoadIssueExplorerDataResponse | null;
+  state: WorkspaceState;
+}
 
 const ISSUE_LIST_VIEW_ICONS: Record<IssueListViewId, LucideIcon> = {
   all: Inbox,
@@ -89,6 +102,8 @@ const SidebarNavButton = ({
   );
 };
 
+const INITIAL_WORKSPACE_KEY = "/__initial__";
+
 export default function App() {
   const [issueState, setIssueState] = useState<IssueExplorerLoadState>(
     ISSUE_EXPLORER_LOADING_STATE
@@ -98,6 +113,47 @@ export default function App() {
   const [workspaceState, setWorkspaceState] = useState<WorkspaceState | null>(
     null
   );
+  // The remount key for the Issue Explorer subtree. It changes only on a
+  // confirmed Current commit so the prior Workspace's selected Issue and
+  // Issue Search are cleared before the new snapshot is interactive. The
+  // active Issue List View lives here in App and survives the remount.
+  const [workspaceKey, setWorkspaceKey] = useState<string>(
+    INITIAL_WORKSPACE_KEY
+  );
+  // Generation guard for stale responses and transition events. A ref avoids
+  // stale callback closures while events and RPC completions race.
+  const acceptedGenerationRef = useRef(0);
+  // Highest generation that has produced a committed success on the renderer
+  // side. Once a generation has been promoted to Current with its Issue
+  // Explorer snapshot, that generation is terminal: a delayed same-generation
+  // Pending event must not be allowed to roll the workspace state back to
+  // "pending=B, current=null" while the Issue Explorer still shows B's data.
+  // `acceptedGenerationRef` alone only rejects strictly older generations,
+  // so without this marker a late Pending for the same generation could
+  // overwrite an already accepted commit. Use `<=` so the committed
+  // generation itself and anything older are dropped.
+  const committedGenerationRef = useRef(-1);
+  // Highest generation that has produced an accepted switch failure.
+  // Same-generation Pending events at or below this generation are silently
+  // rejected so an out-of-order Pending transition cannot overwrite either
+  // the retry banner or an inline validation error. Initial value `-1` means
+  // no switch failure has been accepted yet.
+  const terminalGenerationRef = useRef(-1);
+  // Tracks the confirmed snapshot currently rendered by Issue Explorer. It
+  // lets a remove-current transition replace that snapshot with the chooser
+  // state without clearing A during Pending/failure for B.
+  const confirmedWorkspacePathRef = useRef<string | null>(null);
+  // Committed-success generation captured at the moment the initial issue-load
+  // RPC is dispatched. A regular initial workspace-state refresh may advance
+  // `acceptedGenerationRef` before the initial snapshot returns, but it has
+  // not published a new snapshot. Only a later committed success supersedes
+  // the initial load and must prevent it from overwriting the newer snapshot.
+  const initialLoadCommittedGenerationRef = useRef(-1);
+  // Local banner dismissal is keyed to its request generation. A harmless
+  // refresh preserves it, while a new selection/error automatically re-shows
+  // the Retry banner without mutating backend state.
+  const [dismissedSwitchErrorGeneration, setDismissedSwitchErrorGeneration] =
+    useState<number | null>(null);
   const issueListViewCounts = getIssueListViewCounts(issueState);
   const sidebarDisabled = issueState.status !== "success";
   const viewItems = ISSUE_LIST_VIEW_DEFINITIONS.filter(
@@ -107,19 +163,120 @@ export default function App() {
     (item) => item.group === "status"
   );
 
+  // Apply a backend transition payload through the same handler as the typed
+  // RPC response. Stale payloads (older than the most recently accepted
+  // generation) are silently dropped. On a committed success we also
+  // promote the Issue Explorer snapshot and remount key so the prior
+  // Workspace's selected Issue and search are cleared before the new
+  // snapshot is interactive.
+  const applyTransition = useCallback(
+    (
+      transition: WorkspaceTransition,
+      expectedGeneration: number | null
+    ): boolean => {
+      // Committed-success terminal guard: once a generation has produced a
+      // typed success, that generation is terminal. Any later transition at
+      // or below it — including a delayed same-generation Pending event
+      // emitted before the backend observed the commit — is silently
+      // dropped. Without this, a late Pending transition would call
+      // `setWorkspaceState(pending=B, current=null)` while the committed
+      // Issue Explorer snapshot remained on B, producing a mixed state.
+      if (transition.state.generation <= committedGenerationRef.current) {
+        return false;
+      }
+      if (
+        (expectedGeneration !== null &&
+          transition.state.generation !== expectedGeneration) ||
+        transition.state.generation < acceptedGenerationRef.current
+      ) {
+        return false;
+      }
+      // Failed-switch terminal guard: once a typed failure has been accepted
+      // for a generation, same-generation Pending transitions at or below it
+      // are silently dropped. This keeps both the retry banner and inline
+      // validation feedback from being overwritten by stale Pending events.
+      if (
+        transition.state.pendingWorkspace !== null &&
+        transition.state.generation <= terminalGenerationRef.current
+      ) {
+        return false;
+      }
+
+      acceptedGenerationRef.current = transition.state.generation;
+      setWorkspaceState(transition.state);
+
+      const { issueData } = transition;
+      const currentPath = transition.state.currentWorkspace?.path ?? null;
+      if (issueData !== null && issueData.workspacePath === currentPath) {
+        confirmedWorkspacePathRef.current = currentPath;
+        setIssueState({ ...issueData, status: "success" });
+        setWorkspaceKey(issueData.workspacePath);
+        // Promote this generation to terminal so any subsequent event for it
+        // (e.g., a delayed Pending) cannot regress the committed state.
+        committedGenerationRef.current = transition.state.generation;
+      } else if (
+        currentPath === null &&
+        confirmedWorkspacePathRef.current !== null
+      ) {
+        confirmedWorkspacePathRef.current = null;
+        setIssueState({
+          error: {
+            kind: "noWorkspace",
+            message: "Select a workspace to load issues.",
+          },
+          status: "failure",
+        });
+        setWorkspaceKey("/__removed__");
+      }
+      if (
+        transition.state.pendingWorkspace === null &&
+        (isRetryableSwitchFailureKind(transition.state.error?.kind) ||
+          (transition.state.error !== null &&
+            transition.state.retryWorkspace === null))
+      ) {
+        terminalGenerationRef.current = transition.state.generation;
+      }
+      return true;
+    },
+    []
+  );
+
   const refreshWorkspaceState = useCallback(async () => {
     try {
-      setWorkspaceState(await createTauRPCProxy().workspace_state());
+      const next = await createTauRPCProxy().workspace_state();
+      applyTransition({ issueData: null, state: next }, null);
     } catch {
       // No typed state is available if the transport itself is unavailable.
     }
-  }, []);
+  }, [applyTransition]);
 
   useEffect(() => {
+    // Capture committed success at dispatch time. A later committed switch,
+    // unlike an ordinary startup state refresh, has a newer snapshot and
+    // must supersede the initial load's snapshot.
+    initialLoadCommittedGenerationRef.current = committedGenerationRef.current;
     void (async () => {
       try {
-        setIssueState(await loadIssueExplorerStateFromTauRpc());
+        const initial = await loadIssueExplorerStateFromTauRpc();
+        const dispatchedAt = initialLoadCommittedGenerationRef.current;
+        const superseded = committedGenerationRef.current > dispatchedAt;
+        if (superseded) {
+          // A switch committed while the initial load was in flight. The
+          // committed-success guard will keep the new snapshot; the
+          // initial load's snapshot would otherwise overwrite it.
+          return;
+        }
+        setIssueState(initial);
+        if (initial.status === "success") {
+          confirmedWorkspacePathRef.current = initial.workspacePath;
+          setWorkspaceKey(initial.workspacePath || INITIAL_WORKSPACE_KEY);
+        }
       } catch {
+        const dispatchedAt = initialLoadCommittedGenerationRef.current;
+        const superseded = committedGenerationRef.current > dispatchedAt;
+        if (superseded) {
+          return;
+        }
         setIssueState({
           error: {
             kind: "unknown",
@@ -132,12 +289,47 @@ export default function App() {
     void refreshWorkspaceState();
   }, [refreshWorkspaceState]);
 
+  // Subscribe to backend transition events. The renderer uses the same
+  // generation-guarded handler as the typed RPC response so a stale event
+  // can never overwrite a newer state.
+  useEffect(() => {
+    let disposed = false;
+    let unlisten: UnlistenFn | undefined;
+    void (async () => {
+      const listener = await listen<WorkspaceTransition>(
+        WORKSPACE_TRANSITION_EVENT,
+        (event) => {
+          applyTransition(event.payload, null);
+        }
+      );
+      if (disposed) {
+        listener();
+      } else {
+        unlisten = listener;
+      }
+    })();
+    return () => {
+      disposed = true;
+      unlisten?.();
+    };
+  }, [applyTransition]);
+
   const selectWorkspace = async (path: string) => {
+    const expectedGeneration = acceptedGenerationRef.current + 1;
+    setDismissedSwitchErrorGeneration(null);
     try {
       const response = await createTauRPCProxy().switch_workspace(path);
-      setWorkspaceState(response.state);
-      setIssueState({ ...response.issueData, status: "success" });
+      // Discard a late response: a newer selection or a Cancel has already
+      // superseded this request. Backend also rejects stale results, so the
+      // snapshot was never published; dropping here keeps the UI aligned.
+      applyTransition(
+        { issueData: response.issueData, state: response.state },
+        expectedGeneration
+      );
     } catch {
+      // Preserve the old issueState entirely — a failed switch must not
+      // overwrite the prior Workspace's snapshot. Refresh typed workspace
+      // state so the inline validation error or banner reappears.
       await refreshWorkspaceState();
     }
   };
@@ -158,19 +350,9 @@ export default function App() {
   };
 
   const removeWorkspace = async (path: string) => {
-    const removingCurrent = workspaceState?.currentWorkspace?.path === path;
     try {
       const state = await createTauRPCProxy().remove_workspace(path);
-      setWorkspaceState(state);
-      if (removingCurrent) {
-        setIssueState({
-          error: {
-            kind: "noWorkspace",
-            message: "Select a workspace to load issues.",
-          },
-          status: "failure",
-        });
-      }
+      applyTransition({ issueData: null, state }, null);
     } catch {
       await refreshWorkspaceState();
     }
@@ -178,7 +360,15 @@ export default function App() {
 
   const retryWorkspaceMemory = async () => {
     try {
-      setWorkspaceState(await createTauRPCProxy().retry_workspace_memory());
+      const response = await createTauRPCProxy().retry_workspace_memory();
+      // The retry-memory response carries the restored snapshot when the
+      // remembered Current Workspace was successfully restored; pass it
+      // through the same generation-guarded handler so the renderer
+      // updates the Issue Explorer in lockstep with the typed state.
+      applyTransition(
+        { issueData: response.issueData, state: response.state },
+        null
+      );
     } catch {
       await refreshWorkspaceState();
     }
@@ -187,7 +377,7 @@ export default function App() {
   const resetWorkspaceMemory = async () => {
     try {
       const state = await createTauRPCProxy().reset_workspace_memory();
-      setWorkspaceState(state);
+      applyTransition({ issueData: null, state }, null);
       setIssueState({
         error: {
           kind: "noWorkspace",
@@ -195,9 +385,39 @@ export default function App() {
         },
         status: "failure",
       });
+      setWorkspaceKey("/__reset__");
     } catch {
       await refreshWorkspaceState();
     }
+  };
+
+  const cancelWorkspace = async () => {
+    try {
+      // The typed response carries the matching Issue Explorer snapshot
+      // when the cancel races after a durable commit-before-success-
+      // publication. Pairing the snapshot with the new state here lets
+      // `applyTransition` apply both atomically; a real Pending
+      // cancellation deliberately returns `issueData: null` so the prior
+      // workspace's issue list stays untouched.
+      const response = await createTauRPCProxy().cancel_workspace();
+      applyTransition(
+        { issueData: response.issueData, state: response.state },
+        null
+      );
+    } catch {
+      await refreshWorkspaceState();
+    }
+  };
+
+  const retryLastSwitch = async () => {
+    const retryPath = workspaceState?.retryWorkspace?.path;
+    if (retryPath !== null && retryPath !== undefined && retryPath !== "") {
+      await selectWorkspace(retryPath);
+    }
+  };
+
+  const dismissSwitchError = () => {
+    setDismissedSwitchErrorGeneration(workspaceState?.generation ?? null);
   };
 
   return (
@@ -244,12 +464,28 @@ export default function App() {
         </div>
 
         <WorkspaceSelector
+          onCancel={
+            workspaceState?.pendingWorkspace === null ||
+            workspaceState?.pendingWorkspace === undefined
+              ? undefined
+              : () => void cancelWorkspace()
+          }
           onChoose={() => void chooseWorkspace()}
+          onDismissSwitchError={dismissSwitchError}
           onRemove={(path) => void removeWorkspace(path)}
           onResetMemory={() => void resetWorkspaceMemory()}
+          onRetryLastSwitch={
+            workspaceState?.retryWorkspace === null ||
+            workspaceState?.retryWorkspace === undefined
+              ? undefined
+              : () => void retryLastSwitch()
+          }
           onRetryMemory={() => void retryWorkspaceMemory()}
           onSelect={(path) => void selectWorkspace(path)}
           state={workspaceState}
+          switchErrorDismissed={
+            dismissedSwitchErrorGeneration === workspaceState?.generation
+          }
         />
       </nav>
 
@@ -278,6 +514,7 @@ export default function App() {
         <IssueExplorer
           activeIssueListViewId={activeIssueListViewId}
           issueState={issueState}
+          key={workspaceKey}
           onIssueListViewChange={setActiveIssueListViewId}
         />
       )}

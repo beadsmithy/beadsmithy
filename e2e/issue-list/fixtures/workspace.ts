@@ -88,6 +88,12 @@ export const FIXTURE_ISSUE_TITLE = "Render selected issue details end to end";
 export const FIXTURE_READY_TITLE = "Ready Orchid Issue Search fixture";
 export const FIXTURE_READY_SEARCH_QUERY = "orchid-ready-token";
 export const FIXTURE_READY_DESCRIPTION = `This ready Issue carries the unique ${FIXTURE_READY_SEARCH_QUERY} description token for local search.`;
+export const FIXTURE_SECOND_ISSUE_TITLE =
+  "Workspace B atomic-switch snapshot marker";
+export const FIXTURE_SECOND_SEARCH_QUERY = "second-workspace-marker";
+export const FIXTURE_SECOND_DESCRIPTION = `Workspace B carries the unique ${FIXTURE_SECOND_SEARCH_QUERY} description token so the e2e suite can distinguish it from the populated Workspace A after a switch commits.`;
+export const FIXTURE_SECOND_BLOCKER_TITLE =
+  "Workspace B committed state marker";
 export const FIXTURE_CLOSED_TITLE = "Closed Cobalt archived fixture";
 export const FIXTURE_CLOSED_DESCRIPTION =
   "Closed through bw close so the Closed view uses real Beadwork state.";
@@ -187,6 +193,44 @@ export const createIssueListWorkspace = (): BeadworkWorkspace => {
   );
   return {
     issue: { id: issueId, title: FIXTURE_ISSUE_TITLE },
+    path: workspacePath,
+  };
+};
+
+/**
+ * A second populated Beadwork workspace with its own distinguishable Issues
+ * for the atomic workspace-switch slice. The Issues here share no titles or
+ * search tokens with `createIssueListWorkspace`, so a successful switch can
+ * be asserted by the new `Workspace B …` markers appearing in the DOM and
+ * `Workspace A …` markers being absent.
+ */
+export const createSecondIssueListWorkspace = (): BeadworkWorkspace => {
+  const workspacePath = mkdtempSync(
+    path.join(tmpdir(), "beadsmith-e2e-second-")
+  );
+  console.log(
+    `[e2e:fixture] creating second populated Beadwork workspace at ${workspacePath}`
+  );
+  initGitBeadworkRepo(workspacePath);
+
+  const blockerId = createTaskIssue({
+    priority: "2",
+    title: FIXTURE_SECOND_BLOCKER_TITLE,
+    workspacePath,
+  });
+  const secondIssueId = createTaskIssue({
+    description: FIXTURE_SECOND_DESCRIPTION,
+    priority: "1",
+    title: FIXTURE_SECOND_ISSUE_TITLE,
+    workspacePath,
+  });
+  console.log(
+    `[e2e:fixture] second workspace ready at ${workspacePath}: blocker=${blockerId}, issue=${secondIssueId}`
+  );
+  runBw(["dep", "add", blockerId, "blocks", secondIssueId], workspacePath);
+
+  return {
+    issue: { id: secondIssueId, title: FIXTURE_SECOND_ISSUE_TITLE },
     path: workspacePath,
   };
 };

@@ -71,6 +71,12 @@ pub struct WorkspaceState {
     pub catalog: Vec<Workspace>,
     pub current_workspace: Option<Workspace>,
     pub pending_workspace: Option<Workspace>,
+    /// Ephemeral retry target surfaced when a post-validation switch attempt
+    /// fails (load or final save). It is the validated candidate that the UI's
+    /// Retry banner must replay. Cleared on new selection, cancel, removal,
+    /// reset, and successful commit. Never persisted: durable retry state
+    /// would let a saved failure look active after restart.
+    pub retry_workspace: Option<Workspace>,
     pub generation: u32,
     pub error: Option<WorkspaceError>,
 }
@@ -82,6 +88,7 @@ impl Default for WorkspaceState {
             catalog: Vec::new(),
             current_workspace: None,
             pending_workspace: None,
+            retry_workspace: None,
             generation: 0,
             error: None,
         }
@@ -110,7 +117,11 @@ pub struct WorkspaceError {
 }
 
 impl WorkspaceError {
-    fn new(kind: WorkspaceErrorKind, message: impl Into<String>, retryable: bool) -> Self {
+    /// Build a typed workspace error with the given kind, message, and retry
+    /// hint. Public so the RPC layer can construct transport-level errors
+    /// (for example a panicked spawn_blocking join) without bypassing the
+    /// state machine.
+    pub fn new(kind: WorkspaceErrorKind, message: impl Into<String>, retryable: bool) -> Self {
         Self {
             kind,
             message: message.into(),
@@ -179,21 +190,20 @@ impl<S: WorkspaceStore> WorkspaceService<S> {
     /// An unreadable or unsupported store is retained as a typed error until
     /// the caller explicitly invokes reset.
     pub fn from_store(store: S) -> Self {
-        let (state, restoration_candidate) =
-            match store.load().and_then(validate_persisted_state) {
-                Ok(persisted) => state_from_persisted(persisted.unwrap_or_default()),
-                Err(message) => (
-                    WorkspaceState {
-                        error: Some(WorkspaceError::new(
-                            WorkspaceErrorKind::StoreReadFailed,
-                            format!("Could not read local workspace memory: {message}"),
-                            true,
-                        )),
-                        ..WorkspaceState::default()
-                    },
-                    None,
-                ),
-            };
+        let (state, restoration_candidate) = match store.load().and_then(validate_persisted_state) {
+            Ok(persisted) => state_from_persisted(persisted.unwrap_or_default()),
+            Err(message) => (
+                WorkspaceState {
+                    error: Some(WorkspaceError::new(
+                        WorkspaceErrorKind::StoreReadFailed,
+                        format!("Could not read local workspace memory: {message}"),
+                        true,
+                    )),
+                    ..WorkspaceState::default()
+                },
+                None,
+            ),
+        };
         Self {
             store,
             state,
@@ -246,6 +256,8 @@ impl<S: WorkspaceStore> WorkspaceService<S> {
             availability: WorkspaceAvailability::Available,
         });
         self.state.error = None;
+        // A new selection always supersedes any previous retryable target.
+        self.state.retry_workspace = None;
 
         WorkspaceRequest {
             generation: self.state.generation,
@@ -281,31 +293,68 @@ impl<S: WorkspaceStore> WorkspaceService<S> {
 
         let workspace = match validate_workspace(runner, &request.candidate) {
             Ok(workspace) => workspace,
-            Err(error) => return self.fail_current_request(&request, error),
+            Err(error) => {
+                let _ = self.fail_request(&request, None, error.clone());
+                return Err(error);
+            }
         };
 
-        let mut known_state = self.state.clone();
-        known_state.pending_workspace = Some(workspace.clone());
-        known_state.error = None;
-        retain_catalog(&mut known_state.catalog, workspace.clone());
-        if let Err(error) = self.commit_proposed(&request, known_state) {
-            return self.fail_current_request(&request, error);
+        if let Err(error) = self.retain_validated(&request, workspace.clone()) {
+            let _ = self.fail_request(&request, Some(&workspace), error.clone());
+            return Err(error);
         }
 
         let data = match load_issue_explorer_data(runner, Path::new(&workspace.path)) {
             Ok(data) => data,
-            Err(error) => return self.fail_current_request(&request, error),
+            Err(error) => {
+                let _ = self.fail_request(&request, Some(&workspace), error.clone());
+                return Err(error);
+            }
         };
 
-        let mut published_state = self.state.clone();
-        promote_catalog(&mut published_state.catalog, &workspace.path);
-        published_state.current_workspace = Some(workspace);
-        published_state.pending_workspace = None;
-        published_state.error = None;
-        if let Err(error) = self.commit_proposed(&request, published_state) {
-            return self.fail_current_request(&request, error);
+        if let Err(error) = self.commit_loaded(&request, workspace.clone(), data.clone()) {
+            let _ = self.fail_request(&request, Some(&workspace), error.clone());
+            return Err(error);
         }
 
+        Ok(data)
+    }
+
+    /// Persist a validated candidate into the catalog. Phase boundary that
+    /// mutates state and writes to the store; safe to call from the async
+    /// orchestrator while it holds the serialized service lock. The catalog
+    /// entry is appended without MRU promotion.
+    pub fn retain_validated(
+        &mut self,
+        request: &WorkspaceRequest,
+        workspace: Workspace,
+    ) -> Result<(), WorkspaceError> {
+        let mut next = self.state.clone();
+        next.pending_workspace = Some(workspace.clone());
+        next.error = None;
+        next.retry_workspace = None;
+        retain_catalog(&mut next.catalog, workspace);
+        self.commit_proposed(request, next)
+    }
+
+    /// Persist a successfully loaded workspace as Current with MRU
+    /// promotion. Phase boundary that mutates state and writes to the store;
+    /// safe to call from the async orchestrator while it holds the serialized
+    /// service lock. A successful commit clears any previous retry target
+    /// because the failed candidate is no longer relevant.
+    pub fn commit_loaded(
+        &mut self,
+        request: &WorkspaceRequest,
+        workspace: Workspace,
+        data: IssueExplorerData,
+    ) -> Result<IssueExplorerData, WorkspaceError> {
+        let mut next = self.state.clone();
+        promote_catalog(&mut next.catalog, &workspace.path);
+        next.current_workspace = Some(workspace);
+        next.pending_workspace = None;
+        next.error = None;
+        next.retry_workspace = None;
+        self.commit_proposed(request, next)?;
         Ok(data)
     }
 
@@ -332,6 +381,40 @@ impl<S: WorkspaceStore> WorkspaceService<S> {
         Ok(())
     }
 
+    /// Cancel any in-flight Pending request without touching Current.
+    ///
+    /// Cancellation is ephemeral: only in-memory `pending_workspace` and
+    /// `error` are dropped, and `generation` is bumped so a late result
+    /// from the cancelled request is silently rejected by `ensure_current`.
+    /// The remembered Current Workspace and the persisted catalog survive.
+    /// No `store.save` is issued; the catalog is already durable from the
+    /// validated-candidate commit, and Current is never changed.
+    ///
+    /// Bumps the generation only when there is an actual pending request to
+    /// cancel. A Cancel that races with the final commit (the commit already
+    /// ran, but its success publication has not yet reached the renderer)
+    /// must not bump the generation: doing so would let the renderer drop
+    /// the in-flight success transition as "older than accepted", keeping
+    /// the prior Workspace's snapshot paired with the new Current identity
+    /// ("B Current with A snapshot").
+    ///
+    /// When there is nothing pending, it preserves the generation while still
+    /// clearing transient retry/error presentation. Cancel-then-retry still
+    /// invalidates a stale result because a real pending request always
+    /// bumps the generation here, and a fresh retry starts a new request
+    /// with its own bumped generation.
+    pub fn cancel_pending(&mut self) -> WorkspaceState {
+        let had_pending = self.state.pending_workspace.is_some();
+        if had_pending {
+            self.state.generation = self.state.generation.saturating_add(1);
+        }
+        self.state.pending_workspace = None;
+        self.state.retry_workspace = None;
+        self.state.error = None;
+        self.restoration_candidate = None;
+        self.state()
+    }
+
     /// Explicitly discard only Beadsmith's local workspace memory.
     pub fn reset_memory(&mut self) -> Result<(), WorkspaceError> {
         if let Err(message) = self.store.reset() {
@@ -353,8 +436,15 @@ impl<S: WorkspaceStore> WorkspaceService<S> {
         Ok(())
     }
 
+    /// Whether the request still owns the current generation. The RPC
+    /// orchestrator uses this before emitting a failure transition so a stale
+    /// worker completion remains silent.
+    pub fn is_request_current(&self, request: &WorkspaceRequest) -> bool {
+        self.state.generation == request.generation
+    }
+
     fn ensure_current(&self, request: &WorkspaceRequest) -> Result<(), WorkspaceError> {
-        if self.state.generation == request.generation {
+        if self.is_request_current(request) {
             Ok(())
         } else {
             Err(WorkspaceError::stale())
@@ -374,7 +464,9 @@ impl<S: WorkspaceStore> WorkspaceService<S> {
 
     /// Remove one locally remembered workspace without touching the repository.
     /// Removing the Current workspace explicitly leaves no Current workspace;
-    /// another catalog entry is never implicitly selected.
+    /// another catalog entry is never implicitly selected. Removing any
+    /// workspace invalidates an in-flight Pending request and clears any
+    /// retryable banner target.
     pub fn remove_workspace(&mut self, path: &str) -> Result<(), WorkspaceError> {
         let mut next = self.state.clone();
         next.generation = next.generation.saturating_add(1);
@@ -387,29 +479,52 @@ impl<S: WorkspaceStore> WorkspaceService<S> {
             next.current_workspace = None;
         }
         next.pending_workspace = None;
+        next.retry_workspace = None;
         next.error = None;
-        self.store.save(&self.persisted_from_state(&next)).map_err(|message| {
-            WorkspaceError::new(
-                WorkspaceErrorKind::StoreSaveFailed,
-                format!("Could not save local workspace memory: {message}"),
-                true,
-            )
-        })?;
+        self.store
+            .save(&self.persisted_from_state(&next))
+            .map_err(|message| {
+                WorkspaceError::new(
+                    WorkspaceErrorKind::StoreSaveFailed,
+                    format!("Could not save local workspace memory: {message}"),
+                    true,
+                )
+            })?;
         self.state = next;
         self.restoration_candidate = None;
         Ok(())
     }
 
-    fn fail_current_request(
+    /// Mark the current request as failed. Phase boundary that mutates state
+    /// only when the request is still current, so a stale completion cannot
+    /// overwrite the live state. For post-validation failures
+    /// (`LoadFailed`, `StoreSaveFailed`), `validated_candidate` is published
+    /// as `retry_workspace` so the UI can offer Retry without a new picker
+    /// selection.
+    pub fn fail_request(
         &mut self,
         request: &WorkspaceRequest,
+        validated_candidate: Option<&Workspace>,
         error: WorkspaceError,
-    ) -> Result<IssueExplorerData, WorkspaceError> {
-        if self.ensure_current(request).is_ok() {
-            self.state.pending_workspace = None;
-            self.state.error = Some(error.clone());
+    ) -> Result<(), WorkspaceError> {
+        if self.ensure_current(request).is_err() {
+            return Err(error);
         }
-        Err(error)
+
+        self.state.pending_workspace = None;
+        // Surface the validated candidate to Retry only for failures that
+        // happened after we already knew it was a real Beadwork workspace.
+        // Validation and git-root failures occur before the candidate is
+        // even retained; the picker already knows which path the user
+        // typed, and that path is the next selection if the user retries.
+        self.state.retry_workspace = match error.kind {
+            WorkspaceErrorKind::LoadFailed | WorkspaceErrorKind::StoreSaveFailed => {
+                validated_candidate.cloned()
+            }
+            _ => None,
+        };
+        self.state.error = Some(error.clone());
+        Ok(())
     }
 }
 
@@ -495,7 +610,10 @@ fn promote_catalog(catalog: &mut Vec<Workspace>, path: &str) {
     }
 }
 
-fn validate_workspace(
+/// Validate the candidate workspace root as a Beadwork-managed Git repository
+/// and return its canonical Git root for catalog storage. Public so the
+/// async orchestrator can run validation outside the runtime lock.
+pub fn validate_workspace(
     runner: &dyn CommandRunner,
     candidate: &Path,
 ) -> Result<Workspace, WorkspaceError> {
@@ -590,7 +708,11 @@ fn normalize_root(path: &Path) -> PathBuf {
     normalized
 }
 
-fn load_issue_explorer_data(
+/// Run the three Beadwork issue-view commands (All, Ready, Blocked) for the
+/// given workspace root. The caller is expected to have already validated and
+/// retained the workspace, so a failure here surfaces as a retryable load
+/// error.
+pub fn load_issue_explorer_data(
     runner: &dyn CommandRunner,
     workspace: &Path,
 ) -> Result<IssueExplorerData, WorkspaceError> {
@@ -614,7 +736,6 @@ fn map_load_error(view: &str, error: ListIssuesError) -> WorkspaceError {
         true,
     )
 }
-
 
 #[cfg(test)]
 mod tests {
@@ -1074,10 +1195,16 @@ mod tests {
         let mut restarted = WorkspaceService::from_store(store);
         assert!(restarted.state().current_workspace.is_none());
         restarted
-            .restore_current(&FakeRunner::with_outputs(command_outputs("/work/persisted")))
+            .restore_current(&FakeRunner::with_outputs(command_outputs(
+                "/work/persisted",
+            )))
             .expect("restart should restore through the normal transaction");
         assert_eq!(
-            restarted.state().current_workspace.as_ref().map(|workspace| &workspace.path),
+            restarted
+                .state()
+                .current_workspace
+                .as_ref()
+                .map(|workspace| &workspace.path),
             Some(&"/work/persisted".to_string())
         );
     }
@@ -1218,6 +1345,835 @@ mod tests {
             vec!["/work/second", "/work/first"]
         );
     }
+
+    #[test]
+    fn cancel_pending_drops_pending_workspace_and_bumps_generation() {
+        let store = FakeStore::empty();
+        let mut service = WorkspaceService::from_store(store);
+        let first = FakeRunner::with_outputs(command_outputs("/work/first"));
+        service
+            .select_workspace(&first, "/work/first")
+            .expect("first selection should succeed");
+
+        let second = FakeRunner::with_outputs(command_outputs("/work/second"));
+        let request = service.begin_selection("/work/second");
+        // First selection committed at gen 1, second begin bumps to gen 2.
+        assert_eq!(service.state().generation, 2);
+        assert_eq!(
+            service
+                .state()
+                .pending_workspace
+                .as_ref()
+                .map(|w| w.path.as_str()),
+            Some("/work/second")
+        );
+
+        let returned = service.cancel_pending();
+        assert_eq!(returned.generation, 3);
+        assert!(returned.pending_workspace.is_none());
+        assert!(returned.error.is_none());
+        assert_eq!(
+            returned.current_workspace.as_ref().map(|w| w.path.as_str()),
+            Some("/work/first")
+        );
+        // The catalog reflects the persisted prior workspace, not pending.
+        assert_eq!(
+            returned
+                .catalog
+                .iter()
+                .map(|w| w.path.as_str())
+                .collect::<Vec<_>>(),
+            vec!["/work/first"]
+        );
+        // Late resolution of the cancelled request is silently rejected.
+        let error = service
+            .complete_selection(&second, request)
+            .expect_err("cancelled request must not publish");
+        assert_eq!(error.kind, WorkspaceErrorKind::StaleGeneration);
+        assert_eq!(service.state().generation, 3);
+        assert_eq!(
+            service
+                .state()
+                .current_workspace
+                .as_ref()
+                .map(|w| w.path.as_str()),
+            Some("/work/first")
+        );
+
+        service
+            .select_workspace(&second, "/work/second")
+            .expect("fresh request after cancel should still succeed");
+        // 1 (first select) + 1 (cancelled second) + 1 (third begin) commits 4.
+        assert_eq!(service.state().generation, 4);
+    }
+
+    #[test]
+    fn cancel_pending_with_no_pending_workspace_is_a_noop() {
+        // Cancel-after-commit-before-success-publication safety: when there
+        // is no actual pending request to cancel, the generation must not
+        // bump. Bumping would race the in-flight success transition for the
+        // just-committed request and let the renderer reject the success
+        // transition as "older than accepted", leaving B Current paired
+        // with A's snapshot.
+        let store = FakeStore::empty();
+        let mut service = WorkspaceService::from_store(store);
+        let first = FakeRunner::with_outputs(command_outputs("/work/first"));
+        service
+            .select_workspace(&first, "/work/first")
+            .expect("first selection should succeed");
+
+        let before = service.state().generation;
+        let returned = service.cancel_pending();
+        assert_eq!(
+            returned.generation, before,
+            "cancel_pending without a pending request must not bump the generation"
+        );
+        assert!(returned.pending_workspace.is_none());
+        assert_eq!(
+            returned.current_workspace.as_ref().map(|w| w.path.as_str()),
+            Some("/work/first")
+        );
+    }
+
+    #[test]
+    fn cancel_pending_with_no_current_clears_pending_only() {
+        let store = FakeStore::empty();
+        let mut service = WorkspaceService::from_store(store);
+        let request = service.begin_selection("/work/first");
+        assert!(service.state().pending_workspace.is_some());
+
+        let returned = service.cancel_pending();
+        assert!(returned.current_workspace.is_none());
+        assert!(returned.pending_workspace.is_none());
+        assert!(returned.error.is_none());
+        // Catalog is unchanged: nothing durable was written before cancel.
+        assert!(returned.catalog.is_empty());
+
+        // The cancelled request still rejects late results.
+        let runner = FakeRunner::with_outputs(command_outputs("/work/first"));
+        let error = service
+            .complete_selection(&runner, request)
+            .expect_err("cancelled request must not publish");
+        assert_eq!(error.kind, WorkspaceErrorKind::StaleGeneration);
+    }
+
+    #[test]
+    fn cancel_pending_after_known_candidate_failure_only_clears_pending() {
+        let store = FakeStore::empty();
+        let mut service = WorkspaceService::from_store(store);
+        let first = FakeRunner::with_outputs(command_outputs("/work/first"));
+        service
+            .select_workspace(&first, "/work/first")
+            .expect("first selection should succeed");
+
+        let second = FakeRunner::with_outputs([
+            FakeRunner::success("setting=value\n"),
+            FakeRunner::success("/work/second\n"),
+            Ok(CommandOutput {
+                status: 2,
+                stdout: String::new(),
+                stderr: "load failed".to_string(),
+            }),
+        ]);
+        service
+            .select_workspace(&second, "/work/second")
+            .expect_err("load failure should not promote");
+
+        // After a load failure the known candidate stays in the catalog,
+        // error is surfaced, and pending is None.
+        assert_eq!(
+            service
+                .state()
+                .catalog
+                .iter()
+                .map(|w| w.path.as_str())
+                .collect::<Vec<_>>(),
+            vec!["/work/first", "/work/second"]
+        );
+        assert_eq!(
+            service.state().error.as_ref().map(|e| e.kind.clone()),
+            Some(WorkspaceErrorKind::LoadFailed)
+        );
+
+        let returned = service.cancel_pending();
+        // The retryable catalog entry survives Cancel — Cancel does not
+        // remove the known target.
+        assert_eq!(
+            returned
+                .catalog
+                .iter()
+                .map(|w| w.path.as_str())
+                .collect::<Vec<_>>(),
+            vec!["/work/first", "/work/second"]
+        );
+        assert!(returned.error.is_none());
+        assert!(returned.pending_workspace.is_none());
+        assert_eq!(
+            returned.current_workspace.as_ref().map(|w| w.path.as_str()),
+            Some("/work/first")
+        );
+    }
+
+    #[test]
+    fn cancel_pending_after_commit_does_not_bump_generation() {
+        // Reproduces the bsm-kia.7 cancel-after-final-commit-before-success-
+        // publication race: the user-visible commit has already landed in
+        // `self.state` (current=B), but Taurpc has not yet published the
+        // typed success transition. A Cancel that races the success
+        // publication must not bump the generation; otherwise the renderer
+        // would reject the in-flight success transition as "older than
+        // accepted" and show B Current paired with A's snapshot.
+        let store = FakeStore::empty();
+        let mut service = WorkspaceService::from_store(store);
+        let first = FakeRunner::with_outputs(command_outputs("/work/first"));
+        service
+            .select_workspace(&first, "/work/first")
+            .expect("first selection should succeed");
+        let before = service.state().generation;
+
+        // Successful switch to B commits (current=B, generation stays the
+        // request's generation), then the user-visible Pending window has
+        // already cleared because Phase 5 ran commit_loaded.
+        let second = FakeRunner::with_outputs(command_outputs("/work/second"));
+        service
+            .select_workspace(&second, "/work/second")
+            .expect("second switch should succeed");
+        assert_eq!(
+            service
+                .state()
+                .current_workspace
+                .as_ref()
+                .map(|w| w.path.as_str()),
+            Some("/work/second")
+        );
+        assert!(
+            service.state().pending_workspace.is_none(),
+            "commit clears pending; the success transition is what has not yet been published"
+        );
+
+        // The Cancel arrives between commit and success publication. It
+        // must not bump the generation, otherwise the in-flight success
+        // transition would be rejected at the renderer as older than
+        // accepted.
+        let returned = service.cancel_pending();
+        assert_eq!(
+            returned.generation,
+            before + 1,
+            "cancel_pending after a successful commit must not bump the generation"
+        );
+        assert_eq!(
+            returned.current_workspace.as_ref().map(|w| w.path.as_str()),
+            Some("/work/second"),
+            "current must remain the just-committed B"
+        );
+        assert!(
+            returned.pending_workspace.is_none(),
+            "no pending workspace was set by Cancel"
+        );
+    }
+
+    #[test]
+    fn post_validation_load_failure_sets_retry_workspace_to_validated_candidate() {
+        let store = FakeStore::empty();
+        let mut service = WorkspaceService::from_store(store);
+        let first = FakeRunner::with_outputs(command_outputs("/work/first"));
+        service
+            .select_workspace(&first, "/work/first")
+            .expect("first selection should succeed");
+
+        let second = FakeRunner::with_outputs([
+            FakeRunner::success("setting=value\n"),
+            FakeRunner::success("/work/second\n"),
+            Ok(CommandOutput {
+                status: 2,
+                stdout: String::new(),
+                stderr: "load failed".to_string(),
+            }),
+        ]);
+        let error = service
+            .select_workspace(&second, "/work/second")
+            .expect_err("load failure should not promote");
+
+        assert_eq!(error.kind, WorkspaceErrorKind::LoadFailed);
+        let state = service.state();
+        assert_eq!(
+            state.retry_workspace.as_ref().map(|w| w.path.as_str()),
+            Some("/work/second"),
+            "retry_workspace must surface the validated candidate for Retry"
+        );
+        assert_eq!(
+            state.error.as_ref().map(|e| e.kind.clone()),
+            Some(WorkspaceErrorKind::LoadFailed)
+        );
+        assert!(state.pending_workspace.is_none());
+    }
+
+    #[test]
+    fn final_save_failure_sets_retry_workspace_to_validated_candidate() {
+        let store = FakeStore::with_saves([Ok(()), Err("disk full".to_string())]);
+        let mut service = WorkspaceService::from_store(store);
+        let runner = FakeRunner::with_outputs(command_outputs("/work/repo"));
+
+        let error = service
+            .select_workspace(&runner, "/work/repo")
+            .expect_err("final save should fail");
+
+        assert_eq!(error.kind, WorkspaceErrorKind::StoreSaveFailed);
+        let state = service.state();
+        assert_eq!(
+            state.retry_workspace.as_ref().map(|w| w.path.as_str()),
+            Some("/work/repo"),
+            "retry_workspace must survive a final-save failure so Retry can replay"
+        );
+    }
+
+    #[test]
+    fn validation_failure_does_not_set_retry_workspace() {
+        let store = FakeStore::empty();
+        let mut service = WorkspaceService::from_store(store);
+        let runner = FakeRunner::with_outputs([Ok(CommandOutput {
+            status: 1,
+            stdout: String::new(),
+            stderr: "beadwork not initialized".to_string(),
+        })]);
+
+        let error = service
+            .select_workspace(&runner, "/work/invalid")
+            .expect_err("validation should fail");
+
+        assert_eq!(error.kind, WorkspaceErrorKind::ValidationFailed);
+        let state = service.state();
+        assert!(
+            state.retry_workspace.is_none(),
+            "no validated candidate exists for Retry when validation itself fails"
+        );
+    }
+
+    #[test]
+    fn git_root_failure_does_not_set_retry_workspace() {
+        let store = FakeStore::empty();
+        let mut service = WorkspaceService::from_store(store);
+        let runner = FakeRunner::with_outputs([
+            FakeRunner::success("setting=value\n"),
+            Ok(CommandOutput {
+                status: 128,
+                stdout: String::new(),
+                stderr: "fatal: not a git repository".to_string(),
+            }),
+        ]);
+
+        let error = service
+            .select_workspace(&runner, "/work/notgit")
+            .expect_err("git root should fail");
+
+        assert_eq!(error.kind, WorkspaceErrorKind::GitRootFailed);
+        let state = service.state();
+        assert!(state.retry_workspace.is_none());
+    }
+
+    #[test]
+    fn begin_selection_clears_a_previous_retry_workspace() {
+        let store = FakeStore::empty();
+        let mut service = WorkspaceService::from_store(store);
+        let first = FakeRunner::with_outputs(command_outputs("/work/first"));
+        service
+            .select_workspace(&first, "/work/first")
+            .expect("first selection should succeed");
+
+        // Cause a load failure so retry_workspace is set on /work/second.
+        let failed = FakeRunner::with_outputs([
+            FakeRunner::success("setting=value\n"),
+            FakeRunner::success("/work/second\n"),
+            Ok(CommandOutput {
+                status: 2,
+                stdout: String::new(),
+                stderr: "load failed".to_string(),
+            }),
+        ]);
+        service
+            .select_workspace(&failed, "/work/second")
+            .expect_err("load failure should not promote");
+        assert_eq!(
+            service
+                .state()
+                .retry_workspace
+                .as_ref()
+                .map(|w| w.path.as_str()),
+            Some("/work/second")
+        );
+
+        // A new selection must supersede the previous retry target.
+        let _request = service.begin_selection("/work/third");
+        assert!(
+            service.state().retry_workspace.is_none(),
+            "a new begin_selection must clear the previous retry target"
+        );
+        assert!(service.state().pending_workspace.is_some());
+    }
+
+    #[test]
+    fn cancel_pending_clears_retry_workspace() {
+        let store = FakeStore::empty();
+        let mut service = WorkspaceService::from_store(store);
+        let first = FakeRunner::with_outputs(command_outputs("/work/first"));
+        service
+            .select_workspace(&first, "/work/first")
+            .expect("first selection should succeed");
+
+        // Force a load failure on second so retry_workspace is set.
+        let failed = FakeRunner::with_outputs([
+            FakeRunner::success("setting=value\n"),
+            FakeRunner::success("/work/second\n"),
+            Ok(CommandOutput {
+                status: 2,
+                stdout: String::new(),
+                stderr: "load failed".to_string(),
+            }),
+        ]);
+        service
+            .select_workspace(&failed, "/work/second")
+            .expect_err("load failure should not promote");
+        assert!(service.state().retry_workspace.is_some());
+
+        let returned = service.cancel_pending();
+        assert!(
+            returned.retry_workspace.is_none(),
+            "cancel must clear the retryable banner target"
+        );
+    }
+
+    #[test]
+    fn remove_workspace_clears_retry_workspace() {
+        let store = FakeStore::empty();
+        let mut service = WorkspaceService::from_store(store);
+        let first = FakeRunner::with_outputs(command_outputs("/work/first"));
+        service
+            .select_workspace(&first, "/work/first")
+            .expect("first selection should succeed");
+
+        // Force a load failure on second so retry_workspace is set on /work/second.
+        let failed = FakeRunner::with_outputs([
+            FakeRunner::success("setting=value\n"),
+            FakeRunner::success("/work/second\n"),
+            Ok(CommandOutput {
+                status: 2,
+                stdout: String::new(),
+                stderr: "load failed".to_string(),
+            }),
+        ]);
+        service
+            .select_workspace(&failed, "/work/second")
+            .expect_err("load failure should not promote");
+        assert!(service.state().retry_workspace.is_some());
+
+        service
+            .remove_workspace("/work/second")
+            .expect("removal should succeed");
+
+        assert!(
+            service.state().retry_workspace.is_none(),
+            "removal must clear any retryable target"
+        );
+        assert!(service.state().error.is_none());
+    }
+
+    #[test]
+    fn reset_memory_clears_retry_workspace() {
+        let store = FakeStore::empty();
+        let mut service = WorkspaceService::from_store(store);
+        let first = FakeRunner::with_outputs(command_outputs("/work/first"));
+        service
+            .select_workspace(&first, "/work/first")
+            .expect("first selection should succeed");
+
+        let failed = FakeRunner::with_outputs([
+            FakeRunner::success("setting=value\n"),
+            FakeRunner::success("/work/second\n"),
+            Ok(CommandOutput {
+                status: 2,
+                stdout: String::new(),
+                stderr: "load failed".to_string(),
+            }),
+        ]);
+        service
+            .select_workspace(&failed, "/work/second")
+            .expect_err("load failure should not promote");
+        assert!(service.state().retry_workspace.is_some());
+
+        service.reset_memory().expect("reset should succeed");
+
+        assert!(
+            service.state().retry_workspace.is_none(),
+            "reset must clear the retryable banner target"
+        );
+        assert!(service.state().error.is_none());
+        assert!(service.state().catalog.is_empty());
+        assert!(service.state().current_workspace.is_none());
+    }
+
+    #[test]
+    fn successful_commit_clears_retry_workspace() {
+        let store = FakeStore::empty();
+        let mut service = WorkspaceService::from_store(store);
+        let first = FakeRunner::with_outputs(command_outputs("/work/first"));
+        service
+            .select_workspace(&first, "/work/first")
+            .expect("first selection should succeed");
+
+        // Establish a retry target on /work/second via load failure.
+        let failed = FakeRunner::with_outputs([
+            FakeRunner::success("setting=value\n"),
+            FakeRunner::success("/work/second\n"),
+            Ok(CommandOutput {
+                status: 2,
+                stdout: String::new(),
+                stderr: "load failed".to_string(),
+            }),
+        ]);
+        service
+            .select_workspace(&failed, "/work/second")
+            .expect_err("load failure should not promote");
+        assert!(service.state().retry_workspace.is_some());
+
+        // A successful commit for any candidate must clear the stale retry target.
+        let third = FakeRunner::with_outputs(command_outputs("/work/third"));
+        service
+            .select_workspace(&third, "/work/third")
+            .expect("third selection should succeed");
+
+        assert!(
+            service.state().retry_workspace.is_none(),
+            "a successful commit must clear any stale retry target"
+        );
+    }
+
+    #[test]
+    fn retry_replays_validated_candidate_and_promotes_on_success() {
+        let store = FakeStore::empty();
+        let mut service = WorkspaceService::from_store(store);
+        let first = FakeRunner::with_outputs(command_outputs("/work/first"));
+        service
+            .select_workspace(&first, "/work/first")
+            .expect("first selection should succeed");
+
+        // First attempt: load fails, retry target is set to /work/second.
+        let failed = FakeRunner::with_outputs([
+            FakeRunner::success("setting=value\n"),
+            FakeRunner::success("/work/second\n"),
+            Ok(CommandOutput {
+                status: 2,
+                stdout: String::new(),
+                stderr: "load failed".to_string(),
+            }),
+        ]);
+        service
+            .select_workspace(&failed, "/work/second")
+            .expect_err("load failure should not promote");
+
+        let retry_target = service
+            .state()
+            .retry_workspace
+            .clone()
+            .expect("retry target must be set after post-validation failure");
+        assert_eq!(retry_target.path, "/work/second");
+
+        // Retry replays the validated candidate with a fresh generation.
+        let retry_runner = FakeRunner::with_outputs(command_outputs("/work/second"));
+        service
+            .select_workspace(&retry_runner, &retry_target.path)
+            .expect("retry should succeed");
+
+        let state = service.state();
+        assert_eq!(
+            state.current_workspace.as_ref().map(|w| w.path.as_str()),
+            Some("/work/second")
+        );
+        assert!(state.retry_workspace.is_none());
+        assert!(state.pending_workspace.is_none());
+        assert!(state.error.is_none());
+        // The catalog reflects MRU promotion: second is now first.
+        assert_eq!(
+            state
+                .catalog
+                .iter()
+                .map(|w| w.path.as_str())
+                .collect::<Vec<_>>(),
+            vec!["/work/second", "/work/first"]
+        );
+    }
+
+    #[test]
+    fn stale_cancellation_completion_does_not_set_error_or_retry() {
+        // Simulates: user starts switch A→B, then selects C while B is
+        // loading. B's late completion must not surface as a banner or
+        // create a stale retry target.
+        let store = FakeStore::empty();
+        let mut service = WorkspaceService::from_store(store);
+        let first = FakeRunner::with_outputs(command_outputs("/work/first"));
+        service
+            .select_workspace(&first, "/work/first")
+            .expect("first selection should succeed");
+
+        let cancelled = service.begin_selection("/work/second");
+        let _superseding = service.begin_selection("/work/third");
+        let runner = FakeRunner::with_outputs(command_outputs("/work/second"));
+
+        let error = service
+            .complete_selection(&runner, cancelled)
+            .expect_err("cancelled request must not publish");
+
+        assert_eq!(error.kind, WorkspaceErrorKind::StaleGeneration);
+        let state = service.state();
+        assert!(
+            state.retry_workspace.is_none(),
+            "stale completions must not seed a retry target"
+        );
+        assert!(
+            state.error.is_none(),
+            "stale completions must not overwrite the current error or seed one"
+        );
+        assert_eq!(
+            state.current_workspace.as_ref().map(|w| w.path.as_str()),
+            Some("/work/first")
+        );
+    }
+
+    #[test]
+    fn removing_current_while_pending_clears_current_and_invalidates_pending() {
+        let store = FakeStore::empty();
+        let mut service = WorkspaceService::from_store(store);
+        let first = FakeRunner::with_outputs(command_outputs("/work/first"));
+        service
+            .select_workspace(&first, "/work/first")
+            .expect("first selection should succeed");
+
+        let second = FakeRunner::with_outputs(command_outputs("/work/second"));
+        service
+            .select_workspace(&second, "/work/second")
+            .expect("second selection should succeed");
+
+        let _pending = service.begin_selection("/work/pending");
+        assert!(service.state().pending_workspace.is_some());
+
+        service
+            .remove_workspace("/work/second")
+            .expect("removal of current should persist");
+
+        let state = service.state();
+        assert!(
+            state.current_workspace.is_none(),
+            "removing Current clears it without selecting another catalog entry"
+        );
+        assert!(
+            state.pending_workspace.is_none(),
+            "removing any workspace invalidates an in-flight pending request"
+        );
+        assert!(state.retry_workspace.is_none());
+        // Catalog no longer contains the removed entry, but still has /work/first.
+        assert_eq!(
+            state
+                .catalog
+                .iter()
+                .map(|w| w.path.as_str())
+                .collect::<Vec<_>>(),
+            vec!["/work/first"]
+        );
+    }
+
+    #[test]
+    fn removing_pending_workspace_invalidates_pending_without_selecting_another() {
+        let store = FakeStore::empty();
+        let mut service = WorkspaceService::from_store(store);
+        let first = FakeRunner::with_outputs(command_outputs("/work/first"));
+        service
+            .select_workspace(&first, "/work/first")
+            .expect("first selection should succeed");
+
+        let _request = service.begin_selection("/work/pending");
+        assert_eq!(
+            service
+                .state()
+                .pending_workspace
+                .as_ref()
+                .map(|w| w.path.as_str()),
+            Some("/work/pending")
+        );
+
+        service
+            .remove_workspace("/work/pending")
+            .expect("removing the pending target should succeed");
+
+        let state = service.state();
+        assert!(
+            state.pending_workspace.is_none(),
+            "removing the Pending target must invalidate it"
+        );
+        assert_eq!(
+            state.current_workspace.as_ref().map(|w| w.path.as_str()),
+            Some("/work/first"),
+            "Current must remain unchanged when removing only the Pending target"
+        );
+        assert!(state.retry_workspace.is_none());
+        assert_eq!(
+            state
+                .catalog
+                .iter()
+                .map(|w| w.path.as_str())
+                .collect::<Vec<_>>(),
+            vec!["/work/first"],
+            "the removed pending target must not remain in the catalog"
+        );
+    }
+
+    #[test]
+    fn retain_validated_phase_persists_without_promoting_mru() {
+        let store = FakeStore::with_saves([Ok(()), Ok(())]);
+        let mut service = WorkspaceService::from_store(store);
+        let first = FakeRunner::with_outputs(command_outputs("/work/first"));
+        service
+            .select_workspace(&first, "/work/first")
+            .expect("first selection should succeed");
+        // After the first select_workspace the save_results queue has two
+        // successful saves remaining (catalog retain + final commit).
+
+        let request = service.begin_selection("/work/second");
+        let validated = Workspace {
+            path: "/work/second".to_string(),
+            availability: WorkspaceAvailability::Available,
+        };
+
+        service
+            .retain_validated(&request, validated.clone())
+            .expect("retain should succeed");
+
+        let state = service.state();
+        assert_eq!(
+            state.pending_workspace.as_ref().map(|w| w.path.as_str()),
+            Some("/work/second")
+        );
+        assert_eq!(
+            state.current_workspace.as_ref().map(|w| w.path.as_str()),
+            Some("/work/first"),
+            "Current must remain A until the final commit phase"
+        );
+        assert_eq!(
+            state
+                .catalog
+                .iter()
+                .map(|w| w.path.as_str())
+                .collect::<Vec<_>>(),
+            vec!["/work/first", "/work/second"],
+            "catalog retain does not promote MRU order"
+        );
+    }
+
+    #[test]
+    fn retain_validated_phase_rejects_stale_generation() {
+        let store = FakeStore::with_saves([Ok(())]);
+        let mut service = WorkspaceService::from_store(store);
+        let first = FakeRunner::with_outputs(command_outputs("/work/first"));
+        service
+            .select_workspace(&first, "/work/first")
+            .expect("first selection should succeed");
+        // After the first select_workspace the save_results queue is empty;
+        // any stale save attempt would panic if it ran.
+
+        let stale = service.begin_selection("/work/stale");
+        let _superseding = service.begin_selection("/work/newer");
+        let validated = Workspace {
+            path: "/work/stale".to_string(),
+            availability: WorkspaceAvailability::Available,
+        };
+
+        let error = service
+            .retain_validated(&stale, validated)
+            .expect_err("stale retain must fail");
+        assert_eq!(error.kind, WorkspaceErrorKind::StaleGeneration);
+    }
+
+    #[test]
+    fn commit_loaded_phase_publishes_current_and_promotes_mru() {
+        let store = FakeStore::with_saves([Ok(()), Ok(()), Ok(())]);
+        let mut service = WorkspaceService::from_store(store);
+        let first = FakeRunner::with_outputs(command_outputs("/work/first"));
+        service
+            .select_workspace(&first, "/work/first")
+            .expect("first selection should succeed");
+
+        let request = service.begin_selection("/work/second");
+        let validated = Workspace {
+            path: "/work/second".to_string(),
+            availability: WorkspaceAvailability::Available,
+        };
+        service
+            .retain_validated(&request, validated.clone())
+            .expect("retain should succeed");
+
+        let data = IssueExplorerData {
+            all_issues: Vec::new(),
+            ready_issues: Vec::new(),
+            blocked_issues: Vec::new(),
+        };
+        let returned = service
+            .commit_loaded(&request, validated.clone(), data.clone())
+            .expect("commit should succeed");
+        assert_eq!(returned, data);
+
+        let state = service.state();
+        assert_eq!(
+            state.current_workspace.as_ref().map(|w| w.path.as_str()),
+            Some("/work/second")
+        );
+        assert!(state.pending_workspace.is_none());
+        assert_eq!(
+            state
+                .catalog
+                .iter()
+                .map(|w| w.path.as_str())
+                .collect::<Vec<_>>(),
+            vec!["/work/second", "/work/first"],
+            "commit must promote MRU order"
+        );
+        assert!(state.retry_workspace.is_none());
+        assert!(state.error.is_none());
+    }
+
+    #[test]
+    fn commit_loaded_phase_rejects_stale_generation() {
+        let store = FakeStore::with_saves([Ok(()), Ok(())]);
+        let mut service = WorkspaceService::from_store(store);
+        let first = FakeRunner::with_outputs(command_outputs("/work/first"));
+        service
+            .select_workspace(&first, "/work/first")
+            .expect("first selection should succeed");
+
+        let stale = service.begin_selection("/work/second");
+        let _superseding = service.begin_selection("/work/newer");
+        let validated = Workspace {
+            path: "/work/second".to_string(),
+            availability: WorkspaceAvailability::Available,
+        };
+        // Skip retain_validated (would have failed too).
+        let data = IssueExplorerData {
+            all_issues: Vec::new(),
+            ready_issues: Vec::new(),
+            blocked_issues: Vec::new(),
+        };
+
+        let error = service
+            .commit_loaded(&stale, validated, data)
+            .expect_err("stale commit must fail");
+        assert_eq!(error.kind, WorkspaceErrorKind::StaleGeneration);
+        assert_eq!(
+            service
+                .state()
+                .current_workspace
+                .as_ref()
+                .map(|w| w.path.as_str()),
+            Some("/work/first"),
+            "Current must remain A when the commit phase is stale"
+        );
+    }
 }
 
 /// Backend-owned adapter for the supported Tauri store plugin. The frontend
@@ -1254,7 +2210,9 @@ impl<R: tauri::Runtime> WorkspaceStore for TauriWorkspaceStore<R> {
         let Some(value) = store.get("workspaceState") else {
             return Ok(None);
         };
-        serde_json::from_value(value).map(Some).map_err(|error| error.to_string())
+        serde_json::from_value(value)
+            .map(Some)
+            .map_err(|error| error.to_string())
     }
 
     fn save(&self, state: &PersistedWorkspaceState) -> Result<(), String> {
@@ -1271,7 +2229,7 @@ impl<R: tauri::Runtime> WorkspaceStore for TauriWorkspaceStore<R> {
                 store.save().map_err(|error| error.to_string())
             }
             Err(_) => {
-                use tauri::{Manager, path::BaseDirectory};
+                use tauri::{path::BaseDirectory, Manager};
                 let store_path = self.store_path();
                 let path = if store_path.is_absolute() {
                     store_path
