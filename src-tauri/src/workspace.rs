@@ -293,20 +293,28 @@ impl<S: WorkspaceStore> WorkspaceService<S> {
 
         let workspace = match validate_workspace(runner, &request.candidate) {
             Ok(workspace) => workspace,
-            Err(error) => return self.fail_request(&request, None, error),
+            Err(error) => {
+                let _ = self.fail_request(&request, None, error.clone());
+                return Err(error);
+            }
         };
 
         if let Err(error) = self.retain_validated(&request, workspace.clone()) {
-            return self.fail_request(&request, Some(&workspace), error);
+            let _ = self.fail_request(&request, Some(&workspace), error.clone());
+            return Err(error);
         }
 
         let data = match load_issue_explorer_data(runner, Path::new(&workspace.path)) {
             Ok(data) => data,
-            Err(error) => return self.fail_request(&request, Some(&workspace), error),
+            Err(error) => {
+                let _ = self.fail_request(&request, Some(&workspace), error.clone());
+                return Err(error);
+            }
         };
 
         if let Err(error) = self.commit_loaded(&request, workspace.clone(), data.clone()) {
-            return self.fail_request(&request, Some(&workspace), error);
+            let _ = self.fail_request(&request, Some(&workspace), error.clone());
+            return Err(error);
         }
 
         Ok(data)
@@ -498,23 +506,25 @@ impl<S: WorkspaceStore> WorkspaceService<S> {
         request: &WorkspaceRequest,
         validated_candidate: Option<&Workspace>,
         error: WorkspaceError,
-    ) -> Result<IssueExplorerData, WorkspaceError> {
-        if self.ensure_current(request).is_ok() {
-            self.state.pending_workspace = None;
-            // Surface the validated candidate to Retry only for failures that
-            // happened after we already knew it was a real Beadwork workspace.
-            // Validation and git-root failures occur before the candidate is
-            // even retained; the picker already knows which path the user
-            // typed, and that path is the next selection if the user retries.
-            self.state.retry_workspace = match error.kind {
-                WorkspaceErrorKind::LoadFailed | WorkspaceErrorKind::StoreSaveFailed => {
-                    validated_candidate.cloned()
-                }
-                _ => None,
-            };
-            self.state.error = Some(error.clone());
+    ) -> Result<(), WorkspaceError> {
+        if self.ensure_current(request).is_err() {
+            return Err(error);
         }
-        Err(error)
+
+        self.state.pending_workspace = None;
+        // Surface the validated candidate to Retry only for failures that
+        // happened after we already knew it was a real Beadwork workspace.
+        // Validation and git-root failures occur before the candidate is
+        // even retained; the picker already knows which path the user
+        // typed, and that path is the next selection if the user retries.
+        self.state.retry_workspace = match error.kind {
+            WorkspaceErrorKind::LoadFailed | WorkspaceErrorKind::StoreSaveFailed => {
+                validated_candidate.cloned()
+            }
+            _ => None,
+        };
+        self.state.error = Some(error.clone());
+        Ok(())
     }
 }
 

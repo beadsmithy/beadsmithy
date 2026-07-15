@@ -991,7 +991,7 @@ describe("App workspace switch atomicity", () => {
     expect(screen.queryByText("A issue")).toBeNull();
   });
 
-  it("ignores a same-generation Pending transition after a retryable failure", async () => {
+  it("preserves the retry banner when delayed Pending follows a retryable failure", async () => {
     // bsm-kia.7 (4): a retryable failure must be terminal against any
     // late same-generation Pending transition so the Retry banner does
     // not disappear when an out-of-order Pending event arrives after the
@@ -1083,6 +1083,88 @@ describe("App workspace switch atomicity", () => {
 
     expect(screen.queryByText(/^Loading b…$/u)).toBeNull();
     expect(screen.getByTestId("switch-failure-banner")).toBeInTheDocument();
+  });
+
+  it("preserves inline validation feedback when delayed Pending follows a non-retryable failure", async () => {
+    let transitionListener:
+      | ((event: {
+          payload: { issueData: unknown; state: WorkspaceState };
+        }) => void)
+      | undefined;
+    // oxlint-disable-next-line promise/prefer-await-to-callbacks
+    listen.mockImplementation((_eventName, callback) => {
+      transitionListener = callback;
+      return Promise.resolve(vi.fn());
+    });
+
+    loadIssueExplorerStateFromTauRpc.mockResolvedValue(
+      successState({ allIssues: [buildIssue({ title: "A issue" })] })
+    );
+    workspaceState
+      .mockResolvedValueOnce(
+        workspace({
+          catalog: [
+            { availability: "available", path: "/work/a" },
+            { availability: "available", path: "/work/b" },
+          ],
+          currentWorkspace: { availability: "available", path: "/work/a" },
+          generation: 1,
+        })
+      )
+      .mockResolvedValue(
+        workspace({
+          catalog: [
+            { availability: "available", path: "/work/a" },
+            { availability: "available", path: "/work/b" },
+          ],
+          currentWorkspace: { availability: "available", path: "/work/a" },
+          error: {
+            kind: "validationFailed",
+            message: "Not a Beadwork workspace",
+            retryable: true,
+          },
+          generation: 2,
+        })
+      );
+    switchWorkspace.mockRejectedValue(new Error("validation failed"));
+
+    const user = userEvent.setup();
+    render(<App />);
+    await waitFor(() => {
+      expect(transitionListener).toBeDefined();
+    });
+
+    await user.click(
+      await screen.findByRole("button", { name: "b, /work/b, Available" })
+    );
+    expect(await screen.findByText("Not a Beadwork workspace")).toHaveAttribute(
+      "role",
+      "alert"
+    );
+
+    act(() => {
+      transitionListener?.({
+        payload: {
+          issueData: null,
+          state: workspace({
+            catalog: [
+              { availability: "available", path: "/work/a" },
+              { availability: "available", path: "/work/b" },
+            ],
+            currentWorkspace: { availability: "available", path: "/work/a" },
+            generation: 2,
+            pendingWorkspace: { availability: "available", path: "/work/b" },
+          }),
+        },
+      });
+    });
+
+    expect(screen.queryByText(/^Loading b…$/u)).toBeNull();
+    expect(screen.getByText("Not a Beadwork workspace")).toHaveAttribute(
+      "role",
+      "alert"
+    );
+    expect(screen.queryByTestId("switch-failure-banner")).toBeNull();
   });
 
   it("preserves the typed current when an initial-load snapshot races a later committed switch", async () => {

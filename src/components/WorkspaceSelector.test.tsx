@@ -17,28 +17,32 @@ const state = (overrides: Partial<WorkspaceState> = {}): WorkspaceState => ({
 });
 
 describe("pickerDefaultPath", () => {
-  it("prefers Current, then the first available MRU entry, then OS default", () => {
+  it("prefers Current Workspace over the MRU catalog", () => {
     expect(
       pickerDefaultPath(
         state({
-          catalog: [
-            { availability: "unavailable", path: "/missing" },
-            { availability: "available", path: "/available" },
-          ],
+          catalog: [{ availability: "available", path: "/available" }],
           currentWorkspace: { availability: "available", path: "/current" },
         })
       )
     ).toBe("/current");
+  });
+
+  it("uses the first available MRU entry when no Current Workspace exists", () => {
     expect(
       pickerDefaultPath(
         state({
           catalog: [
             { availability: "unavailable", path: "/missing" },
             { availability: "available", path: "/available" },
+            { availability: "available", path: "/older-available" },
           ],
         })
       )
     ).toBe("/available");
+  });
+
+  it("uses the OS default when no known workspace is available", () => {
     expect(pickerDefaultPath(state())).toBeNull();
   });
 });

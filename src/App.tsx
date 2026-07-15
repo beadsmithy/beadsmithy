@@ -39,6 +39,7 @@ import type {
   LoadIssueExplorerDataResponse,
   WorkspaceState,
 } from "./rpc/bindings";
+import { isRetryableSwitchFailureKind } from "./workspace-switch-failure";
 
 const WORKSPACE_TRANSITION_EVENT = "workspace-transition";
 
@@ -103,16 +104,6 @@ const SidebarNavButton = ({
 
 const INITIAL_WORKSPACE_KEY = "/__initial__";
 
-/**
- * Whether the typed workspace error represents a post-validation
- * retryable switch failure. Validation/git-root failures happen before
- * any commit and are surfaced inline; only retryable failures (load or
- * final-save) carry a retry target that should not be overwritten by a
- * later same-generation Pending transition.
- */
-const isRetryableFailureKind = (kind: string | null | undefined): boolean =>
-  kind === "loadFailed" || kind === "storeSaveFailed";
-
 export default function App() {
   const [issueState, setIssueState] = useState<IssueExplorerLoadState>(
     ISSUE_EXPLORER_LOADING_STATE
@@ -142,11 +133,11 @@ export default function App() {
   // overwrite an already accepted commit. Use `<=` so the committed
   // generation itself and anything older are dropped.
   const committedGenerationRef = useRef(-1);
-  // Highest generation that has produced an accepted retryable failure.
+  // Highest generation that has produced an accepted switch failure.
   // Same-generation Pending events at or below this generation are silently
-  // rejected so an out-of-order Pending transition cannot overwrite the
-  // failure banner. Initial value `-1` means no retryable failure has been
-  // accepted yet.
+  // rejected so an out-of-order Pending transition cannot overwrite either
+  // the retry banner or an inline validation error. Initial value `-1` means
+  // no switch failure has been accepted yet.
   const terminalGenerationRef = useRef(-1);
   // Tracks the confirmed snapshot currently rendered by Issue Explorer. It
   // lets a remove-current transition replace that snapshot with the chooser
@@ -200,15 +191,10 @@ export default function App() {
       ) {
         return false;
       }
-      // Retryable-failure terminal guard: once a retryable failure has
-      // been accepted for a generation (loadFailed or storeSaveFailed
-      // with a retry target), same-generation Pending transitions at or
-      // below this generation are silently dropped. This prevents a stale
-      // Pending event for the failed request from rolling the renderer
-      // back to "pending=B, current=A, error=null" while the failure
-      // banner must remain visible. The guard is scoped to retryable
-      // failures only so an ordinary "no switch in progress" refresh does
-      // not falsely terminate a later legitimate same-numbered switch.
+      // Failed-switch terminal guard: once a typed failure has been accepted
+      // for a generation, same-generation Pending transitions at or below it
+      // are silently dropped. This keeps both the retry banner and inline
+      // validation feedback from being overwritten by stale Pending events.
       if (
         transition.state.pendingWorkspace !== null &&
         transition.state.generation <= terminalGenerationRef.current
@@ -244,7 +230,9 @@ export default function App() {
       }
       if (
         transition.state.pendingWorkspace === null &&
-        isRetryableFailureKind(transition.state.error?.kind)
+        (isRetryableSwitchFailureKind(transition.state.error?.kind) ||
+          (transition.state.error !== null &&
+            transition.state.retryWorkspace === null))
       ) {
         terminalGenerationRef.current = transition.state.generation;
       }

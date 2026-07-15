@@ -10,11 +10,13 @@ use std::sync::{Arc, Mutex};
 use serde::Serialize;
 use tauri::Emitter;
 
+#[cfg(test)]
+use crate::issues::CommandRunner;
 use crate::issues::{self, ListIssuesError, ProcessRunner};
 use crate::workspace::{
     load_issue_explorer_data, validate_workspace, IssueExplorerData, TauriWorkspaceStore,
     Workspace, WorkspaceError, WorkspaceErrorKind, WorkspaceRequest, WorkspaceService,
-    WorkspaceState,
+    WorkspaceState, WorkspaceStore,
 };
 
 /// Name of the Tauri event used to publish workspace transition updates.
@@ -49,6 +51,116 @@ fn emit_transition(
     if let Err(error) = app.emit(WORKSPACE_TRANSITION_EVENT, transition) {
         eprintln!("Beadsmith: failed to emit workspace transition: {error}");
     }
+}
+
+/// Start a switch request and capture its Pending transition before command
+/// execution. The small synchronous seam is shared by the async Tauri handler
+/// and deterministic Rust tests; command execution itself remains outside the
+/// runtime mutex in the handler.
+fn begin_switch_request<S: WorkspaceStore>(
+    service: &mut WorkspaceService<S>,
+    candidate: PathBuf,
+    emit: &mut impl FnMut(WorkspaceState, Option<IssueExplorerData>),
+) -> WorkspaceRequest {
+    let request = service.begin_selection(candidate);
+    emit(service.state(), None);
+    request
+}
+
+/// Apply a current-request failure and capture its transition. A stale
+/// completion returns its typed error without state mutation or emission.
+fn finish_switch_failure<S: WorkspaceStore>(
+    service: &mut WorkspaceService<S>,
+    request: &WorkspaceRequest,
+    validated: Option<&Workspace>,
+    error: WorkspaceError,
+    emit: &mut impl FnMut(WorkspaceState, Option<IssueExplorerData>),
+) -> WorkspaceError {
+    match service.fail_request(request, validated, error) {
+        Ok(()) => {
+            let error = service
+                .state()
+                .error
+                .expect("current failure must publish its typed error");
+            emit(service.state(), None);
+            error
+        }
+        Err(error) => error,
+    }
+}
+
+/// Make the final durable workspace commit, then replace the in-memory Issue
+/// Explorer snapshot and capture the success transition. The snapshot changes
+/// only after `commit_loaded` has persisted Current Workspace successfully.
+fn finish_switch_success<S: WorkspaceStore>(
+    service: &mut WorkspaceService<S>,
+    snapshot: &mut Option<IssueExplorerData>,
+    request: &WorkspaceRequest,
+    workspace: Workspace,
+    data: IssueExplorerData,
+    emit: &mut impl FnMut(WorkspaceState, Option<IssueExplorerData>),
+) -> Result<WorkspaceState, WorkspaceError> {
+    service.commit_loaded(request, workspace, data.clone())?;
+    *snapshot = Some(data.clone());
+    let state = service.state();
+    emit(state.clone(), Some(data));
+    Ok(state)
+}
+
+/// Deterministic synchronous counterpart of the RPC switch orchestration.
+/// Production keeps validation/loading outside its mutex, while this seam lets
+/// tests control command results and capture the exact transition sequence.
+#[cfg(test)]
+fn execute_switch_workspace<S: WorkspaceStore>(
+    service: &mut WorkspaceService<S>,
+    snapshot: &mut Option<IssueExplorerData>,
+    runner: &dyn CommandRunner,
+    candidate: PathBuf,
+    emit: &mut impl FnMut(WorkspaceState, Option<IssueExplorerData>),
+) -> Result<IssueExplorerData, WorkspaceError> {
+    let request = begin_switch_request(service, candidate.clone(), emit);
+    let workspace = match validate_workspace(runner, &candidate) {
+        Ok(workspace) => workspace,
+        Err(error) => return Err(finish_switch_failure(service, &request, None, error, emit)),
+    };
+    if let Err(error) = service.retain_validated(&request, workspace.clone()) {
+        return Err(finish_switch_failure(
+            service,
+            &request,
+            Some(&workspace),
+            error,
+            emit,
+        ));
+    }
+    let data = match load_issue_explorer_data(runner, Path::new(&workspace.path)) {
+        Ok(data) => data,
+        Err(error) => {
+            return Err(finish_switch_failure(
+                service,
+                &request,
+                Some(&workspace),
+                error,
+                emit,
+            ));
+        }
+    };
+    if let Err(error) = finish_switch_success(
+        service,
+        snapshot,
+        &request,
+        workspace.clone(),
+        data.clone(),
+        emit,
+    ) {
+        return Err(finish_switch_failure(
+            service,
+            &request,
+            Some(&workspace),
+            error,
+            emit,
+        ));
+    }
+    Ok(data)
 }
 
 /// Build the TauRPC router, including TypeScript export configuration.
@@ -127,14 +239,20 @@ impl BeadsmithApiImpl {
         validated: Option<&Workspace>,
         error: WorkspaceError,
     ) -> WorkspaceError {
-        let transition = self.with_runtime(|runtime| {
-            if !runtime.service.is_request_current(request) {
-                return None;
-            }
-            let _ = runtime
-                .service
-                .fail_request(request, validated, error.clone());
-            Some((runtime.app.clone(), runtime.service.state().clone()))
+        let (error, transition) = self.with_runtime(|runtime| {
+            let mut emitted_state = None;
+            let returned = finish_switch_failure(
+                &mut runtime.service,
+                request,
+                validated,
+                error,
+                &mut |state, issue_data| {
+                    debug_assert!(issue_data.is_none());
+                    emitted_state = Some(state);
+                },
+            );
+            let transition = emitted_state.map(|state| (runtime.app.clone(), state));
+            (returned, transition)
         });
         if let Some((app, state)) = transition {
             emit_transition(&app, state, None);
@@ -196,11 +314,19 @@ impl BeadsmithApi for BeadsmithApiImpl {
         // any command runs. The lock is released immediately so Cancel and a
         // newer selection can acquire the runtime while the worker is blocked.
         let (request, app, pending_state) = self.with_runtime(|runtime| {
-            let request = runtime.service.begin_selection(candidate.clone());
+            let mut pending_state = None;
+            let request = begin_switch_request(
+                &mut runtime.service,
+                candidate.clone(),
+                &mut |state, issue_data| {
+                    debug_assert!(issue_data.is_none());
+                    pending_state = Some(state);
+                },
+            );
             (
                 request,
                 runtime.app.clone(),
-                runtime.service.state().clone(),
+                pending_state.expect("beginning a switch must publish Pending"),
             )
         });
         emit_transition(&app, pending_state, None);
@@ -234,11 +360,20 @@ impl BeadsmithApi for BeadsmithApiImpl {
         // snapshot assignment happens in this same critical section, never
         // during Pending or failure.
         let result = self.with_runtime(|runtime| {
-            runtime
-                .service
-                .commit_loaded(&request, validated.clone(), data.clone())?;
-            runtime.snapshot = Some(data.clone());
-            let state = runtime.service.state().clone();
+            let mut committed_state = None;
+            finish_switch_success(
+                &mut runtime.service,
+                &mut runtime.snapshot,
+                &request,
+                validated.clone(),
+                data.clone(),
+                &mut |state, issue_data| {
+                    debug_assert!(issue_data.is_some());
+                    committed_state = Some(state);
+                },
+            )?;
+            let state =
+                committed_state.expect("a successful switch must emit its commit transition");
             let issue_data = workspace_data_response(&data, validated.path.as_str());
             Ok((runtime.app.clone(), state, issue_data))
         });
@@ -1073,12 +1208,159 @@ mod tests {
         }
     }
 
+    struct FakeStore {
+        save_results: Mutex<VecDeque<Result<(), String>>>,
+    }
+
+    impl FakeStore {
+        fn empty() -> Self {
+            Self {
+                save_results: Mutex::new(VecDeque::new()),
+            }
+        }
+
+        fn with_saves(save_results: impl IntoIterator<Item = Result<(), String>>) -> Self {
+            Self {
+                save_results: Mutex::new(save_results.into_iter().collect()),
+            }
+        }
+    }
+
+    impl WorkspaceStore for FakeStore {
+        fn load(&self) -> Result<Option<crate::workspace::PersistedWorkspaceState>, String> {
+            Ok(None)
+        }
+
+        fn save(&self, _state: &crate::workspace::PersistedWorkspaceState) -> Result<(), String> {
+            self.save_results
+                .lock()
+                .unwrap()
+                .pop_front()
+                .unwrap_or(Ok(()))
+        }
+
+        fn reset(&self) -> Result<(), String> {
+            Ok(())
+        }
+    }
+
+    fn switch_command_outputs(root: &str) -> [Result<CommandOutput, io::ErrorKind>; 5] {
+        [
+            successful_output("setting=value\n"),
+            successful_output(&format!("{root}\n")),
+            successful_output("[]"),
+            successful_output("[]"),
+            successful_output("[]"),
+        ]
+    }
+
     fn empty_snapshot() -> IssueExplorerData {
         IssueExplorerData {
             all_issues: Vec::new(),
             ready_issues: Vec::new(),
             blocked_issues: Vec::new(),
         }
+    }
+
+    #[test]
+    fn switch_orchestration_publishes_pending_before_running_commands() {
+        let runner = FakeRunner::with_outputs(switch_command_outputs("/work/b"));
+        let mut service = WorkspaceService::from_store(FakeStore::empty());
+        let mut snapshot = None;
+        let mut transitions = Vec::new();
+
+        execute_switch_workspace(
+            &mut service,
+            &mut snapshot,
+            &runner,
+            PathBuf::from("/work/b"),
+            &mut |state, issue_data| {
+                if state.pending_workspace.is_some() {
+                    assert!(runner.recorded().is_empty());
+                }
+                transitions.push((state, issue_data.is_some()));
+            },
+        )
+        .expect("switch should commit");
+
+        assert_eq!(transitions.len(), 2);
+        assert!(transitions[0].0.pending_workspace.is_some());
+        assert!(!transitions[0].1);
+        assert!(transitions[1].0.current_workspace.is_some());
+        assert!(transitions[1].1);
+        assert_eq!(runner.recorded().len(), 5);
+    }
+
+    #[test]
+    fn stale_switch_completion_emits_neither_failure_nor_success_transition() {
+        let mut service = WorkspaceService::from_store(FakeStore::empty());
+        let mut snapshot = Some(empty_snapshot());
+        let mut transitions = Vec::new();
+        let stale = begin_switch_request(
+            &mut service,
+            PathBuf::from("/work/stale"),
+            &mut |state, issue_data| transitions.push((state, issue_data.is_some())),
+        );
+        let _current = service.begin_selection("/work/current");
+
+        let success_error = finish_switch_success(
+            &mut service,
+            &mut snapshot,
+            &stale,
+            Workspace {
+                path: "/work/stale".to_string(),
+                availability: WorkspaceAvailability::Available,
+            },
+            empty_snapshot(),
+            &mut |state, issue_data| transitions.push((state, issue_data.is_some())),
+        )
+        .expect_err("stale completion must not commit");
+        let failure_error = finish_switch_failure(
+            &mut service,
+            &stale,
+            None,
+            WorkspaceError::new(WorkspaceErrorKind::ValidationFailed, "invalid", true),
+            &mut |state, issue_data| transitions.push((state, issue_data.is_some())),
+        );
+
+        assert_eq!(success_error.kind, WorkspaceErrorKind::StaleGeneration);
+        assert_eq!(failure_error.kind, WorkspaceErrorKind::ValidationFailed);
+        assert_eq!(transitions.len(), 1);
+        assert!(transitions[0].0.pending_workspace.is_some());
+        assert!(!transitions[0].1);
+        assert_eq!(
+            service.state().pending_workspace.unwrap().path,
+            "/work/current"
+        );
+        assert_eq!(snapshot, Some(empty_snapshot()));
+    }
+
+    #[test]
+    fn switch_orchestration_replaces_snapshot_only_after_durable_commit() {
+        let runner = FakeRunner::with_outputs(switch_command_outputs("/work/b"));
+        let mut service = WorkspaceService::from_store(FakeStore::with_saves([
+            Ok(()),
+            Err("disk full".to_string()),
+        ]));
+        let original_snapshot = empty_snapshot();
+        let mut snapshot = Some(original_snapshot.clone());
+        let mut transitions = Vec::new();
+
+        let error = execute_switch_workspace(
+            &mut service,
+            &mut snapshot,
+            &runner,
+            PathBuf::from("/work/b"),
+            &mut |state, issue_data| transitions.push((state, issue_data.is_some())),
+        )
+        .expect_err("final save should fail");
+
+        assert_eq!(error.kind, WorkspaceErrorKind::StoreSaveFailed);
+        assert_eq!(snapshot, Some(original_snapshot));
+        assert_eq!(transitions.len(), 2);
+        assert!(!transitions[0].1);
+        assert!(!transitions[1].1);
+        assert!(transitions[1].0.current_workspace.is_none());
     }
 
     fn state_with_current(path: &str) -> WorkspaceState {

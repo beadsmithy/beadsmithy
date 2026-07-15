@@ -1,6 +1,7 @@
 import { FolderOpen, RotateCcw, Trash2, X } from "lucide-react";
 
 import type { Workspace, WorkspaceState } from "../rpc/bindings";
+import { isRetryableSwitchFailureKind } from "../workspace-switch-failure";
 
 export const workspaceBasename = (path: string): string => {
   const trimmed = path.replace(/[\\/]+$/u, "");
@@ -29,13 +30,6 @@ export const pickerDefaultPath = (
  * full-screen Recovery panel rather than a switch-time banner. */
 const isCatalogStorageFailure = (kind: string | undefined): boolean =>
   kind === "storeReadFailed";
-
-/** Errors that surface a dismissible Retry banner for a switch attempt.
- * Validation/git-root failures render inline because they happen before any
- * Current commitment; these happen after a committed catalog retain and are
- * retryable on the same known target. */
-const isSwitchRetryableFailure = (kind: string | undefined): boolean =>
-  kind === "loadFailed" || kind === "storeSaveFailed";
 
 const WorkspaceEntry = ({
   current,
@@ -332,7 +326,7 @@ const deriveSelectorState = (input: {
   const error = input.state?.error;
   const errorKind = error?.kind;
   const storageFailure = isCatalogStorageFailure(errorKind);
-  const switchFailure = isSwitchRetryableFailure(errorKind);
+  const switchFailure = isRetryableSwitchFailureKind(errorKind);
   const showSwitchBanner =
     !storageFailure &&
     switchFailure &&
