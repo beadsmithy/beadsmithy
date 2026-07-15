@@ -20,11 +20,15 @@
     {
       "text": "## Dependency Reassessment — 2026-07-15\n\nRemoved `bsm-kia.5 blocks bsm-al6` after checking the actual child scope and code territory. `bsm-kia.5` is a final Workspace WebDriver/documentation consolidation task; it does not create a settings runtime, navigation interface, persistence capability, or renderer contract needed by this epic. `bsm-kia.6` explicitly describes optional cleanup and is also not a prerequisite.\n\nClosed Workspace children already provide the only behavior used by Settings: Workspace Catalog persistence/restoration (`bsm-kia.2`/`.3`) and the current App shell. Closed `.4`/`.7` may still land overlapping edits in `App.tsx`, `rpc.rs`, generated bindings, and E2E harness files, but ordinary branch/rebase conflict risk is not a semantic dependency. The correct graph therefore begins with `bsm-al6.1` and `.2` in parallel.",
       "timestamp": "2026-07-15T17:39:43Z"
+    },
+    {
+      "text": "## Additional Open Workspace Children — 2026-07-15\n\nA post-sync review found three newer open `bsm-kia` children; none is a prerequisite:\n\n- `bsm-kia.8` only reorganizes existing `App` workspace-transition tests without changing behavior or interfaces. Settings tests may land before or after and resolve ordinary test-file conflicts.\n- `bsm-kia.9` adopts native structured logging. App Settings can use the logging policy if already landed, but logging is not required for persistence, RPC, UI, or acceptance semantics.\n- `bsm-kia.10` researches Workspace startup/cancel/stale-error behavior. Its startup-restoration outcome may alter ordering in `App`, but Settings is explicitly required to load independently of Workspace state and therefore must work with either synchronous or asynchronous Workspace restoration. That makes the spike a compatibility consideration, not a blocker.\n\nNo dependency edges were added.",
+      "timestamp": "2026-07-15T17:40:18Z"
     }
   ],
   "priority": 2,
   "status": "open",
   "title": "Add app-wide Markdown typography settings",
   "type": "epic",
-  "updated_at": "2026-07-15T17:39:43Z"
+  "updated_at": "2026-07-15T17:40:18Z"
 }
