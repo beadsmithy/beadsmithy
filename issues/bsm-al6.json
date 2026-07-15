@@ -1,5 +1,5 @@
 {
-  "assignee": "",
+  "assignee": "Tomas Thor Jonsson",
   "blocked_by": [],
   "blocks": [],
   "created": "2026-07-15T11:16:31Z",
@@ -27,8 +27,8 @@
     }
   ],
   "priority": 2,
-  "status": "open",
+  "status": "in_progress",
   "title": "Add app-wide Markdown typography settings",
   "type": "epic",
-  "updated_at": "2026-07-15T17:40:18Z"
+  "updated_at": "2026-07-15T22:41:44Z"
 }
