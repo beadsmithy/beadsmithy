@@ -1,0 +1,15 @@
+{
+  "assignee": "",
+  "blocked_by": [],
+  "blocks": [],
+  "created": "2026-07-15T11:16:32Z",
+  "description": "## Parent\n\nParent epic: Markdown typography settings.\n\n## Dependency\n\nRequires the integrated Settings page.\n\n## Background\n\nUnit and component tests can prove individual seams, but the user-visible promise crosses React, generated TauRPC, Rust persistence, the Tauri store plugin, shared Markdown rendering, and app restart. The project uses real desktop WebDriver acceptance tests for complete user paths.\n\n## What to Build\n\nAdd an isolated Settings desktop acceptance scenario using the existing real built Tauri/WebDriver approach. Launch against a disposable Workspace and explicit temporary settings-store path so the scenario cannot read or overwrite a developer's preferences.\n\nThe scenario should open Settings, enter a valid non-default size, observe the input and representative preview update, return to an Issue with Markdown, and prove the rendered description uses the new size. Restart the app with the same isolated store and prove the input and Issue Markdown restore the persisted value.\n\nInclude focused invalid-input coverage only if it remains reliable at the real-desktop seam; component tests remain the primary home for the full validation matrix.\n\n## Acceptance Criteria\n\n- [ ] The scenario drives the real built desktop app, not a renderer-only page.\n- [ ] The test uses an isolated settings-store path and disposable Workspace.\n- [ ] A direct numeric change updates the live preview.\n- [ ] The same change applies to rendered Issue Markdown.\n- [ ] Restarting with the same isolated store restores the value and rendered size.\n- [ ] The test does not mutate developer settings or Workspace memory.\n- [ ] The command and fixture behavior are documented alongside existing desktop acceptance guidance.\n- [ ] The focused Settings desktop acceptance command passes.\n\n## Out of Scope\n\n- Exhaustive invalid-input cases at the desktop seam.\n- Visual snapshot testing across every supported size.\n- Font-family settings.\n\n## Triage\n\nready-for-agent",
+  "id": "bsm-al6.4",
+  "labels": [],
+  "parent": "bsm-al6",
+  "priority": 2,
+  "status": "open",
+  "title": "Prove Markdown settings through real desktop acceptance",
+  "type": "task",
+  "updated_at": "2026-07-15T11:16:32Z"
+}
