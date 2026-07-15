@@ -1,5 +1,5 @@
 {
-  "assignee": "",
+  "assignee": "Devin AI",
   "blocked_by": [],
   "blocks": [
     "bsm-kia.6"
@@ -16,8 +16,8 @@
     }
   ],
   "priority": 3,
-  "status": "open",
+  "status": "in_progress",
   "title": "Split App workspace transition tests by behavior",
   "type": "task",
-  "updated_at": "2026-07-15T22:32:46Z"
+  "updated_at": "2026-07-15T23:10:37Z"
 }
