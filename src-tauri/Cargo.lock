@@ -3494,6 +3494,7 @@ checksum = "ab7f01e9310a820edd31c80fde3cae445295adde21a3f9416517d7d65015b971"
 dependencies = [
  "ctor 0.2.9",
  "paste",
+ "serde_json",
  "specta-macros",
  "thiserror 1.0.69",
 ]

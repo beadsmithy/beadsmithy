@@ -14,7 +14,8 @@ use tauri::Emitter;
 use crate::issues::CommandRunner;
 use crate::issues::{self, ListIssuesError, ProcessRunner};
 use crate::settings::{
-    AppSettings, AppSettingsError, AppSettingsState, SettingsService, TauriAppSettingsStore,
+    AppSettings, AppSettingsError, AppSettingsState, AppSettingsUpdate, SettingsService,
+    TauriAppSettingsStore,
 };
 use crate::workspace::{
     load_issue_explorer_data, validate_workspace, IssueExplorerData, TauriWorkspaceStore,
@@ -195,7 +196,9 @@ pub trait BeadsmithApi {
     async fn reset_workspace_memory() -> Result<WorkspaceState, WorkspaceError>;
     async fn cancel_workspace() -> WorkspaceCancelResponse;
     async fn app_settings_state() -> AppSettingsState;
-    async fn update_app_settings(settings: AppSettings) -> Result<AppSettings, AppSettingsError>;
+    async fn update_app_settings(
+        settings: AppSettingsUpdate,
+    ) -> Result<AppSettings, AppSettingsError>;
 }
 
 /// Resolver implementation for Beadsmith's application RPC surface.
@@ -519,8 +522,9 @@ impl BeadsmithApi for BeadsmithApiImpl {
 
     async fn update_app_settings(
         self,
-        settings: AppSettings,
+        settings: AppSettingsUpdate,
     ) -> Result<AppSettings, AppSettingsError> {
+        let settings = settings.validate()?;
         self.with_settings(|service| service.update(settings))
     }
 }
@@ -1228,7 +1232,12 @@ mod tests {
                 "missing app settings RPC {method}"
             );
         }
-        for type_name in ["AppSettings", "AppSettingsState", "AppSettingsError"] {
+        for type_name in [
+            "AppSettings",
+            "AppSettingsUpdate",
+            "AppSettingsState",
+            "AppSettingsError",
+        ] {
             assert!(
                 bindings.contains(type_name),
                 "missing app settings type {type_name}"

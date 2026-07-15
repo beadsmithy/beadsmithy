@@ -26,6 +26,14 @@ export type AppSettingsErrorKind = "invalidValue" | "malformed" | "unsupportedVe
  */
 export type AppSettingsState = { settings: AppSettings; warning: AppSettingsWarning | null }
 
+/**
+ * Loose request representation for `update_app_settings`. It accepts any JSON
+ * type for `fontSizePx` so the service validator can return the typed
+ * `AppSettingsError` for fractional, out-of-range, and wrong-type input instead
+ * of leaving callers with an argument-decoding failure.
+ */
+export type AppSettingsUpdate = { markdown: MarkdownSettingsUpdate }
+
 export type AppSettingsWarning = { kind: AppSettingsErrorKind; message: string }
 
 /**
@@ -52,6 +60,8 @@ kind: IssueListErrorKind; message: string }
  */
 export type IssueListErrorKind = "missingBinary" | "notBeadworkWorkspace" | "commandFailed" | "parseFailed" | "executionFailed"
 
+export type JsonValue = null | boolean | number | string | JsonValue[] | Partial<{ [key in string]: JsonValue }>
+
 /**
  * Successful issue-list RPC payload.
  */
@@ -63,6 +73,8 @@ export type ListIssuesResponse = { workspacePath: string; issues: Issue[] }
 export type LoadIssueExplorerDataResponse = { workspacePath: string; allIssues: Issue[]; readyIssues: Issue[]; blockedIssues: Issue[] }
 
 export type MarkdownSettings = { fontSizePx: number }
+
+export type MarkdownSettingsUpdate = { fontSizePx: JsonValue }
 
 /**
  * A workspace known to Beadsmith, represented by its Git root.
@@ -136,7 +148,7 @@ remove_workspace: (path: string) => Promise<WorkspaceState>,
 reset_workspace_memory: () => Promise<WorkspaceState>,
 retry_workspace_memory: () => Promise<WorkspaceRetryMemoryResponse>,
 switch_workspace: (candidatePath: string) => Promise<WorkspaceSwitchResponse>,
-update_app_settings: (settings: AppSettings) => Promise<AppSettings>,
+update_app_settings: (settings: AppSettingsUpdate) => Promise<AppSettings>,
 workspace_state: () => Promise<WorkspaceState>},
 "devBridge": {result: (id: string, value: string) => Promise<void>} };
 

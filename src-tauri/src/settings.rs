@@ -45,6 +45,31 @@ impl Default for MarkdownSettings {
     }
 }
 
+/// Loose request representation for `update_app_settings`. It accepts any JSON
+/// type for `fontSizePx` so the service validator can return the typed
+/// `AppSettingsError` for fractional, out-of-range, and wrong-type input instead
+/// of leaving callers with an argument-decoding failure.
+#[derive(Debug, Clone, Serialize, Deserialize, specta::Type)]
+#[serde(rename_all = "camelCase")]
+pub struct AppSettingsUpdate {
+    pub markdown: MarkdownSettingsUpdate,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, specta::Type)]
+#[serde(rename_all = "camelCase")]
+pub struct MarkdownSettingsUpdate {
+    pub font_size_px: serde_json::Value,
+}
+
+impl AppSettingsUpdate {
+    pub fn validate(self) -> Result<AppSettings, AppSettingsError> {
+        let font_size_px = validate_font_size_value(&self.markdown.font_size_px)?;
+        Ok(AppSettings {
+            markdown: MarkdownSettings { font_size_px },
+        })
+    }
+}
+
 /// Settings plus an optional load warning so the UI can fall back and offer repair.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, specta::Type)]
 #[serde(rename_all = "camelCase")]
@@ -213,17 +238,39 @@ impl<S: AppSettingsStore> SettingsService<S> {
     }
 }
 
-fn validate_app_settings(settings: &AppSettings) -> Option<AppSettingsError> {
-    if (MIN_FONT_SIZE_PX..=MAX_FONT_SIZE_PX).contains(&settings.markdown.font_size_px) {
-        return None;
+fn validate_font_size_value(value: &serde_json::Value) -> Result<u32, AppSettingsError> {
+    let Some(font_size) = value.as_u64() else {
+        return Err(AppSettingsError::new(
+            AppSettingsErrorKind::InvalidValue,
+            format!(
+                "Font size must be a whole number from {MIN_FONT_SIZE_PX} to {MAX_FONT_SIZE_PX} px."
+            ),
+        ));
+    };
+
+    let Ok(font_size) = u32::try_from(font_size) else {
+        return Err(AppSettingsError::new(
+            AppSettingsErrorKind::InvalidValue,
+            format!(
+                "Font size must be a whole number from {MIN_FONT_SIZE_PX} to {MAX_FONT_SIZE_PX} px."
+            ),
+        ));
+    };
+
+    if !(MIN_FONT_SIZE_PX..=MAX_FONT_SIZE_PX).contains(&font_size) {
+        return Err(AppSettingsError::new(
+            AppSettingsErrorKind::InvalidValue,
+            format!(
+                "Font size must be a whole number from {MIN_FONT_SIZE_PX} to {MAX_FONT_SIZE_PX} px."
+            ),
+        ));
     }
 
-    Some(AppSettingsError::new(
-        AppSettingsErrorKind::InvalidValue,
-        format!(
-            "Font size must be a whole number from {MIN_FONT_SIZE_PX} to {MAX_FONT_SIZE_PX} px."
-        ),
-    ))
+    Ok(font_size)
+}
+
+fn validate_app_settings(settings: &AppSettings) -> Option<AppSettingsError> {
+    validate_font_size_value(&serde_json::json!(settings.markdown.font_size_px)).err()
 }
 
 fn parse_persisted_document(value: serde_json::Value) -> Result<AppSettings, AppSettingsWarning> {
@@ -290,28 +337,8 @@ fn parse_persisted_document(value: serde_json::Value) -> Result<AppSettings, App
         ));
     };
 
-    let Some(font_size) = font_size.as_u64() else {
-        return Err(AppSettingsWarning::new(
-            AppSettingsErrorKind::InvalidValue,
-            "Saved Markdown font size must be a whole number.",
-        ));
-    };
-
-    let Ok(font_size) = u32::try_from(font_size) else {
-        return Err(AppSettingsWarning::new(
-            AppSettingsErrorKind::InvalidValue,
-            "Saved Markdown font size is out of range.",
-        ));
-    };
-
-    if !(MIN_FONT_SIZE_PX..=MAX_FONT_SIZE_PX).contains(&font_size) {
-        return Err(AppSettingsWarning::new(
-            AppSettingsErrorKind::InvalidValue,
-            format!(
-                "Saved Markdown font size must be between {MIN_FONT_SIZE_PX} and {MAX_FONT_SIZE_PX} px."
-            ),
-        ));
-    }
+    let font_size = validate_font_size_value(font_size)
+        .map_err(|error| AppSettingsWarning::new(error.kind, format!("Saved {}", error.message)))?;
 
     Ok(AppSettings {
         markdown: MarkdownSettings {
@@ -324,17 +351,24 @@ fn parse_persisted_document(value: serde_json::Value) -> Result<AppSettings, App
 /// cannot collide with Workspace Catalog data.
 pub struct TauriAppSettingsStore<R: tauri::Runtime> {
     app: tauri::AppHandle<R>,
+    store_path: PathBuf,
 }
 
 impl<R: tauri::Runtime> TauriAppSettingsStore<R> {
     pub fn new(app: tauri::AppHandle<R>) -> Self {
-        Self { app }
+        let store_path = std::env::var_os("BEADSMITH_SETTINGS_STORE_PATH")
+            .map(PathBuf::from)
+            .unwrap_or_else(|| PathBuf::from("app-settings.json"));
+        Self { app, store_path }
+    }
+
+    #[cfg(test)]
+    fn new_with_path(app: tauri::AppHandle<R>, store_path: PathBuf) -> Self {
+        Self { app, store_path }
     }
 
     fn store_path(&self) -> PathBuf {
-        std::env::var_os("BEADSMITH_SETTINGS_STORE_PATH")
-            .map(PathBuf::from)
-            .unwrap_or_else(|| PathBuf::from("app-settings.json"))
+        self.store_path.clone()
     }
 
     fn store(&self) -> Result<std::sync::Arc<tauri_plugin_store::Store<R>>, String> {
@@ -360,6 +394,20 @@ impl<R: tauri::Runtime> TauriAppSettingsStore<R> {
 
 impl<R: tauri::Runtime> AppSettingsStore for TauriAppSettingsStore<R> {
     fn load(&self) -> Result<Option<serde_json::Value>, String> {
+        let path = self.resolved_path()?;
+
+        if !path.exists() {
+            return Ok(None);
+        }
+
+        // tauri-plugin-store silently discards file-read and JSON-deserialization
+        // errors and returns an empty store. Preflight the file so corrupt or
+        // unreadable persisted state is reported as a typed load warning and can
+        // be repaired by a deliberate valid update.
+        let contents = std::fs::read_to_string(&path).map_err(|error| error.to_string())?;
+        let _: serde_json::Value =
+            serde_json::from_str(&contents).map_err(|error| error.to_string())?;
+
         let store = self.store()?;
         Ok(store.get(APP_SETTINGS_STORE_KEY))
     }
@@ -496,6 +544,14 @@ mod tests {
                 }
             }
         })
+    }
+
+    fn update_request_with_font_size(value: impl Into<serde_json::Value>) -> AppSettingsUpdate {
+        AppSettingsUpdate {
+            markdown: MarkdownSettingsUpdate {
+                font_size_px: value.into(),
+            },
+        }
     }
 
     #[test]
@@ -692,5 +748,81 @@ mod tests {
         assert_eq!(saved.len(), 1);
         assert_eq!(saved[0].schema_version, APP_SETTINGS_SCHEMA_VERSION);
         assert_eq!(saved[0].settings.markdown.font_size_px, 24);
+    }
+
+    #[test]
+    fn update_request_accepts_any_json_type_and_validates() {
+        let valid: Vec<serde_json::Value> = vec![
+            serde_json::json!(8),
+            serde_json::json!(14),
+            serde_json::json!(72),
+        ];
+        for value in valid {
+            let request = update_request_with_font_size(value);
+            let settings = request.validate().unwrap();
+            assert!(validate_app_settings(&settings).is_none());
+        }
+
+        let invalid: Vec<serde_json::Value> = vec![
+            serde_json::json!(MIN_FONT_SIZE_PX - 1),
+            serde_json::json!(MAX_FONT_SIZE_PX + 1),
+            serde_json::json!(14.5),
+            serde_json::json!("14"),
+            serde_json::json!(true),
+            serde_json::json!(serde_json::Value::Null),
+        ];
+        for value in invalid {
+            let request = update_request_with_font_size(value);
+            let error = request.validate().unwrap_err();
+            assert_eq!(error.kind, AppSettingsErrorKind::InvalidValue);
+        }
+    }
+
+    #[test]
+    fn tauri_store_detects_malformed_whole_file() {
+        let dir = std::env::temp_dir().join(uuid::Uuid::new_v4().to_string());
+        std::fs::create_dir_all(&dir).unwrap();
+        let path = dir.join("app-settings.json");
+        std::fs::write(&path, "not valid json").unwrap();
+
+        let app = tauri::test::mock_app();
+        let store = TauriAppSettingsStore::new_with_path(app.handle().clone(), path);
+
+        assert!(
+            store.load().is_err(),
+            "expected malformed file to be rejected"
+        );
+
+        let service = SettingsService::from_store(store);
+        let warning = service.state().warning.expect("expected a warning");
+        assert_eq!(warning.kind, AppSettingsErrorKind::StoreReadFailed);
+
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    #[test]
+    fn tauri_store_loads_and_saves_valid_file() {
+        let app = tauri::test::mock_builder()
+            .plugin(tauri_plugin_store::Builder::default().build())
+            .build(tauri::test::mock_context(tauri::test::noop_assets()))
+            .unwrap();
+
+        let dir = std::env::temp_dir().join(uuid::Uuid::new_v4().to_string());
+        std::fs::create_dir_all(&dir).unwrap();
+        let path = dir.join("app-settings.json");
+
+        let store = TauriAppSettingsStore::new_with_path(app.handle().clone(), path.clone());
+        let settings = settings_with_font_size(24);
+        store
+            .save(&AppSettingsEnvelope::new(settings.clone()))
+            .unwrap();
+
+        let store = TauriAppSettingsStore::new_with_path(app.handle().clone(), path);
+        let loaded = SettingsService::from_store(store);
+
+        assert_eq!(loaded.state().settings, settings);
+        assert!(loaded.state().warning.is_none());
+
+        let _ = std::fs::remove_dir_all(&dir);
     }
 }
