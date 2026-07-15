@@ -14,9 +14,15 @@
     "ready-for-agent"
   ],
   "parent": "bsm-al6",
+  "comments": [
+    {
+      "text": "## UX and State Review Rationale — 2026-07-15\n\nThis child carries the largest amount of detail because the easy-looking number field hides three independent timelines: what the user is typing, what the app is currently rendering, and what the backend has confirmed. Keeping explicit draft/applied/confirmed values prevents invalid text, save failure, or late completion from corrupting another timeline.\n\nImmediate preview does not imply concurrent fire-and-forget persistence. The required save queue may coalesce intermediate values, but it must eventually save the newest intent and only show Saved when that exact value is confirmed. This is the local-settings equivalent of the generation/race discipline already learned in Workspace switching.\n\nOn save failure the newest valid size remains active for the session. Reverting would punish the user and make the preview jump; silently retaining it as if durable would mislead. The page therefore says the value is active but not saved, and Retry always targets the newest applied value.\n\nSettings is explicitly usable with no Current Workspace because it is application presentation state. It remains the active app destination during a Workspace switch. Same-Workspace visits preserve Issue Search, selection, and scroll; a confirmed new Current Workspace still resets those workspace-scoped values. Pending or failed switches do not. This distinction prevents both unwanted context loss and cross-Workspace leakage.\n\nCurrent-page semantics were clarified so assistive technology does not hear both Settings and an Issue List View as active. The remembered Issue List View remains state, and clicking any view is the return mechanism.\n\nThe Settings page should be compact, not visually overbuilt. The representative preview exists to evaluate prose and monospace together and must reuse `MarkdownContent`; it is not a second demo renderer. Saving/Saved feedback should be visually available without announcing every keypress, while validation and failure remain clearly associated and persistent.\n\nKeeping this as one child is intentional. A page-only bead would have to invent temporary persistence props, while a state-only bead would land an unused interface. The implementation should still create a deep focused settings state module so `App` stays composition rather than a collection of save-race callbacks.",
+      "timestamp": "2026-07-15T11:58:32Z"
+    }
+  ],
   "priority": 2,
   "status": "open",
   "title": "Add the Settings page and Markdown size input",
   "type": "task",
-  "updated_at": "2026-07-15T11:56:43Z"
+  "updated_at": "2026-07-15T11:58:32Z"
 }
