@@ -1,0 +1,50 @@
+src/App.tsx
+  s_a9fcb933fedd4f::t_05f5d5eb7d23e9 136,138-140,194-197,233
+  s_a9fcb933fedd4f::t_8b0e265f519c23 234-235
+  s_a9fcb933fedd4f::t_ca13a3aae07133 42
+src/components/WorkspaceSelector.test.tsx
+  s_a9fcb933fedd4f::t_ae5a4ec235ddb4 20,24,29-31,38,43-45
+src/App.test.tsx
+  s_a9fcb933fedd4f::t_0d38d01c49176f 1089-1169
+  s_a9fcb933fedd4f::t_3a9d1fe1f502bb 994,1088
+src/components/WorkspaceSelector.tsx
+  s_a9fcb933fedd4f::t_b551d4a2cee6c5 4,329
+src/workspace-switch-failure.ts
+  s_a9fcb933fedd4f::t_5bc64a3cabe231 1-7
+src-tauri/src/rpc.rs
+  s_a9fcb933fedd4f::t_329d67dcec96cb 363-372
+  s_a9fcb933fedd4f::t_837b489dcb7d9d 1211-1251
+  s_a9fcb933fedd4f::t_278732dd75e756 252-255
+  s_a9fcb933fedd4f::t_ce9c5a21859d46 56-161
+  s_a9fcb933fedd4f::t_877b082f802df7 373,1253-1256,1265-1357
+  s_a9fcb933fedd4f::t_142ed58c253fc7 242-251
+  s_a9fcb933fedd4f::t_7aa6e92dc17055 317-323
+  s_71755f611a482c::t_009cae5d2be259 13-14,19,162-165,324-325,329,374-376,1252,1358-1365
+src-tauri/src/workspace.rs
+  s_a9fcb933fedd4f::t_291ee66cc7a738 296-299,303-304,309-312,316-317
+  s_a9fcb933fedd4f::t_0f9b30d94086d4 509-511,513-527
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.14",
+  "base_commit_sha": "cdb1f7d2539ece1e1a411f21e737f649e1062aa0",
+  "prompts": {},
+  "sessions": {
+    "s_71755f611a482c": {
+      "agent_id": {
+        "tool": "pi",
+        "id": "019f5fd1-22cb-7e32-9115-b919b3632471",
+        "model": "gpt-5.6-terra"
+      },
+      "human_author": "Tomas Thor Jonsson <benregn@gmail.com>"
+    },
+    "s_a9fcb933fedd4f": {
+      "agent_id": {
+        "tool": "pi",
+        "id": "019f6664-be6f-70f9-a1a9-2fb5cf65d9b7",
+        "model": "gpt-5.6-terra"
+      },
+      "human_author": "Tomas Thor Jonsson <benregn@gmail.com>"
+    }
+  }
+}
