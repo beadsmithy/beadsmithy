@@ -2,14 +2,15 @@
   "assignee": "Tomas Thor Jonsson",
   "blocked_by": [],
   "blocks": [],
+  "closed_at": "2026-07-15T15:59:56Z",
   "created": "2026-07-15T15:28:10Z",
   "description": "## Goal\n\nAdd fast, deterministic tests at the Rust RPC orchestration seam and apply the small transition/UI cleanups identified in review.\n\n## Required implementation\n\n- Make `switch_workspace` orchestration testable with controllable command execution and transition capture. Prove Pending publishes before commands run, stale completion emits no failure/success transition, and snapshot changes only with a durable commit. Reuse or carefully consolidate `FakeStore`/`FakeRunner` test support only where it reduces real duplication; do not force a broad test framework rewrite.\n- Centralize the TypeScript retryable switch-failure classification used by `App` and `WorkspaceSelector`.\n- Improve the `fail_switch_request`/`WorkspaceService::fail_request` collaboration if a clearer return shape can eliminate duplicated current-generation reasoning without changing stale-result semantics.\n- Add regression coverage for delayed same-generation Pending after both retryable and non-retryable failures; preserve the intended inline/banner presentation.\n- Normalize newly touched Rust test names to one descriptive style.\n- Add a focused test for `pickerDefaultPath` when no Current Workspace exists but the MRU catalog has available/unavailable entries.\n\n## Constraints\n\nKeep `WorkspaceService` as the durable state-machine seam. Do not implement the renderer reducer in `bsm-kia.6` here. Do not add test-only production hooks or fragile timing-dependent desktop tests.\n\n## Validation\n\nRun Rust tests/check/fmt, `pnpm test`, TypeScript checking, scoped Ultracite, and the affected desktop suite if transport behavior changes.",
   "id": "bsm-kia.11",
   "labels": [],
   "parent": "bsm-kia",
   "priority": 1,
-  "status": "in_progress",
+  "status": "closed",
   "title": "Harden workspace transition orchestration tests",
   "type": "task",
-  "updated_at": "2026-07-15T15:28:15Z"
+  "updated_at": "2026-07-15T15:59:56Z"
 }
