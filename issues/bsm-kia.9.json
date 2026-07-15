@@ -2,6 +2,7 @@
   "assignee": "Devin AI",
   "blocked_by": [],
   "blocks": [],
+  "closed_at": "2026-07-15T23:05:14Z",
   "created": "2026-07-15T15:28:10Z",
   "description": "## Goal\n\nReplace ad hoc Tauri-side stderr reporting with the official Tauri v2 logging plugin and establish a small, consistent native logging policy.\n\n## Background\n\n`src-tauri/src/rpc.rs` currently uses `eprintln!` when workspace-transition event emission fails. As workspace lifecycle work adds asynchronous failure paths, structured native logs improve diagnosis without requiring console output conventions to spread.\n\n## Required reference\n\nUse the official Tauri v2 logging plugin documentation and setup guidance: https://v2.tauri.app/plugin/logging/.\n\n## Scope\n\n- Add/configure the official plugin following its documented Rust and frontend/capability setup as applicable.\n- Replace the transition-event `eprintln!` with the appropriate structured log call.\n- Audit nearby native logging only; do not perform a repo-wide unrelated logging rewrite.\n- Document chosen targets/levels and log destination behavior where the configuration lives.\n\n## Acceptance criteria\n\n- The app initializes the official plugin correctly in debug and release configurations.\n- Failed transition emission is logged with useful context at an appropriate level.\n- No user-facing workspace behavior changes.\n- Rust checks/tests and relevant desktop launch coverage pass.",
   "id": "bsm-kia.9",
@@ -14,7 +15,7 @@
     }
   ],
   "priority": 3,
-  "status": "in_progress",
+  "status": "closed",
   "title": "Adopt Tauri logging plugin",
   "type": "task",
   "updated_at": "2026-07-15T23:05:14Z"
