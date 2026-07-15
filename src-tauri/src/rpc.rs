@@ -52,8 +52,29 @@ fn emit_transition(
     issue_data: Option<LoadIssueExplorerDataResponse>,
 ) {
     let transition = WorkspaceTransition { state, issue_data };
+    let generation = transition.state.generation;
+    let current_workspace = transition
+        .state
+        .current_workspace
+        .as_ref()
+        .map(|workspace| workspace.path.clone());
+    let pending_workspace = transition
+        .state
+        .pending_workspace
+        .as_ref()
+        .map(|workspace| workspace.path.clone());
+    let has_issue_data = transition.issue_data.is_some();
     if let Err(error) = app.emit(WORKSPACE_TRANSITION_EVENT, transition) {
-        eprintln!("Beadsmith: failed to emit workspace transition: {error}");
+        log::error!(
+            target: "beadsmith::workspace",
+            "failed to emit `{}` transition (generation={}, current={:?}, pending={:?}, issue_data={}): {}",
+            WORKSPACE_TRANSITION_EVENT,
+            generation,
+            current_workspace,
+            pending_workspace,
+            has_issue_data,
+            error,
+        );
     }
 }
 
