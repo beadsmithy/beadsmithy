@@ -11,9 +11,15 @@
     "ready-for-agent"
   ],
   "parent": "bsm-al6",
+  "comments": [
+    {
+      "text": "## Design Review Rationale — 2026-07-15\n\nThe renderer child now records the current computed hierarchy instead of merely saying proportional. That gives the implementer a compatibility target: 14px must remain visually unchanged while other values scale from one article-level base.\n\nThe important trap is nested relative sizing. Inline code should remain about 0.85em of surrounding prose, but fenced code must not receive one ratio on `pre` and another on nested `code`. Table headers and task-list labels also need explicit review because their current sizes/inheritance differ from ordinary paragraphs.\n\nLine height is part of usable font scaling even though the preference is named font size. Keeping `leading-6` as fixed 24px would clip or crowd 72px prose, so proportional/unitless line heights are required. Padding and spacing remain fixed by default because this is not general UI scaling; only demonstrated clipping may justify a narrow correction.\n\nThe base belongs at the shared Markdown article seam. That produces leverage across descriptions, comments, and preview and preserves one safety implementation. A preview-only renderer or per-element props would be shallow and likely drift in HTML/link/GFM behavior.\n\nThe widened 8-72 range expands accessibility without changing the default. Component tests own ratio and safety detail; desktop acceptance only samples computed styles in the assembled app.",
+      "timestamp": "2026-07-15T11:58:17Z"
+    }
+  ],
   "priority": 2,
   "status": "open",
   "title": "Make Markdown typography scale from a configurable base size",
   "type": "task",
-  "updated_at": "2026-07-15T11:55:22Z"
+  "updated_at": "2026-07-15T11:58:17Z"
 }
