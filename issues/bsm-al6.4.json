@@ -15,11 +15,15 @@
     {
       "text": "## Acceptance Review Rationale — 2026-07-15\n\nThe original wording said restart, but the current harness commonly uses `browser.refresh()` after direct typed state setup. That only reloads React inside the same native process and cannot prove durable App Settings restoration. This child now requires two explicit built-app launches sharing the same temporary Settings path.\n\nThe first launch must set the value through the visible control and wait for actual Saved status before exit. The second launch must observe the value without typing it again. This catches missing `store.save`, wrong app-data resolution, stale generated bindings, startup-load ordering, and renderer propagation bugs that layer tests cannot.\n\nWorkspace Catalog and App Settings paths are separate because the feature promises app-wide independence. The scenario may configure paths but must not hand-edit files; otherwise it would bypass the exact serialization/repair interface under test.\n\nComputed CSS on preview, description, and comment is the meaningful assertion. Input value alone proves form state, not that the shared renderer received the setting. A representative non-Markdown element is checked to prevent accidental global body scaling.\n\nThe invalid-input matrix remains in frontend tests. One desktop invalid case is optional because native number-input keystroke normalization varies and should not destabilize the higher-value two-launch proof.\n\nIf one WDIO service invocation cannot restart cleanly, run two WDIO invocations from the scenario runner with shared temporary paths. The harness must adapt; the acceptance promise must not be reduced.",
       "timestamp": "2026-07-15T11:58:39Z"
+    },
+    {
+      "text": "## Second-Launch Strengthening — 2026-07-15\n\nThe second process must restore the disposable Current Workspace from the shared isolated Workspace Catalog rather than invoking `switch_workspace` again. Re-seeding would still prove App Settings persistence, but it would weaken the composed restart story and hide startup-order interactions between Workspace restoration, Settings loading, and first Markdown render. The parent epic waits for `bsm-kia.5`, so normal restoration is a valid prerequisite rather than optional setup.",
+      "timestamp": "2026-07-15T12:01:07Z"
     }
   ],
   "priority": 2,
   "status": "open",
   "title": "Prove Markdown settings through real desktop acceptance",
   "type": "task",
-  "updated_at": "2026-07-15T12:00:56Z"
+  "updated_at": "2026-07-15T12:01:07Z"
 }
