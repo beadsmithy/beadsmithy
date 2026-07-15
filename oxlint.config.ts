@@ -24,6 +24,12 @@ export default defineConfig({
         ],
       },
     },
+    {
+      files: ["src/rpc/bindings.ts"],
+      rules: {
+        "typescript/consistent-indexed-object-style": "off",
+      },
+    },
   ],
   plugins: ["react", "react-perf"],
   rules: {

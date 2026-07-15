@@ -7,6 +7,36 @@ type TAURI_CHANNEL<T> = (response: T) => void
 
 
 /**
+ * User-facing Beadsmith settings.
+ */
+export type AppSettings = { markdown: MarkdownSettings }
+
+/**
+ * A typed update failure returned through the RPC boundary.
+ */
+export type AppSettingsError = { kind: AppSettingsErrorKind; message: string }
+
+/**
+ * Shared machine-readable category for load warnings and update errors.
+ */
+export type AppSettingsErrorKind = "invalidValue" | "malformed" | "unsupportedVersion" | "storeReadFailed" | "storeSaveFailed"
+
+/**
+ * Settings plus an optional load warning so the UI can fall back and offer repair.
+ */
+export type AppSettingsState = { settings: AppSettings; warning: AppSettingsWarning | null }
+
+/**
+ * Loose request representation for `update_app_settings`. It accepts any JSON
+ * type for `fontSizePx` so the service validator can return the typed
+ * `AppSettingsError` for fractional, out-of-range, and wrong-type input instead
+ * of leaving callers with an argument-decoding failure.
+ */
+export type AppSettingsUpdate = { markdown: MarkdownSettingsUpdate }
+
+export type AppSettingsWarning = { kind: AppSettingsErrorKind; message: string }
+
+/**
  * Frontend-facing Issue contract for rendering the Issue List and future Issue Detail.
  */
 export type Issue = { id: string; title: string; status: string; priority: number; type: string; description: string; comments: IssueComment[]; closeReason: string; assignee: string; labels: string[]; parent: string; blockedBy: string[]; blocks: string[]; created: string; updatedAt: string; closedAt: string; deferUntil: string; due: string }
@@ -30,6 +60,8 @@ kind: IssueListErrorKind; message: string }
  */
 export type IssueListErrorKind = "missingBinary" | "notBeadworkWorkspace" | "commandFailed" | "parseFailed" | "executionFailed"
 
+export type JsonValue = null | boolean | number | string | JsonValue[] | Partial<{ [key in string]: JsonValue }>
+
 /**
  * Successful issue-list RPC payload.
  */
@@ -39,6 +71,10 @@ export type ListIssuesResponse = { workspacePath: string; issues: Issue[] }
  * Successful Issue Explorer RPC payload containing Beadwork-authored base views.
  */
 export type LoadIssueExplorerDataResponse = { workspacePath: string; allIssues: Issue[]; readyIssues: Issue[]; blockedIssues: Issue[] }
+
+export type MarkdownSettings = { fontSizePx: number }
+
+export type MarkdownSettingsUpdate = { fontSizePx: JsonValue }
 
 /**
  * A workspace known to Beadsmith, represented by its Git root.
@@ -103,14 +139,16 @@ retryWorkspace: Workspace | null; generation: number; error: WorkspaceError | nu
  */
 export type WorkspaceSwitchResponse = { state: WorkspaceState; issueData: LoadIssueExplorerDataResponse }
 
-const ARGS_MAP = { '':'{"cancel_workspace":[],"list_issues":[],"load_issue_explorer_data":[],"remove_workspace":["path"],"reset_workspace_memory":[],"retry_workspace_memory":[],"switch_workspace":["candidate_path"],"workspace_state":[]}', 'devBridge':'{"result":["id","value"]}' }
-export type Router = { "": {cancel_workspace: () => Promise<WorkspaceCancelResponse>,
+const ARGS_MAP = { '':'{"app_settings_state":[],"cancel_workspace":[],"list_issues":[],"load_issue_explorer_data":[],"remove_workspace":["path"],"reset_workspace_memory":[],"retry_workspace_memory":[],"switch_workspace":["candidate_path"],"update_app_settings":["settings"],"workspace_state":[]}', 'devBridge':'{"result":["id","value"]}' }
+export type Router = { "": {app_settings_state: () => Promise<AppSettingsState>,
+cancel_workspace: () => Promise<WorkspaceCancelResponse>,
 list_issues: () => Promise<ListIssuesResponse>,
 load_issue_explorer_data: () => Promise<LoadIssueExplorerDataResponse>,
 remove_workspace: (path: string) => Promise<WorkspaceState>,
 reset_workspace_memory: () => Promise<WorkspaceState>,
 retry_workspace_memory: () => Promise<WorkspaceRetryMemoryResponse>,
 switch_workspace: (candidatePath: string) => Promise<WorkspaceSwitchResponse>,
+update_app_settings: (settings: AppSettingsUpdate) => Promise<AppSettings>,
 workspace_state: () => Promise<WorkspaceState>},
 "devBridge": {result: (id: string, value: string) => Promise<void>} };
 

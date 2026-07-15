@@ -31,7 +31,7 @@ uuid = { version = "1", features = ["v4"] }
 tracing = "0.1"
 tracing-subscriber = { version = "0.3", features = ["registry"] }
 taurpc = "0.7.1"
-specta = { version = "=2.0.0-rc.22", features = ["derive"] }
+specta = { version = "=2.0.0-rc.22", features = ["derive", "serde_json"] }
 tokio = { version = "1", features = ["full"] }
 specta-typescript = "0.0.9"
 # WebDriver plugins backing the end-to-end suite (see docs/agents/webdriver-e2e.md).
@@ -42,3 +42,6 @@ tauri-plugin-wdio-webdriver = "1"
 
 [target.'cfg(unix)'.dependencies]
 libc = "0.2"
+
+[dev-dependencies]
+tauri = { version = "2", features = ["test"] }

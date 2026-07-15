@@ -13,6 +13,10 @@ use tauri::Emitter;
 #[cfg(test)]
 use crate::issues::CommandRunner;
 use crate::issues::{self, ListIssuesError, ProcessRunner};
+use crate::settings::{
+    AppSettings, AppSettingsError, AppSettingsState, AppSettingsUpdate, SettingsService,
+    TauriAppSettingsStore,
+};
 use crate::workspace::{
     load_issue_explorer_data, validate_workspace, IssueExplorerData, TauriWorkspaceStore,
     Workspace, WorkspaceError, WorkspaceErrorKind, WorkspaceRequest, WorkspaceService,
@@ -191,12 +195,17 @@ pub trait BeadsmithApi {
     async fn retry_workspace_memory() -> WorkspaceRetryMemoryResponse;
     async fn reset_workspace_memory() -> Result<WorkspaceState, WorkspaceError>;
     async fn cancel_workspace() -> WorkspaceCancelResponse;
+    async fn app_settings_state() -> AppSettingsState;
+    async fn update_app_settings(
+        settings: AppSettingsUpdate,
+    ) -> Result<AppSettings, AppSettingsError>;
 }
 
 /// Resolver implementation for Beadsmith's application RPC surface.
 #[derive(Clone, Default)]
 pub struct BeadsmithApiImpl {
     workspace: Arc<Mutex<Option<WorkspaceRuntime>>>,
+    settings: Arc<Mutex<Option<SettingsService<TauriAppSettingsStore<tauri::Wry>>>>>,
 }
 
 impl BeadsmithApiImpl {
@@ -227,6 +236,31 @@ impl BeadsmithApiImpl {
             runtime
                 .as_mut()
                 .expect("workspace runtime must initialize during Tauri setup"),
+        )
+    }
+
+    /// Called once from Tauri setup after the store plugin has been registered.
+    pub fn initialize_settings(&self, app: tauri::AppHandle<tauri::Wry>) {
+        let store = TauriAppSettingsStore::new(app);
+        let service = SettingsService::from_store(store);
+        *self
+            .settings
+            .lock()
+            .expect("settings runtime lock poisoned") = Some(service);
+    }
+
+    fn with_settings<T>(
+        &self,
+        operation: impl FnOnce(&mut SettingsService<TauriAppSettingsStore<tauri::Wry>>) -> T,
+    ) -> T {
+        let mut settings = self
+            .settings
+            .lock()
+            .expect("settings runtime lock poisoned");
+        operation(
+            settings
+                .as_mut()
+                .expect("settings runtime must initialize during Tauri setup"),
         )
     }
 
@@ -480,6 +514,18 @@ impl BeadsmithApi for BeadsmithApiImpl {
             emit_transition(&app, state.clone(), None);
         }
         WorkspaceCancelResponse { state, issue_data }
+    }
+
+    async fn app_settings_state(self) -> AppSettingsState {
+        self.with_settings(|service| service.state())
+    }
+
+    async fn update_app_settings(
+        self,
+        settings: AppSettingsUpdate,
+    ) -> Result<AppSettings, AppSettingsError> {
+        let settings = settings.validate()?;
+        self.with_settings(|service| service.update(settings))
     }
 }
 
@@ -1180,6 +1226,27 @@ mod tests {
         let old_method_name = ["list_issue", "_summaries"].concat();
         assert!(!bindings.contains(&old_method_name));
         assert!(bindings.contains("createTauRPCProxy"));
+        for method in ["app_settings_state", "update_app_settings"] {
+            assert!(
+                bindings.contains(method),
+                "missing app settings RPC {method}"
+            );
+        }
+        for type_name in [
+            "AppSettings",
+            "AppSettingsUpdate",
+            "AppSettingsState",
+            "AppSettingsError",
+        ] {
+            assert!(
+                bindings.contains(type_name),
+                "missing app settings type {type_name}"
+            );
+        }
+        assert!(
+            bindings.contains("fontSizePx"),
+            "missing generated fontSizePx field"
+        );
     }
 
     #[test]

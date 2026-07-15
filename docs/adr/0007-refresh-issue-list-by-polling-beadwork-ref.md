@@ -24,14 +24,14 @@ We will add a refresh service in the Rust backend, bound to the Current Workspac
 4. **Single-flight loader:** all three triggers route through one single-flight loader that runs the existing Beadwork loaders (`bw list --all --json`, `bw ready --json`, `bw blocked --json`). If a reload is already in flight, a new trigger sets a dirty flag and the loader re-runs once after the active load completes if the data is still stale. The loader emits a Tauri event carrying the new `IssueExplorerData`, the observed SHA, the current workspace's path, and the workspace's poller generation token.
 5. **Error handling:** we will classify errors at the call site.
 
-| Failure class | Example | Treatment |
-|---|---|---|
-| ref probe failure | `git rev-parse` exit non-zero, lock, IO | Transient, 5-strike rule, banner after |
-| loader failure | any of `bw list/ready/blocked` exit non-zero | Transient, 5-strike rule, banner after |
-| missing `git` | spawn `ENOENT` for `git` binary | Structural, banner immediately |
-| missing `bw` | spawn `ENOENT` for `bw` binary | Structural, banner immediately |
-| no active workspace | backend has no Current Workspace | Service is idle; no error, no banner |
-| workspace deleted during operation | workspace path becomes invalid | Treated as no active workspace; service becomes idle |
+| Failure class                      | Example                                      | Treatment                                            |
+| ---------------------------------- | -------------------------------------------- | ---------------------------------------------------- |
+| ref probe failure                  | `git rev-parse` exit non-zero, lock, IO      | Transient, 5-strike rule, banner after               |
+| loader failure                     | any of `bw list/ready/blocked` exit non-zero | Transient, 5-strike rule, banner after               |
+| missing `git`                      | spawn `ENOENT` for `git` binary              | Structural, banner immediately                       |
+| missing `bw`                       | spawn `ENOENT` for `bw` binary               | Structural, banner immediately                       |
+| no active workspace                | backend has no Current Workspace             | Service is idle; no error, no banner                 |
+| workspace deleted during operation | workspace path becomes invalid               | Treated as no active workspace; service becomes idle |
 
 The 5-strike threshold applies to consecutive failures of the same transient class (~10 seconds at 2s polling). While failures are accumulating, the last good state is preserved silently; after 5, a banner above the list renders while the last good state remains visible. Structural errors (missing `git`/`bw`, `NotBeadworkWorkspace`) surface immediately via the banner, since retrying will not help.
 
