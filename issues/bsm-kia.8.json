@@ -1,0 +1,15 @@
+{
+  "assignee": "",
+  "blocked_by": [],
+  "blocks": [],
+  "created": "2026-07-15T15:28:10Z",
+  "description": "## Goal\n\nSplit the workspace-transition coverage out of `src/App.test.tsx` into focused test modules without changing behavior.\n\n## Background\n\n`App.test.tsx` now contains general shell/sidebar behavior plus a large atomic-workspace-transition matrix (pending, cancellation, retry banner, removal, stale transitions, startup ordering, and recovery). The file is difficult to navigate and makes it hard to see which tests protect a given lifecycle invariant.\n\n## Intended shape\n\nKeep shared render helpers/fixtures in a small test helper only if that reduces duplication. Split by user-visible behavior, not implementation internals—for example switching/pending, cancellation and recovery, and ordinary App navigation. Avoid a one-test-per-file split.\n\n## Acceptance criteria\n\n- Each workspace lifecycle behavior has a focused, discoverable test home.\n- Tests remain renderer/integration tests; do not weaken assertions to unit-only checks.\n- Test names retain the domain invariant they protect.\n- `pnpm test`, `pnpm exec tsc --noEmit`, and scoped Ultracite pass.\n\n## Non-goals\n\nNo product behavior, RPC contract, or transition-model refactor. `bsm-kia.6` owns any reducer/model extraction.",
+  "id": "bsm-kia.8",
+  "labels": [],
+  "parent": "bsm-kia",
+  "priority": 3,
+  "status": "open",
+  "title": "Split App workspace transition tests by behavior",
+  "type": "task",
+  "updated_at": "2026-07-15T15:28:10Z"
+}

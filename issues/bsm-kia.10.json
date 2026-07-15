@@ -1,0 +1,15 @@
+{
+  "assignee": "",
+  "blocked_by": [],
+  "blocks": [],
+  "created": "2026-07-15T15:28:10Z",
+  "description": "## Research questions\n\nInvestigate and record an evidence-backed recommendation for three workspace lifecycle questions before changing behavior:\n\n1. **Startup restoration responsiveness (#22):** `initialize_workspace` synchronously calls `restore_current`, so Beadwork validation/loading can delay initial Tauri setup. Decide whether to retain this deliberate simplicity, defer restore asynchronously, or add bounded feedback. Assess startup ordering, empty chooser behavior, and interaction with a user selecting another folder.\n2. **Cancel after failure semantics (#5):** `cancel_workspace` is meaningful for Pending work, while Dismiss is intentionally local UI state for a failure banner. Determine the public RPC contract when Cancel is called with no Pending request and retry/error state exists: no-op, clear transient backend state, or remove/restrict the operation.\n3. **Typed stale-error handling in the renderer (#6/#17):** `selectWorkspace` refreshes state for all rejected switch RPCs. Determine whether `staleGeneration` should be explicitly ignored, considering emitted transitions, state freshness, and transport error shape. Also verify retryable save failures reliably surface the Retry banner through transitions.\n\n## Deliverable\n\nWrite a concise decision record or issue comment with source/test evidence, chosen semantics, alternatives rejected, and a narrowly scoped implementation follow-up only if behavior should change.\n\n## Non-goals\n\nDo not implement a transition reducer (`bsm-kia.6`), change durable workspace transaction semantics, or add speculative background refresh.",
+  "id": "bsm-kia.10",
+  "labels": [],
+  "parent": "bsm-kia",
+  "priority": 3,
+  "status": "open",
+  "title": "Spike workspace lifecycle edge semantics",
+  "type": "task",
+  "updated_at": "2026-07-15T15:28:10Z"
+}
