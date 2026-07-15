@@ -1,5 +1,5 @@
 {
-  "assignee": "",
+  "assignee": "Devin AI",
   "blocked_by": [],
   "blocks": [],
   "created": "2026-07-15T15:28:10Z",
@@ -14,8 +14,8 @@
     }
   ],
   "priority": 3,
-  "status": "open",
+  "status": "in_progress",
   "title": "Adopt Tauri logging plugin",
   "type": "task",
-  "updated_at": "2026-07-15T22:32:46Z"
+  "updated_at": "2026-07-15T23:05:14Z"
 }
