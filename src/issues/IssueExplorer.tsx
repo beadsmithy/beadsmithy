@@ -263,9 +263,11 @@ const IssueDetailDescriptionEmpty = () => (
 
 const IssueCommentCard = ({
   comment,
+  markdownFontSizePx,
   openExternalLink,
 }: {
   comment: IssueComment;
+  markdownFontSizePx?: number;
   openExternalLink: ExternalLinkOpener;
 }) => {
   const hasAuthor = comment.author.trim().length > 0;
@@ -284,6 +286,7 @@ const IssueCommentCard = ({
           ) : null}
         </header>
         <MarkdownContent
+          fontSizePx={markdownFontSizePx}
           markdown={comment.text}
           openExternalLink={openExternalLink}
         />
@@ -334,9 +337,11 @@ const MetadataRow = ({ label, value }: { label: string; value: string }) => (
 
 const IssueDetailContent = ({
   issue,
+  markdownFontSizePx,
   openExternalLink,
 }: {
   issue: Issue;
+  markdownFontSizePx?: number;
   openExternalLink: ExternalLinkOpener;
 }) => {
   const view = toIssueViewModel(issue);
@@ -409,6 +414,7 @@ const IssueDetailContent = ({
         {hasDescription ? (
           <div className="mt-2">
             <MarkdownContent
+              fontSizePx={markdownFontSizePx}
               markdown={issue.description}
               openExternalLink={openExternalLink}
             />
@@ -470,6 +476,7 @@ const IssueDetailContent = ({
               <IssueCommentCard
                 comment={comment}
                 key={`${comment.timestamp}-${comment.author}-${comment.text}`}
+                markdownFontSizePx={markdownFontSizePx}
                 openExternalLink={openExternalLink}
               />
             ))}
@@ -482,9 +489,11 @@ const IssueDetailContent = ({
 
 const IssueDetailPane = ({
   selectedIssue,
+  markdownFontSizePx,
   openExternalLink,
 }: {
   selectedIssue: Issue | null;
+  markdownFontSizePx?: number;
   openExternalLink: ExternalLinkOpener;
 }) =>
   selectedIssue === null ? (
@@ -492,6 +501,7 @@ const IssueDetailPane = ({
   ) : (
     <IssueDetailContent
       issue={selectedIssue}
+      markdownFontSizePx={markdownFontSizePx}
       openExternalLink={openExternalLink}
     />
   );
@@ -499,11 +509,13 @@ const IssueDetailPane = ({
 export const IssueExplorer = ({
   activeIssueListViewId,
   issueState,
+  markdownFontSizePx,
   onIssueListViewChange,
   openExternalLink = defaultOpenExternalLink,
 }: {
   activeIssueListViewId?: IssueListViewId;
   issueState: IssueExplorerLoadState;
+  markdownFontSizePx?: number;
   onIssueListViewChange?: (viewId: IssueListViewId) => void;
   openExternalLink?: ExternalLinkOpener;
 }) => {
@@ -597,6 +609,7 @@ export const IssueExplorer = ({
         </div>
       </section>
       <IssueDetailPane
+        markdownFontSizePx={markdownFontSizePx}
         openExternalLink={openExternalLink}
         selectedIssue={selectedIssue}
       />

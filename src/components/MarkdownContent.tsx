@@ -9,6 +9,8 @@ import remarkGfm from "remark-gfm";
 import type { ExternalLinkOpener } from "./external-link-opener";
 import { openExternalLink as defaultOpenExternalLink } from "./external-link-opener";
 
+const DEFAULT_MARKDOWN_FONT_SIZE_PX = 14;
+
 const isExternalHttpLink = (href: string | undefined): href is string => {
   if (href === undefined) {
     return false;
@@ -36,24 +38,24 @@ type InputProps = ComponentPropsWithoutRef<"input"> & {
 };
 
 const PARAGRAPH_CLASSES =
-  "text-sm leading-6 text-text-main [&:not(:first-child)]:mt-3";
+  "text-[1em] leading-[1.7143] text-text-main [&:not(:first-child)]:mt-3";
 const HEADING_CLASSES = "font-semibold text-primary [&:not(:first-child)]:mt-5";
-const H1_CLASSES = `${HEADING_CLASSES} text-xl`;
-const H2_CLASSES = `${HEADING_CLASSES} text-lg`;
-const H3_CLASSES = `${HEADING_CLASSES} text-base`;
-const H4_CLASSES = `${HEADING_CLASSES} text-sm`;
-const LIST_CLASSES = "list-inside text-sm leading-6 text-text-main";
+const H1_CLASSES = `${HEADING_CLASSES} text-[1.4286em] leading-[1.4]`;
+const H2_CLASSES = `${HEADING_CLASSES} text-[1.2857em] leading-[1.4]`;
+const H3_CLASSES = `${HEADING_CLASSES} text-[1.1429em] leading-[1.4]`;
+const H4_CLASSES = `${HEADING_CLASSES} text-[1em] leading-[1.4]`;
+const LIST_CLASSES = "list-inside text-[1em] leading-[1.7143] text-text-main";
 const ORDERED_LIST_CLASSES = `${LIST_CLASSES} list-decimal`;
 const UNORDERED_LIST_CLASSES = `${LIST_CLASSES} list-disc`;
 const LIST_ITEM_CLASSES = "[&>p]:inline";
 const BLOCKQUOTE_CLASSES =
-  "mt-3 border-l-2 border-border-main pl-3 text-sm italic text-muted";
+  "mt-3 border-l-2 border-border-main pl-3 text-[1em] italic text-muted";
 const INLINE_CODE_CLASSES =
   "rounded bg-surface px-1 py-0.5 font-mono text-[0.85em] text-text-main";
 const CODE_BLOCK_CLASSES =
-  "mt-3 overflow-x-auto rounded-md border border-border-main bg-surface p-3 font-mono text-xs text-text-main [&>code]:bg-transparent [&>code]:p-0";
+  "mt-3 overflow-x-auto rounded-md border border-border-main bg-surface p-3 font-mono text-[0.8571em] text-text-main [&>code]:bg-transparent [&>code]:p-0 [&>code]:text-[1em]";
 const TABLE_CLASSES =
-  "mt-3 w-full border-collapse text-sm text-text-main [&_th]:border [&_th]:border-border-main [&_th]:bg-surface [&_th]:px-2 [&_th]:py-1 [&_th]:text-left [&_th]:font-mono [&_th]:text-[10px] [&_th]:tracking-wider [&_th]:text-muted [&_th]:uppercase [&_td]:border [&_td]:border-border-main [&_td]:px-2 [&_td]:py-1";
+  "mt-3 w-full border-collapse text-[1em] text-text-main [&_th]:border [&_th]:border-border-main [&_th]:bg-surface [&_th]:px-2 [&_th]:py-1 [&_th]:text-left [&_th]:font-mono [&_th]:text-[0.7143em] [&_th]:tracking-wider [&_th]:text-muted [&_th]:uppercase [&_td]:border [&_td]:border-border-main [&_td]:px-2 [&_td]:py-1";
 const EXTERNAL_LINK_CLASSES =
   "text-accent underline decoration-accent/40 underline-offset-2 hover:decoration-accent";
 const CHECKBOX_CLASSES =
@@ -181,12 +183,14 @@ interface MarkdownContentProps {
   markdown: string;
   openExternalLink?: ExternalLinkOpener;
   className?: string;
+  fontSizePx?: number;
 }
 
 export const MarkdownContent = ({
   markdown,
   openExternalLink = defaultOpenExternalLink,
   className,
+  fontSizePx = DEFAULT_MARKDOWN_FONT_SIZE_PX,
 }: MarkdownContentProps) => {
   const componentOverrides = {
     a: renderLink(openExternalLink),
@@ -214,7 +218,10 @@ export const MarkdownContent = ({
       : `text-text-main ${className}`;
 
   return (
-    <article className={articleClassName}>
+    <article
+      className={articleClassName}
+      style={{ fontSize: `${fontSizePx}px` }}
+    >
       <Markdown
         components={componentOverrides}
         remarkPlugins={[remarkGfm]}

@@ -265,4 +265,113 @@ describe("MarkdownContent", () => {
     // No anchor element exists at all.
     expect(document.querySelector("a")).toBeNull();
   });
+
+  it("defaults the article base size to 14px when fontSizePx is omitted", () => {
+    const { container } = render(
+      <MarkdownContent markdown="Hello." openExternalLink={vi.fn()} />
+    );
+
+    const article = container.querySelector("article");
+    expect(article).not.toBeNull();
+    expect(article).toHaveStyle({ fontSize: "14px" });
+  });
+
+  it("applies explicit fontSizePx values to the article style", () => {
+    for (const fontSizePx of [8, 24, 72]) {
+      const { container, unmount } = render(
+        <MarkdownContent
+          fontSizePx={fontSizePx}
+          markdown="Hello."
+          openExternalLink={vi.fn()}
+        />
+      );
+
+      const article = container.querySelector("article");
+      expect(article).toHaveStyle({ fontSize: `${fontSizePx}px` });
+      unmount();
+    }
+  });
+
+  it("scales headings, inline code, fenced code, and table headers proportionally from the base", () => {
+    const markdown = [
+      "# Title",
+      "",
+      "Inline `code`.",
+      "",
+      "```ts",
+      "const x = 1;",
+      "```",
+      "",
+      "| col | val |",
+      "|-----|-----|",
+      "| a   | 1   |",
+    ].join("\n");
+
+    const { container } = render(
+      <MarkdownContent markdown={markdown} openExternalLink={vi.fn()} />
+    );
+
+    const h1 = container.querySelector("h1");
+    expect(h1).not.toBeNull();
+    expect(h1).toHaveClass("text-[1.4286em]");
+    expect(h1).toHaveClass("leading-[1.4]");
+
+    const inlineCode = screen.getByText("code");
+    expect(inlineCode.tagName).toBe("CODE");
+    expect(inlineCode).toHaveClass("text-[0.85em]");
+
+    const pre = container.querySelector("pre");
+    expect(pre).not.toBeNull();
+    expect(pre).toHaveClass("text-[0.8571em]");
+    expect(pre).toHaveClass("[&>code]:text-[1em]");
+
+    const table = container.querySelector("table");
+    expect(table).not.toBeNull();
+    expect(table).toHaveClass("text-[1em]");
+
+    expect(table).toHaveClass("[&_th]:text-[0.7143em]");
+  });
+
+  it("uses proportional line heights for body text and lists", () => {
+    const markdown = "A paragraph.\n\n- one\n- two";
+    const { container } = render(
+      <MarkdownContent markdown={markdown} openExternalLink={vi.fn()} />
+    );
+
+    const paragraph = container.querySelector("p");
+    expect(paragraph).not.toBeNull();
+    expect(paragraph).toHaveClass("leading-[1.7143]");
+
+    const list = container.querySelector("ul");
+    expect(list).not.toBeNull();
+    expect(list).toHaveClass("leading-[1.7143]");
+  });
+
+  it("retains horizontal overflow behavior for fenced code and tables at large sizes", () => {
+    const markdown = [
+      "```",
+      "x",
+      "```",
+      "",
+      "| col | val |",
+      "|-----|-----|",
+      "| a   | 1   |",
+    ].join("\n");
+
+    const { container } = render(
+      <MarkdownContent
+        fontSizePx={72}
+        markdown={markdown}
+        openExternalLink={vi.fn()}
+      />
+    );
+
+    const pre = container.querySelector("pre");
+    expect(pre).not.toBeNull();
+    expect(pre).toHaveClass("overflow-x-auto");
+
+    const table = container.querySelector("table");
+    expect(table).not.toBeNull();
+    expect(table).toHaveClass("w-full");
+  });
 });
