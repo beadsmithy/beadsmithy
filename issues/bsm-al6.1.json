@@ -15,11 +15,15 @@
     {
       "text": "## Design Review Rationale — 2026-07-15\n\nThis child was deepened around one principle: callers should learn App Settings behavior, not storage mechanics.\n\nThe versioned envelope is intentionally backend-only. The frontend needs the current settings, an optional load warning, and a typed update result; it does not need to know which schema version was serialized or how Tauri Store resolves its path. This keeps migrations/defaulting/repair local and prevents every future settings control from branching on persistence details.\n\nA dedicated Settings store is not needless duplication with Workspace Catalog. The two modules differ in ownership and lifecycle: Workspace Catalog is tied to Current Workspace restoration and recovery; App Settings must load with no Workspace, survive every Workspace transition unchanged, and be independently reset/tested. Separate `BEADSMITH_SETTINGS_STORE_PATH` isolation also prevents a settings E2E scenario from accidentally coupling to Workspace fixtures.\n\nThe load interface returns usable defaults plus a typed warning rather than failing the whole app. Missing state is normal first-run behavior; malformed/unsupported/read-failed state is not. The latter must remain visible and repairable without blocking Issue browsing.\n\nThe store is not rewritten on read failure because an unsupported version may come from a newer app. Only a deliberate user update/Reset is allowed to replace it. Save success is the commit point; failed save must not advance backend confirmed state.\n\nA complete `AppSettings` update keeps one document transaction and makes future prose/mono font additions coherent. Do not expose arbitrary key/value writes or a frontend store adapter. If the merged runtime offers a shared container, use it only as ownership plumbing; do not make Settings depend on Current Workspace initialization.\n\nCross-epic sequencing was added because the active Workspace integration changes the same `rpc.rs`, runtime initialization, generated bindings, and E2E infrastructure. Waiting for `bsm-kia.5` reduces rework without blocking the independent Markdown renderer task.",
       "timestamp": "2026-07-15T11:58:05Z"
+    },
+    {
+      "text": "## Repair-Path Amendment — 2026-07-15\n\nAdded an explicit adapter requirement for malformed whole-file recovery. `tauri-plugin-store` may fail while opening an unreadable file, before normal key replacement is possible. A deliberate valid edit/Reset therefore needs a dedicated settings-file replace path analogous to Workspace memory reset fallback: remove only the App Settings file, recreate a valid version-1 document, and surface failure if that cannot be done. Passive startup still never deletes data.",
+      "timestamp": "2026-07-15T12:00:49Z"
     }
   ],
   "priority": 2,
   "status": "open",
   "title": "Persist versioned app settings through TauRPC",
   "type": "task",
-  "updated_at": "2026-07-15T12:00:43Z"
+  "updated_at": "2026-07-15T12:00:49Z"
 }
