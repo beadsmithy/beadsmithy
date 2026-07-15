@@ -1,8 +1,6 @@
 {
   "assignee": "",
-  "blocked_by": [
-    "bsm-kia.5"
-  ],
+  "blocked_by": [],
   "blocks": [
     "bsm-al6.3"
   ],
@@ -23,5 +21,5 @@
   "status": "open",
   "title": "Persist versioned app settings through TauRPC",
   "type": "task",
-  "updated_at": "2026-07-15T11:58:05Z"
+  "updated_at": "2026-07-15T11:59:42Z"
 }
