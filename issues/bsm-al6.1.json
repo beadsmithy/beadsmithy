@@ -19,11 +19,15 @@
     {
       "text": "## Repair-Path Amendment — 2026-07-15\n\nAdded an explicit adapter requirement for malformed whole-file recovery. `tauri-plugin-store` may fail while opening an unreadable file, before normal key replacement is possible. A deliberate valid edit/Reset therefore needs a dedicated settings-file replace path analogous to Workspace memory reset fallback: remove only the App Settings file, recreate a valid version-1 document, and surface failure if that cannot be done. Passive startup still never deletes data.",
       "timestamp": "2026-07-15T12:00:49Z"
+    },
+    {
+      "text": "## Sequencing Note — 2026-07-15\n\nThe final dependency is on the parent epic, not directly on this child: `bsm-kia.5 blocks bsm-al6`. Beadwork propagates that blocker to all children. The earlier rationale that the renderer could proceed immediately was technically true at the code level but misleading in the actual ready queue; both foundations intentionally wait, then may proceed in parallel after Workspace integration lands.",
+      "timestamp": "2026-07-15T12:01:29Z"
     }
   ],
   "priority": 2,
   "status": "open",
   "title": "Persist versioned app settings through TauRPC",
   "type": "task",
-  "updated_at": "2026-07-15T12:00:49Z"
+  "updated_at": "2026-07-15T12:01:29Z"
 }
