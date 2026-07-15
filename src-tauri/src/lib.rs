@@ -7,6 +7,7 @@
 
 pub mod issues;
 pub mod rpc;
+pub mod settings;
 pub mod workspace;
 
 // Dev bridge for the `tauri-agent-tools` CLI (DOM/eval/screenshot inspection for
@@ -44,6 +45,7 @@ pub async fn run() {
         .invoke_handler(rpc::router::<tauri::Wry>(workspace_api).into_handler())
         .setup(move |_app| {
             workspace_setup_api.initialize_workspace(_app.handle().clone());
+            workspace_setup_api.initialize_settings(_app.handle().clone());
             #[cfg(debug_assertions)]
             start_dev_bridge(_app.handle());
             Ok(())
