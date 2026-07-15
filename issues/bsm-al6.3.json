@@ -1,7 +1,8 @@
 {
   "assignee": "",
   "blocked_by": [
-    "bsm-al6.1"
+    "bsm-al6.1",
+    "bsm-al6.2"
   ],
   "blocks": [],
   "created": "2026-07-15T11:16:32Z",

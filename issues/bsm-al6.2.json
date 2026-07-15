@@ -1,7 +1,9 @@
 {
   "assignee": "",
   "blocked_by": [],
-  "blocks": [],
+  "blocks": [
+    "bsm-al6.3"
+  ],
   "created": "2026-07-15T11:16:32Z",
   "description": "## Parent\n\nParent epic: Markdown typography settings.\n\n## Background\n\nThe shared Markdown renderer currently assigns fixed sizes independently to prose, headings, lists, blockquotes, tables, and code. A single app preference cannot scale the hierarchy coherently until that renderer accepts one base size and expresses descendants proportionally.\n\n## What to Build\n\nAdd a Markdown base font-size input to the shared renderer, defaulting to 14px for callers that do not provide one. Apply the base size at the Markdown article boundary and convert the rendered hierarchy to relative units so prose, headings, code, lists, tables, and blockquotes scale together.\n\nPreserve all existing syntax, safe HTML behavior, task-list styling, external-link behavior, inert-link behavior, colors, spacing intent, and font-family choices. Do not apply the setting to non-Markdown UI.\n\n## Acceptance Criteria\n\n- [ ] The shared Markdown renderer accepts a supported base font size and defaults to 14px.\n- [ ] Paragraphs, headings, inline code, code blocks, lists, tables, and blockquotes scale proportionally.\n- [ ] Descriptions, comments, and future preview callers can use the same renderer contract.\n- [ ] Existing Markdown safety, GFM, checkbox, and link behavior remains unchanged.\n- [ ] Focused component tests prove the base size reaches the rendered article and the hierarchy remains relative.\n- [ ] Existing Markdown component and Issue Detail tests remain green.\n- [ ] Relevant frontend formatting, lint, tests, React Doctor regression scan, and build pass.\n\n## Out of Scope\n\n- Persistence or TauRPC.\n- Settings navigation or input UI.\n- Font-family selection.\n- Non-Markdown UI scaling.\n\n## Triage\n\nready-for-agent",
   "id": "bsm-al6.2",
