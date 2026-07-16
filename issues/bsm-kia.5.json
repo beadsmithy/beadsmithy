@@ -1,5 +1,5 @@
 {
-  "assignee": "",
+  "assignee": "Tomas Thor Jonsson",
   "blocked_by": [
     "bsm-kia.2",
     "bsm-kia.3",
@@ -32,8 +32,8 @@
     }
   ],
   "priority": 2,
-  "status": "open",
+  "status": "in_progress",
   "title": "Prove and document Workspace management end to end",
   "type": "task",
-  "updated_at": "2026-07-16T21:49:50Z"
+  "updated_at": "2026-07-16T22:02:56Z"
 }
