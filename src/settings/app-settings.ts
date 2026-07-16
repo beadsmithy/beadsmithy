@@ -129,6 +129,7 @@ export const useAppSettings = (
   const [state, setState] = useState<AppSettingsHookState>(initialState);
   const stateRef = useRef(state);
 
+  const hasUserEditedRef = useRef(false);
   const pendingAppliedRef = useRef<number | null>(null);
   const savingRef = useRef(false);
   const savingValueRef = useRef<number | null>(null);
@@ -256,8 +257,7 @@ export const useAppSettings = (
       setState((prev) => {
         const hasPendingEdit =
           pendingAppliedRef.current !== null || savingRef.current;
-        const keepUserDraft =
-          hasPendingEdit || prev.appliedFontSizePx !== loadedFontSize;
+        const keepUserDraft = hasPendingEdit || hasUserEditedRef.current;
 
         return {
           ...prev,
@@ -279,6 +279,7 @@ export const useAppSettings = (
   }, []);
 
   const setDraft = useCallback((value: string) => {
+    hasUserEditedRef.current = true;
     const validation = validateDraft(value);
 
     if (validation.valid) {
@@ -302,6 +303,7 @@ export const useAppSettings = (
   }, []);
 
   const reset = useCallback(() => {
+    hasUserEditedRef.current = true;
     pendingAppliedRef.current = DEFAULT_FONT_SIZE_PX;
     setState((prev) => ({
       ...prev,

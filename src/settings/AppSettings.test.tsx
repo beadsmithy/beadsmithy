@@ -90,6 +90,21 @@ describe("useAppSettings", () => {
     expect(transport.load).toHaveBeenCalledTimes(1);
   });
 
+  it("applies a persisted non-default font size at startup", async () => {
+    const transport = createControllableTransport({
+      settings: { markdown: { fontSizePx: 20 } },
+      warning: null,
+    });
+    const { result } = renderHook(() => useAppSettings(transport));
+
+    await waitFor(() => expect(result.current.state.loadStatus).toBe("loaded"));
+
+    expect(result.current.state.appliedFontSizePx).toBe(20);
+    expect(result.current.state.confirmedFontSizePx).toBe(20);
+    expect(result.current.state.draft).toBe("20");
+    expect(result.current.state.saveStatus).toBe("saved");
+  });
+
   it("surfaces a load warning and keeps the applied value at 14 px", async () => {
     const transport = createControllableTransport({
       settings: defaultSettings(),
