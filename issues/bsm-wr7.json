@@ -1,0 +1,14 @@
+{
+  "assignee": "",
+  "blocked_by": [],
+  "blocks": [],
+  "created": "2026-07-16T21:00:35Z",
+  "description": "## Background\n\nBeadsmith currently renders Markdown safely in Issue descriptions and comments, but Mermaid fences remain ordinary code blocks. Beadwork plans and issue discussion frequently use Mermaid to communicate dependencies and designs. Readers need a native diagram experience without creating a second Markdown behavior or weakening the existing untrusted-content boundary.\n\n## What to build\n\nDeliver pannable, zoomable Mermaid Diagrams everywhere Beadsmith renders Markdown. A reader can switch between a rendered Diagram and the unchanged Mermaid Source. When rendering fails, the Source view is selected and the complete renderer error remains visible in a banner outside the views.\n\n## Technical Approach\n\nLand this through the following vertical slices:\n\n```mermaid\ngraph LR\n    A[Safe Mermaid Diagram rendering] --\u003e B[Diagram pan and zoom]\n    B --\u003e C[Real desktop proof]\n```\n\nUse the shared `MarkdownContent` seam so Issue descriptions and comments behave identically. Mermaid content is untrusted: use Mermaid strict security, no diagram-owned callbacks or links, and application-owned configuration. Use semantic Beadsmith Theme values rather than a hard-coded Mermaid palette.\n\n## Considerations\n\n- Support every diagram type that the installed full Mermaid renderer can safely render; do not introduce a Beadsmith allowlist.\n- Mermaid configuration is process-global, so rendering must avoid concurrent state corruption.\n- The existing Markdown raw-HTML suppression and HTTP-only external-link policy remain unchanged.\n\n## Acceptance criteria\n\n- [ ] Mermaid code fences render consistently in Issue descriptions and comments.\n- [ ] Readers can inspect or copy unchanged Mermaid Source.\n- [ ] Diagrams are pannable and zoomable with a recoverable fit view.\n- [ ] Render failures preserve the source and expose the complete renderer error.\n- [ ] Desktop acceptance proves the assembled Tauri path.\n\n## Test Plan\n\n- Focused renderer/component tests with mocked browser-dependent dependencies.\n- Real built-desktop WebDriver coverage using representative Issue Markdown.",
+  "id": "bsm-wr7",
+  "labels": [],
+  "priority": 2,
+  "status": "open",
+  "title": "Render Mermaid Diagrams in Markdown",
+  "type": "epic",
+  "updated_at": "2026-07-16T21:00:35Z"
+}
