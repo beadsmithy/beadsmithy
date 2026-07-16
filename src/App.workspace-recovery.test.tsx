@@ -633,6 +633,48 @@ describe("App workspace recovery", () => {
     expect(await screen.findByText("Restored issue")).toBeInTheDocument();
     expect(screen.queryByText("First issue")).toBeNull();
   });
+  it("clears a confirmed Issue Explorer snapshot when local memory is reset", async () => {
+    const user = userEvent.setup();
+    const staleIssue = buildIssue({
+      id: "bsm-stale",
+      title: "Stale rendered issue",
+    });
+    const currentPath = "/work/stale";
+    loadIssueExplorerStateFromTauRpc.mockResolvedValue(
+      successState({ allIssues: [staleIssue], workspacePath: currentPath })
+    );
+    workspaceState.mockResolvedValue(
+      workspace({
+        catalog: [{ availability: "available", path: currentPath }],
+        currentWorkspace: { availability: "available", path: currentPath },
+        error: {
+          kind: "storeReadFailed",
+          message: "Could not read local workspace memory",
+          retryable: true,
+        },
+        generation: 1,
+      })
+    );
+    resetWorkspaceMemory.mockResolvedValue(
+      workspace({
+        currentWorkspace: null,
+        generation: 2,
+      })
+    );
+
+    render(<App />);
+
+    expect(await screen.findByText("Stale rendered issue")).toBeInTheDocument();
+    await user.click(
+      screen.getByRole("button", { name: "Reset local memory" })
+    );
+
+    expect(resetWorkspaceMemory).toHaveBeenCalledTimes(1);
+    expect(
+      await screen.findByRole("heading", { name: "Choose a workspace" })
+    ).toBeInTheDocument();
+    expect(screen.queryByText("Stale rendered issue")).toBeNull();
+  });
   it("App.retryWorkspaceMemory replaces a stale rendered Issue list with the restored workspace's data, no refresh", async () => {
     // bsm-kia.7 (3): the renderer-level retry path drives
     // `App.retryWorkspaceMemory`, which feeds the typed response into the
