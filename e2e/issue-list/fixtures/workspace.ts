@@ -105,15 +105,21 @@ export const FIXTURE_DESCRIPTION_HEADING = "Detail-ready fixture";
 export const FIXTURE_DESCRIPTION_BULLET =
   "Markdown bullets survive the Beadwork round trip.";
 export const FIXTURE_DESCRIPTION_INLINE_CODE = "load_issue_explorer_data";
+export const FIXTURE_DESCRIPTION_FENCED_CODE = "const markdownScale = 24;";
 export const FIXTURE_ISSUE_DESCRIPTION = `## ${FIXTURE_DESCRIPTION_HEADING}
 
 This description proves the desktop app renders selected Issue Detail content from ${FIXTURE_DESCRIPTION_INLINE_CODE}.
 
 - ${FIXTURE_DESCRIPTION_BULLET}
-- Inline code such as \`${FIXTURE_DESCRIPTION_INLINE_CODE}\` appears in the detail pane.`;
+- Inline code such as \`${FIXTURE_DESCRIPTION_INLINE_CODE}\` appears in the detail pane.
+
+\`\`\`ts
+${FIXTURE_DESCRIPTION_FENCED_CODE}
+\`\`\``;
 export const FIXTURE_COMMENT_AUTHOR = "Beadsmith E2E";
 export const FIXTURE_COMMENT_TEXT =
   "The detail pane should show this authored fixture comment.";
+export const FIXTURE_COMMENT_MARKDOWN = "**Markdown formatting is preserved.**";
 
 /**
  * A real Beadwork workspace with Issues for the selectable list views: a
@@ -181,7 +187,7 @@ export const createIssueListWorkspace = (): BeadworkWorkspace => {
     [
       "comment",
       issueId,
-      FIXTURE_COMMENT_TEXT,
+      `${FIXTURE_COMMENT_TEXT}\n\n${FIXTURE_COMMENT_MARKDOWN}`,
       "--author",
       FIXTURE_COMMENT_AUTHOR,
     ],

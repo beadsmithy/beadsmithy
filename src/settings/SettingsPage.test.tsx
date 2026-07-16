@@ -90,7 +90,7 @@ describe("SettingsPage", () => {
     );
 
     const previewArticle = container.querySelector(
-      "[aria-label='Typography preview'] article"
+      "article[aria-label='Markdown typography preview']"
     );
     expect(previewArticle).toHaveStyle({ fontSize: "24px" });
   });

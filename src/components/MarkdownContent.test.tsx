@@ -13,6 +13,20 @@ describe("MarkdownContent", () => {
     expect(screen.getByText("Hello world.").tagName).toBe("P");
   });
 
+  it("applies an optional accessible name to the article seam", () => {
+    render(
+      <MarkdownContent
+        ariaLabel="Issue description"
+        markdown="Hello world."
+        openExternalLink={vi.fn()}
+      />
+    );
+
+    expect(
+      screen.getByRole("article", { name: "Issue description" })
+    ).toBeInTheDocument();
+  });
+
   it("renders Markdown and GFM features in the existing dark developer-tool style", () => {
     const markdown = [
       "# Title",
