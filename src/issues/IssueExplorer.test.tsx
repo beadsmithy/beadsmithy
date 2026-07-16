@@ -48,6 +48,7 @@ const successState = (
 
 interface RenderExplorerOptions {
   activeIssueListViewId?: IssueListViewId;
+  markdownFontSizePx?: number;
   openExternalLink?: ExternalLinkOpener;
   state?: IssueExplorerLoadState;
 }
@@ -60,12 +61,16 @@ const renderExplorer = (
   const props: {
     activeIssueListViewId?: IssueListViewId;
     issueState: IssueExplorerLoadState;
+    markdownFontSizePx?: number;
     openExternalLink?: ExternalLinkOpener;
   } = {
     issueState: state,
   };
   if (options.activeIssueListViewId !== undefined) {
     props.activeIssueListViewId = options.activeIssueListViewId;
+  }
+  if (options.markdownFontSizePx !== undefined) {
+    props.markdownFontSizePx = options.markdownFontSizePx;
   }
   if (options.openExternalLink !== undefined) {
     props.openExternalLink = options.openExternalLink;
@@ -990,6 +995,34 @@ describe("IssueExplorer", () => {
       commentsScope.queryByRole("link", { name: "local notes" })
     ).toBeNull();
     expect(commentsScope.getByText("local notes")).toBeInTheDocument();
+  });
+
+  it("forwards markdownFontSizePx to both description and comment MarkdownContent renderers", async () => {
+    const user = userEvent.setup();
+    const issue = buildIssue({
+      comments: [
+        {
+          author: "Tomas",
+          text: "A **comment**.",
+          timestamp: "2026-07-05T14:00:00Z",
+        },
+      ],
+      description: "# Description\n\nBody.",
+      id: "bsm-font-size",
+    });
+
+    renderExplorer([issue], { markdownFontSizePx: 42 });
+
+    await user.click(getRowButton(issue));
+
+    const markdownArticles = [
+      ...getDetailElement().querySelectorAll("article"),
+    ].filter((article) => article.style.fontSize !== "");
+
+    expect(markdownArticles).toHaveLength(2);
+    for (const article of markdownArticles) {
+      expect(article).toHaveStyle({ fontSize: "42px" });
+    }
   });
 
   it("renders the Dependencies card with raw canonical IDs preserving prefixes and no link or button wrappers", async () => {
