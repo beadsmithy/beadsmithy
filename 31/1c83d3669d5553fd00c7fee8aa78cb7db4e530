@@ -1,0 +1,101 @@
+e2e/issue-list/scripts/run-scenario.ts
+  s_b03ce9111f7dbb::t_ef2fa89906d875 278,280-281
+  s_b03ce9111f7dbb::t_7b3bc75e945d38 25-31,163-164,166-168,185-196,198-205,207-261,263-269,289-292,301-302,320-322,324-329,331-353,356-358,365-377,379-412,414,416-417
+  s_b03ce9111f7dbb::t_9e6627097c0073 2,4-22,44-56,58-64,67-73,75-82,84,87-90,92-97,101-123,125-128,134,318-319,323,354-355,378
+  s_b03ce9111f7dbb::t_aef98d25095485 270-275,283-284,286-287
+  s_b03ce9111f7dbb::t_40af66805f7375 293-300
+  s_b03ce9111f7dbb::t_0c06b81f5f3658 303-308,317
+  s_b03ce9111f7dbb::t_23e0ecdc2d38f9 359-364
+  s_b03ce9111f7dbb::t_c92dda7f53eb69 130
+  s_b03ce9111f7dbb::t_d6a64c8c52724b 57
+  s_b03ce9111f7dbb::t_65ead12b6202bb 65-66
+  s_b03ce9111f7dbb::t_33ee83d1f0f9c6 74
+  s_b03ce9111f7dbb::t_07597e77da9fe3 100
+  s_b03ce9111f7dbb::t_7969b2fbf2f950 124
+  s_b03ce9111f7dbb::t_b5e22705f5c67d 129
+  s_b03ce9111f7dbb::t_ea38301c9fe57c 131
+  s_b03ce9111f7dbb::t_4a3f51bcdda9df 165
+  s_b03ce9111f7dbb::t_c643707f87d16b 206
+  s_b03ce9111f7dbb::t_5d74ca8db6b3b9 42
+e2e/issue-list/fixtures/workspace.ts
+  s_b03ce9111f7dbb::t_b32993f32dc2d5 192,261-266,268,275-278
+  s_b03ce9111f7dbb::t_303356e44acdc2 38,46,57-58
+  s_b03ce9111f7dbb::t_f8258467ba74cf 105-118
+  s_b03ce9111f7dbb::t_1957e000d23f13 25-26
+  s_b03ce9111f7dbb::t_45acb3626ca9b0 193-197,200,221,226-229
+  s_b03ce9111f7dbb::t_b797fcfefc4a64 59-60,191,260
+e2e/issue-list/issue-list.atomic-switch.spec.ts
+  s_b03ce9111f7dbb::t_7a1a4e4db75783 37-41
+  s_b03ce9111f7dbb::t_d97c533bf1292f 437
+  s_b03ce9111f7dbb::t_73d7b19dab7065 508-510,513
+  s_b03ce9111f7dbb::t_42a86295d4d643 336
+  s_b03ce9111f7dbb::t_0f07724e57d3fa 238-241
+  s_b03ce9111f7dbb::t_649b5845bc6f62 133-139,141-148
+  s_b03ce9111f7dbb::t_b449701ace57ee 433-436
+  s_b03ce9111f7dbb::t_bb811f7126e4bd 507,514,516
+  s_b03ce9111f7dbb::t_ba760488c2ef8c 178-180
+  s_b03ce9111f7dbb::t_578caebbaed6a1 320
+  s_b03ce9111f7dbb::t_13b6d0a64c777b 229-236,246-247,249-257,264-266,272,276-278,281-282,308-311,313-314,327-335,337-342,344-350,353,355,362-366,371,375
+  s_b03ce9111f7dbb::t_8871e233df4eb2 395-399,401-403,415,430-432,438-444,459-480
+  s_b03ce9111f7dbb::t_cd369a804daf08 140
+  s_b03ce9111f7dbb::t_d4052543531de7 343
+e2e/issue-list/issue-list.success.spec.ts
+  s_b03ce9111f7dbb::t_5328388e9ba5ae 217-222
+  s_b03ce9111f7dbb::t_7a4902f3a7f3dd 228-233
+  s_b03ce9111f7dbb::t_d92b1e3f7bd0f0 428-430
+  s_b03ce9111f7dbb::t_b8b9d108fa28be 397,399-401
+  s_b03ce9111f7dbb::t_18fa26f5bd1279 432-434
+  s_b03ce9111f7dbb::t_d0468e82f9a1ea 384-386
+  s_b03ce9111f7dbb::t_86361be1131818 366-368
+docs/agents/webdriver-e2e.md
+  s_b03ce9111f7dbb::t_32ccbd18970b6d 1,3-10,15-16,24-28,34,43-50,58-63,65-89,95-133,135-172,176-182,185-186,190-194,200-206,210-228,235-237,241-254
+src-tauri/src/workspace.rs
+  s_b03ce9111f7dbb::t_d2a15c0b866d43 1,6-11
+e2e/issue-list/scripts/store-isolation.ts
+  s_b03ce9111f7dbb::t_e0912cdc112d4c 1-77,79-84,89-91,93-94,96,98-99,101-139,144-155,157,161-165,167-190,194-196
+  s_b03ce9111f7dbb::t_270b16672aa168 78,85-88,92,95,97
+  s_b03ce9111f7dbb::t_3295dda887c1bc 140-143,156,158-160,166
+  s_b03ce9111f7dbb::t_f233750c3193d4 100
+  s_b03ce9111f7dbb::t_6306bd6de25d18 191-193
+e2e/issue-list/issue-list.empty.spec.ts
+  s_b03ce9111f7dbb::t_9f9fc175738370 79-80
+  s_b03ce9111f7dbb::t_c071ea29d093fc 73-77,81-87,89-90,92
+  s_b03ce9111f7dbb::t_a1a72c3754b155 4-10,12-13,16-47,50,70-72,78,91,94,97-103,109,112-114,116
+  s_b03ce9111f7dbb::t_2731882b48d34a 51,64
+  s_b03ce9111f7dbb::t_223dbe3bcc72ee 88
+  s_b03ce9111f7dbb::t_0a473782a5afa3 93
+package.json
+  s_b03ce9111f7dbb::t_55a753bc7f2b8b 20-25
+docs/research/workspace-management-verification-and-migration.md
+  s_b03ce9111f7dbb::t_1fd95a15c39d28 1,3-5,9-10,14-25,29-106,110-123
+e2e/issue-list/issue-list.restoration.spec.ts
+  s_b03ce9111f7dbb::t_1edfacee74536c 180-182
+  s_b03ce9111f7dbb::t_eb5dc5873783d6 114-115
+  s_b03ce9111f7dbb::t_cab137c5df638f 105-107,111,113,118-120,122-125
+  s_b03ce9111f7dbb::t_2a13a873448360 121
+  s_b03ce9111f7dbb::t_5b3f0c1d8e74c0 1-104,108-110,112,116-117,127-163,166,183-246
+  s_b03ce9111f7dbb::t_00f3cfad637463 164-165,167-179
+  s_b03ce9111f7dbb::t_6a7c340fcf3ac8 126
+wdio.issue-list.conf.ts
+  s_b03ce9111f7dbb::t_fc26e85f99a670 97-98
+  s_b03ce9111f7dbb::t_6f7025d5ee8081 70-75,77,79
+  s_b03ce9111f7dbb::t_1566000a488c7c 2-3,11-18,38-39,41-51,53-57,63-69,76,83-94,150-161,195-196
+  s_b03ce9111f7dbb::t_dd08a071e371f5 191-194
+  s_b03ce9111f7dbb::t_22410fdc2db9f3 149
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.14",
+  "base_commit_sha": "311c83d3669d5553fd00c7fee8aa78cb7db4e530",
+  "prompts": {},
+  "sessions": {
+    "s_b03ce9111f7dbb": {
+      "agent_id": {
+        "tool": "pi",
+        "id": "019f6cf3-e75f-7a8a-85c7-5280ee66b02b",
+        "model": "MiniMax-M3"
+      },
+      "human_author": "Tomas Thor Jonsson <benregn@gmail.com>"
+    }
+  }
+}
