@@ -9,6 +9,7 @@ import {
   Folder,
   Inbox,
   PlayCircle,
+  Settings as SettingsIcon,
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
@@ -39,6 +40,8 @@ import type {
   LoadIssueExplorerDataResponse,
   WorkspaceState,
 } from "./rpc/bindings";
+import { useAppSettings } from "./settings/app-settings";
+import { SettingsPage } from "./settings/SettingsPage";
 import { isRetryableSwitchFailureKind } from "./workspace-switch-failure";
 
 const WORKSPACE_TRANSITION_EVENT = "workspace-transition";
@@ -57,6 +60,29 @@ const ISSUE_LIST_VIEW_ICONS: Record<IssueListViewId, LucideIcon> = {
   open: Circle,
   ready: CheckCircle2,
 };
+
+type AppDestination = "issueExplorer" | "settings";
+
+const SidebarSettingsButton = ({
+  current,
+  onClick,
+}: {
+  current: boolean;
+  onClick: () => void;
+}) => (
+  <button
+    aria-current={current ? "page" : undefined}
+    aria-label="Settings"
+    className={`flex w-full items-center rounded-md px-2 py-1.5 text-sm transition-colors hover:bg-white/5 hover:text-text-main ${
+      current ? "bg-white/5 text-primary" : "text-muted"
+    }`}
+    onClick={onClick}
+    type="button"
+  >
+    <SettingsIcon className="mr-2 size-4" />
+    <span>Settings</span>
+  </button>
+);
 
 const SidebarNavButton = ({
   count,
@@ -85,9 +111,7 @@ const SidebarNavButton = ({
       }`}
       disabled={disabled}
       onClick={() => {
-        if (!current) {
-          onSelect(item.id);
-        }
+        onSelect(item.id);
       }}
       type="button"
     >
@@ -110,6 +134,9 @@ export default function App() {
   );
   const [activeIssueListViewId, setActiveIssueListViewId] =
     useState<IssueListViewId>(DEFAULT_ISSUE_LIST_VIEW_ID);
+  const [appDestination, setAppDestination] =
+    useState<AppDestination>("issueExplorer");
+  const settings = useAppSettings();
   const [workspaceState, setWorkspaceState] = useState<WorkspaceState | null>(
     null
   );
@@ -154,6 +181,10 @@ export default function App() {
   // the Retry banner without mutating backend state.
   const [dismissedSwitchErrorGeneration, setDismissedSwitchErrorGeneration] =
     useState<number | null>(null);
+  const handleIssueListViewSelect = useCallback((viewId: IssueListViewId) => {
+    setActiveIssueListViewId(viewId);
+    setAppDestination("issueExplorer");
+  }, []);
   const issueListViewCounts = getIssueListViewCounts(issueState);
   const sidebarDisabled = issueState.status !== "success";
   const viewItems = ISSUE_LIST_VIEW_DEFINITIONS.filter(
@@ -437,11 +468,14 @@ export default function App() {
             {viewItems.map((item) => (
               <SidebarNavButton
                 count={issueListViewCounts?.[item.id] ?? null}
-                current={item.id === activeIssueListViewId}
+                current={
+                  appDestination === "issueExplorer" &&
+                  item.id === activeIssueListViewId
+                }
                 disabled={sidebarDisabled}
                 item={item}
                 key={item.id}
-                onSelect={setActiveIssueListViewId}
+                onSelect={handleIssueListViewSelect}
               />
             ))}
           </div>
@@ -453,14 +487,24 @@ export default function App() {
             {statusItems.map((item) => (
               <SidebarNavButton
                 count={issueListViewCounts?.[item.id] ?? null}
-                current={item.id === activeIssueListViewId}
+                current={
+                  appDestination === "issueExplorer" &&
+                  item.id === activeIssueListViewId
+                }
                 disabled={sidebarDisabled}
                 item={item}
                 key={item.id}
-                onSelect={setActiveIssueListViewId}
+                onSelect={handleIssueListViewSelect}
               />
             ))}
           </div>
+        </div>
+
+        <div className="border-t border-border-main p-2">
+          <SidebarSettingsButton
+            current={appDestination === "settings"}
+            onClick={() => setAppDestination("settings")}
+          />
         </div>
 
         <WorkspaceSelector
@@ -489,35 +533,56 @@ export default function App() {
         />
       </nav>
 
-      {workspaceState !== null && workspaceState.currentWorkspace === null ? (
-        <main
-          aria-label="Choose a workspace"
-          className="flex flex-1 items-center justify-center bg-background p-8 text-center"
-        >
-          <div>
-            <h1 className="text-lg font-semibold text-primary">
-              Choose a workspace
-            </h1>
-            <p className="mt-2 text-sm text-muted">
-              Select a Beadwork repository to load its issue views.
-            </p>
-            <button
-              className="mt-4 rounded border border-border-main px-3 py-2 text-sm hover:bg-white/5"
-              onClick={() => void chooseWorkspace()}
-              type="button"
-            >
-              Choose folder
-            </button>
-          </div>
-        </main>
-      ) : (
-        <IssueExplorer
-          activeIssueListViewId={activeIssueListViewId}
-          issueState={issueState}
+      <div className="relative flex flex-1">
+        <div
           key={workspaceKey}
-          onIssueListViewChange={setActiveIssueListViewId}
-        />
-      )}
+          aria-hidden={appDestination === "settings" ? true : undefined}
+          className={`flex flex-1 ${
+            appDestination === "settings" ? "invisible" : ""
+          }`}
+          inert={appDestination === "settings" ? true : undefined}
+        >
+          {workspaceState !== null &&
+          workspaceState.currentWorkspace === null ? (
+            <main
+              aria-label="Choose a workspace"
+              className="flex flex-1 items-center justify-center bg-background p-8 text-center"
+            >
+              <div>
+                <h1 className="text-lg font-semibold text-primary">
+                  Choose a workspace
+                </h1>
+                <p className="mt-2 text-sm text-muted">
+                  Select a Beadwork repository to load its issue views.
+                </p>
+                <button
+                  className="mt-4 rounded border border-border-main px-3 py-2 text-sm hover:bg-white/5"
+                  onClick={() => void chooseWorkspace()}
+                  type="button"
+                >
+                  Choose folder
+                </button>
+              </div>
+            </main>
+          ) : (
+            <IssueExplorer
+              activeIssueListViewId={activeIssueListViewId}
+              issueState={issueState}
+              markdownFontSizePx={settings.state.appliedFontSizePx}
+              onIssueListViewChange={setActiveIssueListViewId}
+            />
+          )}
+        </div>
+        {appDestination === "settings" ? (
+          <SettingsPage
+            className="absolute inset-0 z-10"
+            onDraftChange={settings.setDraft}
+            onReset={settings.reset}
+            onRetry={settings.retry}
+            state={settings.state}
+          />
+        ) : null}
+      </div>
     </div>
   );
 }

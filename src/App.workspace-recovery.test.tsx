@@ -22,13 +22,17 @@ const removeWorkspace = vi.fn();
 const retryWorkspaceMemory = vi.fn();
 const resetWorkspaceMemory = vi.fn();
 const cancelWorkspace = vi.fn();
+const appSettingsState = vi.fn();
+const updateAppSettings = vi.fn();
 const listen = vi.fn().mockResolvedValue(vi.fn());
 const createTauRPCProxy = vi.fn(() => ({
+  app_settings_state: appSettingsState,
   cancel_workspace: cancelWorkspace,
   remove_workspace: removeWorkspace,
   reset_workspace_memory: resetWorkspaceMemory,
   retry_workspace_memory: retryWorkspaceMemory,
   switch_workspace: switchWorkspace,
+  update_app_settings: updateAppSettings,
   workspace_state: workspaceState,
 }));
 
@@ -61,6 +65,13 @@ describe("App workspace recovery", () => {
     retryWorkspaceMemory.mockReset();
     switchWorkspace.mockReset();
     cancelWorkspace.mockReset();
+    appSettingsState.mockReset();
+    appSettingsState.mockResolvedValue({
+      settings: { markdown: { fontSizePx: 14 } },
+      warning: null,
+    });
+    updateAppSettings.mockReset();
+    updateAppSettings.mockResolvedValue({ markdown: { fontSizePx: 14 } });
     listen.mockClear();
     listen.mockResolvedValue(vi.fn());
     workspaceState.mockReset();
