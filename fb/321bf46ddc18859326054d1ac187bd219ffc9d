@@ -1,0 +1,22 @@
+src/App.workspace-recovery.test.tsx
+  s_c93ac8e8cb8904::t_7effa5c467bed0 636-677
+src/App.tsx
+  s_c93ac8e8cb8904::t_f7df3f7f96fa3c 415-422
+  s_c93ac8e8cb8904::t_ce4ab4c5dc4d00 423-426
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.14",
+  "base_commit_sha": "fb321bf46ddc18859326054d1ac187bd219ffc9d",
+  "prompts": {},
+  "sessions": {
+    "s_c93ac8e8cb8904": {
+      "agent_id": {
+        "tool": "pi",
+        "id": "019f6a1a-d562-711b-b34f-184bb813286b",
+        "model": "gpt-5.6-terra"
+      },
+      "human_author": "Tomas Thor Jonsson <benregn@gmail.com>"
+    }
+  }
+}
