@@ -114,7 +114,7 @@ export type WorkspaceTransitionDecision =
  * subtree so the prior Workspace's selected Issue and search are
  * dropped before the chooser renders.
  */
-export const CLEARED_WORKSPACE_REMOTE_KEY = "/__removed__";
+export const CLEARED_WORKSPACE_REMOUNT_KEY = "/__removed__";
 
 /**
  * Result of admitting one transition payload.
@@ -155,7 +155,7 @@ export type WorkspaceStartupDecision =
  * `setWorkspaceKey` call idempotently without inspecting the
  * snapshot's status themselves.
  */
-export const INITIAL_WORKSPACE_REMOTE_KEY = "/__initial__";
+export const INITIAL_WORKSPACE_REMOUNT_KEY = "/__initial__";
 
 /**
  * Admit one transition payload against the current gate state.
@@ -234,7 +234,7 @@ export const applyWorkspaceTransition = (
     confirmedWorkspacePath = null;
     decision = {
       kind: "clearSnapshot",
-      remountKey: CLEARED_WORKSPACE_REMOTE_KEY,
+      remountKey: CLEARED_WORKSPACE_REMOUNT_KEY,
     };
   } else {
     decision = { kind: "acceptStateRetainSnapshot" };
@@ -291,7 +291,7 @@ export const applyStartupIssueLoad = (
     return {
       decision: {
         kind: "commitSnapshot",
-        remountKey: load.workspacePath || INITIAL_WORKSPACE_REMOTE_KEY,
+        remountKey: load.workspacePath,
         snapshot: load,
       },
       next: {
@@ -304,7 +304,7 @@ export const applyStartupIssueLoad = (
   return {
     decision: {
       kind: "commitSnapshot",
-      remountKey: INITIAL_WORKSPACE_REMOTE_KEY,
+      remountKey: INITIAL_WORKSPACE_REMOUNT_KEY,
       snapshot: load,
     },
     next: current,

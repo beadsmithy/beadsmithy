@@ -45,6 +45,7 @@ import { SettingsPage } from "./settings/SettingsPage";
 import {
   applyStartupIssueLoad,
   applyWorkspaceTransition,
+  INITIAL_WORKSPACE_REMOUNT_KEY,
   INITIAL_WORKSPACE_TRANSITION_GATE_STATE,
 } from "./workspaces/transition-gate";
 import type {
@@ -151,6 +152,21 @@ const INITIAL_LOAD_FAILURE_STATE: IssueExplorerLoadState = {
 };
 
 /**
+ * Apply the no-workspace presentation: publish the chooser-style
+ * error state and force the explorer's remount key. Used both for the
+ * gate's `clearSnapshot` decision and for the reset-memory recovery
+ * path that has no confirmed snapshot to clear.
+ */
+const applyNoWorkspacePresentation = (
+  remountKey: string,
+  setIssueState: (state: IssueExplorerLoadState) => void,
+  setWorkspaceKey: (key: string) => void
+): void => {
+  setIssueState(NO_WORKSPACE_ERROR_STATE);
+  setWorkspaceKey(remountKey);
+};
+
+/**
  * Apply the gate's decision to the renderer's React state. The gate is
  * the only source of admission truth; this helper translates the
  * discriminated decision into the small set of React effects App owns.
@@ -172,8 +188,11 @@ const applyTransitionDecision = (
     return;
   }
   if (decision.kind === "clearSnapshot") {
-    setIssueState(NO_WORKSPACE_ERROR_STATE);
-    setWorkspaceKey(decision.remountKey);
+    applyNoWorkspacePresentation(
+      decision.remountKey,
+      setIssueState,
+      setWorkspaceKey
+    );
     return;
   }
   // decision.kind === "commitSnapshot"
@@ -202,7 +221,7 @@ export default function App() {
   // in App and survives the remount.
   const [workspaceKey, setWorkspaceKey] = useState<string>(
     INITIAL_WORKSPACE_TRANSITION_GATE_STATE.confirmedWorkspacePath ??
-      "/__initial__"
+      INITIAL_WORKSPACE_REMOUNT_KEY
   );
   // Renderer transition state. The gate owns every lifecycle marker
   // previously held by `acceptedGenerationRef`, `committedGenerationRef`,
@@ -398,12 +417,15 @@ export default function App() {
       // was previously confirmed. Reset without a confirmed snapshot
       // (the storage-failure recovery path) returns
       // `acceptStateRetainSnapshot`; we then force the chooser
-      // presentation manually so the recovery panel is replaced by a
-      // known good no-workspace UI.
+      // presentation with the same no-workspace helper so the
+      // recovery panel is replaced by a known good no-workspace UI.
       const decision = applyTransition({ issueData: null, state }, null);
       if (decision.kind === "acceptStateRetainSnapshot") {
-        setIssueState(NO_WORKSPACE_ERROR_STATE);
-        setWorkspaceKey("/__reset__");
+        applyNoWorkspacePresentation(
+          "/__reset__",
+          setIssueState,
+          setWorkspaceKey
+        );
       }
     } catch {
       await refreshWorkspaceState();

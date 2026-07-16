@@ -10,10 +10,11 @@ import type {
 import {
   applyStartupIssueLoad,
   applyWorkspaceTransition,
-  CLEARED_WORKSPACE_REMOTE_KEY,
-  INITIAL_WORKSPACE_REMOTE_KEY,
+  CLEARED_WORKSPACE_REMOUNT_KEY,
+  INITIAL_WORKSPACE_REMOUNT_KEY,
   INITIAL_WORKSPACE_TRANSITION_GATE_STATE,
 } from "./transition-gate";
+import type { WorkspaceTransitionGateState } from "./transition-gate";
 
 const workspace = (
   path: string,
@@ -56,14 +57,16 @@ const inlineError: WorkspaceError = {
   retryable: true,
 };
 
-const initialGate = () => ({ ...INITIAL_WORKSPACE_TRANSITION_GATE_STATE });
+const initialGate = (
+  overrides: Partial<WorkspaceTransitionGateState> = {}
+): WorkspaceTransitionGateState => ({
+  ...INITIAL_WORKSPACE_TRANSITION_GATE_STATE,
+  ...overrides,
+});
 
 describe("applyWorkspaceTransition", () => {
   it("admits a Pending transition while retaining the existing snapshot", () => {
-    const gate = {
-      ...initialGate(),
-      confirmedWorkspacePath: "/work/a",
-    };
+    const gate = initialGate({ confirmedWorkspacePath: "/work/a" });
     const payload = {
       issueData: null,
       state: workspaceState({
@@ -76,20 +79,19 @@ describe("applyWorkspaceTransition", () => {
     const result = applyWorkspaceTransition(gate, payload, null);
 
     expect(result.decision).toEqual({ kind: "acceptStateRetainSnapshot" });
-    expect(result.next).toEqual({
-      acceptedGeneration: 2,
-      committedGeneration: -1,
-      confirmedWorkspacePath: "/work/a",
-      terminalGeneration: -1,
-    });
+    expect(result.next).toEqual(
+      initialGate({
+        acceptedGeneration: 2,
+        confirmedWorkspacePath: "/work/a",
+      })
+    );
   });
 
   it("commits a matching snapshot and advances the remount key", () => {
-    const gate = {
-      ...initialGate(),
+    const gate = initialGate({
       acceptedGeneration: 2,
       confirmedWorkspacePath: "/work/a",
-    };
+    });
     const matchingSnapshot = snapshot("/work/b");
     const payload = {
       issueData: matchingSnapshot,
@@ -106,19 +108,17 @@ describe("applyWorkspaceTransition", () => {
       remountKey: "/work/b",
       snapshot: matchingSnapshot,
     });
-    expect(result.next).toEqual({
-      acceptedGeneration: 3,
-      committedGeneration: 3,
-      confirmedWorkspacePath: "/work/b",
-      terminalGeneration: -1,
-    });
+    expect(result.next).toEqual(
+      initialGate({
+        acceptedGeneration: 3,
+        committedGeneration: 3,
+        confirmedWorkspacePath: "/work/b",
+      })
+    );
   });
 
   it("admits Pending before a matching success, then commits the snapshot", () => {
-    const gate = {
-      ...initialGate(),
-      confirmedWorkspacePath: "/work/a",
-    };
+    const gate = initialGate({ confirmedWorkspacePath: "/work/a" });
 
     const pending = applyWorkspaceTransition(
       gate,
@@ -160,12 +160,11 @@ describe("applyWorkspaceTransition", () => {
     // The committed-success guard fires before the failure-terminal
     // guard: a same-generation Pending whose Current still points at
     // the previous workspace must also be ignored after commit.
-    const committed = {
+    const committed = initialGate({
       acceptedGeneration: 2,
       committedGeneration: 2,
       confirmedWorkspacePath: "/work/b",
-      terminalGeneration: -1,
-    };
+    });
 
     const latePendingCurrentNull = applyWorkspaceTransition(
       committed,
@@ -199,12 +198,10 @@ describe("applyWorkspaceTransition", () => {
   });
 
   it("ignores an older-generation transition without advancing any marker", () => {
-    const gate = {
+    const gate = initialGate({
       acceptedGeneration: 3,
-      committedGeneration: -1,
       confirmedWorkspacePath: "/work/a",
-      terminalGeneration: -1,
-    };
+    });
     const result = applyWorkspaceTransition(
       gate,
       {
@@ -223,12 +220,10 @@ describe("applyWorkspaceTransition", () => {
   });
 
   it("ignores a direct RPC response whose generation does not match the expected one", () => {
-    const gate = {
+    const gate = initialGate({
       acceptedGeneration: 2,
-      committedGeneration: -1,
       confirmedWorkspacePath: "/work/a",
-      terminalGeneration: -1,
-    };
+    });
     const result = applyWorkspaceTransition(
       gate,
       {
@@ -248,12 +243,11 @@ describe("applyWorkspaceTransition", () => {
   it("admits a Pending cancellation while retaining the existing snapshot", () => {
     // A genuine Pending cancellation carries no Issue Explorer
     // snapshot: the prior workspace's issue list must remain rendered.
-    const gate = {
+    const gate = initialGate({
       acceptedGeneration: 3,
       committedGeneration: 3,
       confirmedWorkspacePath: "/work/b",
-      terminalGeneration: -1,
-    };
+    });
     const result = applyWorkspaceTransition(
       gate,
       {
@@ -268,23 +262,23 @@ describe("applyWorkspaceTransition", () => {
     );
 
     expect(result.decision).toEqual({ kind: "acceptStateRetainSnapshot" });
-    expect(result.next).toEqual({
-      acceptedGeneration: 4,
-      committedGeneration: 3,
-      confirmedWorkspacePath: "/work/b",
-      terminalGeneration: -1,
-    });
+    expect(result.next).toEqual(
+      initialGate({
+        acceptedGeneration: 4,
+        committedGeneration: 3,
+        confirmedWorkspacePath: "/work/b",
+      })
+    );
   });
 
   it("ignores the superseded worker result for a newer selection", () => {
     // Selecting C after selecting B should commit C and reject the
     // late B result that arrives with an older accepted generation.
-    const afterB = {
+    const afterB = initialGate({
       acceptedGeneration: 2,
       committedGeneration: 2,
       confirmedWorkspacePath: "/work/b",
-      terminalGeneration: -1,
-    };
+    });
     const afterCSelection = applyWorkspaceTransition(
       afterB,
       {
@@ -315,12 +309,10 @@ describe("applyWorkspaceTransition", () => {
   });
 
   it("admits a retryable failure and ignores a delayed same-generation Pending replay", () => {
-    const gate = {
+    const gate = initialGate({
       acceptedGeneration: 2,
-      committedGeneration: -1,
       confirmedWorkspacePath: "/work/a",
-      terminalGeneration: -1,
-    };
+    });
 
     const failure = applyWorkspaceTransition(
       gate,
@@ -358,12 +350,10 @@ describe("applyWorkspaceTransition", () => {
   });
 
   it("admits a non-retryable failure with no retry target and ignores a delayed same-generation Pending replay", () => {
-    const gate = {
+    const gate = initialGate({
       acceptedGeneration: 2,
-      committedGeneration: -1,
       confirmedWorkspacePath: "/work/a",
-      terminalGeneration: -1,
-    };
+    });
 
     const failure = applyWorkspaceTransition(
       gate,
@@ -400,12 +390,10 @@ describe("applyWorkspaceTransition", () => {
     // A non-retryable error that retains a retry target leaves the
     // user a manual retry path; the renderer must not block a delayed
     // same-generation Pending in that case.
-    const gate = {
+    const gate = initialGate({
       acceptedGeneration: 2,
-      committedGeneration: -1,
       confirmedWorkspacePath: "/work/a",
-      terminalGeneration: -1,
-    };
+    });
 
     const failure = applyWorkspaceTransition(
       gate,
@@ -420,7 +408,9 @@ describe("applyWorkspaceTransition", () => {
       },
       null
     );
-    expect(failure.next.terminalGeneration).toBe(-1);
+    expect(failure.next.terminalGeneration).toBe(
+      INITIAL_WORKSPACE_TRANSITION_GATE_STATE.terminalGeneration
+    );
 
     const pendingReplay = applyWorkspaceTransition(
       failure.next,
@@ -443,12 +433,10 @@ describe("applyWorkspaceTransition", () => {
     // The backend packages the matching Issue Explorer snapshot with
     // the cancel response so the renderer can commit through the same
     // path it uses for a direct switch_workspace response.
-    const gate = {
+    const gate = initialGate({
       acceptedGeneration: 1,
-      committedGeneration: -1,
       confirmedWorkspacePath: "/work/a",
-      terminalGeneration: -1,
-    };
+    });
     const matchingSnapshot = snapshot("/work/b");
 
     const result = applyWorkspaceTransition(
@@ -473,12 +461,7 @@ describe("applyWorkspaceTransition", () => {
   });
 
   it("commits a matching snapshot delivered through a retry_workspace_memory response", () => {
-    const gate = {
-      acceptedGeneration: 1,
-      committedGeneration: -1,
-      confirmedWorkspacePath: null,
-      terminalGeneration: -1,
-    };
+    const gate = initialGate({ acceptedGeneration: 1 });
     const matchingSnapshot = snapshot("/work/restored");
 
     const result = applyWorkspaceTransition(
@@ -502,12 +485,11 @@ describe("applyWorkspaceTransition", () => {
   });
 
   it("clears the confirmed snapshot when Current Workspace is removed", () => {
-    const gate = {
+    const gate = initialGate({
       acceptedGeneration: 3,
       committedGeneration: 3,
       confirmedWorkspacePath: "/work/current",
-      terminalGeneration: -1,
-    };
+    });
 
     const result = applyWorkspaceTransition(
       gate,
@@ -524,18 +506,16 @@ describe("applyWorkspaceTransition", () => {
 
     expect(result.decision).toEqual({
       kind: "clearSnapshot",
-      remountKey: CLEARED_WORKSPACE_REMOTE_KEY,
+      remountKey: CLEARED_WORKSPACE_REMOUNT_KEY,
     });
     expect(result.next.confirmedWorkspacePath).toBeNull();
   });
 
   it("treats a duplicate clear as non-destructive", () => {
-    const afterFirstClear = {
+    const afterFirstClear = initialGate({
       acceptedGeneration: 4,
       committedGeneration: 3,
-      confirmedWorkspacePath: null,
-      terminalGeneration: -1,
-    };
+    });
 
     const duplicate = applyWorkspaceTransition(
       afterFirstClear,
@@ -565,12 +545,7 @@ describe("applyWorkspaceTransition", () => {
     // a remove request that targets a catalog entry that is not
     // Current must still update workspace state but leave the chooser
     // presentation alone.
-    const gate = {
-      acceptedGeneration: 1,
-      committedGeneration: -1,
-      confirmedWorkspacePath: null,
-      terminalGeneration: -1,
-    };
+    const gate = initialGate({ acceptedGeneration: 1 });
 
     const result = applyWorkspaceTransition(
       gate,
@@ -592,12 +567,10 @@ describe("applyWorkspaceTransition", () => {
     // The gate only publishes a matching snapshot. A response whose
     // snapshot and Current point at different paths is treated as a
     // refresh: state is admitted, the prior snapshot is retained.
-    const gate = {
+    const gate = initialGate({
       acceptedGeneration: 1,
-      committedGeneration: -1,
       confirmedWorkspacePath: "/work/a",
-      terminalGeneration: -1,
-    };
+    });
 
     const result = applyWorkspaceTransition(
       gate,
@@ -618,12 +591,11 @@ describe("applyWorkspaceTransition", () => {
 
 describe("applyStartupIssueLoad", () => {
   it("ignores a successful startup load superseded by a later committed switch", () => {
-    const gate = {
+    const gate = initialGate({
       acceptedGeneration: 3,
       committedGeneration: 4,
       confirmedWorkspacePath: "/work/b",
-      terminalGeneration: -1,
-    };
+    });
     const load: IssueExplorerLoadState = {
       allIssues: [],
       blockedIssues: [],
@@ -639,12 +611,11 @@ describe("applyStartupIssueLoad", () => {
   });
 
   it("ignores a failed startup load superseded by a later committed switch", () => {
-    const gate = {
+    const gate = initialGate({
       acceptedGeneration: 3,
       committedGeneration: 4,
       confirmedWorkspacePath: "/work/b",
-      terminalGeneration: -1,
-    };
+    });
     const load: IssueExplorerLoadState = {
       error: { kind: "unknown", message: "Beadsmith could not load issues." },
       status: "failure",
@@ -657,12 +628,7 @@ describe("applyStartupIssueLoad", () => {
   });
 
   it("commits a non-superseded successful startup load and records the confirmed path", () => {
-    const gate = {
-      acceptedGeneration: 0,
-      committedGeneration: -1,
-      confirmedWorkspacePath: null,
-      terminalGeneration: -1,
-    };
+    const gate = initialGate();
     const load: IssueExplorerLoadState = {
       allIssues: [],
       blockedIssues: [],
@@ -692,32 +658,10 @@ describe("applyStartupIssueLoad", () => {
 
     expect(result.decision).toEqual({
       kind: "commitSnapshot",
-      remountKey: INITIAL_WORKSPACE_REMOTE_KEY,
+      remountKey: INITIAL_WORKSPACE_REMOUNT_KEY,
       snapshot: load,
     });
     expect(result.next.confirmedWorkspacePath).toBeNull();
-  });
-
-  it("uses the initial remount key when a successful startup load reports no workspace path", () => {
-    // The backend's initial-load response always carries a workspace
-    // path; the empty-string branch keeps the gate well-defined if
-    // that contract changes for a no-workspace startup state.
-    const gate = initialGate();
-    const load: IssueExplorerLoadState = {
-      allIssues: [],
-      blockedIssues: [],
-      readyIssues: [],
-      status: "success",
-      workspacePath: "",
-    };
-
-    const result = applyStartupIssueLoad(gate, load, -1);
-
-    expect(result.decision).toMatchObject({
-      kind: "commitSnapshot",
-      remountKey: INITIAL_WORKSPACE_REMOTE_KEY,
-    });
-    expect(result.next.confirmedWorkspacePath).toBe("");
   });
 });
 
