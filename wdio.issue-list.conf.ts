@@ -118,6 +118,9 @@ export const config: WebdriverIO.Config = {
     if (scenario === "atomic-switch") {
       return ["./e2e/issue-list/issue-list.atomic-switch.spec.ts"];
     }
+    if (scenario === "restoration") {
+      return ["./e2e/issue-list/issue-list.restoration.spec.ts"];
+    }
     return ["./e2e/issue-list/issue-list.success.spec.ts"];
   })(),
   waitforTimeout: 30_000,

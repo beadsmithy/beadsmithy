@@ -1,10 +1,14 @@
-//! Workspace service foundation and the legacy startup override.
+//! Backend-owned Workspace service.
 //!
 //! [`WorkspaceService`] owns durable workspace selection state without relying
 //! on the process working directory. Its command and persistence dependencies
 //! are traits so the state machine can be tested without Tauri, a store plugin,
-//! or installed `bw`/`git` binaries. Tauri store and dialog wiring deliberately
-//! belongs to a later integration chunk.
+//! or installed `bw`/`git` binaries. Every `bw` subprocess receives an
+//! explicit working directory through the [`CommandRunner`] seam; process cwd
+//! and a `--workspace` launch override are not part of the workspace
+//! resolution path. Desktop acceptance always starts from an isolated,
+//! supported test-only store and uses the typed `switch_workspace` RPC to
+//! seed fixtures; it never writes the store file directly.
 
 use std::fmt;
 use std::io;

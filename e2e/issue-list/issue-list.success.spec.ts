@@ -241,9 +241,9 @@ describe("Issue explorer (WebDriver e2e): workspace with selectable Issue List V
     // call exercises the typed boundary directly so it never relies on a
     // renderer control or writes the store file from the spec. The
     // storage-failure-driven `App.retryWorkspaceMemory` button is
-    // covered by `App.test.tsx`; this test only proves the typed RPC
-    // returns a fresh state + matching snapshot and that the post-refresh
-    // startup read renders B again.
+    // covered by `App.workspace-recovery.test.tsx`; this test only
+    // proves the typed RPC returns a fresh state + matching snapshot
+    // and that the post-refresh startup read renders B again.
     const restored = await invokeWorkspaceMemoryRetry();
     if ("failure" in restored) {
       throw new Error(restored.failure);
