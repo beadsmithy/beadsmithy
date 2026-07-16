@@ -137,10 +137,12 @@ const extractMermaidSource = (node: Element | undefined): string | null => {
     return null;
   }
 
-  const source = codeElement.children
-    .filter((child) => child.type === "text")
-    .map((child) => child.value)
-    .join("");
+  let source = "";
+  for (const child of codeElement.children) {
+    if (child.type === "text") {
+      source += child.value;
+    }
+  }
   return source.replace(/\n$/u, "");
 };
 
