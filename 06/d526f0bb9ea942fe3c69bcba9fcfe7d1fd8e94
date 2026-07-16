@@ -1,0 +1,25 @@
+CONTEXT.md
+  s_f6f423e6a4ba7e::t_d33dfa251f525c 19,21,26
+  s_f6f423e6a4ba7e::t_ec9735fabff047 20
+  s_f6f423e6a4ba7e::t_3f584764e4d1b8 28
+  s_f6f423e6a4ba7e::t_41fcf99228244b 27,29-30
+  s_f6f423e6a4ba7e::t_73fa4f4e2e41ce 32
+  s_f6f423e6a4ba7e::t_87e84389834086 31,33-34
+  s_f6f423e6a4ba7e::t_c7387286f864ec 22-25
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.14",
+  "base_commit_sha": "06d526f0bb9ea942fe3c69bcba9fcfe7d1fd8e94",
+  "prompts": {},
+  "sessions": {
+    "s_f6f423e6a4ba7e": {
+      "agent_id": {
+        "tool": "pi",
+        "id": "019f6a1e-8cd7-7a36-90d7-14f8ea7a8c70",
+        "model": "gpt-5.6-terra"
+      },
+      "human_author": "Tomas Thor Jonsson <benregn@gmail.com>"
+    }
+  }
+}
