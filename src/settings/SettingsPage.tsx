@@ -188,6 +188,7 @@ export const SettingsPage = ({
             className="mt-6 rounded-md border border-border-main bg-surface p-4"
           >
             <MarkdownContent
+              ariaLabel="Markdown typography preview"
               fontSizePx={state.appliedFontSizePx}
               markdown={PREVIEW_MARKDOWN}
             />

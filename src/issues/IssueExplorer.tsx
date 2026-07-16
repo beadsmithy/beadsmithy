@@ -286,6 +286,7 @@ const IssueCommentCard = ({
           ) : null}
         </header>
         <MarkdownContent
+          ariaLabel="Comment"
           fontSizePx={markdownFontSizePx}
           markdown={comment.text}
           openExternalLink={openExternalLink}
@@ -414,6 +415,7 @@ const IssueDetailContent = ({
         {hasDescription ? (
           <div className="mt-2">
             <MarkdownContent
+              ariaLabel="Issue description"
               fontSizePx={markdownFontSizePx}
               markdown={issue.description}
               openExternalLink={openExternalLink}

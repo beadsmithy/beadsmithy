@@ -180,6 +180,7 @@ const renderLink =
   };
 
 interface MarkdownContentProps {
+  ariaLabel?: string;
   markdown: string;
   openExternalLink?: ExternalLinkOpener;
   className?: string;
@@ -187,6 +188,7 @@ interface MarkdownContentProps {
 }
 
 export const MarkdownContent = ({
+  ariaLabel,
   markdown,
   openExternalLink = defaultOpenExternalLink,
   className,
@@ -219,6 +221,7 @@ export const MarkdownContent = ({
 
   return (
     <article
+      aria-label={ariaLabel}
       className={articleClassName}
       style={{ fontSize: `${fontSizePx}px` }}
     >

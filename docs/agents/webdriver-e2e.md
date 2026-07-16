@@ -29,11 +29,54 @@ pnpm e2e:issue-list:atomic-switch
 
 # Build + run the issue-list slice in one step (success, empty, and atomic-switch):
 pnpm test:e2e:issue-list
+
+# Build + run the two-launch Markdown settings acceptance:
+pnpm test:e2e:settings
 ```
 
 Requires `bw` on `PATH` (used both to build the disposable fixture workspaces
 and by the running app). `pnpm e2e:issue-list:*` fails fast with a clear error
 if `bw` isn't found or the debug binary hasn't been built yet.
+
+## Settings persistence suite
+
+The focused Settings suite proves Markdown Typography settings through two
+genuine built-desktop launches. It is intentionally not a `browser.refresh()`
+test: the first WDIO invocation exits its Tauri process before the second
+invocation launches a fresh process.
+
+```sh
+# Build the debug binary:
+pnpm e2e:build
+
+# Run both sequential phases against one temporary root:
+pnpm e2e:settings
+
+# Build + run the settings slice:
+pnpm test:e2e:settings
+```
+
+`e2e/settings/scripts/run-settings-scenario.ts` creates one temporary root
+containing separate `workspace-catalog.json` and `app-settings.json` paths,
+plus one populated Workspace from the shared Issue List fixture. It passes
+those paths to both phases through `BEADSMITH_WORKSPACE_STORE_PATH` and
+`BEADSMITH_SETTINGS_STORE_PATH`, then removes the Workspace and entire root on
+pass or failure. The runner never writes, parses, seeds, or patches either
+store file: Phase 1 establishes Workspace state through typed
+`TauRPC__switch_workspace` and Settings state through the visible Settings
+control.
+
+Phase 1 sets 24px, asserts computed `font-size` on the preview, Issue
+description, and Issue comment Markdown articles, and waits for Saved before
+the process exits. Phase 2 uses the same stores in a new process, verifies
+automatic Current Workspace restoration without another typed switch, verifies
+24px settings and rendering, then exercises Reset back to 14px.
+
+The settings config (`wdio.settings.conf.ts`) uses the same embedded
+`@wdio/tauri-service` and debug binary as the Issue List suite, captures
+backend and frontend logs, and uses the dedicated embedded WebDriver port
+`46246` (the Issue List suite uses `46245`). Both ports are preflighted through
+the shared `e2e/issue-list/scripts/embedded-webdriver-port.ts` helper.
 
 ## Scenarios
 
