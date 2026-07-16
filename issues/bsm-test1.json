@@ -1,0 +1,14 @@
+{
+  "assignee": "",
+  "blocked_by": [],
+  "blocks": [],
+  "created": "2026-07-16T22:03:31Z",
+  "description": "",
+  "id": "bsm-test1",
+  "labels": [],
+  "priority": 3,
+  "status": "open",
+  "title": "Test issue",
+  "type": "task",
+  "updated_at": "2026-07-16T22:03:31Z"
+}
