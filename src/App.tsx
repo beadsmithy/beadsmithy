@@ -412,21 +412,18 @@ export default function App() {
   const resetWorkspaceMemory = async () => {
     try {
       const state = await createTauRPCProxy().reset_workspace_memory();
-      // The gate's `clearSnapshot` decision already publishes the
-      // no-workspace error and remounts the explorer when a snapshot
-      // was previously confirmed. Reset without a confirmed snapshot
-      // (the storage-failure recovery path) returns
-      // `acceptStateRetainSnapshot`; we then force the chooser
-      // presentation with the same no-workspace helper so the
-      // recovery panel is replaced by a known good no-workspace UI.
-      const decision = applyTransition({ issueData: null, state }, null);
-      if (decision.kind === "acceptStateRetainSnapshot") {
-        applyNoWorkspacePresentation(
-          "/__reset__",
-          setIssueState,
-          setWorkspaceKey
-        );
-      }
+      // `reset_workspace_memory` emits the same state through an
+      // event and its typed response. The gate may therefore return
+      // `clearSnapshot` for either delivery and
+      // `acceptStateRetainSnapshot` for the duplicate. Always apply
+      // reset's own chooser presentation after its typed response so
+      // both orders finish with the original reset remount key.
+      applyTransition({ issueData: null, state }, null);
+      applyNoWorkspacePresentation(
+        "/__reset__",
+        setIssueState,
+        setWorkspaceKey
+      );
     } catch {
       await refreshWorkspaceState();
     }
