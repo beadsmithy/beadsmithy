@@ -52,8 +52,8 @@ const SidebarSettingsButton = ({
     aria-current={current ? "page" : undefined}
     aria-label="Settings"
     className={`flex w-full items-center rounded-md px-2 py-1.5 text-sm transition-colors hover:bg-white/5 hover:text-text-main ${
-      current ? "bg-white/5 text-primary" : "text-muted"
-    }`}
+      collapsed ? "justify-center" : ""
+    } ${current ? "bg-white/5 text-primary" : "text-muted"}`}
     onClick={onClick}
     title="Settings"
     type="button"
@@ -88,8 +88,8 @@ const SidebarNavButton = ({
         countLabel === null ? item.label : `${item.label}, ${countLabel}`
       }
       className={`flex w-full items-center rounded-md px-2 py-1.5 text-sm transition-colors hover:bg-white/5 hover:text-text-main hover:disabled:bg-transparent hover:disabled:text-muted ${
-        current ? "bg-white/5 text-primary" : "text-muted"
-      }`}
+        collapsed ? "justify-center" : ""
+      } ${current ? "bg-white/5 text-primary" : "text-muted"}`}
       disabled={disabled}
       onClick={() => {
         onSelect(item.id);
@@ -158,13 +158,13 @@ export const Sidebar = ({
     >
       <div
         className={`flex h-12 items-center font-semibold ${
-          collapsed ? "px-4" : "px-4 text-[14px]"
+          collapsed ? "justify-center px-4" : "px-4 text-[14px]"
         }`}
       >
         {collapsed ? (
           <button
             aria-label="Expand sidebar"
-            className="flex w-full items-center rounded py-1.5 text-muted transition-colors hover:bg-white/5 hover:text-text-main"
+            className="flex size-8 items-center justify-center rounded text-muted transition-colors hover:bg-white/5 hover:text-text-main"
             onClick={() => onCollapseToggle(false)}
             type="button"
           >
@@ -228,7 +228,7 @@ export const Sidebar = ({
         </div>
       </div>
 
-      <div className={`border-t border-border-main ${"p-2"}`}>
+      <div className="border-t border-border-main p-2">
         <SidebarSettingsButton
           collapsed={collapsed}
           current={appDestination === "settings"}
@@ -240,7 +240,7 @@ export const Sidebar = ({
         <div className="border-t border-border-main p-2">
           <button
             aria-label="Expand sidebar to manage workspaces"
-            className="flex w-full items-center rounded-md px-2 py-1.5 text-sm text-muted transition-colors hover:bg-white/5 hover:text-text-main"
+            className="flex w-full items-center justify-center rounded-md px-2 py-1.5 text-sm text-muted transition-colors hover:bg-white/5 hover:text-text-main"
             onClick={() => onCollapseToggle(false)}
             title="Workspaces"
             type="button"
