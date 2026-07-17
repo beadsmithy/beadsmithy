@@ -1,0 +1,15 @@
+{
+  "assignee": "",
+  "blocked_by": [],
+  "blocks": [],
+  "created": "2026-07-17T09:13:13Z",
+  "description": "## Background\n\n`bsm-kia.13` extracts the redeclared RPC interfaces, `executeAsync`\nlambdas, and DOM assertion helpers from per-spec copies into one\ncanonical module. Without this expand step every spec migration\nwould have to invent the canonical surface independently.\n\n## What to build\n\n`e2e/issue-list/helpers/rpc.ts` exporting the canonical typed-RPC\ninterfaces, the `executeAsync` lambdas, and the row/visibility DOM\nhelpers used by all four WebDriver specs.\n\n## Technical Approach\n\n- Create `e2e/issue-list/helpers/rpc.ts`.\n- Re-export `WorkspaceSwitchResponse` and `WorkspaceStateResponse`\n  from `src/rpc/bindings.ts` where possible; otherwise redeclare\n  them with one canonical shape.\n- Implement and export:\n  - `invokeTypedWorkspaceSwitch(candidatePath: string)` with a\n    canonical `arguments_: object` typed signature.\n  - `invokeWorkspaceState()` with the same canonical signature.\n  - `issueRowSelector(title: string): string` for the DOM\n    selector.\n  - `expectIssueVisible(title: string)` that locates the row and\n    asserts presence with a clear error message.\n- Document each helper's contract in a short JSDoc block.\n- Do not import the helper from any spec yet — that is the\n  migrate sub-issues' job.\n\n## Considerations\n\n- The typed signatures must match the generated TauRPC binding\n  types in `src/rpc/bindings.ts`.\n- Do not include sidebar helpers (`expectSidebarWorkspacePath`,\n  `expectSidebarWorkspaceAbsent`) in this module — those live in\n  `bsm-kia.14`'s `helpers/sidebar.ts` to keep the modules\n  cohesive.\n- Pick one canonical `arguments_: object` typed signature (not\n  `Record\u003cstring, unknown\u003e` drift).\n- Keep pure helpers unit-testable (no WebdriverIO dependency in\n  `issueRowSelector` if possible — just a string formatter).\n\n## Acceptance criteria\n\n- [ ] `e2e/issue-list/helpers/rpc.ts` exports the canonical types\n      and helpers listed above.\n- [ ] No spec imports the new module yet (this is the expand step).\n- [ ] `pnpm exec ultracite check`, `pnpm exec tsc --noEmit`, and\n      `pnpm test` all pass.\n- [ ] Existing `pnpm e2e:issue-list:complete` and\n      `pnpm e2e:issue-list:isolation` still pass with no\n      behavioral change.\n\n## Test Plan\n\n- Add a Vitest unit test file\n  (`e2e/issue-list/helpers/rpc.test.ts`) that verifies:\n  - `issueRowSelector(title)` produces the expected CSS / XPath\n    string for representative titles.\n  - Any pure formatter helper (e.g., title escaping) returns the\n    expected value.\n- Run `pnpm test`, `pnpm exec ultracite check`, and\n  `pnpm e2e:issue-list:complete` to prove no regression.",
+  "id": "bsm-kia.13.1",
+  "labels": [],
+  "parent": "bsm-kia.13",
+  "priority": 3,
+  "status": "open",
+  "title": "Expand: create e2e/issue-list/helpers/rpc.ts",
+  "type": "task",
+  "updated_at": "2026-07-17T09:13:13Z"
+}
