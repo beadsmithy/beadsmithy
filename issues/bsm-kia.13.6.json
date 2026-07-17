@@ -1,6 +1,8 @@
 {
   "assignee": "",
-  "blocked_by": [],
+  "blocked_by": [
+    "bsm-kia.13.2"
+  ],
   "blocks": [],
   "created": "2026-07-17T09:13:14Z",
   "description": "## Background\n\n`bsm-kia.13` requires a final contract step once every consumer\nhas migrated. Until the local copies are deleted, dead code\nlingers and the duplicated surface remains available for future\nspecs to copy from. This sub-issue removes the old form and proves\nits absence with a `rg` acceptance check.\n\n## What to build\n\nFinal delete-and-verify pass: prove that no spec redeclares the\nRPC interfaces, `executeAsync` lambdas, or DOM helpers. The\ncanonical implementation in `e2e/issue-list/helpers/rpc.ts` is\nthe only source.\n\n## Technical Approach\n\n- Confirm every migrate sub-issue (`bsm-kia.13.2`,\n  `bsm-kia.13.3`, `bsm-kia.13.4`, `bsm-kia.13.5`) has landed.\n- Run\n  `rg \"interface WorkspaceSwitchResponse|interface WorkspaceStateResponse|invokeTypedWorkspaceSwitch|invokeWorkspaceState|issueRowSelector|expectIssueVisible\" e2e/issue-list/*.spec.ts`\n  and confirm zero hits. If any hits remain, do not delete; either\n  roll back the relevant migrate sub-issue or open a follow-up.\n- If `helpers/rpc.ts` exports a temporary compatibility shim (e.g.,\n  re-export from the old location for one migrate batch), delete\n  it.\n- Update `docs/agents/webdriver-e2e.md` if it references the old\n  per-spec helpers by name.\n\n## Considerations\n\n- This sub-issue is intentionally tiny: it must be a single\n  deletion + verification commit, not a refactor.\n- If the contract step requires a non-trivial cleanup (e.g., a\n  rename or signature change), split it further rather than\n  blending with the contract.\n- Don't delete the helper module's symbols — only the old local\n  copies.\n\n## Acceptance criteria\n\n- [ ] `rg \"interface WorkspaceSwitchResponse|interface WorkspaceStateResponse|invokeTypedWorkspaceSwitch|invokeWorkspaceState|issueRowSelector|expectIssueVisible\" e2e/issue-list/*.spec.ts`\n      returns zero hits.\n- [ ] No spec file imports the affected symbols from a path other\n      than `helpers/rpc.ts`.\n- [ ] `pnpm e2e:issue-list:complete` and\n      `pnpm e2e:issue-list:isolation` pass.\n- [ ] No dead exports remain in any spec or fixture file.\n\n## Test Plan\n\n- Run `pnpm exec ultracite check`, `pnpm test`, and\n  `pnpm exec tsc --noEmit` — all must pass.\n- Run `pnpm e2e:issue-list:complete` and\n  `pnpm e2e:issue-list:isolation` to prove no behavioral\n  regression.\n- Inspect the final diff: every spec file's symbol declarations\n  for the migrated surfaces are gone, and the only declarations of\n  those symbols live in `helpers/rpc.ts`.",
@@ -13,5 +15,5 @@
   "status": "open",
   "title": "Contract: delete local RPC + DOM helper copies from specs",
   "type": "task",
-  "updated_at": "2026-07-17T09:13:14Z"
+  "updated_at": "2026-07-17T09:13:28Z"
 }
