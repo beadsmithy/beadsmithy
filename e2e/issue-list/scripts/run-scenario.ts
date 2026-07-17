@@ -228,10 +228,11 @@ const provisionResources = (phases: readonly Phase[]): ScenarioResources => {
   const workspaceBEmpty = createEmptyWorkspace();
   const workspaceBSecond =
     scenario === "atomic-switch" ? createSecondIssueListWorkspace() : undefined;
-  // `issues` uses B (true-empty) for its invalid-typed-switch case and
-  // `empty` uses B outright; the rest do not need a true-empty fixture.
-  const workspaceB =
-    scenario === "issues" || scenario === "empty" ? workspaceBEmpty : undefined;
+  // `issues` and `empty` use B (true-empty) directly; `atomic-switch`
+  // does not exercise the true-empty fixture but the harness still
+  // publishes BEADSMITH_E2E_WORKSPACE_B as the empty fixture path so the
+  // scenario-level input validator passes. `restoration` only needs A.
+  const workspaceB = scenario === "restoration" ? undefined : workspaceBEmpty;
 
   let commandWrapperDirectory: string | undefined;
   if (plan.commandDelayMs !== undefined) {

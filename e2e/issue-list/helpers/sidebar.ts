@@ -35,7 +35,7 @@ export const WORKSPACE_PANEL_SELECTOR = "[aria-label='Workspace']";
  * `WorkspaceSelector` panel after a typed switch to a non-Beacon
  * directory. The renderer surfaces this inline; the
  * `[data-testid='switch-failure-banner']` retry banner is reserved for
- * load / store-save failures (see `App.test.tsx`).
+ * load / store-save failures (see `App.workspace-recovery.test.tsx`).
  */
 export const WORKSPACE_INLINE_ERROR_SELECTOR = `${WORKSPACE_PANEL_SELECTOR} [role='alert']`;
 

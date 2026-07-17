@@ -282,10 +282,11 @@ commands directly.
   WebDriver, so picker cancellation is asserted in the frontend unit
   suite instead.
 - Typed-RPC reordering races are tested deterministically only at the
-  renderer layer (frontend `App.test.tsx`); the desktop scenario
-  complements those with full IPC + renderer + Beadwork end-to-end
-  coverage of the asynchronous Pending window, Cancel path, and
-  restoration across a real binary restart.
+  renderer layer (frontend `App.workspace-switching.test.tsx`,
+  `App.workspace-selection.test.tsx`, `App.workspace-recovery.test.tsx`);
+  the desktop scenario complements those with full IPC + renderer +
+  Beadwork end-to-end coverage of the asynchronous Pending window,
+  Cancel path, and restoration across a real binary restart.
 
 ## Workspace management is not coupled to launch
 

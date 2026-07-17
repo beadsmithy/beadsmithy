@@ -6,7 +6,7 @@ Resolution for [Specify the atomic workspace-switch transaction](bsm-muz.4).
 
 The backend owns both the Workspace Catalog and the optional Current Workspace. The frontend may pass a candidate directory only to the workspace-switch command; it must never pass a workspace path to issue-list loading RPCs. Every `bw` subprocess instead receives the backend-selected workspace through `Command::current_dir(workspace_path)`.
 
-The `CommandRunner` seam takes an explicit working directory. The issues adapter takes that directory as an argument for every All, Ready, and Blocked command. Remove `env::current_dir`, runtime `set_current_dir`, and the `--workspace` launch override from the workspace-resolution path.
+The `CommandRunner` seam takes an explicit working directory. The issues adapter takes that directory as an argument for every All, Ready, and Blocked command. `env::current_dir`, runtime `set_current_dir`, and the `--workspace` launch override were removed from the workspace-resolution path; the boundary doc `docs/agents/webdriver-e2e.md` and the verification research note record that the binary now selects workspaces only through the typed `switch_workspace` transport.
 
 ## Known and Current Workspaces
 

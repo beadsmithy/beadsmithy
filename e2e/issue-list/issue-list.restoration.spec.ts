@@ -108,13 +108,19 @@ describe(`Workspace restoration (WebDriver e2e) [${phaseTag}]`, () => {
         )
       ).toBe(true);
       expect(
+        result.issueData.allIssues.some(
+          (issue) => issue.title === FIXTURE_BLOCKER_TITLE
+        )
+      ).toBe(true);
+      expect(
         result.issueData.readyIssues.some(
           (issue) => issue.title === FIXTURE_READY_TITLE
         )
       ).toBe(true);
+      // The issue blocked by FIXTURE_BLOCKER_TITLE is FIXTURE_ISSUE_TITLE.
       expect(
         result.issueData.blockedIssues.some(
-          (issue) => issue.title === FIXTURE_BLOCKER_TITLE
+          (issue) => issue.title === FIXTURE_ISSUE_TITLE
         )
       ).toBe(true);
       expect(result.issueData.workspacePath).toContain(
