@@ -1,3 +1,4 @@
+import type { Element } from "hast";
 import type {
   AnchorHTMLAttributes,
   ComponentPropsWithoutRef,
@@ -8,6 +9,7 @@ import remarkGfm from "remark-gfm";
 
 import type { ExternalLinkOpener } from "./external-link-opener";
 import { openExternalLink as defaultOpenExternalLink } from "./external-link-opener";
+import { MermaidDiagram } from "./mermaid/MermaidDiagram";
 
 const DEFAULT_MARKDOWN_FONT_SIZE_PX = 14;
 
@@ -28,7 +30,9 @@ type OrderedListProps = ComponentPropsWithoutRef<"ol">;
 type ListItemProps = ComponentPropsWithoutRef<"li">;
 type BlockquoteProps = ComponentPropsWithoutRef<"blockquote">;
 type InlineCodeProps = ComponentPropsWithoutRef<"code">;
-type PreProps = ComponentPropsWithoutRef<"pre">;
+type PreProps = ComponentPropsWithoutRef<"pre"> & {
+  node?: Element;
+};
 type TableProps = ComponentPropsWithoutRef<"table">;
 type TableRowProps = ComponentPropsWithoutRef<"tr">;
 type TableCellProps = ComponentPropsWithoutRef<"td">;
@@ -115,11 +119,45 @@ const renderInlineCode = ({ children, ...rest }: InlineCodeProps) => (
   </code>
 );
 
-const renderPre = ({ children, ...rest }: PreProps) => (
-  <pre className={CODE_BLOCK_CLASSES} {...rest}>
-    {children}
-  </pre>
-);
+const MERMAID_LANGUAGE_CLASS = "language-mermaid";
+
+const extractMermaidSource = (node: Element | undefined): string | null => {
+  const codeElement = node?.children.find(
+    (child): child is Element =>
+      child.type === "element" && child.tagName === "code"
+  );
+  if (codeElement === undefined) {
+    return null;
+  }
+
+  const classNames = codeElement.properties?.className;
+  const isMermaid =
+    Array.isArray(classNames) && classNames.includes(MERMAID_LANGUAGE_CLASS);
+  if (!isMermaid) {
+    return null;
+  }
+
+  let source = "";
+  for (const child of codeElement.children) {
+    if (child.type === "text") {
+      source += child.value;
+    }
+  }
+  return source.replace(/\n$/u, "");
+};
+
+const renderPre = ({ children, node, ...rest }: PreProps) => {
+  const mermaidSource = extractMermaidSource(node);
+  if (mermaidSource !== null) {
+    return <MermaidDiagram source={mermaidSource} />;
+  }
+
+  return (
+    <pre className={CODE_BLOCK_CLASSES} {...rest}>
+      {children}
+    </pre>
+  );
+};
 
 const renderTable = ({ children, ...rest }: TableProps) => (
   <table className={TABLE_CLASSES} {...rest}>

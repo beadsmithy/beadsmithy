@@ -4,6 +4,14 @@ import { describe, expect, it, vi } from "vitest";
 
 import { MarkdownContent } from "./MarkdownContent";
 
+vi.mock("./mermaid/MermaidDiagram", () => ({
+  MermaidDiagram: ({ source }: { source: string }) => (
+    <div data-source={source} data-testid="mermaid-diagram">
+      {source}
+    </div>
+  ),
+}));
+
 describe("MarkdownContent", () => {
   it("renders a Markdown paragraph as visible text and not as raw punctuation", () => {
     render(
@@ -138,6 +146,42 @@ describe("MarkdownContent", () => {
     expect(within(article as HTMLElement).getByText("struck").tagName).toBe(
       "DEL"
     );
+  });
+
+  it("renders a mermaid fenced block as a Mermaid diagram with the unchanged source", () => {
+    const source = "graph TD;\n  A-->B";
+    const markdown = `\`\`\`mermaid\n${source}\n\`\`\``;
+
+    // Descriptions and comments share this seam, so proving one path proves
+    // both.
+    const { container } = render(
+      <MarkdownContent
+        ariaLabel="Issue description"
+        markdown={markdown}
+        openExternalLink={vi.fn()}
+      />
+    );
+
+    const diagram = screen.getByTestId("mermaid-diagram");
+    expect(diagram).toHaveAttribute("data-source", source);
+
+    // The Mermaid block is not wrapped in the ordinary code-block chrome.
+    expect(container.querySelector("pre")).toBeNull();
+  });
+
+  it("renders non-mermaid fenced code as an ordinary code block, not a diagram", () => {
+    const markdown = ["```ts", "const x = 1;", "```"].join("\n");
+
+    const { container } = render(
+      <MarkdownContent markdown={markdown} openExternalLink={vi.fn()} />
+    );
+
+    expect(screen.queryByTestId("mermaid-diagram")).toBeNull();
+    const pre = container.querySelector("pre");
+    expect(pre).not.toBeNull();
+    expect(
+      within(pre as HTMLElement).getByText("const x = 1;")
+    ).toBeInTheDocument();
   });
 
   it("does not render raw HTML from Markdown source", () => {
