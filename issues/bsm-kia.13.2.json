@@ -1,6 +1,8 @@
 {
   "assignee": "",
-  "blocked_by": [],
+  "blocked_by": [
+    "bsm-kia.13.1"
+  ],
   "blocks": [],
   "created": "2026-07-17T09:13:13Z",
   "description": "## Background\n\n`bsm-kia.13` extracts redeclared typed-RPC interfaces,\n`executeAsync` lambdas, and DOM helpers from per-spec copies into\none canonical module. Once the expand step (`bsm-kia.13.1`)\nlands, each spec can swap its local copy for an import one spec\nat a time. Doing this in batches-sized-by-file keeps the suite\ngreen between commits.\n\nThis sub-issue covers the migration for `issue-list.success.spec.ts` only.\n\n## What to build\n\nReplace every local declaration of the affected interfaces,\nlambdas, and helpers in `issue-list.success.spec.ts` with imports from\n`e2e/issue-list/helpers/rpc.ts`. The spec's behavior and\nassertions stay byte-for-byte equivalent; only the source of the\nhelpers changes.\n\n## Technical Approach\n\n- Add an import for `e2e/issue-list/helpers/rpc.ts` at the top of\n  `issue-list.success.spec.ts`.\n- Delete every local declaration of `interface\n  WorkspaceSwitchResponse`, `interface WorkspaceStateResponse`,\n  `invokeTypedWorkspaceSwitch`, `invokeWorkspaceState`,\n  `issueRowSelector`, and `expectIssueVisible` in\n  `issue-list.success.spec.ts`.\n- Update any spec-local `arguments_: object` typed signature to\n  match the helper's canonical signature (one signature across\n  all callers — no `Record\u003cstring, unknown\u003e` drift).\n- Leave the WebDriverIO imports (`browser`, `$`) untouched.\n\n## Considerations\n\n- Local copies may have drifted from each other; pick the\n  canonical signature from the helper module, not from any one\n  spec.\n- If the spec has type-only usages of an interface (e.g.,\n  `Promise\u003cWorkspaceSwitchResponse\u003e`), keep them but import the\n  type from the helper.\n- The behavior, ordering, and assertion count in `issue-list.success.spec.ts`\n  must not change.\n\n## Acceptance criteria\n\n- [ ] `issue-list.success.spec.ts` imports the helpers from\n      `e2e/issue-list/helpers/rpc.ts`.\n- [ ] No local declaration of any helper exported by\n      `helpers/rpc.ts` remains in `issue-list.success.spec.ts`.\n- [ ] The spec's `it()` count, assertion count, and behavior\n      match the previous version exactly.\n- [ ] `rg \"interface WorkspaceSwitchResponse|interface WorkspaceStateResponse|invokeTypedWorkspaceSwitch|invokeWorkspaceState|issueRowSelector|expectIssueVisible\" e2e/issue-list/issue-list.success.spec.ts`\n      returns zero hits.\n\n## Test Plan\n\n- Run `pnpm test` and `pnpm exec ultracite check` — both must\n  pass.\n- Run the targeted scenario for this file:\n  - `pnpm e2e:issue-list:success` for\n    `issue-list.success.spec.ts`\n  - `pnpm e2e:issue-list:empty` for `issue-list.empty.spec.ts`\n  - `pnpm e2e:issue-list:atomic-switch` for\n    `issue-list.atomic-switch.spec.ts`\n  - `pnpm e2e:issue-list:restoration` for\n    `issue-list.restoration.spec.ts`\n- Run `pnpm e2e:issue-list:complete` to prove no scenario\n  regression.",
@@ -13,5 +15,5 @@
   "status": "open",
   "title": "Migrate issue-list.success.spec.ts to helpers/rpc.ts",
   "type": "task",
-  "updated_at": "2026-07-17T09:13:13Z"
+  "updated_at": "2026-07-17T09:13:27Z"
 }
