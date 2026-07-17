@@ -1,7 +1,8 @@
 {
   "assignee": "",
   "blocked_by": [
-    "bsm-kia.12.2"
+    "bsm-kia.12.2",
+    "bsm-kia.12.3"
   ],
   "blocks": [],
   "created": "2026-07-17T09:13:12Z",
