@@ -158,7 +158,7 @@ export const Sidebar = ({
     >
       <div
         className={`flex h-12 items-center font-semibold ${
-          collapsed ? "px-2" : "px-4 text-[14px]"
+          collapsed ? "px-4" : "px-4 text-[14px]"
         }`}
       >
         {collapsed ? (
@@ -228,9 +228,7 @@ export const Sidebar = ({
         </div>
       </div>
 
-      <div
-        className={`border-t border-border-main ${collapsed ? "p-1" : "p-2"}`}
-      >
+      <div className={`border-t border-border-main ${"p-2"}`}>
         <SidebarSettingsButton
           collapsed={collapsed}
           current={appDestination === "settings"}
@@ -239,7 +237,7 @@ export const Sidebar = ({
       </div>
 
       {collapsed ? (
-        <div className="border-t border-border-main p-1">
+        <div className="border-t border-border-main p-2">
           <button
             aria-label="Expand sidebar to manage workspaces"
             className="flex w-full items-center rounded-md px-2 py-1.5 text-sm text-muted transition-colors hover:bg-white/5 hover:text-text-main"
