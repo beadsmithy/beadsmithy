@@ -12,6 +12,15 @@
   --color-success: #10b981;
   --color-danger: #ef4444;
 
+  /* shadcn/ui token aliases mapped onto the Beadsmith palette so shared UI
+     primitives (e.g. Alert) inherit the existing design tokens. */
+  --color-border: var(--color-border-main);
+  --color-card: var(--color-surface);
+  --color-card-foreground: var(--color-text-main);
+  --color-foreground: var(--color-text-main);
+  --color-muted-foreground: var(--color-muted);
+  --color-destructive: var(--color-danger);
+
   --font-primary: "Geist", sans-serif;
   --font-mono: "Geist Mono", monospace;
 
