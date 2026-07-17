@@ -6,7 +6,6 @@ import {
   Folder,
   Inbox,
   PanelLeftClose,
-  PanelLeftOpen,
   PlayCircle,
   Settings as SettingsIcon,
 } from "lucide-react";
@@ -156,8 +155,8 @@ export const Sidebar = ({
       }`}
     >
       <div
-        className={`flex h-12 items-center px-4 text-[14px] font-semibold ${
-          collapsed ? "justify-center px-0" : ""
+        className={`flex h-12 items-center font-semibold ${
+          collapsed ? "justify-center px-0" : "px-4 text-[14px]"
         }`}
       >
         {collapsed ? (
@@ -167,7 +166,7 @@ export const Sidebar = ({
             onClick={() => onCollapseToggle(false)}
             type="button"
           >
-            <PanelLeftOpen className="size-4" />
+            <Folder className="size-4 text-accent" />
           </button>
         ) : (
           <>
@@ -231,15 +230,15 @@ export const Sidebar = ({
         </div>
       </div>
 
-      {collapsed ? null : (
-        <div className="border-t border-border-main p-2">
-          <SidebarSettingsButton
-            collapsed={false}
-            current={appDestination === "settings"}
-            onClick={onSettingsClick}
-          />
-        </div>
-      )}
+      <div
+        className={`border-t border-border-main ${collapsed ? "p-1" : "p-2"}`}
+      >
+        <SidebarSettingsButton
+          collapsed={collapsed}
+          current={appDestination === "settings"}
+          onClick={onSettingsClick}
+        />
+      </div>
 
       {collapsed ? null : (
         <WorkspaceSelector
