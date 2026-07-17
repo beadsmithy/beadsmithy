@@ -1,0 +1,15 @@
+{
+  "assignee": "",
+  "blocked_by": [],
+  "blocks": [],
+  "created": "2026-07-17T09:13:11Z",
+  "description": "## Background\n\n`bsm-kia.12` requires the typed harness parser to exist as exported\nsymbols before any consumer can switch to it. Without this expand\nstep the migrate sub-issues would have to introduce the parser and\nswap every consumer in one commit, breaking the expand–contract\npattern.\n\n## What to build\n\nA typed parser for harness inputs that produces a fully validated\n`HarnessInputs` object from `process.env`, exported from\n`e2e/issue-list/scripts/run-scenario.ts` (or a sibling helper\nmodule).\n\n## Technical Approach\n\n- Define `type Scenario = \"empty\" | \"issues\" | \"atomic-switch\"` and\n  `type Phase = \"1\" | \"2\"` (the only phases currently used).\n- Define\n  `interface HarnessInputs { scenario: Scenario; phase: Phase; fixtureA: string; fixtureB?: string; fixtureBSecond?: string; storePath: string }`.\n- Implement and export `isScenario`, `isPhase`, `parseScenario`,\n  `parsePhase`, and `parseHarnessEnvironment`.\n- `parseHarnessEnvironment(env)` returns the typed object or throws\n  one consolidated error listing every missing/invalid input.\n- Do not touch the existing `process.env.*` reads yet; that\n  happens in `bsm-kia.12.2` through `bsm-kia.12.4`.\n\n## Considerations\n\n- The error message must list every missing input so users see all\n  failures at once, not one error per `if`.\n- Don't introduce a real option parser (commander/yargs) — that is\n  out of scope.\n- Don't rename env vars; only the consumption side becomes typed.\n  The launcher CLI surface (positional args) stays unchanged.\n\n## Acceptance criteria\n\n- [ ] `e2e/issue-list/scripts/run-scenario.ts` (or sibling helper)\n      exports `Scenario`, `Phase`, `HarnessInputs`, `isScenario`,\n      `isPhase`, `parseScenario`, `parsePhase`, and\n      `parseHarnessEnvironment`.\n- [ ] No spec or wdio config imports the new symbols yet (this is\n      the expand step).\n- [ ] Existing `pnpm e2e:issue-list:complete` and\n      `pnpm e2e:issue-list:isolation` still pass with no behavioral\n      change.\n\n## Test Plan\n\n- Add a Vitest unit test file (e.g.,\n  `e2e/issue-list/scripts/run-scenario.test.ts`) that verifies:\n  - `parseScenario` accepts each of the three valid strings and\n    throws on unknown.\n  - `parsePhase` accepts `\"1\"` and `\"2\"` and throws on anything\n    else.\n  - `parseHarnessEnvironment` returns a complete object when every\n    variable is present.\n  - `parseHarnessEnvironment` throws a single consolidated error\n    that names every missing variable.\n- Run `pnpm test`, `pnpm exec ultracite check`, and\n  `pnpm e2e:issue-list:complete` to prove no regression.",
+  "id": "bsm-kia.12.1",
+  "labels": [],
+  "parent": "bsm-kia.12",
+  "priority": 3,
+  "status": "open",
+  "title": "Expand: add typed harness parser in run-scenario.ts",
+  "type": "task",
+  "updated_at": "2026-07-17T09:13:11Z"
+}
