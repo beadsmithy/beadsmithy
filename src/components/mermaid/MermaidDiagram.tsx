@@ -1,5 +1,7 @@
+import { TriangleAlert } from "lucide-react";
 import { useEffect, useId, useRef, useState } from "react";
 
+import { Alert, AlertDescription, AlertTitle } from "../ui/Alert";
 import { renderMermaid } from "./mermaid-renderer";
 
 type RenderState =
@@ -22,8 +24,9 @@ const DIAGRAM_PANEL_CLASSES =
 const SOURCE_PRE_CLASSES =
   "overflow-x-auto p-3 font-mono text-[0.8571em] text-text-main";
 const STATUS_CLASSES = "p-3 text-[0.85em] text-muted";
-const ERROR_BANNER_CLASSES =
-  "border-danger/40 border-t bg-danger/10 p-3 text-[0.85em] text-text-main";
+const ERROR_ALERT_CLASSES =
+  "rounded-none border-x-0 border-b-0 border-t border-destructive/30 px-3 py-2.5";
+const ERROR_MESSAGE_CLASSES = "whitespace-pre-wrap font-mono text-[0.8em]";
 
 /**
  * Mounts the Mermaid-generated SVG through a single controlled boundary. The
@@ -163,9 +166,13 @@ export const MermaidDiagram = ({ source }: MermaidDiagramProps) => {
       </div>
 
       {render.status === "error" ? (
-        <output aria-live="polite" className={ERROR_BANNER_CLASSES}>
-          {render.message}
-        </output>
+        <Alert className={ERROR_ALERT_CLASSES} variant="destructive">
+          <TriangleAlert />
+          <AlertTitle>Diagram failed to render</AlertTitle>
+          <AlertDescription className={ERROR_MESSAGE_CLASSES}>
+            {render.message}
+          </AlertDescription>
+        </Alert>
       ) : null}
     </div>
   );
