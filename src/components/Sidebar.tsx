@@ -4,6 +4,7 @@ import {
   CircleSlash,
   Clock,
   Folder,
+  HardDrive,
   Inbox,
   PanelLeftClose,
   PlayCircle,
@@ -185,11 +186,9 @@ export const Sidebar = ({
       </div>
 
       <div className="flex-1 overflow-y-auto py-2">
-        {collapsed ? null : (
-          <div className="px-4 py-2 font-mono text-[10px] tracking-wider text-muted uppercase">
-            Views
-          </div>
-        )}
+        <div className="px-4 py-2 font-mono text-[10px] tracking-wider text-muted uppercase">
+          {collapsed ? <hr className="border-border-main" /> : "Views"}
+        </div>
         <div className="px-2">
           {viewItems.map((item) => (
             <SidebarNavButton
@@ -207,11 +206,9 @@ export const Sidebar = ({
           ))}
         </div>
 
-        {collapsed ? null : (
-          <div className="px-4 py-2 pt-6 font-mono text-[10px] tracking-wider text-muted uppercase">
-            Status
-          </div>
-        )}
+        <div className="px-4 py-2 pt-6 font-mono text-[10px] tracking-wider text-muted uppercase">
+          {collapsed ? <hr className="border-border-main" /> : "Status"}
+        </div>
         <div className="px-2">
           {statusItems.map((item) => (
             <SidebarNavButton
@@ -240,7 +237,19 @@ export const Sidebar = ({
         />
       </div>
 
-      {collapsed ? null : (
+      {collapsed ? (
+        <div className="border-t border-border-main p-1">
+          <button
+            aria-label="Expand sidebar to manage workspaces"
+            className="flex w-full items-center justify-center rounded-md px-2 py-1.5 text-sm text-muted transition-colors hover:bg-white/5 hover:text-text-main"
+            onClick={() => onCollapseToggle(false)}
+            title="Workspaces"
+            type="button"
+          >
+            <HardDrive className="size-4" />
+          </button>
+        </div>
+      ) : (
         <WorkspaceSelector
           {...workspaceHandlers}
           state={workspaceState}
