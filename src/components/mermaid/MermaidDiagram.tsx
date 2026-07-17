@@ -1,4 +1,6 @@
-import { TriangleAlert } from "lucide-react";
+import Panzoom from "@panzoom/panzoom";
+import type { PanzoomObject } from "@panzoom/panzoom";
+import { Maximize, TriangleAlert, ZoomIn, ZoomOut } from "lucide-react";
 import { useEffect, useId, useRef, useState } from "react";
 
 import { Alert, AlertDescription, AlertTitle } from "../ui/Alert";
@@ -11,6 +13,9 @@ type RenderState =
 
 type DiagramTab = "diagram" | "source";
 
+const MAX_SCALE = 5;
+const MIN_SCALE = 0.05;
+
 const CONTAINER_CLASSES =
   "mt-3 overflow-hidden rounded-md border border-border-main bg-surface";
 const TABLIST_CLASSES =
@@ -20,33 +25,169 @@ const TAB_BASE_CLASSES =
 const TAB_ACTIVE_CLASSES = "bg-surface text-text-main";
 const TAB_INACTIVE_CLASSES = "text-muted hover:text-text-main";
 const DIAGRAM_PANEL_CLASSES =
-  "overflow-auto p-3 [&_svg]:h-auto [&_svg]:max-w-full";
+  "overflow-hidden p-3 [&_svg]:h-auto [&_svg]:max-w-full";
 const SOURCE_PRE_CLASSES =
   "overflow-x-auto p-3 font-mono text-[0.8571em] text-text-main";
 const STATUS_CLASSES = "p-3 text-[0.85em] text-muted";
 const ERROR_ALERT_CLASSES =
   "rounded-none border-x-0 border-b-0 border-t border-destructive/30 px-3 py-2.5";
 const ERROR_MESSAGE_CLASSES = "whitespace-pre-wrap font-mono text-[0.8em]";
+const VIEWPORT_CLASSES = "relative";
+const SVG_CONTAINER_CLASSES = "mermaid-svg-container cursor-move";
+const TOOLBAR_CLASSES =
+  "absolute top-2 right-2 flex gap-1 rounded-md border border-border-main bg-surface/90 p-1 backdrop-blur";
+const TOOLBAR_BUTTON_CLASSES =
+  "rounded p-1 text-text-main hover:bg-background focus:outline-none focus:ring-2 focus:ring-accent";
+
+interface FitTransform {
+  scale: number;
+  x: number;
+  y: number;
+}
+
+const getFitTransform = (
+  container: HTMLElement,
+  svg: SVGSVGElement
+): FitTransform => {
+  const containerWidth = container.clientWidth;
+  const containerHeight = container.clientHeight;
+  const svgRect = svg.getBoundingClientRect();
+  const svgWidth = svgRect.width || svg.clientWidth;
+  const svgHeight = svgRect.height || svg.clientHeight;
+
+  if (
+    containerWidth <= 0 ||
+    containerHeight <= 0 ||
+    svgWidth <= 0 ||
+    svgHeight <= 0
+  ) {
+    return { scale: 1, x: 0, y: 0 };
+  }
+
+  const scale = Math.min(
+    1,
+    containerWidth / svgWidth,
+    containerHeight / svgHeight
+  );
+  const x = (containerWidth - svgWidth * scale) / 2;
+  const y = (containerHeight - svgHeight * scale) / 2;
+
+  return { scale, x, y };
+};
+
+interface MermaidDiagramViewportProps {
+  svg: string;
+}
 
 /**
- * Mounts the Mermaid-generated SVG through a single controlled boundary. The
- * SVG string never flows through React children as HTML anywhere else.
+ * Mounts the Mermaid-generated SVG through a single controlled boundary and
+ * attaches pan/zoom interactions. The SVG string never flows through React
+ * children as HTML anywhere else.
  */
-const MermaidSvg = ({ svg }: { svg: string }) => {
+const MermaidDiagramViewport = ({ svg }: MermaidDiagramViewportProps) => {
   const containerRef = useRef<HTMLDivElement>(null);
+  const panzoomRef = useRef<PanzoomObject | null>(null);
 
   useEffect(() => {
     const container = containerRef.current;
     if (container === null) {
       return;
     }
+
     container.innerHTML = svg;
+    const svgElement = container.querySelector("svg");
+    if (svgElement === null) {
+      return;
+    }
+
+    let panzoom: PanzoomObject | null = null;
+
+    try {
+      const fit = getFitTransform(container, svgElement);
+      panzoom = Panzoom(svgElement, {
+        maxScale: MAX_SCALE,
+        minScale: MIN_SCALE,
+        startScale: fit.scale,
+        startX: fit.x,
+        startY: fit.y,
+      });
+      panzoomRef.current = panzoom;
+    } catch {
+      // A pan/zoom failure must not hide the already-rendered diagram or its
+      // Source view.
+    }
+
+    const handleWheel = (event: WheelEvent) => {
+      if (panzoom === null) {
+        return;
+      }
+      if (!event.ctrlKey && !event.metaKey) {
+        return;
+      }
+      event.preventDefault();
+      panzoom.zoomWithWheel(event);
+    };
+
+    container.addEventListener("wheel", handleWheel, { passive: false });
+
     return () => {
+      container.removeEventListener("wheel", handleWheel);
+      panzoom?.destroy();
+      panzoomRef.current = null;
       container.innerHTML = "";
     };
   }, [svg]);
 
-  return <div ref={containerRef} />;
+  const handleZoomIn = () => {
+    panzoomRef.current?.zoomIn();
+  };
+
+  const handleZoomOut = () => {
+    panzoomRef.current?.zoomOut();
+  };
+
+  const handleResetFit = () => {
+    panzoomRef.current?.reset();
+  };
+
+  return (
+    <div className={VIEWPORT_CLASSES}>
+      <div ref={containerRef} className={SVG_CONTAINER_CLASSES} />
+      <div
+        aria-label="Diagram zoom controls"
+        className={TOOLBAR_CLASSES}
+        role="toolbar"
+      >
+        <button
+          aria-label="Zoom in diagram"
+          className={TOOLBAR_BUTTON_CLASSES}
+          onClick={handleZoomIn}
+          title="Zoom in diagram"
+          type="button"
+        >
+          <ZoomIn className="size-4" />
+        </button>
+        <button
+          aria-label="Zoom out diagram"
+          className={TOOLBAR_BUTTON_CLASSES}
+          onClick={handleZoomOut}
+          title="Zoom out diagram"
+          type="button"
+        >
+          <ZoomOut className="size-4" />
+        </button>
+        <button
+          aria-label="Reset and fit diagram"
+          className={TOOLBAR_BUTTON_CLASSES}
+          onClick={handleResetFit}
+          title="Reset and fit diagram"
+          type="button"
+        >
+          <Maximize className="size-4" />
+        </button>
+      </div>
+    </div>
+  );
 };
 
 interface MermaidDiagramProps {
@@ -144,7 +285,7 @@ export const MermaidDiagram = ({ source }: MermaidDiagramProps) => {
         role="tabpanel"
       >
         {render.status === "success" ? (
-          <MermaidSvg svg={render.svg} />
+          <MermaidDiagramViewport svg={render.svg} />
         ) : (
           <p className={STATUS_CLASSES}>
             {render.status === "loading"
