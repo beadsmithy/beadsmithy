@@ -5,11 +5,13 @@
   "created": "2026-07-17T09:13:12Z",
   "description": "## Background\n\n`bsm-kia.12` requires a final contract step once every consumer\nhas migrated. Until the raw env-var reads are deleted everywhere\nthey live, dead code lingers and future specs could copy the old\nshape. This sub-issue removes the old form and proves its absence\nwith a `rg` acceptance check.\n\n## What to build\n\nFinal delete-and-verify pass: prove that no spec or wdio config\nreads `process.env.BEADSMITH_E2E_*` directly anymore. The typed\nparser is the only consumer-side surface.\n\n## Technical Approach\n\n- Confirm every migrate sub-issue (`bsm-kia.12.2`,\n  `bsm-kia.12.3`, `bsm-kia.12.4`) has landed.\n- Run\n  `rg \"process\\.env\\.BEADSMITH_E2E_\" wdio.issue-list.conf.ts e2e/issue-list/`\n  and confirm zero hits in spec files and the wdio config. The\n  launcher (`run-scenario.ts`) is allowed to keep its env\n  producer reads.\n- If the helper module still exports a temporary compatibility\n  shim, delete it.\n- Update any non-spec file that still imports the raw env reads\n  (e.g., a top-level helper that pre-dates this epic).\n\n## Considerations\n\n- This sub-issue is intentionally tiny: it must be a single\n  deletion + verification commit, not a refactor.\n- The launcher remains the only env producer; do not change the\n  env vars it exports.\n- If the contract step requires a non-trivial cleanup (e.g., a\n  rename or signature change), split it further rather than\n  blending with the contract.\n\n## Acceptance criteria\n\n- [ ] `rg \"process\\.env\\.BEADSMITH_E2E_\" wdio.issue-list.conf.ts e2e/issue-list/*.spec.ts`\n      returns zero hits.\n- [ ] No spec file or `wdio.issue-list.conf.ts` reads\n      `process.env.BEADSMITH_E2E_*` directly.\n- [ ] `pnpm e2e:issue-list:complete` and\n      `pnpm e2e:issue-list:isolation` pass.\n- [ ] No dead exports or dead imports remain in any spec or\n      wdio config.\n\n## Test Plan\n\n- Run `pnpm exec ultracite check`, `pnpm test`, and\n  `pnpm exec tsc --noEmit` — all must pass.\n- Run `pnpm e2e:issue-list:complete` and\n  `pnpm e2e:issue-list:isolation` to prove no behavioral\n  regression.\n- Inspect the final diff: every spec file and\n  `wdio.issue-list.conf.ts` reads harness inputs only through\n  the typed parser.",
   "id": "bsm-kia.12.5",
-  "labels": [],
+  "labels": [
+    "ready-for-agent"
+  ],
   "parent": "bsm-kia.12",
   "priority": 3,
   "status": "open",
   "title": "Contract: delete raw env reads from specs and wdio config",
   "type": "task",
-  "updated_at": "2026-07-17T09:13:12Z"
+  "updated_at": "2026-07-17T09:13:13Z"
 }
