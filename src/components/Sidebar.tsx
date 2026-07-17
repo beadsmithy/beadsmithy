@@ -7,6 +7,7 @@ import {
   HardDrive,
   Inbox,
   PanelLeftClose,
+  PanelLeftOpen,
   PlayCircle,
   Settings as SettingsIcon,
 } from "lucide-react";
@@ -51,8 +52,8 @@ const SidebarSettingsButton = ({
     aria-current={current ? "page" : undefined}
     aria-label="Settings"
     className={`flex w-full items-center rounded-md px-2 py-1.5 text-sm transition-colors hover:bg-white/5 hover:text-text-main ${
-      collapsed ? "justify-center" : ""
-    } ${current ? "bg-white/5 text-primary" : "text-muted"}`}
+      current ? "bg-white/5 text-primary" : "text-muted"
+    }`}
     onClick={onClick}
     title="Settings"
     type="button"
@@ -87,8 +88,8 @@ const SidebarNavButton = ({
         countLabel === null ? item.label : `${item.label}, ${countLabel}`
       }
       className={`flex w-full items-center rounded-md px-2 py-1.5 text-sm transition-colors hover:bg-white/5 hover:text-text-main hover:disabled:bg-transparent hover:disabled:text-muted ${
-        collapsed ? "justify-center" : ""
-      } ${current ? "bg-white/5 text-primary" : "text-muted"}`}
+        current ? "bg-white/5 text-primary" : "text-muted"
+      }`}
       disabled={disabled}
       onClick={() => {
         onSelect(item.id);
@@ -157,17 +158,17 @@ export const Sidebar = ({
     >
       <div
         className={`flex h-12 items-center font-semibold ${
-          collapsed ? "justify-center px-0" : "px-4 text-[14px]"
+          collapsed ? "px-2" : "px-4 text-[14px]"
         }`}
       >
         {collapsed ? (
           <button
             aria-label="Expand sidebar"
-            className="flex size-8 items-center justify-center rounded text-muted transition-colors hover:bg-white/5 hover:text-text-main"
+            className="flex w-full items-center rounded py-1.5 text-muted transition-colors hover:bg-white/5 hover:text-text-main"
             onClick={() => onCollapseToggle(false)}
             type="button"
           >
-            <Folder className="size-4 text-accent" />
+            <PanelLeftOpen className="size-4" />
           </button>
         ) : (
           <>
@@ -241,7 +242,7 @@ export const Sidebar = ({
         <div className="border-t border-border-main p-1">
           <button
             aria-label="Expand sidebar to manage workspaces"
-            className="flex w-full items-center justify-center rounded-md px-2 py-1.5 text-sm text-muted transition-colors hover:bg-white/5 hover:text-text-main"
+            className="flex w-full items-center rounded-md px-2 py-1.5 text-sm text-muted transition-colors hover:bg-white/5 hover:text-text-main"
             onClick={() => onCollapseToggle(false)}
             title="Workspaces"
             type="button"
