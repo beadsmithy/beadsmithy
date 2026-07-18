@@ -1,0 +1,14 @@
+{
+  "assignee": "",
+  "blocked_by": [],
+  "blocks": [],
+  "created": "2026-07-18T09:01:13Z",
+  "description": "## Background\n\nThe Child Issues feature spans structured Beadwork fixture data, Issue Explorer state, and the rendered Tauri desktop UI. Renderer tests are necessary but cannot prove the shipped desktop application receives the hierarchy data and supports the user path end-to-end.\n\nTriage: ready-for-agent\n\n## What to build\n\nExtend the real-desktop WebDriver Issue List suite and fixture Workspace to prove Child Issues work end to end: populated display in the agreed ID/status/title format and order, omission when there are none, and navigation to a child that remains selected when it is outside the active Issue List View or subsequent search results.\n\n## Technical Approach\n\n- Build on bsm-g12 and bsm-sxi.\n- Add deterministic parent/child fixture Issues with priorities, timestamps, statuses, and a no-children Issue needed to exercise the completed behavior.\n- Use the existing per-slice WebDriver configuration and helper patterns; launch the real desktop binary rather than a renderer-only test.\n- Prefer stable semantic selectors and accessibility assertions over styling-dependent selectors.\n\n## Considerations\n\n- Keep this task test-only: do not duplicate application behavior in the fixture helper or test implementation.\n- Assert the active Issue List View/search remains unchanged through Child Issue navigation while Issue Detail updates.\n- Follow the documented WebDriver upstream caveats and existing Issue List suite conventions.\n- Keep test data isolated from unrelated fixture scenarios.\n\n## Acceptance criteria\n\n- [ ] The real desktop suite proves a selected parent renders Child Issues after Dependencies in priority/creation order with ID, status, and title.\n- [ ] The suite proves a selected Issue with no children omits the Child Issues section.\n- [ ] The suite proves selecting a Child Issue changes Issue Detail without changing the active Issue List View.\n- [ ] The suite proves that selected Child Issue remains in Issue Detail after view/search filtering excludes it.\n- [ ] The new scenario is deterministic and runs through the documented Issue List WebDriver command.\n\n## Test Plan\n\n- Run the targeted Issue List WebDriver suite against the built desktop application.\n- Run the affected frontend/unit suite to ensure the fixture and selectors do not regress existing coverage.",
+  "id": "bsm-o1y",
+  "labels": [],
+  "priority": 2,
+  "status": "open",
+  "title": "Prove Child Issues in the desktop E2E suite",
+  "type": "task",
+  "updated_at": "2026-07-18T09:01:13Z"
+}
