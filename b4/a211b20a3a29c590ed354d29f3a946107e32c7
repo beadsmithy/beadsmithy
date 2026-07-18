@@ -1,0 +1,25 @@
+scripts/oxlint-plugin/no-use-effect-plugin.mjs
+  s_95d8918b09a66d::t_5fd936a5478429 13-15,30,55-68,72-76,83-87,90,92-95,104-110,148,156,181-185
+scripts/oxlint-plugin/no-use-effect-plugin.test.mjs
+  s_95d8918b09a66d::t_3bbd219c295ef1 1-165
+src/lib/use-mount-effect.ts
+  s_95d8918b09a66d::t_65eec007fb66fd 22-25,27
+vitest.config.ts
+  s_95d8918b09a66d::t_7160426fc47bb3 35
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.14",
+  "base_commit_sha": "b4a211b20a3a29c590ed354d29f3a946107e32c7",
+  "prompts": {},
+  "sessions": {
+    "s_95d8918b09a66d": {
+      "agent_id": {
+        "tool": "pi",
+        "id": "019f7735-32a6-7118-88e7-bd891d787939",
+        "model": "unknown"
+      },
+      "human_author": "Tomas Thor Jonsson <benregn@gmail.com>"
+    }
+  }
+}
