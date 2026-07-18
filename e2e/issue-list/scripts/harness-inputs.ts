@@ -7,6 +7,17 @@ export interface HarnessInputs {
   readonly storePath: string;
 }
 
+type ValidatedHarnessInputs =
+  | (HarnessInputs & {
+      readonly fixtureB: string;
+      readonly fixtureBSecond: string;
+      readonly scenario: "atomic-switch";
+    })
+  | (HarnessInputs & {
+      readonly fixtureB: string;
+      readonly scenario: "empty" | "issues";
+    });
+
 export type Phase = "1" | "2";
 export type Scenario = "empty" | "issues" | "atomic-switch";
 
@@ -51,7 +62,7 @@ const requireValidatedInput = (
 
 export const parseHarnessEnvironment = (
   env: NodeJS.ProcessEnv
-): HarnessInputs => {
+): ValidatedHarnessInputs => {
   const rawScenario = env.BEADSMITH_E2E_SCENARIO;
   const rawPhase = env.BEADSMITH_E2E_PHASE ?? "1";
   const errors: string[] = [];
@@ -91,7 +102,7 @@ export const parseHarnessEnvironment = (
     );
   }
 
-  return {
+  const commonInputs = {
     fixtureA: requireValidatedInput(
       "BEADSMITH_E2E_WORKSPACE_A",
       env.BEADSMITH_E2E_WORKSPACE_A
@@ -100,12 +111,28 @@ export const parseHarnessEnvironment = (
       "BEADSMITH_E2E_WORKSPACE_B",
       env.BEADSMITH_E2E_WORKSPACE_B
     ),
-    fixtureBSecond: env.BEADSMITH_E2E_WORKSPACE_B_SECOND,
     phase: parsePhase(rawPhase),
-    scenario: parseScenario(rawScenario),
     storePath: requireValidatedInput(
       "BEADSMITH_WORKSPACE_STORE_PATH",
       env.BEADSMITH_WORKSPACE_STORE_PATH
     ),
+  };
+  const scenario = parseScenario(rawScenario);
+
+  if (scenario === "atomic-switch") {
+    return {
+      ...commonInputs,
+      fixtureBSecond: requireValidatedInput(
+        "BEADSMITH_E2E_WORKSPACE_B_SECOND",
+        env.BEADSMITH_E2E_WORKSPACE_B_SECOND
+      ),
+      scenario,
+    };
+  }
+
+  return {
+    ...commonInputs,
+    fixtureBSecond: env.BEADSMITH_E2E_WORKSPACE_B_SECOND,
+    scenario,
   };
 };

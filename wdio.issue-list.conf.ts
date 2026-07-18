@@ -21,6 +21,7 @@ import {
   assertEmbeddedWebDriverPortAvailable,
   EMBEDDED_WEBDRIVER_PORT,
 } from "./e2e/issue-list/scripts/embedded-webdriver-port.ts";
+import { parseHarnessEnvironment } from "./e2e/issue-list/scripts/harness-inputs.ts";
 
 const BINARY_NAME =
   process.platform === "win32" ? "beadsmith.exe" : "beadsmith";
@@ -30,33 +31,12 @@ const APP_BINARY_PATH = path.resolve(
   BINARY_NAME
 );
 
-const rawScenario = process.env.BEADSMITH_E2E_SCENARIO;
-let scenario: "empty" | "issues" | "atomic-switch";
-if (rawScenario === "empty") {
-  scenario = "empty";
-} else if (rawScenario === "atomic-switch") {
-  scenario = "atomic-switch";
-} else {
-  scenario = "issues";
-}
-const workspaceA = process.env.BEADSMITH_E2E_WORKSPACE_A;
-const workspaceB = process.env.BEADSMITH_E2E_WORKSPACE_B;
-const workspaceBSecond = process.env.BEADSMITH_E2E_WORKSPACE_B_SECOND;
-const storePath = process.env.BEADSMITH_WORKSPACE_STORE_PATH;
-
-if (!workspaceA || !workspaceB || !storePath) {
-  throw new Error(
-    "E2E fixture paths are not set. Run `pnpm e2e:issue-list:success`, " +
-      "`pnpm e2e:issue-list:empty`, or `pnpm e2e:issue-list:atomic-switch` " +
-      "instead of invoking wdio directly."
-  );
-}
-if (scenario === "atomic-switch" && !workspaceBSecond) {
-  throw new Error(
-    "Atomic-switch scenario requires BEADSMITH_E2E_WORKSPACE_B_SECOND. Run " +
-      "`pnpm e2e:issue-list:atomic-switch` instead of invoking wdio directly."
-  );
-}
+const {
+  fixtureA: workspaceA,
+  fixtureB: workspaceB,
+  scenario,
+  storePath,
+} = parseHarnessEnvironment(process.env);
 
 export const config: WebdriverIO.Config = {
   bail: 0,

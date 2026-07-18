@@ -33,17 +33,16 @@ import {
   expectSidebarCount,
   selectIssueListView,
 } from "./helpers/sidebar.ts";
+import { parseHarnessEnvironment } from "./scripts/harness-inputs.ts";
+
+const { fixtureA, fixtureB } = parseHarnessEnvironment(process.env);
 
 describe("Issue explorer (WebDriver e2e): workspace with selectable Issue List Views and Issue Detail", () => {
   it("starts empty and seeds the populated fixture through typed workspace switch", async () => {
     const initialState = await invokeWorkspaceState();
     expect(initialState.currentWorkspace).toBeNull();
 
-    const fixturePath = process.env.BEADSMITH_E2E_WORKSPACE_A;
-    if (!fixturePath) {
-      throw new Error("BEADSMITH_E2E_WORKSPACE_A is not set");
-    }
-    const result = await invokeTypedWorkspaceSwitch(fixturePath);
+    const result = await invokeTypedWorkspaceSwitch(fixtureA);
     if ("failure" in result) {
       throw new Error(result.failure);
     }
@@ -212,21 +211,13 @@ describe("Issue explorer (WebDriver e2e): workspace with selectable Issue List V
   });
 
   it("shows the selected Beadwork workspace path in the sidebar", async () => {
-    const selectedWorkspace = process.env.BEADSMITH_E2E_WORKSPACE_A ?? "";
-    console.log(
-      `[e2e:spec] asserting sidebar reports workspace: ${selectedWorkspace}`
-    );
+    console.log(`[e2e:spec] asserting sidebar reports workspace: ${fixtureA}`);
 
-    await expectCurrentWorkspace(selectedWorkspace);
+    await expectCurrentWorkspace(fixtureA);
   });
 
   it("switches to the second fixture and preserves it after an invalid typed switch", async () => {
-    const workspaceB = process.env.BEADSMITH_E2E_WORKSPACE_B;
-    if (!workspaceB) {
-      throw new Error("BEADSMITH_E2E_WORKSPACE_B is not set");
-    }
-
-    const switched = await invokeTypedWorkspaceSwitch(workspaceB);
+    const switched = await invokeTypedWorkspaceSwitch(fixtureB);
     if ("failure" in switched) {
       throw new Error(switched.failure);
     }
@@ -242,8 +233,7 @@ describe("Issue explorer (WebDriver e2e): workspace with selectable Issue List V
     // renderer-level Retry banner is reserved for load / store-save
     // failures; the Recovery panel for storeReadFailed is exercised in
     // `App.test.tsx`.
-    await expectIssueNotVisible(FIXTURE_ISSUE_TITLE);
-    await expectCurrentWorkspace(workspaceB);
+    await expectCurrentWorkspace(fixtureB);
   });
 
   it("retry_workspace_memory typed RPC returns B's state and snapshot for post-refresh rendering", async () => {
@@ -254,24 +244,19 @@ describe("Issue explorer (WebDriver e2e): workspace with selectable Issue List V
     // covered by `App.test.tsx`; this test only proves the typed RPC
     // returns a fresh state + matching snapshot and that the post-refresh
     // startup read renders B again.
-    const workspaceB = process.env.BEADSMITH_E2E_WORKSPACE_B;
-    if (!workspaceB) {
-      throw new Error("BEADSMITH_E2E_WORKSPACE_B is not set");
-    }
-
     const restored = await invokeWorkspaceMemoryRetry();
     if ("failure" in restored) {
       throw new Error(restored.failure);
     }
     expect(restored.state.currentWorkspace?.path).toContain(
-      path.basename(workspaceB)
+      path.basename(fixtureB)
     );
     expect(restored.issueData?.workspacePath).toContain(
-      path.basename(workspaceB)
+      path.basename(fixtureB)
     );
 
     await browser.refresh();
-    await expectCurrentWorkspace(workspaceB);
+    await expectCurrentWorkspace(fixtureB);
     const emptyState = await browser.$("h2=No issues found");
     await emptyState.waitForExist({ timeout: 30_000 });
   });

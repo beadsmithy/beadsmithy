@@ -21,11 +21,7 @@ import {
   resolveBwPath,
 } from "../fixtures/workspace.ts";
 import { assertEmbeddedWebDriverPortAvailable } from "./embedded-webdriver-port.ts";
-
-type Scenario = "empty" | "issues" | "atomic-switch";
-
-const isScenario = (value: string | undefined): value is Scenario =>
-  value === "empty" || value === "issues" || value === "atomic-switch";
+import { isScenario } from "./harness-inputs.ts";
 
 const scenario = process.argv.at(2);
 if (!isScenario(scenario)) {
