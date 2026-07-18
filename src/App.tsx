@@ -1,34 +1,13 @@
 import { listen } from "@tauri-apps/api/event";
 import type { UnlistenFn } from "@tauri-apps/api/event";
 import { open } from "@tauri-apps/plugin-dialog";
-import {
-  CheckCircle2,
-  Circle,
-  CircleSlash,
-  Clock,
-  Folder,
-  Inbox,
-  PlayCircle,
-  Settings as SettingsIcon,
-} from "lucide-react";
-import type { LucideIcon } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
 
 import "./App.css";
-import {
-  WorkspaceSelector,
-  pickerDefaultPath,
-} from "./components/WorkspaceSelector";
-import {
-  DEFAULT_ISSUE_LIST_VIEW_ID,
-  formatIssueCountLabel,
-  getIssueListViewCounts,
-  ISSUE_LIST_VIEW_DEFINITIONS,
-} from "./issues/issue-list-view";
-import type {
-  IssueListViewDefinition,
-  IssueListViewId,
-} from "./issues/issue-list-view";
+import { Sidebar } from "./components/Sidebar";
+import { pickerDefaultPath } from "./components/WorkspaceSelector";
+import { DEFAULT_ISSUE_LIST_VIEW_ID } from "./issues/issue-list-view";
+import type { IssueListViewId } from "./issues/issue-list-view";
 import {
   ISSUE_EXPLORER_LOADING_STATE,
   loadIssueExplorerStateFromTauRpc,
@@ -60,80 +39,7 @@ interface WorkspaceTransition {
   state: WorkspaceState;
 }
 
-const ISSUE_LIST_VIEW_ICONS: Record<IssueListViewId, LucideIcon> = {
-  all: Inbox,
-  blocked: CircleSlash,
-  closed: CheckCircle2,
-  deferred: Clock,
-  in_progress: PlayCircle,
-  open: Circle,
-  ready: CheckCircle2,
-};
-
 type AppDestination = "issueExplorer" | "settings";
-
-const SidebarSettingsButton = ({
-  current,
-  onClick,
-}: {
-  current: boolean;
-  onClick: () => void;
-}) => (
-  <button
-    aria-current={current ? "page" : undefined}
-    aria-label="Settings"
-    className={`flex w-full items-center rounded-md px-2 py-1.5 text-sm transition-colors hover:bg-white/5 hover:text-text-main ${
-      current ? "bg-white/5 text-primary" : "text-muted"
-    }`}
-    onClick={onClick}
-    type="button"
-  >
-    <SettingsIcon className="mr-2 size-4" />
-    <span>Settings</span>
-  </button>
-);
-
-const SidebarNavButton = ({
-  count,
-  current,
-  disabled,
-  item,
-  onSelect,
-}: {
-  count: number | null;
-  current: boolean;
-  disabled: boolean;
-  item: IssueListViewDefinition;
-  onSelect: (viewId: IssueListViewId) => void;
-}) => {
-  const Icon = ISSUE_LIST_VIEW_ICONS[item.id];
-  const countLabel = count === null ? null : formatIssueCountLabel(count);
-
-  return (
-    <button
-      aria-current={current ? "true" : undefined}
-      aria-label={
-        countLabel === null ? item.label : `${item.label}, ${countLabel}`
-      }
-      className={`flex w-full items-center rounded-md px-2 py-1.5 text-sm transition-colors hover:bg-white/5 hover:text-text-main hover:disabled:bg-transparent hover:disabled:text-muted ${
-        current ? "bg-white/5 text-primary" : "text-muted"
-      }`}
-      disabled={disabled}
-      onClick={() => {
-        onSelect(item.id);
-      }}
-      type="button"
-    >
-      <Icon className="mr-2 size-4" />
-      <span>{item.label}</span>
-      {count === null ? null : (
-        <span className="ml-auto font-mono text-[11px] text-muted tabular-nums">
-          {count}
-        </span>
-      )}
-    </button>
-  );
-};
 
 const NO_WORKSPACE_ERROR_STATE: IssueExplorerLoadState = {
   error: {
@@ -151,12 +57,6 @@ const INITIAL_LOAD_FAILURE_STATE: IssueExplorerLoadState = {
   status: "failure",
 };
 
-/**
- * Apply the no-workspace presentation: publish the chooser-style
- * error state and force the explorer's remount key. Used both for the
- * gate's `clearSnapshot` decision and for the reset-memory recovery
- * path that has no confirmed snapshot to clear.
- */
 const applyNoWorkspacePresentation = (
   remountKey: string,
   setIssueState: (state: IssueExplorerLoadState) => void,
@@ -166,16 +66,6 @@ const applyNoWorkspacePresentation = (
   setWorkspaceKey(remountKey);
 };
 
-/**
- * Apply the gate's decision to the renderer's React state. The gate is
- * the only source of admission truth; this helper translates the
- * discriminated decision into the small set of React effects App owns.
- *
- * `commitSnapshot` and `clearSnapshot` both remount the Issue Explorer
- * by changing the `workspaceKey`. `acceptStateRetainSnapshot` leaves the
- * explorer subtree untouched so its workspace-scoped search and
- * selected Issue survive the admission.
- */
 const applyTransitionDecision = (
   decision: WorkspaceTransitionDecision,
   setIssueState: (state: IssueExplorerLoadState) => void,
@@ -195,9 +85,6 @@ const applyTransitionDecision = (
     );
     return;
   }
-  // decision.kind === "commitSnapshot"
-  // The gate guarantees `decision.snapshot` is non-null and matches
-  // the Current Workspace path when this decision is returned.
   setIssueState({ ...decision.snapshot, status: "success" });
   setWorkspaceKey(decision.remountKey);
 };
@@ -211,49 +98,26 @@ export default function App() {
   const [appDestination, setAppDestination] =
     useState<AppDestination>("issueExplorer");
   const settings = useAppSettings();
+  const [sidebarCollapsed, setSidebarCollapsed] = useState<boolean>(false);
   const [workspaceState, setWorkspaceState] = useState<WorkspaceState | null>(
     null
   );
-  // The remount key for the Issue Explorer subtree. It changes only on
-  // a confirmed Current commit (or its removal) so the prior
-  // Workspace's selected Issue and Issue Search are cleared before the
-  // new snapshot is interactive. The active Issue List View lives here
-  // in App and survives the remount.
   const [workspaceKey, setWorkspaceKey] = useState<string>(
     INITIAL_WORKSPACE_TRANSITION_GATE_STATE.confirmedWorkspacePath ??
       INITIAL_WORKSPACE_REMOUNT_KEY
   );
-  // Renderer transition state. The gate owns every lifecycle marker
-  // previously held by `acceptedGenerationRef`, `committedGenerationRef`,
-  // `terminalGenerationRef`, `confirmedWorkspacePathRef`, and
-  // `initialLoadCommittedGenerationRef`. The ref avoids stale callback
-  // closures while events and RPC completions race.
   const transitionGateRef = useRef<WorkspaceTransitionGateState>(
     INITIAL_WORKSPACE_TRANSITION_GATE_STATE
   );
-  // Local banner dismissal is keyed to its request generation. A
-  // harmless refresh preserves it, while a new selection/error
-  // automatically re-shows the Retry banner without mutating backend
-  // state.
   const [dismissedSwitchErrorGeneration, setDismissedSwitchErrorGeneration] =
     useState<number | null>(null);
+
   const handleIssueListViewSelect = useCallback((viewId: IssueListViewId) => {
     setActiveIssueListViewId(viewId);
     setAppDestination("issueExplorer");
   }, []);
-  const issueListViewCounts = getIssueListViewCounts(issueState);
   const sidebarDisabled = issueState.status !== "success";
-  const viewItems = ISSUE_LIST_VIEW_DEFINITIONS.filter(
-    (item) => item.group === "views"
-  );
-  const statusItems = ISSUE_LIST_VIEW_DEFINITIONS.filter(
-    (item) => item.group === "status"
-  );
 
-  // Apply a backend transition payload through the same handler as the
-  // typed RPC response. The gate returns the next renderer state and a
-  // discriminated decision; App translates the decision into the
-  // React effects (workspace state, issue state, remount key).
   const applyTransition = useCallback(
     (
       transition: WorkspaceTransition,
@@ -287,9 +151,6 @@ export default function App() {
   }, [applyTransition]);
 
   useEffect(() => {
-    // Capture committed-success generation at dispatch time so the
-    // startup helper can detect a later committed switch without
-    // consulting any ref the caller owns.
     const dispatchedAtCommittedGeneration =
       transitionGateRef.current.committedGeneration;
     void (async () => {
@@ -322,9 +183,6 @@ export default function App() {
     void refreshWorkspaceState();
   }, [refreshWorkspaceState]);
 
-  // Subscribe to backend transition events. The renderer uses the same
-  // generation-guarded handler as the typed RPC response so a stale
-  // event can never overwrite a newer state.
   useEffect(() => {
     let disposed = false;
     let unlisten: UnlistenFn | undefined;
@@ -352,19 +210,11 @@ export default function App() {
     setDismissedSwitchErrorGeneration(null);
     try {
       const response = await createTauRPCProxy().switch_workspace(path);
-      // Discard a late response: a newer selection or a Cancel has
-      // already superseded this request. Backend also rejects stale
-      // results, so the snapshot was never published; dropping here
-      // keeps the UI aligned.
       applyTransition(
         { issueData: response.issueData, state: response.state },
         expectedGeneration
       );
     } catch {
-      // Preserve the old issueState entirely — a failed switch must
-      // not overwrite the prior Workspace's snapshot. Refresh typed
-      // workspace state so the inline validation error or banner
-      // reappears.
       await refreshWorkspaceState();
     }
   };
@@ -396,10 +246,6 @@ export default function App() {
   const retryWorkspaceMemory = async () => {
     try {
       const response = await createTauRPCProxy().retry_workspace_memory();
-      // The retry-memory response carries the restored snapshot when
-      // the remembered Current Workspace was successfully restored;
-      // pass it through the same gate so the renderer updates the
-      // Issue Explorer in lockstep with the typed state.
       applyTransition(
         { issueData: response.issueData, state: response.state },
         null
@@ -412,12 +258,6 @@ export default function App() {
   const resetWorkspaceMemory = async () => {
     try {
       const state = await createTauRPCProxy().reset_workspace_memory();
-      // `reset_workspace_memory` emits the same state through an
-      // event and its typed response. The gate may therefore return
-      // `clearSnapshot` for either delivery and
-      // `acceptStateRetainSnapshot` for the duplicate. Always apply
-      // reset's own chooser presentation after its typed response so
-      // both orders finish with the original reset remount key.
       applyTransition({ issueData: null, state }, null);
       applyNoWorkspacePresentation(
         "/__reset__",
@@ -431,12 +271,6 @@ export default function App() {
 
   const cancelWorkspace = async () => {
     try {
-      // The typed response carries the matching Issue Explorer
-      // snapshot when the cancel races after a durable
-      // commit-before-success-publication. Pairing the snapshot with
-      // the new state here lets the gate apply both atomically; a
-      // real Pending cancellation deliberately returns `issueData:
-      // null` so the prior workspace's issue list stays untouched.
       const response = await createTauRPCProxy().cancel_workspace();
       applyTransition(
         { issueData: response.issueData, state: response.state },
@@ -458,87 +292,40 @@ export default function App() {
     setDismissedSwitchErrorGeneration(workspaceState?.generation ?? null);
   };
 
+  const workspaceHandlers = {
+    onCancel:
+      workspaceState?.pendingWorkspace === null ||
+      workspaceState?.pendingWorkspace === undefined
+        ? undefined
+        : () => void cancelWorkspace(),
+    onChoose: () => void chooseWorkspace(),
+    onDismissSwitchError: dismissSwitchError,
+    onRemove: (path: string) => void removeWorkspace(path),
+    onResetMemory: () => void resetWorkspaceMemory(),
+    onRetryLastSwitch:
+      workspaceState?.retryWorkspace === null ||
+      workspaceState?.retryWorkspace === undefined
+        ? undefined
+        : () => void retryLastSwitch(),
+    onRetryMemory: () => void retryWorkspaceMemory(),
+    onSelect: (path: string) => void selectWorkspace(path),
+  };
+
   return (
     <div className="flex h-screen w-screen overflow-hidden bg-background font-primary text-text-main antialiased">
-      {/* Left Sidebar */}
-      <nav className="flex w-60 shrink-0 flex-col border-r border-border-main bg-surface">
-        <div className="flex h-12 items-center px-4 text-[14px] font-semibold">
-          <Folder className="mr-2 size-4 text-accent" />
-          <span>Beadwork</span>
-        </div>
-
-        <div className="flex-1 overflow-y-auto py-2">
-          <div className="px-4 py-2 font-mono text-[10px] tracking-wider text-muted uppercase">
-            Views
-          </div>
-          <div className="px-2">
-            {viewItems.map((item) => (
-              <SidebarNavButton
-                count={issueListViewCounts?.[item.id] ?? null}
-                current={
-                  appDestination === "issueExplorer" &&
-                  item.id === activeIssueListViewId
-                }
-                disabled={sidebarDisabled}
-                item={item}
-                key={item.id}
-                onSelect={handleIssueListViewSelect}
-              />
-            ))}
-          </div>
-
-          <div className="px-4 py-2 pt-6 font-mono text-[10px] tracking-wider text-muted uppercase">
-            Status
-          </div>
-          <div className="px-2">
-            {statusItems.map((item) => (
-              <SidebarNavButton
-                count={issueListViewCounts?.[item.id] ?? null}
-                current={
-                  appDestination === "issueExplorer" &&
-                  item.id === activeIssueListViewId
-                }
-                disabled={sidebarDisabled}
-                item={item}
-                key={item.id}
-                onSelect={handleIssueListViewSelect}
-              />
-            ))}
-          </div>
-        </div>
-
-        <div className="border-t border-border-main p-2">
-          <SidebarSettingsButton
-            current={appDestination === "settings"}
-            onClick={() => setAppDestination("settings")}
-          />
-        </div>
-
-        <WorkspaceSelector
-          onCancel={
-            workspaceState?.pendingWorkspace === null ||
-            workspaceState?.pendingWorkspace === undefined
-              ? undefined
-              : () => void cancelWorkspace()
-          }
-          onChoose={() => void chooseWorkspace()}
-          onDismissSwitchError={dismissSwitchError}
-          onRemove={(path) => void removeWorkspace(path)}
-          onResetMemory={() => void resetWorkspaceMemory()}
-          onRetryLastSwitch={
-            workspaceState?.retryWorkspace === null ||
-            workspaceState?.retryWorkspace === undefined
-              ? undefined
-              : () => void retryLastSwitch()
-          }
-          onRetryMemory={() => void retryWorkspaceMemory()}
-          onSelect={(path) => void selectWorkspace(path)}
-          state={workspaceState}
-          switchErrorDismissed={
-            dismissedSwitchErrorGeneration === workspaceState?.generation
-          }
-        />
-      </nav>
+      <Sidebar
+        activeIssueListViewId={activeIssueListViewId}
+        appDestination={appDestination}
+        collapsed={sidebarCollapsed}
+        disabled={sidebarDisabled}
+        dismissedSwitchErrorGeneration={dismissedSwitchErrorGeneration}
+        issueState={issueState}
+        onCollapseToggle={setSidebarCollapsed}
+        onIssueListViewSelect={handleIssueListViewSelect}
+        onSettingsClick={() => setAppDestination("settings")}
+        workspaceHandlers={workspaceHandlers}
+        workspaceState={workspaceState}
+      />
 
       <div className="relative flex flex-1">
         <div
