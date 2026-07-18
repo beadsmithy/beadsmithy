@@ -31,6 +31,15 @@ export const CURRENT_WORKSPACE_SELECTOR =
 export const WORKSPACE_PANEL_SELECTOR = "[aria-label='Workspace']";
 
 /**
+ * Selector for the inline validation error rendered inside the
+ * `WorkspaceSelector` panel after a typed switch to a non-Beacon
+ * directory. The renderer surfaces this inline; the
+ * `[data-testid='switch-failure-banner']` retry banner is reserved for
+ * load / store-save failures (see `App.test.tsx`).
+ */
+export const WORKSPACE_INLINE_ERROR_SELECTOR = `${WORKSPACE_PANEL_SELECTOR} [role='alert']`;
+
+/**
  * Build a CSS selector for an Issue List View sidebar button. Buttons
  * use the form `aria-label="<view>, <count>"` so a prefix match selects
  * the right one regardless of the rendered count.
