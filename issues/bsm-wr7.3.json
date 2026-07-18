@@ -4,6 +4,8 @@
     "bsm-wr7.2"
   ],
   "blocks": [],
+  "closed_at": "2026-07-18T15:51:50Z",
+  "close_reason": "Real-desktop e2e suite (e2e:mermaid / pnpm test:e2e:mermaid) proves a valid Mermaid diagram renders through the Issue description and comment MarkdownContent seams, the accessible zoom toolbar is clickable, and a malformed fence exposes the complete error banner with the unchanged authored source. Extended e2e/issue-list/fixtures/workspace.ts with the Mermaid description fence, valid Mermaid comment, and malformed Mermaid comment. Added e2e/mermaid/mermaid-diagram.spec.ts, e2e/mermaid/scripts/run-mermaid-scenario.ts, wdio.mermaid.conf.ts (embedded port 46247), and pnpm scripts.",
   "created": "2026-07-16T21:00:35Z",
   "description": "## Background\n\nUnit tests can prove the Markdown and Diagram component contracts while mocking Mermaid and pan/zoom. They cannot prove that the built Tauri desktop webview dynamically loads Mermaid, mounts generated SVG, applies the Beadsmith Theme, and handles real user-authored Issue content. This slice closes that integration gap.\n\n## What to build\n\nExtend the real desktop Issue Detail acceptance path with representative Issue description and comment Mermaid fixtures. Prove valid Diagram rendering, pan/zoom/reset interaction, Source access, and malformed-source recovery through the compiled Beadsmith binary.\n\n## Technical Approach\n\n- Reuse the documented disposable Beadwork Workspace and embedded WebDriver architecture in `docs/agents/webdriver-e2e.md`; do not create a renderer-only browser test.\n- Add a representative valid Mermaid fence to both an Issue description and a comment, plus a malformed Mermaid fixture that preserves its raw source.\n- Drive the normal Issue selection path in the real built app. Assert the rendered SVG, tab semantics, pan/zoom controls, reset behavior, Source contents, and complete error banner/fallback.\n- Prefer semantic roles, accessible names, and stable fixture text. Do not add brittle pixel snapshots.\n- Add or document a focused command alongside the existing WebDriver suite.\n\n## Considerations\n\n- Keep fixtures disposable and created through Beadwork, never by editing persisted Issue/store files.\n- The current suite targets Issue List behavior; reuse its helpers where clear, but keep Mermaid-specific scenario ownership and failure output focused.\n- A missing SVG, broken dynamic chunk, or Tauri-webview incompatibility is a real blocker: do not replace this proof with a jsdom-only assertion.\n\n## Acceptance criteria\n\n- [ ] The real built Tauri app renders a valid Mermaid Diagram from an Issue description and from a comment.\n- [ ] The scenario proves pan, Ctrl/Command-wheel zoom or its deterministic command equivalent, reset/fit, and Source access.\n- [ ] A malformed fixture exposes the complete error banner and unchanged Source in the real app.\n- [ ] The test uses disposable Beadwork fixtures and the normal Issue Detail path.\n- [ ] A focused documented command runs the scenario, and existing desktop Issue Explorer coverage remains green.\n\n## Test Plan\n\n- Build with the repository's established desktop E2E command.\n- Run the focused Mermaid scenario repeatedly against a fresh fixture.\n- Run existing Issue Explorer desktop scenarios plus frontend type/lint checks for harness changes.",
   "id": "bsm-wr7.3",
@@ -12,8 +14,8 @@
   ],
   "parent": "bsm-wr7",
   "priority": 2,
-  "status": "in_progress",
+  "status": "closed",
   "title": "Prove Mermaid Diagrams in the real desktop Issue Detail",
   "type": "task",
-  "updated_at": "2026-07-18T14:38:58Z"
+  "updated_at": "2026-07-18T15:51:50Z"
 }
