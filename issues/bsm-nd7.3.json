@@ -1,0 +1,15 @@
+{
+  "assignee": "",
+  "blocked_by": [],
+  "blocks": [],
+  "created": "2026-07-18T09:13:18Z",
+  "description": "## Background\n\nChild Issues should be useful hierarchy context, not merely read-only references. A user must be able to select a Child Issue from Issue Detail even when that child is absent from the active Issue List View, such as a closed child while viewing Ready. Current Issue Detail selection is derived from the filtered visible list, so it clears when filtering excludes the selected Issue.\n\nTriage: ready-for-agent\n\n## What to build\n\nMake Child Issue entries in Issue Detail selectable. Selecting one replaces Issue Detail with that Child Issue while preserving the active Issue List View. Decouple Issue Detail selection from search and Issue List View filtering: once selected, an Issue remains visible in Issue Detail as long as it exists in the Current Workspace's loaded All Issues. Clear the selection only when it disappears from All Issues or when the Current Workspace changes.\n\n## Technical Approach\n\n- Build on the Child Issue section established by bsm-x6s.\n- Use semantic button/list markup and accessible names for Child Issue entries.\n- Resolve the selected Issue from `allIssues`, not from the active filtered Issue List, while leaving the Issue List's own visible/selected-row behavior coherent.\n- Preserve existing workspace-transition clearing behavior and add explicit all-Issues disappearance handling.\n\n## Considerations\n\n- Do not switch the active Issue List View or modify its search query when navigating a Child Issue.\n- Do not introduce a second issue data source; Child Issues and selection both use the loaded structured data.\n- Keep keyboard access and focus-visible styling equivalent to the existing Issue List controls.\n- Ordering and hiding behavior are intentionally outside this task and may land independently in bsm-g12.\n\n## Acceptance criteria\n\n- [ ] Each rendered Child Issue is an accessible, keyboard-operable control.\n- [ ] Selecting a Child Issue updates Issue Detail without changing the active Issue List View or search query.\n- [ ] The selected Issue remains in Issue Detail when view/search filtering excludes it but it remains in `allIssues`.\n- [ ] Selection clears when the Issue is absent from `allIssues` or the Current Workspace changes.\n- [ ] Focused tests cover cross-view Child Issue navigation, search/view persistence, removal, and workspace transition behavior.\n\n## Test Plan\n\n- Extend state derivation tests for all-Issues-backed selection.\n- Extend Issue Explorer component tests for click and keyboard Child Issue selection plus filtering behavior.\n- Run the affected frontend test suite and Ultracite checks.",
+  "id": "bsm-nd7.3",
+  "labels": [],
+  "parent": "bsm-nd7",
+  "priority": 2,
+  "status": "open",
+  "title": "Navigate to Child Issues from Issue Detail",
+  "type": "task",
+  "updated_at": "2026-07-18T09:13:18Z"
+}
