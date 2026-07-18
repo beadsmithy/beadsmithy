@@ -9,14 +9,15 @@
     "bsm-gbd.6",
     "bsm-gbd.7"
   ],
+  "closed_at": "2026-07-18T21:59:39Z",
   "created": "2026-07-18T21:22:28Z",
   "description": "## Background\nA hard no-useEffect lint rule cannot land while the six existing direct calls remain: the rule setup commit itself would fail the repository checks. We need the policy in place first without making the current tree unbuildable or unlintable.\n\n## What to build\nConfigure Oxlint `no-restricted-syntax` through the ESLint JS plugin to report direct React `useEffect` calls as a non-blocking warning. The diagnostic should explain the approved replacement patterns and identify the intentional `useMountEffect` escape hatch, if one is introduced.\n\n## Technical Approach\nAdd the rule at warning severity while the existing call sites are being migrated. Keep any lint suppression narrowly scoped to the `useMountEffect` implementation itself. Do not add per-call-site suppressions or allow the current effects to become permanent exceptions. Verify that the TypeScript/Vite build remains clean and that the staged lint configuration can be committed before migrations begin.\n\n## Considerations\nThe project currently has six direct calls across App, Mermaid, Issue Explorer, and app-settings. The warning is a temporary migration guard, not the final policy. The later enforcement task must promote the rule to an error only after every migration child is complete.\n\n## Acceptance criteria\n- [ ] Oxlint recognizes direct `useEffect` calls through the configured JS plugin rule.\n- [ ] Existing direct calls are reported as warnings rather than blocking the setup change.\n- [ ] The diagnostic points agents toward derived state, event handlers, data fetching, remount boundaries, or `useMountEffect` as appropriate.\n- [ ] Any escape-hatch suppression is limited to the wrapper implementation.\n- [ ] `pnpm build` remains green and the staged lint check does not fail solely because of the known migration warnings.\n\n## Test Plan\n- Run the relevant Oxlint/Ultracite check and inspect that all six known call sites are reported.\n- Run `pnpm build`.\n- Confirm no unrelated files receive lint suppressions.\n\nTriage: ready-for-agent.",
   "id": "bsm-gbd.1",
   "labels": [],
   "parent": "bsm-gbd",
   "priority": 1,
-  "status": "in_progress",
+  "status": "closed",
   "title": "Introduce staged no-useEffect Oxlint rule",
   "type": "task",
-  "updated_at": "2026-07-18T21:54:13Z"
+  "updated_at": "2026-07-18T21:59:39Z"
 }
