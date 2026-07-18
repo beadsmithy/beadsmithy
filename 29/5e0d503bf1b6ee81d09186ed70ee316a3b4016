@@ -1,0 +1,42 @@
+e2e/issue-list/helpers/sidebar.ts
+  s_ab93480970c92e::t_5569035912e76d 38
+docs/research/atomic-workspace-switch-transaction.md
+  s_ab93480970c92e::t_b549efe20c3b1e 9
+e2e/issue-list/issue-list.restoration.spec.ts
+  s_b03ce9111f7dbb::t_5b3f0c1d8e74c0 110
+  s_ab93480970c92e::t_96a5078d9ba1e3 111-114,120,123
+e2e/issue-list/helpers/rpc.ts
+  s_ab93480970c92e::t_4ed94ecb67e9fd 148-150
+e2e/issue-list/issue-list.success.spec.ts
+  s_ab93480970c92e::t_0b34d24bf9f009 235
+  s_ab93480970c92e::t_b5bbb30dc797c6 85-86
+e2e/issue-list/scripts/run-scenario.ts
+  s_ab93480970c92e::t_5c45b64b7024ab 231-234
+  s_b03ce9111f7dbb::t_7b3bc75e945d38 235
+docs/agents/webdriver-e2e.md
+  s_ab93480970c92e::t_afefdb91c06363 285-289
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.14",
+  "base_commit_sha": "295e0d503bf1b6ee81d09186ed70ee316a3b4016",
+  "prompts": {},
+  "sessions": {
+    "s_ab93480970c92e": {
+      "agent_id": {
+        "tool": "pi",
+        "id": "019f6f35-181d-70f2-8194-06f9c5fe4a5f",
+        "model": "MiniMax-M3"
+      },
+      "human_author": null
+    },
+    "s_b03ce9111f7dbb": {
+      "agent_id": {
+        "tool": "pi",
+        "id": "019f6cf3-e75f-7a8a-85c7-5280ee66b02b",
+        "model": "MiniMax-M3"
+      },
+      "human_author": "Tomas Thor Jonsson <benregn@gmail.com>"
+    }
+  }
+}
