@@ -3,7 +3,9 @@
   "blocked_by": [
     "bsm-gbd.1"
   ],
-  "blocks": [],
+  "blocks": [
+    "bsm-gbd.8"
+  ],
   "created": "2026-07-18T21:22:28Z",
   "description": "## Background\nThe Mermaid viewport integrates generated SVG and Panzoom through a direct React `useEffect`. This is a genuine external-system lifecycle, but it must use the explicit no-use-effect escape hatch or a component boundary.\n\n## What to build\nReplace the Mermaid viewport effect that mounts the generated SVG, creates Panzoom, installs the modified-wheel handler, and tears everything down when the SVG changes or the viewport unmounts.\n\n## Technical Approach\nUse the project `useMountEffect` escape hatch only if the viewport is remounted per SVG identity; otherwise introduce the smallest component/key boundary that gives each SVG its own mount lifecycle. Keep the imperative DOM boundary isolated and preserve fit-to-container initialization, zoom limits, wheel modifier behavior, and toolbar controls.\n\n## Considerations\nCleanup must remove the wheel listener, destroy Panzoom, clear its ref, and remove the old SVG. Failed Panzoom initialization must not hide the already-rendered diagram or Source view. Avoid allowing an old SVG instance or handler to survive a source change.\n\n## Acceptance criteria\n- [ ] The generated SVG remains visible and centered with the same fit transform and zoom controls.\n- [ ] Modifier-wheel zoom behavior and Panzoom cleanup remain correct across source changes and unmounts.\n- [ ] This lifecycle has no direct `useEffect` call and passes the configured Oxlint restriction.\n- [ ] Focused Mermaid tests and relevant lint/typecheck checks pass.\n\n## Test Plan\n- Run the existing Mermaid desktop/E2E and component tests.\n- Add regression coverage for source replacement and cleanup if needed.\n- Run the relevant Oxlint and TypeScript checks.\n\nTriage: ready-for-agent.",
   "id": "bsm-gbd.3",
@@ -13,5 +15,5 @@
   "status": "open",
   "title": "Replace Mermaid viewport pan/zoom lifecycle effect",
   "type": "task",
-  "updated_at": "2026-07-18T21:37:49Z"
+  "updated_at": "2026-07-18T21:45:38Z"
 }
