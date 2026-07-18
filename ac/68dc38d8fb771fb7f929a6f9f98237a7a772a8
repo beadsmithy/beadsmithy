@@ -1,0 +1,30 @@
+e2e/issue-list/helpers/sidebar.ts
+  s_41a59323f3ae0a::t_b9e549f4a5d6b3 34-41
+  s_41a59323f3ae0a::t_819b3a6e00ed37 33
+e2e/issue-list/issue-list.atomic-switch.spec.ts
+  s_41a59323f3ae0a::t_faeb2f35ab7008 37-48,88,148,160-161,205,275
+  s_41a59323f3ae0a::t_6dd4fd67d7f4c9 259
+  s_41a59323f3ae0a::t_ca0bbea44731d6 49
+  s_41a59323f3ae0a::t_e8f470b13cd827 50
+e2e/issue-list/issue-list.empty.spec.ts
+  s_41a59323f3ae0a::t_85ebf0bf6bcfeb 7,15-16
+e2e/issue-list/issue-list.success.spec.ts
+  s_41a59323f3ae0a::t_e9fdc3f982f001 24-30
+  s_41a59323f3ae0a::t_8ddde538986105 31-35,92,106,140,144,153,164,220,246,274
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.14",
+  "base_commit_sha": "ac68dc38d8fb771fb7f929a6f9f98237a7a772a8",
+  "prompts": {},
+  "sessions": {
+    "s_41a59323f3ae0a": {
+      "agent_id": {
+        "tool": "pi",
+        "id": "019f73c4-fee5-7e66-bcb2-cf0af758ec68",
+        "model": "MiniMax-M3"
+      },
+      "human_author": "Tomas Thor Jonsson <benregn@gmail.com>"
+    }
+  }
+}
