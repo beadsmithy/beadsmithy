@@ -1,0 +1,19 @@
+vitest.config.ts
+  s_74974a3ebf83bc::t_9dff2f844a44f8 10-12,34
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.14",
+  "base_commit_sha": "262a033395749e372968fcb5c26cc5fcebcd4b43",
+  "prompts": {},
+  "sessions": {
+    "s_74974a3ebf83bc": {
+      "agent_id": {
+        "tool": "pi",
+        "id": "019f73c4-ea49-7a1d-beef-d7a50830e3e0",
+        "model": "MiniMax-M3"
+      },
+      "human_author": "Tomas Thor Jonsson <benregn@gmail.com>"
+    }
+  }
+}
