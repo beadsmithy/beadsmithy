@@ -11,6 +11,12 @@
     "ready-for-agent"
   ],
   "parent": "bsm-kia.12",
+  "comments": [
+    {
+      "text": "Contract verified: exact rg check returns zero raw BEADSMITH_E2E_ reads in wdio.issue-list.conf.ts or e2e/issue-list/*.spec.ts. pnpm test (227), Ultracite, tsc --noEmit, pnpm test:e2e:issue-list, and a post-contract pnpm e2e:issue-list:all all pass. The named complete/isolation scripts no longer exist on current main; e2e:issue-list:all is the current three-scenario equivalent.",
+      "timestamp": "2026-07-18T06:13:43Z"
+    }
+  ],
   "priority": 3,
   "status": "in_progress",
   "title": "Contract: confirm zero process.env.* reads in specs and wdio config",
