@@ -26,7 +26,9 @@
     "e2e:settings:phase1": "BEADSMITH_E2E_PHASE=1 pnpm exec wdio run wdio.settings.conf.ts",
     "e2e:settings:phase2": "BEADSMITH_E2E_PHASE=2 pnpm exec wdio run wdio.settings.conf.ts",
     "e2e:settings": "tsx e2e/settings/scripts/run-settings-scenario.ts",
-    "test:e2e:settings": "pnpm e2e:build && pnpm e2e:settings"
+    "test:e2e:settings": "pnpm e2e:build && pnpm e2e:settings",
+    "e2e:mermaid": "tsx e2e/mermaid/scripts/run-mermaid-scenario.ts",
+    "test:e2e:mermaid": "pnpm e2e:build && pnpm e2e:mermaid"
   },
   "dependencies": {
     "@panzoom/panzoom": "^4.6.2",
