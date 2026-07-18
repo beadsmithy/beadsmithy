@@ -9,7 +9,13 @@ const PROJECT_IGNORES = ["docs/research/infra/**", ".agents/skills/**"];
 export default defineConfig({
   extends: [core, react],
   ignorePatterns: [...(core.ignorePatterns ?? []), ...PROJECT_IGNORES],
-  jsPlugins: ["oxlint-tailwindcss"],
+  jsPlugins: [
+    "oxlint-tailwindcss",
+    {
+      name: "no-use-effect",
+      specifier: "./scripts/oxlint-plugin/no-use-effect-plugin.mjs",
+    },
+  ],
   overrides: [
     {
       files: ["**/*.{jsx,tsx}"],
@@ -33,6 +39,13 @@ export default defineConfig({
   ],
   plugins: ["react", "react-perf"],
   rules: {
+    // Staged migration guard: existing call sites report as warnings until
+    // bsm-gbd.8 promotes this to "error" once every direct call has been
+    // replaced. The diagnostic message explains the approved replacement
+    // patterns; the wrapper implementation in src/lib/use-mount-effect.ts
+    // (when introduced) is the only narrowly scoped suppression.
+    "no-use-effect/no-direct-use-effect": "warn",
+
     // Style and consistency
     "tailwindcss/consistent-variant-order": "warn",
     "tailwindcss/enforce-canonical": "warn",
