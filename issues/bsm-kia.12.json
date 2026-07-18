@@ -9,6 +9,12 @@
     "ready-for-agent"
   ],
   "parent": "bsm-kia",
+  "comments": [
+    {
+      "text": "Implementation plan against current main: place the environment seam in a side-effect-free e2e/issue-list/scripts/harness-inputs.ts module (importing run-scenario.ts would execute the launcher); build parser behavior test-first; migrate wdio.issue-list.conf.ts plus all three current issue-list specs that read raw harness env values; verify the raw-read contract with rg. The issue's restoration spec and complete/isolation scripts were removed by later work, so validation will use the current equivalent pnpm e2e:issue-list:all suite.",
+      "timestamp": "2026-07-18T06:13:42Z"
+    }
+  ],
   "priority": 3,
   "status": "in_progress",
   "title": "Replace raw env-var primitives with typed Scenario/Phase/fixture inputs",
