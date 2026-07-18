@@ -14,6 +14,7 @@ import {
 } from "./issues/issue-loader";
 import type { IssueExplorerLoadState } from "./issues/issue-loader";
 import { IssueExplorer } from "./issues/IssueExplorer";
+import { useMountEffect } from "./lib/use-mount-effect";
 import { createTauRPCProxy } from "./rpc/bindings";
 import type {
   LoadIssueExplorerDataResponse,
@@ -150,7 +151,7 @@ export default function App() {
     }
   }, [applyTransition]);
 
-  useEffect(() => {
+  useMountEffect(() => {
     const dispatchedAtCommittedGeneration =
       transitionGateRef.current.committedGeneration;
     void (async () => {
@@ -181,7 +182,7 @@ export default function App() {
       }
     })();
     void refreshWorkspaceState();
-  }, [refreshWorkspaceState]);
+  });
 
   useEffect(() => {
     let disposed = false;

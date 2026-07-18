@@ -1,0 +1,25 @@
+import { useEffect } from "react";
+
+type EffectCleanup = () => void;
+
+/**
+ * Run an effect exactly once when the component mounts and clean up via
+ * the returned teardown function on unmount.
+ *
+ * `useMountEffect` is the documented escape hatch for the project's
+ * "no direct `useEffect`" lint policy. It is reserved for genuine
+ * external-system lifecycles (Tauri subscriptions, imperative DOM
+ * integration, etc.) that cannot be expressed as derived state, an
+ * event handler, a remount boundary, or a data-fetching hook. The
+ * no-use-effect Oxlint rule is suppressed only at the call site below.
+ */
+export const useMountEffect = (
+  effect: () => EffectCleanup | undefined
+): void => {
+  // The eslint-disable below keeps the react-hooks/exhaustive-deps rule
+  // from warning about the intentionally-empty dependency list — this
+  // hook exists to run `effect` exactly once on mount.
+  // oxlint-disable-next-line no-use-effect/no-direct-use-effect
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  useEffect(() => effect(), []);
+};
