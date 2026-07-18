@@ -1,6 +1,8 @@
 {
   "assignee": "",
-  "blocked_by": [],
+  "blocked_by": [
+    "bsm-gbd.1"
+  ],
   "blocks": [],
   "created": "2026-07-18T21:37:50Z",
   "description": "## Background\nThe Mermaid diagram component renders source asynchronously inside a direct React `useEffect`. This effect is both data fetching and UI state coordination, and the no-use-effect policy requires an explicit replacement that prevents stale results.\n\n## What to build\nReplace the Mermaid effect that calls the renderer for each source, displays the resulting SVG, selects the Diagram tab on success, and falls back to the Source tab with an error on failure.\n\n## Technical Approach\nChoose an explicit data-fetch/lifecycle boundary that starts rendering when the source instance is created and prevents stale completions from updating a newer source instance. Preserve the synchronous loading reset and the existing success/error state model without turning state into an action relay.\n\n## Considerations\nA render promise can resolve after the source changes or the component unmounts. The replacement must retain stale-result protection, keep error messages user-visible in Source view, and avoid flashing the previous diagram against new source.\n\n## Acceptance criteria\n- [ ] Every source is rendered asynchronously with the same success and failure UI behavior.\n- [ ] Stale or post-unmount renderer results cannot update state for a newer/unmounted component.\n- [ ] This behavior has no direct `useEffect` call and passes the configured Oxlint restriction.\n- [ ] Focused Mermaid tests and relevant lint/typecheck checks pass.\n\n## Test Plan\n- Run existing Mermaid rendering tests and desktop/E2E coverage.\n- Add regression coverage for source changes during an in-flight render and renderer failure if absent.\n- Run the relevant Oxlint and TypeScript checks.\n\nTriage: ready-for-agent.",
