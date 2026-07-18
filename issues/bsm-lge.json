@@ -2,13 +2,14 @@
   "assignee": "Tomas Thor Jonsson",
   "blocked_by": [],
   "blocks": [],
+  "closed_at": "2026-07-18T11:40:22Z",
   "created": "2026-07-15T22:43:28Z",
   "description": "## Background\n\nRust backend tests currently live in the same source files as their production implementations. The highest-concentration modules are the Workspace Service and TauRPC boundary, with smaller inline suites in the Beadwork adapter and runner, app settings, and development bridge. This makes production files long and hides each domain test contract among implementation details.\n\nThis is a test-organization refactor only. Beadsmith must retain the existing white-box Rust tests that protect Workspace transaction semantics, typed TauRPC contracts, Beadwork command behavior, durable settings, and development tooling.\n\n## What to build\n\nMove every Rust test body out of `src-tauri/src` production implementation files and into outlined, domain-local test files. A maintainer must be able to navigate a production module without passing through its test suite, while `cargo test` continues to execute the same coverage.\n\n## Technical Approach\n\nKeep a small `#[cfg(test)] mod tests;` declaration in each production module. Place tests in the module’s outlined test path (`module/tests.rs`, optionally with behavior-focused child modules). Retain child-module privacy access; do not introduce `pub` production APIs, a separate Cargo integration-test crate, or a shared test framework unless a concrete duplication requires it.\n\nThe child tickets migrate the modules by backend domain. Each remains independently green under focused and full Rust test runs.\n\n```mermaid\ngraph LR\n  E[Outline Rust backend tests by domain]\n  E --\u003e W[Workspace Service tests]\n  E --\u003e R[TauRPC boundary tests]\n  E --\u003e I[Beadwork command boundary tests]\n  E --\u003e A[Backend infrastructure tests]\n```\n\n## Considerations\n\n- Preserve test names, assertions, fixture defaults, fake behavior, and production semantics.\n- Organize test files by domain behavior, not one test per file.\n- Keep test-only dependencies and fake types local to their domain unless real reuse emerges.\n- This work does not replace the desktop WebDriver suite or change frontend test organization.\n\n## Acceptance criteria\n\n- [ ] Every inline Rust test suite in `src-tauri/src` has an outlined test-file home.\n- [ ] No Rust `#[test]` body remains in a production implementation file.\n- [ ] All existing behavior-level assertions remain present once, with no product or transport changes.\n- [ ] `cargo test` passes for the full backend crate.\n\n## Test Plan\n\n- Run each migrated module through a focused `cargo test` filter while moving it.\n- Run `cargo test` from `src-tauri` after each child and for the completed epic.\n- Verify test discovery and final source layout with `rg`.",
   "id": "bsm-lge",
   "labels": [],
   "priority": 3,
-  "status": "in_progress",
+  "status": "closed",
   "title": "Outline Rust backend tests by domain",
   "type": "epic",
-  "updated_at": "2026-07-18T10:55:06Z"
+  "updated_at": "2026-07-18T11:40:22Z"
 }
