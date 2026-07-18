@@ -1,0 +1,19 @@
+src/components/mermaid/MermaidDiagram.tsx
+  s_95d8918b09a66d::t_cd3c07c518fd65 4,201-247,336-348
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.14",
+  "base_commit_sha": "6398e2a00a3e8f4a8ab5b2ab07ea0fc1d695f663",
+  "prompts": {},
+  "sessions": {
+    "s_95d8918b09a66d": {
+      "agent_id": {
+        "tool": "pi",
+        "id": "019f7735-32a6-7118-88e7-bd891d787939",
+        "model": "unknown"
+      },
+      "human_author": "Tomas Thor Jonsson <benregn@gmail.com>"
+    }
+  }
+}
