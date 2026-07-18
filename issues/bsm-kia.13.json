@@ -1,5 +1,5 @@
 {
-  "assignee": "",
+  "assignee": "Tomas Thor Jonsson",
   "blocked_by": [],
   "blocks": [],
   "created": "2026-07-17T09:02:28Z",
@@ -10,8 +10,8 @@
   ],
   "parent": "bsm-kia",
   "priority": 3,
-  "status": "open",
+  "status": "in_progress",
   "title": "Collapse duplicate Workspace RPC and sidebar helpers across the four e2e specs",
   "type": "epic",
-  "updated_at": "2026-07-17T09:30:49Z"
+  "updated_at": "2026-07-18T06:13:42Z"
 }
