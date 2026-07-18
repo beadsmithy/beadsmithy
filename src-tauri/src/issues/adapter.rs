@@ -119,9 +119,16 @@ fn load_issues_for_view(
     args: &[&str],
     workspace: &Path,
 ) -> Result<Vec<Issue>, ListIssuesError> {
+    // Route command diagnostics through Beadsmith's configured logging
+    // facility (see `src-tauri/src/lib.rs`'s `log_plugin`). The release
+    // policy only forwards `Info`+ to the OS-managed `LogDir`, so debug-
+    // level context (which may include the workspace path) never reaches
+    // release stderr, and the action-facing failure (warn) intentionally
+    // omits the full workspace path to avoid routing user-specific
+    // filesystem paths through unmanaged stderr or any third-party sink.
     let command = args.join(" ");
-    eprintln!(
-        "Beadsmith: running `bw {command}` for {view_label} in {}",
+    log::debug!(
+        "beadsmith: running `bw {command}` for {view_label} in {}",
         workspace.display()
     );
 
@@ -131,12 +138,12 @@ fn load_issues_for_view(
         .and_then(interpret_output);
 
     match &result {
-        Ok(issues) => eprintln!(
-            "Beadsmith: loaded {} issue(s) for {view_label}",
+        Ok(issues) => log::debug!(
+            "beadsmith: loaded {} issue(s) for {view_label}",
             issues.len()
         ),
-        Err(error) => eprintln!(
-            "Beadsmith: {view_label} command failed with {}",
+        Err(error) => log::warn!(
+            "beadsmith: {view_label} command failed with {}",
             issue_list_error_kind(error)
         ),
     }
