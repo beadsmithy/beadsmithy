@@ -13,8 +13,12 @@ A live collection of Issues read from the current workspace. Beadsmith may resha
 _Avoid_: Local issue store, fixture list, cached database
 
 **Issue Detail**:
-The selected Issue's readable view: title, concise metadata, Markdown description, dependency context, and read-only comments when present. It is a view of Beadwork issue data, not a separate Beadsmith document.
+The selected Issue's readable view: title, concise metadata, Markdown description, hierarchy and dependency context, and read-only comments when present. It is a view of Beadwork issue data, not a separate Beadsmith document.
 _Avoid_: Detail document, local issue page, cached issue body
+
+**Child Issue**:
+An Issue whose Beadwork-stored `parent` references another Issue. The relationship is derived from the current Workspace's loaded Issue List, not stored separately on the parent Issue.
+_Avoid_: Subtask, nested issue
 
 **Issue Search**:
 A local, case-insensitive token search over Issue ID, title, and description within the selected Issue List View. Every search token must match for an Issue to remain visible.
