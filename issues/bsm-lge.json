@@ -1,5 +1,5 @@
 {
-  "assignee": "",
+  "assignee": "Tomas Thor Jonsson",
   "blocked_by": [],
   "blocks": [],
   "created": "2026-07-15T22:43:28Z",
@@ -7,8 +7,8 @@
   "id": "bsm-lge",
   "labels": [],
   "priority": 3,
-  "status": "open",
+  "status": "in_progress",
   "title": "Outline Rust backend tests by domain",
   "type": "epic",
-  "updated_at": "2026-07-16T21:23:36Z"
+  "updated_at": "2026-07-18T10:55:06Z"
 }
