@@ -16,6 +16,3 @@ export const browser: Record<string, never> = {};
 export const expect: Record<string, never> = {};
 export const $: (...args: unknown[]) => unknown = () => null;
 export const $$: (...args: unknown[]) => unknown = () => null;
-export const driver: Record<string, never> = {};
-export const multiRemoteBrowser: Record<string, never> = {};
-export const _setGlobal: (...args: unknown[]) => void = () => null;

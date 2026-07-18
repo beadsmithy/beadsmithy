@@ -21,6 +21,64 @@
 import { browser, expect } from "@wdio/globals";
 
 /**
+ * The `window` augmentation used by every typed-transport helper in
+ * this module. The WebdriverIO debug binary exposes `window.__TAURI__`
+ * through `@tauri-apps/api`; the typed `TauRPC__*` commands are invoked
+ * through `window.__TAURI__.core.invoke`.
+ */
+interface TauriWindow extends Window {
+  __TAURI__?: {
+    core?: {
+      invoke: (command: string, arguments_?: object) => Promise<unknown>;
+    };
+  };
+}
+
+/**
+ * Shape returned to the renderer when a typed `TauRPC__*` call has
+ * no `__TAURI__` shim available or its worker rejects. The renderer
+ * inspects the `failure` discriminator before falling back.
+ */
+interface TypedRpcFailure {
+  failure: string;
+}
+
+/**
+ * Invoke a `TauRPC__*` command through the typed renderer transport,
+ * awaiting its worker completion. The canonical `arguments_?: object`
+ * signature is shared with every other helper in this module -- no
+ * per-spec `Record<string, unknown>` drift. Returns the typed
+ * response on success, or `{ failure }` on a missing transport or
+ * worker rejection.
+ *
+ * The lambda body is intentionally self-contained: WebdriverIO
+ * serialises the lambda source and runs it in the browser context,
+ * so any helper declared in this module would be out of scope there.
+ */
+const executeTyped = async <T>(
+  command: string,
+  arguments_?: object
+): Promise<T | TypedRpcFailure> =>
+  (await browser.executeAsync(
+    (cmd, args, done) => {
+      const tauriWindow = window as TauriWindow;
+      const invoke = tauriWindow.__TAURI__?.core?.invoke;
+      if (!invoke) {
+        done({ failure: "window.__TAURI__.core.invoke is not available" });
+        return;
+      }
+      invoke(cmd, args)
+        // WDIO executeAsync requires calling the injected completion callback.
+        // oxlint-disable-next-line promise/no-callback-in-promise
+        .then(done)
+        // oxlint-disable-next-line promise/no-callback-in-promise
+        .catch((error: unknown) => done({ failure: String(error) }));
+    },
+    command,
+    arguments_
+  )) as T | TypedRpcFailure;
+
+/**
  * Payload that every `TauRPC__*` workspace call returns to the renderer
  * when a workspace's issues have loaded. Mirrors the generated
  * `LoadIssueExplorerDataResponse` in `src/rpc/bindings.ts` -- the
@@ -65,35 +123,35 @@ export interface WorkspaceRetryMemoryResponse {
 
 /**
  * Invoke `TauRPC__switch_workspace` through the typed renderer
- * transport, awaiting its worker completion. The canonical
- * `arguments_: object` signature is shared with every other helper in
- * this module -- no per-spec `Record<string, unknown>` drift.
+ * transport, awaiting its worker completion.
  */
-export const invokeTypedWorkspaceSwitch = async (
+export const invokeTypedWorkspaceSwitch = (
   candidatePath: string
-): Promise<WorkspaceSwitchResponse | { failure: string }> =>
-  (await browser.executeAsync((candidate, done) => {
-    const tauriWindow = window as typeof window & {
-      __TAURI__?: {
-        core?: {
-          invoke: (command: string, arguments_: object) => Promise<unknown>;
-        };
-      };
-    };
-    const invoke = tauriWindow.__TAURI__?.core?.invoke;
+): Promise<WorkspaceSwitchResponse | TypedRpcFailure> =>
+  executeTyped<WorkspaceSwitchResponse>("TauRPC__switch_workspace", {
+    candidate_path: candidatePath,
+  });
 
-    if (!invoke) {
-      done({ failure: "window.__TAURI__.core.invoke is not available" });
-      return;
-    }
+/**
+ * Invoke `TauRPC__workspace_state` through the typed renderer transport.
+ * `executeTyped` returns `{ currentWorkspace: null }` when the
+ * `__TAURI__.core.invoke` shim is unavailable, so the e2e never
+ * blocks on a missing transport in a non-debug build.
+ */
+export const invokeWorkspaceState = (): Promise<
+  WorkspaceStateResponse | TypedRpcFailure
+> => executeTyped<WorkspaceStateResponse>("TauRPC__workspace_state");
 
-    invoke("TauRPC__switch_workspace", { candidate_path: candidate })
-      // WDIO executeAsync requires calling the injected completion callback.
-      // oxlint-disable-next-line promise/no-callback-in-promise
-      .then(done)
-      // oxlint-disable-next-line promise/no-callback-in-promise
-      .catch((error: unknown) => done({ failure: String(error) }));
-  }, candidatePath)) as WorkspaceSwitchResponse | { failure: string };
+/**
+ * Invoke `TauRPC__retry_workspace_memory` through the typed renderer
+ * transport. The renderer-level recovery panel that calls
+ * `App.retryWorkspaceMemory` is covered by `App.test.tsx`; this helper
+ * only proves the typed RPC's response shape and post-refresh rendering.
+ */
+export const invokeWorkspaceMemoryRetry = (): Promise<
+  WorkspaceRetryMemoryResponse | TypedRpcFailure
+> =>
+  executeTyped<WorkspaceRetryMemoryResponse>("TauRPC__retry_workspace_memory");
 
 /**
  * Start a typed switch without waiting for its worker completion.
@@ -102,18 +160,18 @@ export const invokeTypedWorkspaceSwitch = async (
  * issues state / DOM assertions. The renderer receives the typed
  * Pending event before the commit, and cancellation is driven through
  * the actual renderer control -- this helper never awaits the worker.
+ *
+ * The structural shape (synchronous evaluation + `setTimeout` + fire
+ * and forget) differs from `executeTyped`, so it stays inline. The
+ * lambda body is self-contained for the same reason as `executeTyped`:
+ * WebdriverIO runs the lambda in the browser context, where any
+ * helper declared in this module would be out of scope.
  */
 export const startTypedWorkspaceSwitch = async (
   candidatePath: string
 ): Promise<void> => {
   await browser.execute((candidate) => {
-    const tauriWindow = window as typeof window & {
-      __TAURI__?: {
-        core?: {
-          invoke: (command: string, arguments_: object) => Promise<unknown>;
-        };
-      };
-    };
+    const tauriWindow = window as TauriWindow;
     const invoke = tauriWindow.__TAURI__?.core?.invoke;
     if (!invoke) {
       throw new Error("window.__TAURI__.core.invoke is not available");
@@ -132,65 +190,6 @@ export const startTypedWorkspaceSwitch = async (
     }, 0);
   }, candidatePath);
 };
-
-/**
- * Invoke `TauRPC__workspace_state` through the typed renderer transport.
- * Falls back to an empty `currentWorkspace: null` payload when the
- * `__TAURI__.core.invoke` shim is unavailable so the e2e never blocks
- * on a missing transport in a non-debug build.
- */
-export const invokeWorkspaceState = async (): Promise<WorkspaceStateResponse> =>
-  (await browser.executeAsync((done) => {
-    const tauriWindow = window as typeof window & {
-      __TAURI__?: {
-        core?: {
-          invoke: (command: string) => Promise<WorkspaceStateResponse>;
-        };
-      };
-    };
-    const invoke = tauriWindow.__TAURI__?.core?.invoke;
-
-    if (!invoke) {
-      done({ currentWorkspace: null });
-      return;
-    }
-    invoke("TauRPC__workspace_state")
-      // WDIO executeAsync requires calling the injected completion callback.
-      // oxlint-disable-next-line promise/no-callback-in-promise
-      .then(done);
-  })) as WorkspaceStateResponse;
-
-/**
- * Invoke `TauRPC__retry_workspace_memory` through the typed renderer
- * transport. The renderer-level recovery panel that calls
- * `App.retryWorkspaceMemory` is covered by `App.test.tsx`; this helper
- * only proves the typed RPC's response shape and post-refresh rendering.
- */
-export const invokeWorkspaceMemoryRetry = async (): Promise<
-  WorkspaceRetryMemoryResponse | { failure: string }
-> =>
-  (await browser.executeAsync((done) => {
-    const tauriWindow = window as typeof window & {
-      __TAURI__?: {
-        core?: {
-          invoke: (command: string) => Promise<WorkspaceRetryMemoryResponse>;
-        };
-      };
-    };
-    const invoke = tauriWindow.__TAURI__?.core?.invoke;
-
-    if (!invoke) {
-      done({ failure: "window.__TAURI__.core.invoke is not available" });
-      return;
-    }
-
-    invoke("TauRPC__retry_workspace_memory")
-      // WDIO executeAsync requires calling the injected completion callback.
-      // oxlint-disable-next-line promise/no-callback-in-promise
-      .then(done)
-      // oxlint-disable-next-line promise/no-callback-in-promise
-      .catch((error: unknown) => done({ failure: String(error) }));
-  })) as WorkspaceRetryMemoryResponse | { failure: string };
 
 /**
  * Build a CSS selector that matches an `<article>` Issue Explorer row

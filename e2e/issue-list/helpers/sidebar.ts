@@ -3,24 +3,24 @@
  * sidebar (the `WorkspaceSelector` panel that lists the remembered
  * workspaces and reports the Current Workspace basename).
  *
- * The literal `[aria-label='Workspace'] p.text-muted` used to be
- * inline in every spec. The recent `p.text-muted` -> `p.truncate`
- * markup swap forced a synchronized edit in four specs at once; this
- * module is the single source of truth so future renames touch one
- * file, not four.
+ * The literal `[aria-label='Workspace'] ...` used to be inline in every
+ * spec. Future `WorkspaceSelector.tsx` rename or restructure touches
+ * this helper file, not four spec files.
  */
 import path from "node:path";
 
 import { browser, expect } from "@wdio/globals";
 
 /**
- * CSS selector for the Current Workspace paragraph in the sidebar. The
- * paragraph is rendered by `WorkspaceSelector.tsx` (see
- * `src/components/WorkspaceSelector.tsx`) and exposes the full path so
- * `expectCurrentWorkspace()` can match against its `path.basename()`.
+ * CSS selector for the Current Workspace basename paragraph in the
+ * sidebar. Rendered by `WorkspaceSelector.tsx` (see
+ * `src/components/WorkspaceSelector.tsx`) as
+ * `<p className="truncate">{workspaceBasename(current.path)}</p>` --
+ * the sibling full-path paragraph (`p.text-muted`) is deliberately not
+ * the target because the basename paragraph is the user-visible name.
  */
-export const CURRENT_WORKSPACE_SELECTOR =
-  "[aria-label='Workspace'] p.text-muted";
+export const CURRENT_WORKSPACE_BASENAME_SELECTOR =
+  "[aria-label='Workspace'] p.truncate";
 
 /**
  * Selector for the sidebar's "Workspace" panel. Used to scope inline
@@ -95,20 +95,21 @@ export const expectSidebarCount = async (
 };
 
 /**
- * Assert the sidebar's Current Workspace paragraph contains the
- * basename of `workspacePath`. Accepts either a full path (preferred,
- * matches what the renderer's full-path paragraph reports) or a bare
- * basename (matched verbatim, useful when the caller only knows the
- * basename).
+ * Assert the sidebar's Current Workspace paragraph shows the basename
+ * of `workspacePath`. The sidebar renders the basename as its own
+ * `<p>` element (see `CURRENT_WORKSPACE_BASENAME_SELECTOR`); this
+ * helper compares against that basename rather than the full path so
+ * a successful switch whose sidebar layout is updated by something
+ * other than this code path still asserts the user-visible identity.
  */
 export const expectCurrentWorkspace = async (
   workspacePath: string
 ): Promise<void> => {
-  const currentPath = await browser.$(CURRENT_WORKSPACE_SELECTOR);
-  await currentPath.waitForExist({ timeout: 30_000 });
-  const rendered = await currentPath.getText();
+  const currentBasename = await browser.$(CURRENT_WORKSPACE_BASENAME_SELECTOR);
+  await currentBasename.waitForExist({ timeout: 30_000 });
+  const rendered = await currentBasename.getText();
   const expectedBasename = path.basename(workspacePath);
-  expect(rendered).toContain(expectedBasename);
+  expect(rendered).toBe(expectedBasename);
 };
 
 /**
@@ -119,8 +120,8 @@ export const expectCurrentWorkspace = async (
  * state) can drive it through one helper.
  */
 export const expectNoCurrentWorkspace = async (): Promise<void> => {
-  const currentPath = await browser.$(CURRENT_WORKSPACE_SELECTOR);
-  await browser.waitUntil(async () => !(await currentPath.isExisting()), {
+  const currentBasename = await browser.$(CURRENT_WORKSPACE_BASENAME_SELECTOR);
+  await browser.waitUntil(async () => !(await currentBasename.isExisting()), {
     timeout: 30_000,
     timeoutMsg: "Expected the sidebar to report no Current Workspace",
   });

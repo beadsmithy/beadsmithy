@@ -12,15 +12,15 @@
 import { describe, expect, it } from "vitest";
 
 import {
-  CURRENT_WORKSPACE_SELECTOR,
+  CURRENT_WORKSPACE_BASENAME_SELECTOR,
   WORKSPACE_PANEL_SELECTOR,
   sidebarButtonSelector,
 } from "./sidebar.ts";
 
-describe("CURRENT_WORKSPACE_SELECTOR", () => {
-  it("targets the full-path paragraph inside the Workspace sidebar panel", () => {
-    expect(CURRENT_WORKSPACE_SELECTOR).toBe(
-      "[aria-label='Workspace'] p.text-muted"
+describe("CURRENT_WORKSPACE_BASENAME_SELECTOR", () => {
+  it("targets the basename paragraph inside the Workspace sidebar panel", () => {
+    expect(CURRENT_WORKSPACE_BASENAME_SELECTOR).toBe(
+      "[aria-label='Workspace'] p.truncate"
     );
   });
 });
