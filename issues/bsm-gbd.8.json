@@ -1,0 +1,15 @@
+{
+  "assignee": "",
+  "blocked_by": [],
+  "blocks": [],
+  "created": "2026-07-18T21:45:38Z",
+  "description": "## Background\nThe staged no-useEffect rule prevents new direct calls but does not yet make the repository policy enforceable. Once all existing call sites have been migrated, the rule can become a blocking invariant.\n\n## What to build\nPromote the no-useEffect Oxlint rule from warning to error after all six migration tasks are complete. Verify that the repository contains no direct `useEffect` calls outside the narrowly scoped `useMountEffect` implementation, if that escape hatch exists.\n\n## Technical Approach\nRemove any temporary migration-only configuration and change the rule severity to blocking. Keep only the intentional wrapper suppression required by `useMountEffect`; do not preserve file-level or call-site exceptions. Run the complete relevant lint, typecheck, unit, and build verification.\n\n## Considerations\nThis task must remain blocked by every effect migration so its own change lands on a clean tree. The final rule should continue to provide a replacement-oriented diagnostic, and the enforcement check must not prohibit the documented escape hatch itself.\n\n## Acceptance criteria\n- [ ] All six catalogued direct `useEffect` call sites have been removed or replaced.\n- [ ] The no-useEffect rule is configured at error severity.\n- [ ] No migration-only allowlists or call-site suppressions remain.\n- [ ] The intentional `useMountEffect` wrapper, if present, is the only narrowly scoped suppression.\n- [ ] Lint, typecheck, tests, and `pnpm build` pass with the blocking rule enabled.\n\n## Test Plan\n- Run a repository-wide search for direct `useEffect` calls.\n- Run the complete Ultracite/Oxlint check.\n- Run TypeScript, unit, and relevant desktop/E2E verification.\n- Run `pnpm build`.\n\nTriage: ready-for-agent.",
+  "id": "bsm-gbd.8",
+  "labels": [],
+  "parent": "bsm-gbd",
+  "priority": 1,
+  "status": "open",
+  "title": "Promote no-useEffect Oxlint rule to blocking enforcement",
+  "type": "task",
+  "updated_at": "2026-07-18T21:45:38Z"
+}
