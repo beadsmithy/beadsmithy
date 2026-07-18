@@ -2,7 +2,8 @@
   "assignee": "Tomas Thor Jonsson",
   "blocked_by": [],
   "blocks": [
-    "bsm-wj1"
+    "bsm-wj1",
+    "bsm-wj1.1"
   ],
   "closed_at": "2026-07-18T09:51:42Z",
   "created": "2026-07-13T12:35:04Z",
@@ -53,5 +54,5 @@
   "status": "closed",
   "title": "Implement Workspace management",
   "type": "epic",
-  "updated_at": "2026-07-18T09:51:42Z"
+  "updated_at": "2026-07-18T15:11:08Z"
 }
