@@ -1,6 +1,8 @@
 {
   "assignee": "",
-  "blocked_by": [],
+  "blocked_by": [
+    "bsm-gbd.1"
+  ],
   "blocks": [],
   "created": "2026-07-18T21:22:28Z",
   "description": "Refactor src/settings/app-settings.ts persisted-settings load effect without direct useEffect. Preserve mount-time loading, pending-edit protection, warning behavior, and stale async completion safety. Depend on the no-use-effect lint setup.",
@@ -11,5 +13,5 @@
   "status": "open",
   "title": "Replace app-settings hydration effect",
   "type": "task",
-  "updated_at": "2026-07-18T21:22:28Z"
+  "updated_at": "2026-07-18T21:22:29Z"
 }
