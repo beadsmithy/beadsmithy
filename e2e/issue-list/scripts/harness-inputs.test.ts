@@ -34,6 +34,18 @@ describe("parsePhase", () => {
 });
 
 describe("parseHarnessEnvironment", () => {
+  it("reports an omitted scenario consistently with other received values", () => {
+    expect(() =>
+      parseHarnessEnvironment({
+        BEADSMITH_E2E_WORKSPACE_A: "/fixtures/a",
+        BEADSMITH_E2E_WORKSPACE_B: "/fixtures/b",
+        BEADSMITH_WORKSPACE_STORE_PATH: "/stores/workspaces.json",
+      })
+    ).toThrow(
+      '- BEADSMITH_E2E_SCENARIO must be one of empty|issues|atomic-switch; received "<missing>"'
+    );
+  });
+
   it("returns typed inputs when the environment is complete", () => {
     expect(
       parseHarnessEnvironment({

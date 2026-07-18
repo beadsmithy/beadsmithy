@@ -22,7 +22,7 @@ export type Phase = "1" | "2";
 export type Scenario = "empty" | "issues" | "atomic-switch";
 
 const formatReceived = (value: string | undefined): string =>
-  JSON.stringify(value) ?? "undefined";
+  JSON.stringify(value ?? "<missing>");
 
 const phaseError = (value: string | undefined): string =>
   `BEADSMITH_E2E_PHASE must be one of 1|2; received ${formatReceived(value)}`;
