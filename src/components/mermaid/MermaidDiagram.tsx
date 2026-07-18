@@ -1,7 +1,7 @@
 import Panzoom from "@panzoom/panzoom";
 import type { PanzoomObject } from "@panzoom/panzoom";
 import { Maximize, TriangleAlert, ZoomIn, ZoomOut } from "lucide-react";
-import { useEffect, useId, useRef, useState } from "react";
+import { useId, useRef, useState } from "react";
 
 import { useMountEffect } from "../../lib/use-mount-effect";
 import { Alert, AlertDescription, AlertTitle } from "../ui/Alert";
@@ -198,6 +198,53 @@ const MermaidDiagramViewport = ({ svg }: MermaidDiagramViewportProps) => {
   );
 };
 
+interface MermaidSourceRenderProps {
+  onRendered: (state: RenderState) => void;
+  onError: (message: string) => void;
+  source: string;
+}
+
+/**
+ * Renders the supplied Mermaid source for as long as this component is
+ * mounted, reporting the result via the `onRendered` / `onError` callbacks.
+ *
+ * This is a deliberate mount-only boundary: a parent component remounts
+ * `MermaidSourceRender` per source identity (via the `key` prop), so the
+ * previous in-flight render is naturally canceled by unmount cleanup and
+ * stale completions cannot update a newer source instance.
+ */
+const MermaidSourceRender = ({
+  onRendered,
+  onError,
+  source,
+}: MermaidSourceRenderProps) => {
+  useMountEffect(() => {
+    let active = true;
+
+    void (async () => {
+      try {
+        const svg = await renderMermaid(source);
+        if (!active) {
+          return;
+        }
+        onRendered({ status: "success", svg });
+      } catch (error) {
+        if (!active) {
+          return;
+        }
+        const message = error instanceof Error ? error.message : String(error);
+        onError(message);
+      }
+    })();
+
+    return () => {
+      active = false;
+    };
+  });
+
+  return null;
+};
+
 interface MermaidDiagramProps {
   source: string;
 }
@@ -219,34 +266,6 @@ export const MermaidDiagram = ({ source }: MermaidDiagramProps) => {
     setRender({ status: "loading" });
     setActiveTab("diagram");
   }
-
-  useEffect(() => {
-    let active = true;
-
-    const run = async () => {
-      try {
-        const svg = await renderMermaid(source);
-        if (!active) {
-          return;
-        }
-        setRender({ status: "success", svg });
-        setActiveTab("diagram");
-      } catch (error) {
-        if (!active) {
-          return;
-        }
-        const message = error instanceof Error ? error.message : String(error);
-        setRender({ message, status: "error" });
-        setActiveTab("source");
-      }
-    };
-
-    void run();
-
-    return () => {
-      active = false;
-    };
-  }, [source]);
 
   const isDiagramActive = activeTab === "diagram";
 
@@ -313,6 +332,19 @@ export const MermaidDiagram = ({ source }: MermaidDiagramProps) => {
           <code>{source}</code>
         </pre>
       </div>
+
+      <MermaidSourceRender
+        key={source}
+        onError={(message) => {
+          setRender({ message, status: "error" });
+          setActiveTab("source");
+        }}
+        onRendered={(state) => {
+          setRender(state);
+          setActiveTab("diagram");
+        }}
+        source={source}
+      />
 
       {render.status === "error" ? (
         <Alert className={ERROR_ALERT_CLASSES} variant="destructive">
