@@ -42,7 +42,7 @@ import {
 import type { BeadworkWorkspace } from "../fixtures/workspace.ts";
 import { assertEmbeddedWebDriverPortAvailable } from "./embedded-webdriver-port.ts";
 import { isPhase, isScenario } from "./harness-inputs.ts";
-import type { Phase } from "./harness-inputs.ts";
+import type { Phase, Scenario } from "./harness-inputs.ts";
 import {
   assertFingerprintsEqual,
   assertResourcesRemoved,
@@ -60,10 +60,7 @@ interface ScenarioPlan {
   readonly commandDelayMs?: string;
 }
 
-const SCENARIO_PLANS: Record<
-  ReturnType<typeof isScenario> extends true ? never : string,
-  ScenarioPlan
-> = {
+const SCENARIO_PLANS: Record<Scenario, ScenarioPlan> = {
   "atomic-switch": {
     commandDelayMs: "1000",
     phases: ["1"],
@@ -86,7 +83,7 @@ const SCENARIO_PLANS: Record<
 const BUNDLE_IDENTIFIER = "com.benregn.beadsmith";
 
 interface ParsedArgs {
-  readonly scenario: ReturnType<typeof isScenario> & string;
+  readonly scenario: Scenario;
   readonly phaseOverride: Phase | null;
 }
 
