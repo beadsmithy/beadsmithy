@@ -10,7 +10,9 @@
 // so unrelated helpers are untouched. The wrapper hook itself
 // (src/lib/use-mount-effect.ts) is the only narrowly scoped suppression;
 // `oxlint-disable-next-line no-use-effect/no-direct-use-effect` directives
-// are honored at the wrapper implementation site.
+// are honored at the wrapper implementation site, including when one or
+// more unrelated `eslint-disable-next-line` comments sit between the
+// directive and the suppressed token.
 
 const REACT_PACKAGE = "react";
 
@@ -25,7 +27,7 @@ const MESSAGE = [
 
 const DISABLE_DIRECTIVE_REGEX =
   /^\s*oxlint-disable-next-line(?:\s+(?<rules>[A-Za-z0-9_/,\-\s]+))?$/u;
-const ESLINT_DISABLE_REGEX = /^\s*\/?\s*eslint-disable/u;
+const ESLINT_DISABLE_REGEX = /^\s*(?:\/)?\s*(?:oxlint|eslint)-disable/u;
 const BLANK_LINE_REGEX = /^\s*$/u;
 
 const isOxLintDisableDirective = (text) =>
@@ -50,40 +52,47 @@ const directiveTargetsOurRule = (commentText) => {
     .includes(RULE_NAME);
 };
 
-const resolveSuppressedLineIndex = (comment, comments) => {
+const classifyLookaheadComment = (commentText) => {
+  if (isOxLintDisableDirective(commentText)) {
+    if (directiveTargetsOurRule(commentText)) {
+      return "terminate";
+    }
+    return "skip";
+  }
+  if (isEslintDisable(commentText) || isBlankLineComment(commentText)) {
+    return "skip";
+  }
+  return "skip";
+};
+
+const collectSkipLines = (comment, comments) => {
   // The directive suppresses the first non-comment token on the line
   // immediately following the directive, but the suppression must still
   // apply when one or more unrelated line comments (for example an
-  // eslint-disable for a different rule) sit between the directive and
-  // the suppressed token. Walk forward line by line, skipping any line
-  // that hosts a non-directive line comment, until we reach the
-  // suppressed line.
-  const startLine = comment.loc?.end?.line ?? 0;
-  const commentLinesWithDirective = new Set();
-  const commentLinesWithEslintDisable = new Set();
+  // oxlint-disable or eslint-disable for a different rule) sit between
+  // the directive and the suppressed token. Walk forward through the
+  // remaining comments, skipping any line that hosts a non-directive
+  // line comment, until we reach the suppressed line.
+  const skipLines = new Set();
   const ownIndex = comments.indexOf(comment);
   for (let i = ownIndex + 1; i < comments.length; i += 1) {
     const next = comments[i];
     if (next.type !== "Line") {
       break;
     }
-    const nextText = next.value ?? "";
-    if (isOxLintDisableDirective(nextText)) {
+    const classification = classifyLookaheadComment(next.value ?? "");
+    if (classification === "terminate") {
+      // The next oxlint-disable directive also targets our rule.
+      // End the search here so the later directive's own walker
+      // resolves its own suppressed line.
       break;
     }
-    if (isEslintDisable(nextText)) {
-      commentLinesWithEslintDisable.add(next.loc?.start?.line ?? -1);
-      continue;
-    }
-    if (isBlankLineComment(nextText)) {
-      continue;
-    }
-    commentLinesWithDirective.add(next.loc?.start?.line ?? -1);
+    skipLines.add(next.loc?.start?.line ?? -1);
   }
-  const skipLines = new Set([
-    ...commentLinesWithEslintDisable,
-    ...commentLinesWithDirective,
-  ]);
+  return skipLines;
+};
+
+const findFirstNonSkipLine = (startLine, skipLines) => {
   for (let candidate = startLine + 1; ; candidate += 1) {
     if (skipLines.has(candidate)) {
       continue;
@@ -92,7 +101,13 @@ const resolveSuppressedLineIndex = (comment, comments) => {
   }
 };
 
-const collectDisableDirectives = (comments, lineStartIndices) => {
+export const resolveSuppressedLineIndex = (comment, comments) => {
+  const startLine = comment.loc?.end?.line ?? 0;
+  const skipLines = collectSkipLines(comment, comments);
+  return findFirstNonSkipLine(startLine, skipLines);
+};
+
+export const collectDisableDirectives = (comments, lineStartIndices) => {
   if (!Array.isArray(lineStartIndices)) {
     return [];
   }
@@ -130,7 +145,7 @@ const isInDisabledRange = (node, disabledRanges) => {
   );
 };
 
-const isReactUseEffectCallee = (node) => {
+export const isReactUseEffectCallee = (node) => {
   const { callee } = node;
   if (callee === null || callee === undefined) {
     return false;
@@ -138,7 +153,7 @@ const isReactUseEffectCallee = (node) => {
   return callee.type === "Identifier" && callee.name === "useEffect";
 };
 
-const fileImportsReactUseEffect = (program) => {
+export const fileImportsReactUseEffect = (program) => {
   const sources = program.body ?? [];
   for (const node of sources) {
     if (node.type !== "ImportDeclaration") {
@@ -163,6 +178,11 @@ const noDirectUseEffectRule = {
   create(context) {
     let reactUseEffectImported = false;
     let disabledRanges = [];
+    // Prefer `context.sourceCode.getAllComments()` when available; fall
+    // back to `node.comments` so the rule keeps working if Oxlint
+    // changes its source-code API. The two paths are mutually
+    // exclusive in the current runtime — we never aggregate — so there
+    // is no double-counting risk.
     const sourceCode =
       typeof context.sourceCode === "object" &&
       context.sourceCode !== null &&
