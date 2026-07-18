@@ -7,8 +7,9 @@ import { defineConfig } from "vitest/config";
 // (see docs/agents/webdriver-e2e.md), not vitest. We deliberately add
 // `e2e/issue-list/helpers/**/*.test.ts` to the include set so the pure
 // helpers extracted from the WebDriver specs (e.g. `issueRowSelector`,
-// sidebar selector formatters) can be unit-tested without spinning up
-// a debug binary. The wdio `*.spec.ts` files are still excluded.
+// sidebar selector formatters) and the pure harness parser can be unit-tested
+// without spinning up a debug binary. The wdio `*.spec.ts` files are still
+// excluded.
 const wdioGlobalsStub = fileURLToPath(
   new URL("e2e/issue-list/helpers/__wdio-globals-stub__.ts", import.meta.url)
 );
@@ -30,6 +31,7 @@ export default defineConfig({
     include: [
       "src/**/*.{test,spec}.{ts,tsx}",
       "e2e/issue-list/helpers/**/*.test.ts",
+      "e2e/issue-list/scripts/**/*.test.ts",
     ],
     setupFiles: ["src/test/setup.ts"],
   },
