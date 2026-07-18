@@ -1,0 +1,21 @@
+oxlint.config.ts
+  s_95d8918b09a66d::t_ebee0492ce7a0e 42-46
+scripts/oxlint-plugin/no-use-effect-plugin.mjs
+  s_95d8918b09a66d::t_a067912cb96c49 11-13,17,26-132,138,165-171,180-182,187-189
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.14",
+  "base_commit_sha": "7781aba9a9c1e22127b3ff7fbad96260be9ca34a",
+  "prompts": {},
+  "sessions": {
+    "s_95d8918b09a66d": {
+      "agent_id": {
+        "tool": "pi",
+        "id": "019f7735-32a6-7118-88e7-bd891d787939",
+        "model": "unknown"
+      },
+      "human_author": "Tomas Thor Jonsson <benregn@gmail.com>"
+    }
+  }
+}
