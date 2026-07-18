@@ -1,0 +1,21 @@
+e2e/issue-list/scripts/run-scenario.ts
+  s_ab93480970c92e::t_9e64e37d634a55 45
+  s_ab93480970c92e::t_b3e0ee2a22ae53 63
+  s_ab93480970c92e::t_edbec37b5d71d4 86
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.14",
+  "base_commit_sha": "085e99c22ab5cd710aa4337728a3047cb4a07acd",
+  "prompts": {},
+  "sessions": {
+    "s_ab93480970c92e": {
+      "agent_id": {
+        "tool": "pi",
+        "id": "019f6f35-181d-70f2-8194-06f9c5fe4a5f",
+        "model": "MiniMax-M3"
+      },
+      "human_author": "Tomas Thor Jonsson <benregn@gmail.com>"
+    }
+  }
+}
