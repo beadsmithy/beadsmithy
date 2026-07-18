@@ -38,11 +38,67 @@ pnpm test:e2e:issue-list
 
 # Build + run the two-launch Markdown settings acceptance:
 pnpm test:e2e:settings
+
+# Build + run the real-desktop Mermaid diagram acceptance:
+pnpm test:e2e:mermaid
 ```
 
 Requires `bw` on `PATH` (used both to build the disposable fixture workspaces
 and by the running app). `pnpm e2e:issue-list:*` fails fast with a clear error
 if `bw` isn't found or the debug binary hasn't been built yet.
+
+## Mermaid diagram in Issue Detail suite
+
+The focused Mermaid suite proves that a representative Issue description and
+comment Mermaid fence, plus a malformed Mermaid comment, render through the
+real built Tauri binary's Rust adapter -> TauRPC -> Effect -> React path.
+It is the desktop acceptance gate for `bsm-wr7.3` and complements the
+focused renderer/component unit tests (which run against mocks because jsdom
+cannot drive Mermaid's browser SVG behavior).
+
+```sh
+# Build the debug binary:
+pnpm e2e:build
+
+# Run the suite against one disposable Beadwork workspace and one
+# scenario-owned store:
+pnpm e2e:mermaid
+```
+
+The harness (`e2e/mermaid/scripts/run-mermaid-scenario.ts`) creates a
+throwaway Beadwork repository under the OS temp directory, seeded via `bw
+init` and the shared `createIssueListWorkspace` fixture (which now carries
+a valid Mermaid description fence, a valid Mermaid comment authored by
+`Beadsmith E2E Mermaid`, and a malformed Mermaid comment authored by
+`Beadsmith E2E Mermaid Broken`). The developer's normal workspace-catalog
+fingerprint is captured before launch and re-checked after cleanup; the
+suite fails if the developer catalog is touched in any way. The embedded
+WebDriver port (46247) is distinct from the Issue List (46245) and
+Settings (46246) suites so the three suites never collide.
+
+The spec (`e2e/mermaid/mermaid-diagram.spec.ts`) drives the normal Issue
+selection path through the typed `TauRPC__switch_workspace` boundary, then
+asserts on the rendered DOM after Mermaid has mounted its real SVG:
+
+- The Issue description renders a valid Mermaid `<svg>` with rendered
+  child nodes, has the Diagram tab selected by default, and offers a
+  Source tab whose `<pre><code>` mirrors the authored Mermaid notation.
+- The accessible zoom controls (`Zoom in diagram`, `Zoom out diagram`,
+  `Reset and fit diagram`) are present, clickable, and change the SVG
+  transform inline. Reset restores the initial fit scale (or elides the
+  inline transform for the identity fit).
+- A valid Mermaid comment renders through the same `MarkdownContent`
+  seam and produces its own SVG with the authored sequence diagram
+  participants.
+- A malformed comment Mermaid fence selects Source by default, exposes
+  the complete error banner with the destructive `Alert` variant, and
+  preserves the unchanged authored source through the Source tab.
+
+DOM interactions use `browser.execute` to avoid the WebDriver XPath
+transport quirks observed with mixed predicates, attribute unions, and
+positional indexes; the assertions still read live DOM state but resolve
+each Mermaid through a unique data attribute added and removed per
+assertion so the production DOM stays clean.
 
 ## Settings persistence suite
 
@@ -226,6 +282,13 @@ backs `@wdio/tauri-service`'s `embedded` driver provider, which runs an
 in-process W3C WebDriver server -- the official `tauri-driver` only
 supports Windows/Linux when driven directly, so `embedded` is the only
 option that works natively on macOS.
+
+The Issue List suite preflights embedded WebDriver port `46245`; the
+Settings suite uses `46246`; the Mermaid suite uses `46247`. Each suite
+exposes its port through a `MERMAID_WEBDRIVER_PORT` /
+`SETTINGS_WEBDRIVER_PORT` constant in its wdio config and a shared
+helper (`e2e/issue-list/scripts/embedded-webdriver-port.ts`) that fails
+clearly instead of silently attaching to a stale debug app.
 
 `tauri-plugin-wdio` is also registered only in debug builds. It enables
 `browser.tauri.execute()`, command mocking if a future suite needs it,

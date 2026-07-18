@@ -128,6 +128,19 @@ export const FIXTURE_DESCRIPTION_BULLET =
   "Markdown bullets survive the Beadwork round trip.";
 export const FIXTURE_DESCRIPTION_INLINE_CODE = "load_issue_explorer_data";
 export const FIXTURE_DESCRIPTION_FENCED_CODE = "const markdownScale = 24;";
+export const FIXTURE_DESCRIPTION_MERMAID_HEADING = "Workflow diagram";
+/**
+ * Valid Mermaid fence that the assembled Beadsmith binary must render to SVG.
+ * The fixture exercises the shared `MarkdownContent` seam, so a description
+ * render here proves the same path the comment path uses. The content is
+ * deliberately compact but produces a multi-node graph so SVG structure
+ * assertions are non-trivial.
+ */
+export const FIXTURE_DESCRIPTION_MERMAID_SOURCE = `graph TD
+    Loaded[Fixture loaded] --> Selected[Issue selected]
+    Selected --> Rendered[Diagram rendered]
+    Rendered --> Pannable[Pannable and zoomable]
+    Rendered --> Source[Source tab available]`;
 export const FIXTURE_ISSUE_DESCRIPTION = `## ${FIXTURE_DESCRIPTION_HEADING}
 
 This description proves the desktop app renders selected Issue Detail content from ${FIXTURE_DESCRIPTION_INLINE_CODE}.
@@ -137,11 +150,40 @@ This description proves the desktop app renders selected Issue Detail content fr
 
 \`\`\`ts
 ${FIXTURE_DESCRIPTION_FENCED_CODE}
+\`\`\`
+
+## ${FIXTURE_DESCRIPTION_MERMAID_HEADING}
+
+\`\`\`mermaid
+${FIXTURE_DESCRIPTION_MERMAID_SOURCE}
 \`\`\``;
 export const FIXTURE_COMMENT_AUTHOR = "Beadsmith E2E";
 export const FIXTURE_COMMENT_TEXT =
   "The detail pane should show this authored fixture comment.";
 export const FIXTURE_COMMENT_MARKDOWN = "**Markdown formatting is preserved.**";
+/**
+ * Comment fixture that proves the shared `MarkdownContent` seam renders a
+ * valid Mermaid diagram inside a comment, not just an Issue description.
+ */
+export const FIXTURE_COMMENT_MERMAID_AUTHOR = "Beadsmith E2E Mermaid";
+export const FIXTURE_COMMENT_MERMAID_SOURCE = `sequenceDiagram
+    participant Reader
+    participant Detail as Issue Detail
+    participant Mermaid as Mermaid runtime
+    Reader->>Detail: Open Issue
+    Detail->>Mermaid: Render fence
+    Mermaid-->>Detail: SVG
+    Detail-->>Reader: Diagram view`;
+/**
+ * Comment fixture that proves a malformed Mermaid fence is surfaced as a
+ * complete error banner with the unchanged authored source reachable
+ * through the Source tab.
+ */
+export const FIXTURE_COMMENT_MALFORMED_AUTHOR = "Beadsmith E2E Mermaid Broken";
+export const FIXTURE_COMMENT_MALFORMED_INTRO =
+  "The next fence is deliberately malformed and must surface the complete Mermaid error.";
+export const FIXTURE_COMMENT_MALFORMED_SOURCE =
+  "this is not valid mermaid ::: !! -- broken %%";
 
 /**
  * A real Beadwork workspace with Issues for the selectable list views: a
@@ -219,6 +261,26 @@ export const createIssueListWorkspace = (): BeadworkWorkspace => {
       `${FIXTURE_COMMENT_TEXT}\n\n${FIXTURE_COMMENT_MARKDOWN}`,
       "--author",
       FIXTURE_COMMENT_AUTHOR,
+    ],
+    workspacePath
+  );
+  runBw(
+    [
+      "comment",
+      issueId,
+      `\`\`\`mermaid\n${FIXTURE_COMMENT_MERMAID_SOURCE}\n\`\`\``,
+      "--author",
+      FIXTURE_COMMENT_MERMAID_AUTHOR,
+    ],
+    workspacePath
+  );
+  runBw(
+    [
+      "comment",
+      issueId,
+      `${FIXTURE_COMMENT_MALFORMED_INTRO}\n\n\`\`\`mermaid\n${FIXTURE_COMMENT_MALFORMED_SOURCE}\n\`\`\``,
+      "--author",
+      FIXTURE_COMMENT_MALFORMED_AUTHOR,
     ],
     workspacePath
   );
