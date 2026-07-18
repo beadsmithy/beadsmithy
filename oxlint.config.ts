@@ -39,12 +39,11 @@ export default defineConfig({
   ],
   plugins: ["react", "react-perf"],
   rules: {
-    // Staged migration guard: existing call sites report as warnings until
-    // bsm-gbd.8 promotes this to "error" once every direct call has been
-    // replaced. The diagnostic message explains the approved replacement
-    // patterns; the wrapper implementation in src/lib/use-mount-effect.ts
-    // (when introduced) is the only narrowly scoped suppression.
-    "no-use-effect/no-direct-use-effect": "warn",
+    // Blocking enforcement for the no-use-effect policy. The diagnostic
+    // message points to the approved replacement patterns; the wrapper
+    // implementation in src/lib/use-mount-effect.ts is the only
+    // narrowly scoped suppression and is required by this rule itself.
+    "no-use-effect/no-direct-use-effect": "error",
 
     // Style and consistency
     "tailwindcss/consistent-variant-order": "warn",
