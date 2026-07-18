@@ -2,6 +2,7 @@
   "assignee": "Tomas Thor Jonsson",
   "blocked_by": [],
   "blocks": [],
+  "closed_at": "2026-07-18T11:30:50Z",
   "created": "2026-07-15T22:44:30Z",
   "description": "## Background\n\nThe Beadwork command boundary is split between `src-tauri/src/issues/runner.rs`, which executes commands with an explicit Workspace working directory, and `src-tauri/src/issues/adapter.rs`, which turns `bw` JSON output and command failures into Beadsmith Issue data/errors. Their inline tests protect the application boundary specified by the Workspace and Beadwork CLI ADRs.\n\n## What to build\n\nMove the inline tests from the Issue command runner and adapter into their respective outlined test modules. A maintainer changing a Beadwork command, JSON mapping, or error path must find its contract tests beside the boundary rather than at the bottom of implementation files.\n\n## Technical Approach\n\nKeep one `#[cfg(test)] mod tests;` declaration per implementation module. Create module-local outlined roots under `src-tauri/src/issues/runner/` and `src-tauri/src/issues/adapter/`. Keep lightweight fakes, JSON fixtures, command invocation assertions, and adapter error cases local to the boundary they test. The two modules may land together because they form the same Beadwork command-to-domain path, but they must remain separately discoverable.\n\n## Considerations\n\n- Beadwork remains the source of truth for All Issues, Ready, and Blocked; do not reimplement its semantics.\n- Preserve explicit working-directory assertions; no ambient process working-directory behavior may return.\n- Do not replace the real desktop/WebDriver coverage or change any production command arguments.\n\n## Acceptance criteria\n\n- [ ] `issues/runner.rs` and `issues/adapter.rs` contain no test bodies.\n- [ ] Existing command invocation, JSON mapping, malformed-output, and error-context coverage is moved once and still passes.\n- [ ] Test fixtures and fakes stay private to their outlined modules.\n- [ ] Focused command-boundary tests and full `cargo test` pass.\n\n## Test Plan\n\n- Run focused adapter and runner test filters after each move.\n- Run `cargo test` from `src-tauri`.\n- Verify no `#[test]` body remains in either implementation file.\n\n## Triage\n\nready-for-agent",
   "id": "bsm-lge.3",
@@ -10,8 +11,8 @@
   ],
   "parent": "bsm-lge",
   "priority": 3,
-  "status": "in_progress",
+  "status": "closed",
   "title": "Outline Beadwork command-boundary tests",
   "type": "task",
-  "updated_at": "2026-07-18T11:30:41Z"
+  "updated_at": "2026-07-18T11:30:50Z"
 }
