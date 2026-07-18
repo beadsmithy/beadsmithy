@@ -1,0 +1,38 @@
+e2e/issue-list/issue-list.atomic-switch.spec.ts
+  s_74974a3ebf83bc::t_d1b0845176697e 39-47
+e2e/issue-list/issue-list.success.spec.ts
+  s_74974a3ebf83bc::t_25f5a8fe7bdb43 24-26,183,352,358,362,383,399,402,410
+e2e/issue-list/issue-list.empty.spec.ts
+  s_74974a3ebf83bc::t_a2fb6acdf5ad14 7-10,37
+e2e/issue-list/scripts/run-scenario.ts
+  s_74974a3ebf83bc::t_96672c21f0fd33 24
+wdio.issue-list.conf.ts
+  s_74974a3ebf83bc::t_37c351484c59a8 24,34-39
+e2e/issue-list/scripts/harness-inputs.ts
+  s_74974a3ebf83bc::t_c8fa1fbe4edd76 10-20,65,105,120-136
+  s_41a59323f3ae0a::t_ad18435e519ce4 137
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.14",
+  "base_commit_sha": "58e3c34acee1b9df64ab1dc1b5a8b4f737d59fa3",
+  "prompts": {},
+  "sessions": {
+    "s_41a59323f3ae0a": {
+      "agent_id": {
+        "tool": "pi",
+        "id": "019f73c4-fee5-7e66-bcb2-cf0af758ec68",
+        "model": "MiniMax-M3"
+      },
+      "human_author": "Tomas Thor Jonsson <benregn@gmail.com>"
+    },
+    "s_74974a3ebf83bc": {
+      "agent_id": {
+        "tool": "pi",
+        "id": "019f73c4-ea49-7a1d-beef-d7a50830e3e0",
+        "model": "MiniMax-M3"
+      },
+      "human_author": "Tomas Thor Jonsson <benregn@gmail.com>"
+    }
+  }
+}
