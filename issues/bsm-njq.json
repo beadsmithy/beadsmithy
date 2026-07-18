@@ -1,0 +1,14 @@
+{
+  "assignee": "",
+  "blocked_by": [],
+  "blocks": [],
+  "created": "2026-07-18T10:22:28Z",
+  "description": "## Background\n\nThe closed Workspace-management epic (`bsm-kia`) established backend-owned Workspace state, explicit command scope, atomic switching, catalog recovery, and desktop acceptance. A post-implementation audit found a durability defect and two follow-up hardening gaps: a failed persistence operation can leave mutable plugin-store state behind; the selector lacks direct save-failure recovery coverage; and production issue-command diagnostics bypass the app's native release logging policy.\n\n## What to build\n\nHarden Workspace persistence and diagnostics so a rejected Workspace transition can never become durable later, users have regression-proven save-failure recovery, and command diagnostics follow the native logging policy.\n\n## Delivery graph\n\n```mermaid\ngraph LR\n  A[Make failed Workspace saves transactional] --\u003e B[Prove Workspace save-failure recovery in the selector]\n  C[Route Workspace command diagnostics through native logging]\n```\n\n## Acceptance criteria\n\n- [ ] Failed Workspace save and reset operations cannot be persisted by a later save or application shutdown.\n- [ ] A save failure preserves the prior visible Workspace snapshot and exposes the specified retryable selector feedback.\n- [ ] Production Workspace command diagnostics do not bypass the release logging policy.\n\n## Test Plan\n\n- Each child adds focused regression coverage at its appropriate boundary.\n- Run Rust, frontend, static-analysis, and relevant desktop acceptance checks after the child work lands.",
+  "id": "bsm-njq",
+  "labels": [],
+  "priority": 1,
+  "status": "open",
+  "title": "Harden Workspace persistence and diagnostics",
+  "type": "epic",
+  "updated_at": "2026-07-18T10:22:28Z"
+}
