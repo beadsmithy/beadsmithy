@@ -3,7 +3,9 @@
   "blocked_by": [
     "bsm-gbd.1"
   ],
-  "blocks": [],
+  "blocks": [
+    "bsm-gbd.8"
+  ],
   "created": "2026-07-18T21:37:50Z",
   "description": "## Background\nThe App subscribes to the native `workspace-transition` event inside a direct React `useEffect`. The subscription is an external-system lifecycle and must comply with the no-use-effect rule without leaking listeners or applying events after disposal.\n\n## What to build\nReplace the App effect that asynchronously registers the Workspace transition listener and routes each native payload through the existing transition application logic.\n\n## Technical Approach\nUse an explicit mount/lifecycle abstraction or a keyed component boundary that supports the asynchronous listener registration. Preserve the disposed guard for a listener that resolves after unmount, store and invoke the returned unlisten function, and keep transition payload handling on the existing callback path.\n\n## Considerations\nThe native listener registration is asynchronous: unmount may occur before registration completes. Cleanup must handle both cases, and a late registration must be immediately removed rather than retained. Do not change Workspace transition generation semantics.\n\n## Acceptance criteria\n- [ ] Workspace transition events still update Issue Explorer and Workspace state exactly as before.\n- [ ] A listener registered after unmount is immediately unregistered, and an existing listener is removed on cleanup.\n- [ ] This subscription has no direct `useEffect` call and passes the configured Oxlint restriction.\n- [ ] Focused App/event tests and relevant lint/typecheck checks pass.\n\n## Test Plan\n- Run existing App workspace transition tests.\n- Add regression coverage for unmount-before-listener-resolution and cleanup if absent.\n- Run the relevant Oxlint and TypeScript checks.\n\nTriage: ready-for-agent.",
   "id": "bsm-gbd.6",
@@ -13,5 +15,5 @@
   "status": "open",
   "title": "Replace App workspace transition subscription effect",
   "type": "task",
-  "updated_at": "2026-07-18T21:37:50Z"
+  "updated_at": "2026-07-18T21:45:38Z"
 }
