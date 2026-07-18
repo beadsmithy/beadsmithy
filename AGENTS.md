@@ -11,16 +11,17 @@ and the building in `src/` and `scr-tauri/`.
 
 ```
 beadsmith/                              # meta-operating layer (you are here)
-├── AGENTS.md                          # (this) operating doc: what we're building + how this repo is run
+├── AGENTS.md                         # (this) operating doc: what we're building + how this repo is run
 │
-└── research/                          # thinking: notes, specs, oss repos, and investigations feed projects/
-    ├── DESIGN.md                      # design system and design tokens
-    ├── PRD.md                         # product overview and initial direction
-    ├── adr/                          # final architectural decision records
-    ├── design/                        #   product, design
-    │   └── mockups/                   #     visual mockups for UI
-    └── infra/                         #   reference OSS libs
-         └── beadwork/                  #     beadwork source code (vendored)
+└── docs/                             # thinking: notes, specs, oss repos, and investigations feed projects/
+     └── research/                   # thinking: notes, specs, oss repos, and investigations feed projects/
+          ├── DESIGN.md               # design system and design tokens
+          ├── PRD.md                  # product overview and initial direction
+          ├── adr/                    # final architectural decision records
+          ├── design/                 #   product, design
+          │   └── mockups/            #     visual mockups for UI
+          └── infra/                  #   reference OSS libs
+               └── beadwork/           #     beadwork source code (vendored)
 ```
 
 ## Work Management
