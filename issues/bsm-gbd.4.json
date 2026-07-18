@@ -1,0 +1,15 @@
+{
+  "assignee": "",
+  "blocked_by": [],
+  "blocks": [],
+  "created": "2026-07-18T21:22:28Z",
+  "description": "Refactor src/issues/IssueExplorer.tsx active-view scroll reset without direct useEffect, preserving reset only on Issue List View changes and not searches. Depend on the no-use-effect lint setup.",
+  "id": "bsm-gbd.4",
+  "labels": [],
+  "parent": "bsm-gbd",
+  "priority": 2,
+  "status": "open",
+  "title": "Replace Issue Explorer scroll effect",
+  "type": "task",
+  "updated_at": "2026-07-18T21:22:28Z"
+}
