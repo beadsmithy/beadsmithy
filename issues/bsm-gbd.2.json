@@ -5,13 +5,13 @@
   ],
   "blocks": [],
   "created": "2026-07-18T21:22:28Z",
-  "description": "Refactor src/App.tsx startup loading and Workspace transition subscription effects without calling useEffect directly. Preserve cancellation, listener cleanup, transition generation ordering, and initial workspace refresh. Depend on the no-use-effect lint setup.",
+  "description": "## Background\nThe App currently performs its initial Issue Explorer load and Workspace state refresh inside a direct React `useEffect`. The no-use-effect policy must cover this effect without changing startup ordering or failure recovery.\n\n## What to build\nReplace the App startup effect that loads Issue Explorer state and refreshes Workspace state on initial mount. Keep the existing startup transition-gate decisions, load-failure state, and workspace refresh behavior while removing the direct `useEffect` call.\n\n## Technical Approach\nChoose the replacement that makes the one-time external synchronization explicit, such as the project `useMountEffect` escape hatch or an equivalent mount boundary. Keep the asynchronous load and refresh operations coordinated with the existing transition gate, and preserve the current dependency on the refresh callback without introducing a state relay.\n\n## Considerations\nThe initial load can resolve after a Workspace transition has been accepted, so generation ordering and ignored decisions must remain intact. Transport failures must continue to leave the existing failure state rather than throwing during render.\n\n## Acceptance criteria\n- [ ] The initial Issue Explorer load and Workspace refresh still run once when App mounts.\n- [ ] Startup success, transport failure, and transition-generation behavior are unchanged.\n- [ ] This effect has no direct `useEffect` call and passes the configured Oxlint restriction.\n- [ ] Focused tests and the relevant typecheck/lint commands pass.\n\n## Test Plan\n- Run existing App/startup transition tests.\n- Add or update a regression test if the chosen lifecycle boundary changes observable timing.\n- Run the relevant Oxlint and TypeScript checks.\n\nTriage: ready-for-agent.",
   "id": "bsm-gbd.2",
   "labels": [],
   "parent": "bsm-gbd",
   "priority": 2,
   "status": "open",
-  "title": "Replace App workspace effects",
+  "title": "Replace App initial issue/workspace load effect",
   "type": "task",
-  "updated_at": "2026-07-18T21:22:29Z"
+  "updated_at": "2026-07-18T21:37:49Z"
 }
