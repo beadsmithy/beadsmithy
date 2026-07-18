@@ -2,6 +2,7 @@
   "assignee": "Tomas Thor Jonsson",
   "blocked_by": [],
   "blocks": [],
+  "closed_at": "2026-07-18T11:39:09Z",
   "created": "2026-07-15T22:44:43Z",
   "description": "## Background\n\n`src-tauri/src/settings.rs` contains the versioned App Settings service and store adapter tests, while `src-tauri/src/dev_bridge.rs` contains the development bridge tests. Both files keep their test bodies inline even though their production concerns are distinct from their test fixtures and assertions.\n\n## What to build\n\nMove the inline App Settings and development-bridge test suites into separate outlined test modules. The implementation files should be readable without embedded test bodies, while durable settings and bridge behavior remain covered exactly as today.\n\n## Technical Approach\n\nKeep one `#[cfg(test)] mod tests;` declaration in each production module. Add local outlined roots under `src-tauri/src/settings/` and `src-tauri/src/dev_bridge/`. Keep settings serialization/store fixtures, bridge configuration inputs, and test-only support local to their corresponding module; do not create a generic infrastructure-test crate.\n\n## Considerations\n\n- Preserve App Settings versioning, defaulting, persistence-failure, and serialization behavior.\n- Preserve development bridge coverage without changing production initialization or debug/release behavior.\n- This is organization-only: no settings schema, RPC binding, plugin configuration, or end-to-end behavior changes.\n\n## Acceptance criteria\n\n- [ ] `settings.rs` and `dev_bridge.rs` contain no Rust test bodies.\n- [ ] Every current settings and development-bridge test remains present once in its outlined module.\n- [ ] Production visibility, initialization behavior, and serialized settings format are unchanged.\n- [ ] Focused infrastructure tests and full `cargo test` pass.\n\n## Test Plan\n\n- Run focused settings and development-bridge test filters while migrating.\n- Run `cargo test` from `src-tauri`.\n- Verify no `#[test]` body remains in either implementation file.\n\n## Triage\n\nready-for-agent",
   "id": "bsm-lge.4",
@@ -10,8 +11,8 @@
   ],
   "parent": "bsm-lge",
   "priority": 3,
-  "status": "in_progress",
+  "status": "closed",
   "title": "Outline backend infrastructure tests",
   "type": "task",
-  "updated_at": "2026-07-18T11:38:58Z"
+  "updated_at": "2026-07-18T11:39:09Z"
 }
