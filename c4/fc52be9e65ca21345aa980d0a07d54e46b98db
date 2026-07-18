@@ -1,0 +1,19 @@
+src/App.workspace-recovery.test.tsx
+  s_d076caa393d502::t_d6a25b50053ba3 897-1234
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.14",
+  "base_commit_sha": "c4fc52be9e65ca21345aa980d0a07d54e46b98db",
+  "prompts": {},
+  "sessions": {
+    "s_d076caa393d502": {
+      "agent_id": {
+        "tool": "pi",
+        "id": "019f76ff-c6c6-7bae-95e0-fb6c9ee68341",
+        "model": "unknown"
+      },
+      "human_author": "Tomas Thor Jonsson <benregn@gmail.com>"
+    }
+  }
+}
