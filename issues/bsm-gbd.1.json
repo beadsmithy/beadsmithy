@@ -1,7 +1,9 @@
 {
   "assignee": "",
   "blocked_by": [],
-  "blocks": [],
+  "blocks": [
+    "bsm-gbd.2"
+  ],
   "created": "2026-07-18T21:22:28Z",
   "description": "Configure Oxlint no-restricted-syntax to reject direct useEffect calls, with a clear replacement-oriented diagnostic. Add the narrowly scoped useMountEffect escape-hatch utility if needed, including the documented lint suppression only within that utility. Verify lint/typecheck.",
   "id": "bsm-gbd.1",
@@ -11,5 +13,5 @@
   "status": "open",
   "title": "Ban direct useEffect with Oxlint",
   "type": "task",
-  "updated_at": "2026-07-18T21:22:28Z"
+  "updated_at": "2026-07-18T21:22:29Z"
 }

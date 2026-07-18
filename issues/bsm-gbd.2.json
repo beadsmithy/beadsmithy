@@ -1,6 +1,8 @@
 {
   "assignee": "",
-  "blocked_by": [],
+  "blocked_by": [
+    "bsm-gbd.1"
+  ],
   "blocks": [],
   "created": "2026-07-18T21:22:28Z",
   "description": "Refactor src/App.tsx startup loading and Workspace transition subscription effects without calling useEffect directly. Preserve cancellation, listener cleanup, transition generation ordering, and initial workspace refresh. Depend on the no-use-effect lint setup.",
@@ -11,5 +13,5 @@
   "status": "open",
   "title": "Replace App workspace effects",
   "type": "task",
-  "updated_at": "2026-07-18T21:22:28Z"
+  "updated_at": "2026-07-18T21:22:29Z"
 }
