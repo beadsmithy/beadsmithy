@@ -1,0 +1,21 @@
+src/components/mermaid/MermaidDiagram.tsx
+  s_95d8918b09a66d::t_d65333b1492d26 6,87-93,99,147,296
+src/lib/use-mount-effect.ts
+  s_95d8918b09a66d::t_73f16375a79746 4-8,21,27-30
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.14",
+  "base_commit_sha": "7b2c69a09d4bfa7f715aa96cb36312fc9eae755f",
+  "prompts": {},
+  "sessions": {
+    "s_95d8918b09a66d": {
+      "agent_id": {
+        "tool": "pi",
+        "id": "019f7735-32a6-7118-88e7-bd891d787939",
+        "model": "unknown"
+      },
+      "human_author": "Tomas Thor Jonsson <benregn@gmail.com>"
+    }
+  }
+}
