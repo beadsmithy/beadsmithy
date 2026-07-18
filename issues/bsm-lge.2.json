@@ -2,6 +2,7 @@
   "assignee": "Tomas Thor Jonsson",
   "blocked_by": [],
   "blocks": [],
+  "closed_at": "2026-07-18T11:22:42Z",
   "created": "2026-07-15T22:44:14Z",
   "description": "## Background\n\n`src-tauri/src/rpc.rs` owns the typed TauRPC boundary between the Rust backend and Beadsmith renderer. Its inline tests protect Issue Explorer response mapping, typed error categories, Workspace switch publication ordering, stale completion handling, and cancellation responses that pair state with the right snapshot. The boundary is easier to audit when those contracts are not embedded after production handlers.\n\n## What to build\n\nMove every Rust test body and its local fake command/store support out of `rpc.rs` into outlined TauRPC test files. The resulting layout must make mapping, switch orchestration, and cancellation-response invariants discoverable without changing the TauRPC contract.\n\n## Technical Approach\n\nKeep `#[cfg(test)] mod tests;` in `rpc.rs`, with an outlined root such as `src-tauri/src/rpc/tests.rs`. Divide into small behavior modules only where helpful: Issue Explorer mapping and errors, switch orchestration/publication, and cancellation/snapshot responses. Keep test-only helpers (`FakeRunner`, canned outputs, test Workspace state/snapshot builders) inside the TauRPC test module.\n\n## Considerations\n\n- Preserve the distinction between a Pending transition, a durable commit carrying Issue Explorer data, and cancellation or stale results that must not publish a mixed state.\n- Do not extract RPC production helpers merely to make tests compile, and do not alter generated bindings or renderer behavior.\n- This task complements but does not replace frontend renderer integration and desktop WebDriver coverage.\n\n## Acceptance criteria\n\n- [ ] `rpc.rs` contains no test bodies; all existing RPC tests execute from outlined files.\n- [ ] Mapping, error, switch-ordering, and cancellation snapshot assertions remain present exactly once.\n- [ ] Test doubles remain test-only and no Rust visibility is broadened for test access.\n- [ ] Focused RPC tests and full `cargo test` pass.\n\n## Test Plan\n\n- Run the focused RPC test set while moving each behavior group.\n- Run `cargo test` from `src-tauri`.\n- Verify no `#[test]` body remains in `src-tauri/src/rpc.rs`.\n\n## Triage\n\nready-for-agent",
   "id": "bsm-lge.2",
@@ -10,8 +11,8 @@
   ],
   "parent": "bsm-lge",
   "priority": 3,
-  "status": "in_progress",
+  "status": "closed",
   "title": "Outline TauRPC boundary tests",
   "type": "task",
-  "updated_at": "2026-07-18T11:22:34Z"
+  "updated_at": "2026-07-18T11:22:42Z"
 }
