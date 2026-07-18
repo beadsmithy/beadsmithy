@@ -1,0 +1,15 @@
+{
+  "assignee": "",
+  "blocked_by": [],
+  "blocks": [],
+  "created": "2026-07-18T21:22:28Z",
+  "description": "Refactor src/components/mermaid/MermaidDiagram.tsx SVG/panzoom lifecycle and async rendering effects. Use the appropriate explicit mount/remount/component-boundary pattern; preserve cleanup, source-change behavior, and async stale-result protection. Depend on the no-use-effect lint setup.",
+  "id": "bsm-gbd.3",
+  "labels": [],
+  "parent": "bsm-gbd",
+  "priority": 2,
+  "status": "open",
+  "title": "Replace Mermaid diagram effects",
+  "type": "task",
+  "updated_at": "2026-07-18T21:22:28Z"
+}
