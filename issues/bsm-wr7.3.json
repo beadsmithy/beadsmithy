@@ -1,5 +1,5 @@
 {
-  "assignee": "",
+  "assignee": "Tomas Thor Jonsson",
   "blocked_by": [
     "bsm-wr7.2"
   ],
@@ -12,8 +12,8 @@
   ],
   "parent": "bsm-wr7",
   "priority": 2,
-  "status": "open",
+  "status": "in_progress",
   "title": "Prove Mermaid Diagrams in the real desktop Issue Detail",
   "type": "task",
-  "updated_at": "2026-07-16T21:00:36Z"
+  "updated_at": "2026-07-18T14:38:58Z"
 }
