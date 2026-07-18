@@ -21,156 +21,18 @@ import {
   FIXTURE_READY_SEARCH_QUERY,
   FIXTURE_READY_TITLE,
 } from "./fixtures/workspace.ts";
-
-interface LoadIssueExplorerDataResponse {
-  allIssues: { status: string; title: string }[];
-  readyIssues: { title: string }[];
-  blockedIssues: { title: string }[];
-  workspacePath: string;
-}
-
-interface WorkspaceStateResponse {
-  currentWorkspace: { path: string } | null;
-}
-
-interface WorkspaceSwitchResponse {
-  issueData: LoadIssueExplorerDataResponse;
-}
-
-interface WorkspaceRetryMemoryResponse {
-  issueData: LoadIssueExplorerDataResponse | null;
-  state: WorkspaceStateResponse;
-}
-
-const invokeTypedWorkspaceSwitch = async (
-  candidatePath: string
-): Promise<WorkspaceSwitchResponse | { failure: string }> =>
-  (await browser.executeAsync((candidate, done) => {
-    const tauriWindow = window as typeof window & {
-      __TAURI__?: {
-        core?: {
-          invoke: (command: string, arguments_: object) => Promise<unknown>;
-        };
-      };
-    };
-    const invoke = tauriWindow.__TAURI__?.core?.invoke;
-
-    if (!invoke) {
-      done({ failure: "window.__TAURI__.core.invoke is not available" });
-      return;
-    }
-
-    invoke("TauRPC__switch_workspace", { candidate_path: candidate })
-      // WDIO executeAsync requires calling the injected completion callback.
-      // oxlint-disable-next-line promise/no-callback-in-promise
-      .then(done)
-      // oxlint-disable-next-line promise/no-callback-in-promise
-      .catch((error: unknown) => done({ failure: String(error) }));
-  }, candidatePath)) as WorkspaceSwitchResponse | { failure: string };
-
-const invokeWorkspaceMemoryRetry = async (): Promise<
-  WorkspaceRetryMemoryResponse | { failure: string }
-> =>
-  (await browser.executeAsync((done) => {
-    const tauriWindow = window as typeof window & {
-      __TAURI__?: {
-        core?: {
-          invoke: (command: string) => Promise<WorkspaceRetryMemoryResponse>;
-        };
-      };
-    };
-    const invoke = tauriWindow.__TAURI__?.core?.invoke;
-
-    if (!invoke) {
-      done({ failure: "window.__TAURI__.core.invoke is not available" });
-      return;
-    }
-
-    invoke("TauRPC__retry_workspace_memory")
-      // WDIO executeAsync requires calling the injected completion callback.
-      // oxlint-disable-next-line promise/no-callback-in-promise
-      .then(done)
-      // oxlint-disable-next-line promise/no-callback-in-promise
-      .catch((error: unknown) => done({ failure: String(error) }));
-  })) as WorkspaceRetryMemoryResponse | { failure: string };
-
-const invokeWorkspaceState = async (): Promise<WorkspaceStateResponse> =>
-  (await browser.executeAsync((done) => {
-    const tauriWindow = window as typeof window & {
-      __TAURI__?: {
-        core?: {
-          invoke: (command: string) => Promise<WorkspaceStateResponse>;
-        };
-      };
-    };
-    const invoke = tauriWindow.__TAURI__?.core?.invoke;
-
-    if (!invoke) {
-      done({ currentWorkspace: null });
-      return;
-    }
-
-    // WDIO executeAsync requires calling the injected completion callback.
-    // oxlint-disable-next-line promise/no-callback-in-promise
-    invoke("TauRPC__workspace_state").then(done);
-  })) as WorkspaceStateResponse;
-
-const issueRowSelector = (title: string): string =>
-  `article[aria-label*="${title}"]`;
-
-const sidebarButtonSelector = (label: string): string =>
-  `button[aria-label^="${label},"]`;
-
-const expectIssueVisible = async (title: string) => {
-  const issueRow = await browser.$(issueRowSelector(title));
-  await issueRow.waitForExist({
-    timeout: 120_000,
-    timeoutMsg: `Expected Issue row to render: ${title}`,
-  });
-  await expect(issueRow).toBeDisplayed();
-  return issueRow;
-};
-
-const expectIssueNotVisible = async (title: string) => {
-  await browser.waitUntil(
-    async () => {
-      const issueRow = await browser.$(issueRowSelector(title));
-      return !(await issueRow.isExisting());
-    },
-    {
-      timeout: 30_000,
-      timeoutMsg: `Expected Issue row to be absent: ${title}`,
-    }
-  );
-};
-
-const selectSidebarView = async (label: string, viewId: string) => {
-  console.log(`[e2e:spec] selecting ${label} Issue List View`);
-  const button = await browser.$(sidebarButtonSelector(label));
-  await button.waitForExist({
-    timeout: 30_000,
-    timeoutMsg: `Expected sidebar button to exist: ${label}`,
-  });
-  await button.click();
-
-  const activeIssueListView = await browser.$(
-    `section[data-active-issue-list-view-id="${viewId}"]`
-  );
-  await activeIssueListView.waitForExist({
-    timeout: 30_000,
-    timeoutMsg: `Expected active Issue List View to become ${viewId}`,
-  });
-};
-
-const expectSidebarCount = async (label: string, countLabel: string) => {
-  const button = await browser.$(sidebarButtonSelector(label));
-  await button.waitForExist({
-    timeout: 120_000,
-    timeoutMsg: `Expected sidebar count to render for ${label}`,
-  });
-  const ariaLabel = await button.getAttribute("aria-label");
-  expect(ariaLabel).toBe(`${label}, ${countLabel}`);
-};
+import {
+  expectIssueNotVisible,
+  expectIssueVisible,
+  invokeTypedWorkspaceSwitch,
+  invokeWorkspaceMemoryRetry,
+  invokeWorkspaceState,
+} from "./helpers/rpc.ts";
+import {
+  expectCurrentWorkspace,
+  expectSidebarCount,
+  selectIssueListView,
+} from "./helpers/sidebar.ts";
 
 describe("Issue explorer (WebDriver e2e): workspace with selectable Issue List Views and Issue Detail", () => {
   it("starts empty and seeds the populated fixture through typed workspace switch", async () => {
@@ -227,7 +89,7 @@ describe("Issue explorer (WebDriver e2e): workspace with selectable Issue List V
     await expectSidebarCount("Closed", "1 issue");
     await expectSidebarCount("Deferred", "1 issue");
 
-    await selectSidebarView("Ready", "ready");
+    await selectIssueListView("Ready", "ready");
     await expectIssueVisible(FIXTURE_READY_TITLE);
     await expectIssueVisible(FIXTURE_BLOCKER_TITLE);
     await expectIssueNotVisible(FIXTURE_ISSUE_TITLE);
@@ -241,7 +103,7 @@ describe("Issue explorer (WebDriver e2e): workspace with selectable Issue List V
     await expectIssueVisible(FIXTURE_READY_TITLE);
     await expectIssueNotVisible(FIXTURE_BLOCKER_TITLE);
 
-    await selectSidebarView("Blocked", "blocked");
+    await selectIssueListView("Blocked", "blocked");
     await expect(searchInput).toHaveValue(FIXTURE_READY_SEARCH_QUERY);
     await expectIssueNotVisible(FIXTURE_READY_TITLE);
     await expectIssueNotVisible(FIXTURE_ISSUE_TITLE);
@@ -275,11 +137,11 @@ describe("Issue explorer (WebDriver e2e): workspace with selectable Issue List V
       }
     );
 
-    await selectSidebarView("Closed", "closed");
+    await selectIssueListView("Closed", "closed");
     await expectIssueVisible(FIXTURE_CLOSED_TITLE);
     await expectIssueNotVisible(FIXTURE_ISSUE_TITLE);
 
-    await selectSidebarView("Deferred", "deferred");
+    await selectIssueListView("Deferred", "deferred");
     await expectIssueVisible(FIXTURE_DEFERRED_TITLE);
     await expectIssueNotVisible(FIXTURE_CLOSED_TITLE);
   });
@@ -288,7 +150,7 @@ describe("Issue explorer (WebDriver e2e): workspace with selectable Issue List V
     console.log(
       "[e2e:spec] waiting for the issue explorer to render the fixture issue"
     );
-    await selectSidebarView("All", "all");
+    await selectIssueListView("All", "all");
     const issueRow = await expectIssueVisible(FIXTURE_ISSUE_TITLE);
 
     const rowText = await issueRow.getText();
@@ -299,7 +161,7 @@ describe("Issue explorer (WebDriver e2e): workspace with selectable Issue List V
   });
 
   it("selects the fixture issue and renders representative detail content", async () => {
-    await selectSidebarView("All", "all");
+    await selectIssueListView("All", "all");
     const issueRow = await expectIssueVisible(FIXTURE_ISSUE_TITLE);
     const blockerRow = await expectIssueVisible(FIXTURE_BLOCKER_TITLE);
 
@@ -355,13 +217,7 @@ describe("Issue explorer (WebDriver e2e): workspace with selectable Issue List V
       `[e2e:spec] asserting sidebar reports workspace: ${selectedWorkspace}`
     );
 
-    const workspacePath = await browser.$(
-      "[aria-label='Workspace'] p.text-muted"
-    );
-    await workspacePath.waitForExist({ timeout: 30_000 });
-    expect(await workspacePath.getText()).toContain(
-      path.basename(selectedWorkspace)
-    );
+    await expectCurrentWorkspace(selectedWorkspace);
   });
 
   it("switches to the second fixture and preserves it after an invalid typed switch", async () => {
@@ -387,11 +243,7 @@ describe("Issue explorer (WebDriver e2e): workspace with selectable Issue List V
     // failures; the Recovery panel for storeReadFailed is exercised in
     // `App.test.tsx`.
     await expectIssueNotVisible(FIXTURE_ISSUE_TITLE);
-    const workspacePath = await browser.$(
-      "[aria-label='Workspace'] p.text-muted"
-    );
-    await workspacePath.waitForExist({ timeout: 30_000 });
-    expect(await workspacePath.getText()).toContain(path.basename(workspaceB));
+    await expectCurrentWorkspace(workspaceB);
   });
 
   it("retry_workspace_memory typed RPC returns B's state and snapshot for post-refresh rendering", async () => {
@@ -419,11 +271,7 @@ describe("Issue explorer (WebDriver e2e): workspace with selectable Issue List V
     );
 
     await browser.refresh();
-    const workspacePath = await browser.$(
-      "[aria-label='Workspace'] p.text-muted"
-    );
-    await workspacePath.waitForExist({ timeout: 30_000 });
-    expect(await workspacePath.getText()).toContain(path.basename(workspaceB));
+    await expectCurrentWorkspace(workspaceB);
     const emptyState = await browser.$("h2=No issues found");
     await emptyState.waitForExist({ timeout: 30_000 });
   });

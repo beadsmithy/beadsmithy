@@ -4,29 +4,7 @@
  */
 import { browser, expect } from "@wdio/globals";
 
-const switchWorkspace = async (
-  candidatePath: string
-): Promise<{ failure?: string }> =>
-  (await browser.executeAsync((path, done) => {
-    const tauriWindow = window as typeof window & {
-      __TAURI__?: {
-        core?: {
-          invoke: (command: string, arguments_: object) => Promise<unknown>;
-        };
-      };
-    };
-    const invoke = tauriWindow.__TAURI__?.core?.invoke;
-    if (!invoke) {
-      done({ failure: "window.__TAURI__.core.invoke is not available" });
-      return;
-    }
-    invoke("TauRPC__switch_workspace", { candidate_path: path })
-      // WDIO executeAsync requires calling the injected completion callback.
-      // oxlint-disable-next-line promise/no-callback-in-promise
-      .then(done)
-      // oxlint-disable-next-line promise/no-callback-in-promise
-      .catch((error: unknown) => done({ failure: String(error) }));
-  }, candidatePath)) as { error?: string };
+import { invokeTypedWorkspaceSwitch } from "./helpers/rpc.ts";
 
 describe("Issue List (WebDriver e2e): workspace with zero Beadwork issues", () => {
   it("renders the empty state instead of a failure or stale loading state", async () => {
@@ -34,8 +12,8 @@ describe("Issue List (WebDriver e2e): workspace with zero Beadwork issues", () =
     if (!workspaceB) {
       throw new Error("BEADSMITH_E2E_WORKSPACE_B is not set");
     }
-    const result = await switchWorkspace(workspaceB);
-    if (result.failure) {
+    const result = await invokeTypedWorkspaceSwitch(workspaceB);
+    if ("failure" in result) {
       throw new Error(result.failure);
     }
     await browser.refresh();

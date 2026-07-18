@@ -26,8 +26,6 @@
  * WebDriver surface; the picker wiring is covered by the frontend unit
  * suite.
  */
-import path from "node:path";
-
 import { browser, expect } from "@wdio/globals";
 
 import {
@@ -36,147 +34,20 @@ import {
   FIXTURE_SECOND_ISSUE_TITLE,
   FIXTURE_SECOND_SEARCH_QUERY,
 } from "./fixtures/workspace.ts";
-
-interface WorkspaceSwitchResponse {
-  issueData: {
-    allIssues: { title: string }[];
-    workspacePath: string;
-  };
-}
-
-interface WorkspaceStateResponse {
-  currentWorkspace: { path: string } | null;
-}
-
-const invokeTypedWorkspaceSwitch = (
-  candidatePath: string
-): Promise<WorkspaceSwitchResponse | { failure: string }> =>
-  browser.executeAsync((candidate, done) => {
-    const tauriWindow = window as typeof window & {
-      __TAURI__?: {
-        core?: {
-          invoke: (command: string, arguments_: object) => Promise<unknown>;
-        };
-      };
-    };
-    const invoke = tauriWindow.__TAURI__?.core?.invoke;
-
-    if (!invoke) {
-      done({ failure: "window.__TAURI__.core.invoke is not available" });
-      return;
-    }
-
-    invoke("TauRPC__switch_workspace", { candidate_path: candidate })
-      // WDIO executeAsync requires calling the injected completion callback.
-      // oxlint-disable-next-line promise/no-callback-in-promise
-      .then(done)
-      // oxlint-disable-next-line promise/no-callback-in-promise promise/prefer-await-to-callbacks
-      .catch((error: unknown) => done({ failure: String(error) }));
-  }, candidatePath) as Promise<WorkspaceSwitchResponse | { failure: string }>;
-
-/** Start a typed switch without waiting for its worker completion. */
-const startTypedWorkspaceSwitch = async (
-  candidatePath: string
-): Promise<void> => {
-  await browser.execute((candidate) => {
-    const tauriWindow = window as typeof window & {
-      __TAURI__?: {
-        core?: {
-          invoke: (command: string, arguments_: object) => Promise<unknown>;
-        };
-      };
-    };
-    const invoke = tauriWindow.__TAURI__?.core?.invoke;
-    if (!invoke) {
-      throw new Error("window.__TAURI__.core.invoke is not available");
-    }
-    // Start after this synchronous WebDriver evaluation returns. WebdriverIO
-    // serializes commands, so scheduling through the browser event loop is
-    // what lets the spec issue state/DOM assertions while the native switch
-    // worker is intentionally delayed by the scenario-owned wrappers.
-    window.setTimeout(() => {
-      // Cancellation intentionally rejects this request; its error has
-      // already been represented by the backend state/event, so prevent an
-      // unhandled renderer promise while the e2e drives the actual UI.
-      void invoke("TauRPC__switch_workspace", {
-        candidate_path: candidate,
-      }).catch(() => null);
-    }, 0);
-  }, candidatePath);
-};
-
-const invokeWorkspaceState = (): Promise<WorkspaceStateResponse> =>
-  browser.executeAsync((done) => {
-    const tauriWindow = window as typeof window & {
-      __TAURI__?: {
-        core?: {
-          invoke: (command: string) => Promise<WorkspaceStateResponse>;
-        };
-      };
-    };
-    const invoke = tauriWindow.__TAURI__?.core?.invoke;
-
-    if (!invoke) {
-      done({ currentWorkspace: null });
-      return;
-    }
-    invoke("TauRPC__workspace_state")
-      // WDIO executeAsync requires calling the injected completion callback.
-      // oxlint-disable-next-line promise/no-callback-in-promise
-      .then(done);
-  }) as Promise<WorkspaceStateResponse>;
-
-const issueRowSelector = (title: string): string =>
-  `article[aria-label*="${title}"]`;
-
-const searchInputSelector = "#issue-search";
-
-const expectIssueVisible = async (title: string) => {
-  const row = await browser.$(issueRowSelector(title));
-  await row.waitForExist({
-    timeout: 120_000,
-    timeoutMsg: `Expected Issue row to render: ${title}`,
-  });
-  await expect(row).toBeDisplayed();
-  return row;
-};
-
-const expectIssueNotVisible = async (title: string) => {
-  await browser.waitUntil(
-    async () => {
-      const row = await browser.$(issueRowSelector(title));
-      return !(await row.isExisting());
-    },
-    {
-      timeout: 30_000,
-      timeoutMsg: `Expected Issue row to be absent: ${title}`,
-    }
-  );
-};
-
-const expectSidebarWorkspacePath = async (expected: string) => {
-  const workspacePath = await browser.$(
-    "[aria-label='Workspace'] p.text-muted"
-  );
-  await workspacePath.waitForExist({ timeout: 30_000 });
-  expect(await workspacePath.getText()).toContain(path.basename(expected));
-};
-
-const selectIssueListView = async (label: string, viewId: string) => {
-  const button = await browser.$(`button[aria-label^="${label},"]`);
-  await button.waitForExist({ timeout: 30_000 });
-  await button.click();
-
-  const active = await browser.$(
-    `section[data-active-issue-list-view-id="${viewId}"]`
-  );
-  await active.waitForExist({
-    timeout: 30_000,
-    timeoutMsg: `Expected the ${label} Issue List View to be active`,
-  });
-};
-
-const selectAllView = () => selectIssueListView("All", "all");
+import {
+  expectIssueNotVisible,
+  expectIssueVisible,
+  issueRowSelector,
+  invokeTypedWorkspaceSwitch,
+  invokeWorkspaceState,
+  searchInputSelector,
+  startTypedWorkspaceSwitch,
+} from "./helpers/rpc.ts";
+import {
+  expectCurrentWorkspace,
+  selectIssueListView,
+  WORKSPACE_INLINE_ERROR_SELECTOR,
+} from "./helpers/sidebar.ts";
 
 describe("Atomic workspace switch (WebDriver e2e): two disposable Beadwork repositories", () => {
   let workspaceA: string;
@@ -214,7 +85,7 @@ describe("Atomic workspace switch (WebDriver e2e): two disposable Beadwork repos
 
   it("preserves A's snapshot and Issue Detail/search while B is Pending, and Cancel keeps A", async () => {
     // Pick A's fixture issue and capture its title in Issue Detail.
-    await selectAllView();
+    await selectIssueListView("All", "all");
     const fixtureRow = await expectIssueVisible(FIXTURE_ISSUE_TITLE);
     const fixtureButton = await fixtureRow.$("button[data-issue-id]");
     await fixtureButton.click();
@@ -274,7 +145,7 @@ describe("Atomic workspace switch (WebDriver e2e): two disposable Beadwork repos
     );
     await expectIssueVisible(FIXTURE_ISSUE_TITLE);
     await expectIssueNotVisible(FIXTURE_SECOND_ISSUE_TITLE);
-    await expectSidebarWorkspacePath(workspaceA);
+    await expectCurrentWorkspace(workspaceA);
 
     // Cancel through the actual renderer control. This exercises the real
     // `cancel_workspace` path instead of only asserting backend state.
@@ -286,8 +157,8 @@ describe("Atomic workspace switch (WebDriver e2e): two disposable Beadwork repos
 
     // After Cancel: A's snapshot, Issue Detail, and Issue Search must be
     // preserved — B never published, and the renderer must not regress.
-    await expectSidebarWorkspacePath(workspaceA);
-    await selectAllView();
+    await expectCurrentWorkspace(workspaceA);
+    await selectIssueListView("All", "all");
     await expectIssueVisible(FIXTURE_ISSUE_TITLE);
     await expectIssueNotVisible(FIXTURE_SECOND_ISSUE_TITLE);
     const detailAfterCancel = await browser.$(
@@ -331,7 +202,7 @@ describe("Atomic workspace switch (WebDriver e2e): two disposable Beadwork repos
     // B is now Current. A's issue, Issue Detail, and search query must all
     // be gone — the prior Issue Explorer remount on `workspaceKey` must
     // have cleared A's selection and search.
-    await expectSidebarWorkspacePath(workspaceB);
+    await expectCurrentWorkspace(workspaceB);
     const activeBlockedView = await browser.$(
       'section[data-active-issue-list-view-id="blocked"]'
     );
@@ -385,7 +256,7 @@ describe("Atomic workspace switch (WebDriver e2e): two disposable Beadwork repos
     // This proves the real desktop renderer receives and presents the typed
     // validation failure while retaining B's committed identity/snapshot.
     const inlineValidationError = await browser.$(
-      "[aria-label='Workspace'] [role='alert']"
+      WORKSPACE_INLINE_ERROR_SELECTOR
     );
     await inlineValidationError.waitForExist({
       timeout: 30_000,
@@ -401,7 +272,7 @@ describe("Atomic workspace switch (WebDriver e2e): two disposable Beadwork repos
 
     // The renderer receives the typed failure transition but must preserve its
     // already committed B snapshot and Current Workspace.
-    await expectSidebarWorkspacePath(workspaceB);
+    await expectCurrentWorkspace(workspaceB);
     await expectIssueVisible(FIXTURE_SECOND_ISSUE_TITLE);
     await expectIssueNotVisible(FIXTURE_ISSUE_TITLE);
   });
