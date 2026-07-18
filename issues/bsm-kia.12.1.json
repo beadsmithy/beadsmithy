@@ -1,5 +1,5 @@
 {
-  "assignee": "",
+  "assignee": "Tomas Thor Jonsson",
   "blocked_by": [],
   "blocks": [
     "bsm-kia.12.2"
@@ -12,8 +12,8 @@
   ],
   "parent": "bsm-kia.12",
   "priority": 3,
-  "status": "open",
+  "status": "in_progress",
   "title": "Expand: add typed harness parser in run-scenario.ts",
   "type": "task",
-  "updated_at": "2026-07-17T09:30:55Z"
+  "updated_at": "2026-07-18T06:13:43Z"
 }
