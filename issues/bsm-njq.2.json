@@ -1,0 +1,15 @@
+{
+  "assignee": "",
+  "blocked_by": [],
+  "blocks": [],
+  "created": "2026-07-18T10:23:11Z",
+  "description": "## Background\n\nWorkspace save failures are modeled as typed retryable `storeSaveFailed` errors and are intended to preserve the prior Current Workspace and complete Issue Explorer snapshot while offering a dismissible retry banner. The selector's shared classification includes this error, but current Workspace UI tests demonstrate the banner and retry surface only for `loadFailed`. A regression in error classification or selector presentation could leave a real persistence failure without the recovery promised to users.\n\n## What to build\n\nProvide user-visible regression proof that a failed Workspace durability commit preserves the old Workspace and snapshot, presents a dismissible retryable failure banner, and retries the validated candidate through the normal Workspace transaction.\n\n## Technical Approach\n\n- Extend the Workspace selector/App integration test seam to deliver a typed `storeSaveFailed` response after validation with an existing Current Workspace.\n- Assert the sidebar remains bound to the old Current Workspace and the prior Issue Explorer snapshot remains rendered while the failure is visible.\n- Assert the failure uses the switch-failure banner rather than inline validation feedback, has a working dismiss action, and exposes Retry for the retained candidate.\n- Exercise Retry through the public typed Workspace transport/mock boundary and assert a successful retry admits the new Workspace atomically.\n- Prefer shared test cases or parameterization only when it keeps load- and save-failure behavior explicit and readable.\n\n## Considerations\n\n- This ticket proves renderer behavior; persistence rollback mechanics belong to the blocking transactional-store ticket.\n- Validation failures remain inline and must not be changed into banners.\n- Do not alter picker behavior, persistence permissions, or unrelated Issue Explorer interactions.\n\n## Acceptance criteria\n\n- [ ] A `storeSaveFailed` transition with Workspace A Current keeps A's path and complete Issue Explorer snapshot visible.\n- [ ] The selector renders a dismissible retryable switch-failure banner for the save failure, not inline validation feedback.\n- [ ] Retry uses the retained validated candidate and, on success, atomically commits the target Workspace and its snapshot.\n- [ ] Dismissal hides only session feedback; it does not remove the retryable known Workspace.\n- [ ] Existing `loadFailed` and validation-failure coverage remains green.\n\n## Test Plan\n\n- Frontend integration tests covering save failure, dismissal, and successful retry with an old Workspace snapshot.\n- Run `pnpm test`, `pnpm exec tsc --noEmit`, and `pnpm check` (report unrelated existing scratch formatting separately if it still fails).",
+  "id": "bsm-njq.2",
+  "labels": [],
+  "parent": "bsm-njq",
+  "priority": 2,
+  "status": "open",
+  "title": "Prove Workspace save-failure recovery in the selector",
+  "type": "task",
+  "updated_at": "2026-07-18T10:23:11Z"
+}
