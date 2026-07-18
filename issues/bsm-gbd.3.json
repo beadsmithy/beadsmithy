@@ -1,5 +1,5 @@
 {
-  "assignee": "",
+  "assignee": "Tomas Thor Jonsson",
   "blocked_by": [
     "bsm-gbd.1"
   ],
@@ -12,8 +12,8 @@
   "labels": [],
   "parent": "bsm-gbd",
   "priority": 2,
-  "status": "open",
+  "status": "in_progress",
   "title": "Replace Mermaid viewport pan/zoom lifecycle effect",
   "type": "task",
-  "updated_at": "2026-07-18T21:45:38Z"
+  "updated_at": "2026-07-18T22:12:41Z"
 }
