@@ -5,7 +5,7 @@ import {
   LoaderCircle,
   Search,
 } from "lucide-react";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useMemo, useState } from "react";
 
 import type { ExternalLinkOpener } from "../components/external-link-opener";
 import { openExternalLink as defaultOpenExternalLink } from "../components/external-link-opener";
@@ -524,7 +524,6 @@ export const IssueExplorer = ({
   void onIssueListViewChange;
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedIssueId, setSelectedIssueId] = useState<string | null>(null);
-  const issueListScrollContainerRef = useRef<HTMLDivElement>(null);
 
   const derivedState = useMemo(
     () =>
@@ -548,12 +547,10 @@ export const IssueExplorer = ({
 
   // Reset the Issue List scroll position to the top when the active
   // Issue List View changes. Search changes intentionally do not reset
-  // scroll; only view changes do.
-  useEffect(() => {
-    if (issueListScrollContainerRef.current !== null) {
-      issueListScrollContainerRef.current.scrollTop = 0;
-    }
-  }, [activeViewId]);
+  // scroll; only view changes do. We accomplish this by remounting the
+  // scroll container per active view (keyed by `activeViewId`), which
+  // avoids any post-render imperative synchronization.
+  const issueListScrollContainerKey = activeViewId;
 
   // Clear the selected Issue ID when it is no longer visible after a
   // view or search change. The cleared state is not auto-restored if a
@@ -597,7 +594,8 @@ export const IssueExplorer = ({
         </div>
         <div
           className="flex-1 overflow-y-auto"
-          ref={issueListScrollContainerRef}
+          data-issue-list-scroll-container
+          key={issueListScrollContainerKey}
         >
           <IssueListContent
             activeViewLabel={activeViewLabel}
