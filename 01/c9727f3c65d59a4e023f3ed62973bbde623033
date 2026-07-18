@@ -17,6 +17,7 @@ e2e/issue-list/scripts/run-scenario.ts
   s_b03ce9111f7dbb::t_4a3f51bcdda9df 158
   s_b03ce9111f7dbb::t_c643707f87d16b 199
   s_b03ce9111f7dbb::t_5d74ca8db6b3b9 42
+  s_ab93480970c92e::t_db4b65be1d672c 4-6,12-14,17-22,44-45,57,59,63-66,85,87,89,91-92,200-201,225-226,317-320
 e2e/issue-list/fixtures/workspace.ts
   s_b03ce9111f7dbb::t_b32993f32dc2d5 198,267-272,274,281-284
   s_b03ce9111f7dbb::t_303356e44acdc2 38,46,57-58
@@ -37,8 +38,13 @@ e2e/issue-list/issue-list.atomic-switch.spec.ts
   s_b03ce9111f7dbb::t_8871e233df4eb2 257-261,277,292-294,300-302,320-341
   s_b03ce9111f7dbb::t_cd369a804daf08 73
   s_b03ce9111f7dbb::t_d4052543531de7 205
+  s_ab93480970c92e::t_96109d9ed6f612 298
+  s_ab93480970c92e::t_8764d368479158 374
+  s_ab93480970c92e::t_bfc51548cb429b 143,203
+  s_ab93480970c92e::t_f1c575f95dac8e 67-69
 docs/agents/webdriver-e2e.md
   s_b03ce9111f7dbb::t_32ccbd18970b6d 1,3-10,15-16,24-28,34,89-96,104-109,111-135,141-179,181-218,222-228,231-232,236-240,246-252,256-274,281-283,287-300
+  s_ab93480970c92e::t_e2e2416831ac3d 36
 src-tauri/src/workspace.rs
   s_b03ce9111f7dbb::t_d2a15c0b866d43 1,6-11
 e2e/issue-list/scripts/store-isolation.ts
@@ -53,8 +59,10 @@ e2e/issue-list/issue-list.empty.spec.ts
   s_b03ce9111f7dbb::t_a1a72c3754b155 12,14-15,21,34,37,40-45,48
   s_b03ce9111f7dbb::t_223dbe3bcc72ee 31
   s_b03ce9111f7dbb::t_0a473782a5afa3 36
+  s_ab93480970c92e::t_abee72a37ec4e5 7-10,38
 package.json
   s_b03ce9111f7dbb::t_55a753bc7f2b8b 20-24
+  s_ab93480970c92e::t_c05f9571a03c8b 25
 docs/research/workspace-management-verification-and-migration.md
   s_b03ce9111f7dbb::t_1fd95a15c39d28 1,3-5,9-10,14-25,29-106,110-123
 e2e/issue-list/issue-list.restoration.spec.ts
@@ -65,9 +73,20 @@ e2e/issue-list/issue-list.restoration.spec.ts
   s_b03ce9111f7dbb::t_5b3f0c1d8e74c0 1-29,41-42,43,45,49-50,60-72,74-75,78,95-116,118-119,124,128,130-132,134,139,163-164
   s_b03ce9111f7dbb::t_00f3cfad637463 76-77,79-91
   s_b03ce9111f7dbb::t_6a7c340fcf3ac8 59
+  s_ab93480970c92e::t_d8cda57800de23 30-40,73,117,120-123,125-127,129,133,135-138,140-162
 wdio.issue-list.conf.ts
   s_b03ce9111f7dbb::t_1566000a488c7c 122-123
   s_b03ce9111f7dbb::t_dd08a071e371f5 121
+e2e/issue-list/scripts/harness-inputs.test.ts
+  s_ab93480970c92e::t_e505602dd2d841 10,18-19
+  s_ab93480970c92e::t_4ae5e4bfedc8ef 99,104,113-126
+  s_ab93480970c92e::t_cad0c31c131556 45
+e2e/issue-list/scripts/harness-inputs.ts
+  s_ab93480970c92e::t_4d81a2de065690 128-133,142-150,154-157,168
+  s_ab93480970c92e::t_eb3554fd8afd6a 19-21,25,34,40-43
+  s_ab93480970c92e::t_b47c11783e23c2 83-97
+e2e/issue-list/issue-list.success.spec.ts
+  s_ab93480970c92e::t_7a01646915455d 244-246
 ---
 {
   "schema_version": "authorship/3.0.0",
@@ -75,6 +94,14 @@ wdio.issue-list.conf.ts
   "base_commit_sha": "01c9727f3c65d59a4e023f3ed62973bbde623033",
   "prompts": {},
   "sessions": {
+    "s_ab93480970c92e": {
+      "agent_id": {
+        "tool": "pi",
+        "id": "019f6f35-181d-70f2-8194-06f9c5fe4a5f",
+        "model": "MiniMax-M3"
+      },
+      "human_author": "Tomas Thor Jonsson <benregn@gmail.com>"
+    },
     "s_b03ce9111f7dbb": {
       "agent_id": {
         "tool": "pi",
