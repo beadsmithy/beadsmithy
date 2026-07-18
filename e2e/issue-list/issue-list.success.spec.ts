@@ -82,8 +82,8 @@ describe("Issue explorer (WebDriver e2e): workspace with selectable Issue List V
 
   it("renders sidebar counts, switches Issue List Views, and searches the active view", async () => {
     console.log("[e2e:spec] waiting for sidebar counts from combined load");
-    await expectSidebarCount("All", "5 issues");
-    await expectSidebarCount("Ready", "2 issues");
+    await expectSidebarCount("All", "6 issues");
+    await expectSidebarCount("Ready", "3 issues");
     await expectSidebarCount("Blocked", "1 issue");
     await expectSidebarCount("Closed", "1 issue");
     await expectSidebarCount("Deferred", "1 issue");
@@ -232,7 +232,7 @@ describe("Issue explorer (WebDriver e2e): workspace with selectable Issue List V
     // selector feedback and does not regress the committed Current. The
     // renderer-level Retry banner is reserved for load / store-save
     // failures; the Recovery panel for storeReadFailed is exercised in
-    // `App.test.tsx`.
+    // `App.workspace-recovery.test.tsx`.
     await expectCurrentWorkspace(fixtureB);
   });
 
@@ -241,9 +241,9 @@ describe("Issue explorer (WebDriver e2e): workspace with selectable Issue List V
     // call exercises the typed boundary directly so it never relies on a
     // renderer control or writes the store file from the spec. The
     // storage-failure-driven `App.retryWorkspaceMemory` button is
-    // covered by `App.test.tsx`; this test only proves the typed RPC
-    // returns a fresh state + matching snapshot and that the post-refresh
-    // startup read renders B again.
+    // covered by `App.workspace-recovery.test.tsx`; this test only
+    // proves the typed RPC returns a fresh state + matching snapshot
+    // and that the post-refresh startup read renders B again.
     const restored = await invokeWorkspaceMemoryRetry();
     if ("failure" in restored) {
       throw new Error(restored.failure);

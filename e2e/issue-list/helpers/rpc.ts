@@ -145,8 +145,9 @@ export const invokeWorkspaceState = (): Promise<
 /**
  * Invoke `TauRPC__retry_workspace_memory` through the typed renderer
  * transport. The renderer-level recovery panel that calls
- * `App.retryWorkspaceMemory` is covered by `App.test.tsx`; this helper
- * only proves the typed RPC's response shape and post-refresh rendering.
+ * `App.retryWorkspaceMemory` is covered by
+ * `App.workspace-recovery.test.tsx`; this helper only proves the typed
+ * RPC's response shape and post-refresh rendering.
  */
 export const invokeWorkspaceMemoryRetry = (): Promise<
   WorkspaceRetryMemoryResponse | TypedRpcFailure

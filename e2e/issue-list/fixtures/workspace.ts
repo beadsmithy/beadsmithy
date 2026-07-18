@@ -22,6 +22,8 @@ export interface BeadworkWorkspace {
   path: string;
   /** The issue Beadsmith is expected to render, when the workspace has one. */
   issue?: FixtureIssue;
+  /** An Issue that shares an explicit ID with another workspace's fixture. */
+  sharedIssue?: FixtureIssue;
 }
 
 const runBw = (args: string[], cwd: string): string =>
@@ -33,6 +35,7 @@ const runGit = (args: string[], cwd: string): void => {
 
 interface TaskIssueOptions {
   description?: string;
+  explicitId?: string;
   priority: "2" | "3";
   title: string;
   workspacePath: string;
@@ -40,6 +43,7 @@ interface TaskIssueOptions {
 
 const createTaskIssue = ({
   description,
+  explicitId,
   priority,
   title,
   workspacePath,
@@ -48,6 +52,10 @@ const createTaskIssue = ({
 
   if (description !== undefined) {
     args.push("--description", description);
+  }
+
+  if (explicitId !== undefined) {
+    args.push("--id", explicitId);
   }
 
   args.push("--silent");
@@ -94,6 +102,20 @@ export const FIXTURE_SECOND_SEARCH_QUERY = "second-workspace-marker";
 export const FIXTURE_SECOND_DESCRIPTION = `Workspace B carries the unique ${FIXTURE_SECOND_SEARCH_QUERY} description token so the e2e suite can distinguish it from the populated Workspace A after a switch commits.`;
 export const FIXTURE_SECOND_BLOCKER_TITLE =
   "Workspace B committed state marker";
+/**
+ * Explicit Issue ID deliberately shared across Workspace A and Workspace B.
+ * Atomic-switch coverage relies on this collision to prove that selection,
+ * detail, and search context cannot leak from A into B across a committed
+ * switch. Use Beadwork's supported `--id` flag so the prefix is always the
+ * same; random prefixes would let a coincidental match mask a real leak.
+ */
+export const FIXTURE_SHARED_ID = "bsm-e2e-shared";
+export const FIXTURE_SHARED_TITLE_A = "Shared A overlap identity marker";
+export const FIXTURE_SHARED_TITLE_B = "Shared B overlap identity marker";
+export const FIXTURE_SHARED_SEARCH_TOKEN_A = "shared-alpha-orchid";
+export const FIXTURE_SHARED_SEARCH_TOKEN_B = "shared-bravo-cobalt";
+export const FIXTURE_SHARED_DESCRIPTION_A = `Workspace A's shared-ID Issue carries the unique ${FIXTURE_SHARED_SEARCH_TOKEN_A} description token.`;
+export const FIXTURE_SHARED_DESCRIPTION_B = `Workspace B's shared-ID Issue carries the unique ${FIXTURE_SHARED_SEARCH_TOKEN_B} description token so an A-leaked query never matches it.`;
 export const FIXTURE_CLOSED_TITLE = "Closed Cobalt archived fixture";
 export const FIXTURE_CLOSED_DESCRIPTION =
   "Closed through bw close so the Closed view uses real Beadwork state.";
@@ -172,9 +194,16 @@ export const createIssueListWorkspace = (): BeadworkWorkspace => {
     title: FIXTURE_DEFERRED_TITLE,
     workspacePath,
   });
+  const sharedIssueId = createTaskIssue({
+    description: FIXTURE_SHARED_DESCRIPTION_A,
+    explicitId: FIXTURE_SHARED_ID,
+    priority: "2",
+    title: FIXTURE_SHARED_TITLE_A,
+    workspacePath,
+  });
 
   console.log(
-    `[e2e:fixture] created issues: blocker=${blockerId}, blocked=${issueId}, ready=${readyIssueId}, closed=${closedIssueId}, deferred=${deferredIssueId}`
+    `[e2e:fixture] created issues: blocker=${blockerId}, blocked=${issueId}, ready=${readyIssueId}, closed=${closedIssueId}, deferred=${deferredIssueId}, shared=${sharedIssueId}`
   );
   runBw(["label", issueId, "+e2e-fixture", "+ready-for-agent"], workspacePath);
   runBw(["dep", "add", blockerId, "blocks", issueId], workspacePath);
@@ -195,11 +224,15 @@ export const createIssueListWorkspace = (): BeadworkWorkspace => {
   );
 
   console.log(
-    `[e2e:fixture] workspace ready at ${workspacePath}: blocked issue ${issueId} (blocked by ${blockerId}), ready issue ${readyIssueId}, closed issue ${closedIssueId}, deferred issue ${deferredIssueId}`
+    `[e2e:fixture] workspace ready at ${workspacePath}: blocked issue ${issueId} (blocked by ${blockerId}), ready issue ${readyIssueId}, closed issue ${closedIssueId}, deferred issue ${deferredIssueId}, shared issue ${sharedIssueId}`
   );
   return {
     issue: { id: issueId, title: FIXTURE_ISSUE_TITLE },
     path: workspacePath,
+    sharedIssue: {
+      id: sharedIssueId,
+      title: FIXTURE_SHARED_TITLE_A,
+    },
   };
 };
 
@@ -230,14 +263,25 @@ export const createSecondIssueListWorkspace = (): BeadworkWorkspace => {
     title: FIXTURE_SECOND_ISSUE_TITLE,
     workspacePath,
   });
+  const sharedIssueId = createTaskIssue({
+    description: FIXTURE_SHARED_DESCRIPTION_B,
+    explicitId: FIXTURE_SHARED_ID,
+    priority: "2",
+    title: FIXTURE_SHARED_TITLE_B,
+    workspacePath,
+  });
   console.log(
-    `[e2e:fixture] second workspace ready at ${workspacePath}: blocker=${blockerId}, issue=${secondIssueId}`
+    `[e2e:fixture] second workspace ready at ${workspacePath}: blocker=${blockerId}, issue=${secondIssueId}, shared=${sharedIssueId}`
   );
   runBw(["dep", "add", blockerId, "blocks", secondIssueId], workspacePath);
 
   return {
     issue: { id: secondIssueId, title: FIXTURE_SECOND_ISSUE_TITLE },
     path: workspacePath,
+    sharedIssue: {
+      id: sharedIssueId,
+      title: FIXTURE_SHARED_TITLE_B,
+    },
   };
 };
 

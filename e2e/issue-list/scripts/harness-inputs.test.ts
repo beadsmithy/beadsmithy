@@ -7,7 +7,7 @@ import {
 } from "./harness-inputs.ts";
 
 describe("parseScenario", () => {
-  it.each(["empty", "issues", "atomic-switch"] as const)(
+  it.each(["empty", "issues", "atomic-switch", "restoration"] as const)(
     "accepts the %s scenario",
     (scenario) => {
       expect(parseScenario(scenario)).toBe(scenario);
@@ -15,8 +15,8 @@ describe("parseScenario", () => {
   );
 
   it("rejects an unknown scenario with the received value", () => {
-    expect(() => parseScenario("restoration")).toThrow(
-      'BEADSMITH_E2E_SCENARIO must be one of empty|issues|atomic-switch; received "restoration"'
+    expect(() => parseScenario("unknown-scenario")).toThrow(
+      'BEADSMITH_E2E_SCENARIO must be one of empty|issues|atomic-switch|restoration; received "unknown-scenario"'
     );
   });
 });
@@ -42,7 +42,7 @@ describe("parseHarnessEnvironment", () => {
         BEADSMITH_WORKSPACE_STORE_PATH: "/stores/workspaces.json",
       })
     ).toThrow(
-      '- BEADSMITH_E2E_SCENARIO must be one of empty|issues|atomic-switch; received "<missing>"'
+      '- BEADSMITH_E2E_SCENARIO must be one of empty|issues|atomic-switch|restoration; received "<missing>"'
     );
   });
 
@@ -96,12 +96,12 @@ describe("parseHarnessEnvironment", () => {
     expect(() =>
       parseHarnessEnvironment({
         BEADSMITH_E2E_PHASE: "3",
-        BEADSMITH_E2E_SCENARIO: "restoration",
+        BEADSMITH_E2E_SCENARIO: "unknown-scenario",
       })
     ).toThrow(
       [
         "Invalid Issue List E2E harness environment:",
-        '- BEADSMITH_E2E_SCENARIO must be one of empty|issues|atomic-switch; received "restoration"',
+        '- BEADSMITH_E2E_SCENARIO must be one of empty|issues|atomic-switch|restoration; received "unknown-scenario"',
         '- BEADSMITH_E2E_PHASE must be one of 1|2; received "3"',
         "- BEADSMITH_E2E_WORKSPACE_A is required",
         "- BEADSMITH_E2E_WORKSPACE_B is required",
@@ -109,5 +109,20 @@ describe("parseHarnessEnvironment", () => {
         "Run a `pnpm e2e:issue-list:*` script instead of invoking wdio directly.",
       ].join("\n")
     );
+  });
+
+  it("accepts the restoration scenario without a B fixture", () => {
+    expect(
+      parseHarnessEnvironment({
+        BEADSMITH_E2E_SCENARIO: "restoration",
+        BEADSMITH_E2E_WORKSPACE_A: "/fixtures/a",
+        BEADSMITH_WORKSPACE_STORE_PATH: "/stores/workspaces.json",
+      })
+    ).toEqual({
+      fixtureA: "/fixtures/a",
+      phase: "1",
+      scenario: "restoration",
+      storePath: "/stores/workspaces.json",
+    });
   });
 });
