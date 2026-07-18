@@ -1,5 +1,5 @@
 {
-  "assignee": "",
+  "assignee": "Tomas Thor Jonsson",
   "blocked_by": [
     "bsm-njq.1"
   ],
@@ -12,8 +12,8 @@
   ],
   "parent": "bsm-njq",
   "priority": 2,
-  "status": "open",
+  "status": "in_progress",
   "title": "Prove Workspace save-failure recovery in the selector",
   "type": "task",
-  "updated_at": "2026-07-18T10:23:11Z"
+  "updated_at": "2026-07-18T21:06:19Z"
 }
