@@ -894,4 +894,342 @@ describe("App workspace recovery", () => {
     expect(screen.getByText("B issue")).toBeInTheDocument();
     expect(screen.queryByText("A issue")).toBeNull();
   });
+
+  // -----------------------------------------------------------------------
+  // bsm-njq.2 — storeSaveFailed switch-failure recovery
+  //
+  // A typed storeSaveFailed must surface a dismissible retry banner with
+  // the validated candidate, leave the prior Current Workspace identity
+  // and full Issue Explorer snapshot visible, admit a Retry that
+  // atomically swaps in the new workspace with its snapshot, and only
+  // dismiss session feedback — never the retryable known workspace.
+  // -----------------------------------------------------------------------
+
+  it("keeps the prior Current Workspace path and complete Issue Explorer snapshot visible on a storeSaveFailed transition", async () => {
+    const user = userEvent.setup();
+    const aIssue = buildIssue({ id: "bsm-current", title: "Current issue" });
+    loadIssueExplorerStateFromTauRpc.mockResolvedValue(
+      successState({ allIssues: [aIssue], workspacePath: "/work/first" })
+    );
+    // First workspace state call returns the initial load (A Current).
+    // After the failed switch, the catch refresh surfaces the typed
+    // storeSaveFailed error AND retains A as Current with a retry
+    // candidate pointing at B.
+    workspaceState
+      .mockResolvedValueOnce(
+        workspace({
+          catalog: [
+            { availability: "available", path: "/work/first" },
+            { availability: "available", path: "/work/second" },
+          ],
+          currentWorkspace: {
+            availability: "available",
+            path: "/work/first",
+          },
+          generation: 1,
+        })
+      )
+      .mockResolvedValue(
+        workspace({
+          catalog: [
+            { availability: "available", path: "/work/first" },
+            { availability: "available", path: "/work/second" },
+          ],
+          currentWorkspace: {
+            availability: "available",
+            path: "/work/first",
+          },
+          error: {
+            kind: "storeSaveFailed",
+            message: "Could not save local workspace memory: disk full",
+            retryable: true,
+          },
+          generation: 2,
+          retryWorkspace: {
+            availability: "available",
+            path: "/work/second",
+          },
+        })
+      );
+    switchWorkspace.mockRejectedValue(new Error("disk full"));
+
+    render(<App />);
+
+    // A is rendered as Current and its snapshot is fully visible.
+    expect(await screen.findByText("Current issue")).toBeInTheDocument();
+
+    await user.click(
+      await screen.findByRole("button", {
+        name: "second, /work/second, Available",
+      })
+    );
+
+    // Prior snapshot remains rendered while the failure banner is shown.
+    const banner = await screen.findByTestId("switch-failure-banner");
+    expect(banner).toBeInTheDocument();
+    expect(banner).toHaveTextContent(
+      "Could not save local workspace memory: disk full"
+    );
+    expect(switchWorkspace).toHaveBeenCalledWith("/work/second");
+
+    // Sidebar still marks A as Current.
+    expect(
+      within(screen.getByRole("navigation")).getByRole("button", {
+        name: "first, /work/first, Available",
+      })
+    ).toHaveAttribute("aria-current", "true");
+
+    // Issue Explorer still shows A's complete snapshot — the rejected B
+    // must not have been partially published.
+    expect(screen.getByText("Current issue")).toBeInTheDocument();
+    expect(screen.queryByText("Second issue")).toBeNull();
+  });
+
+  it("renders a dismissible retryable switch-failure banner for storeSaveFailed, not inline validation feedback", async () => {
+    const user = userEvent.setup();
+    loadIssueExplorerStateFromTauRpc.mockResolvedValue(
+      successState({ allIssues: [buildIssue()] })
+    );
+    workspaceState
+      .mockResolvedValueOnce(
+        workspace({
+          catalog: [
+            { availability: "available", path: "/work/first" },
+            { availability: "available", path: "/work/second" },
+          ],
+          currentWorkspace: {
+            availability: "available",
+            path: "/work/first",
+          },
+        })
+      )
+      .mockResolvedValue(
+        workspace({
+          catalog: [
+            { availability: "available", path: "/work/first" },
+            { availability: "available", path: "/work/second" },
+          ],
+          currentWorkspace: {
+            availability: "available",
+            path: "/work/first",
+          },
+          error: {
+            kind: "storeSaveFailed",
+            message: "Could not save local workspace memory: disk full",
+            retryable: true,
+          },
+          retryWorkspace: {
+            availability: "available",
+            path: "/work/second",
+          },
+        })
+      );
+    switchWorkspace.mockRejectedValue(new Error("disk full"));
+
+    render(<App />);
+
+    await user.click(
+      await screen.findByRole("button", {
+        name: "second, /work/second, Available",
+      })
+    );
+
+    // The Retry banner is shown, not the inline validation alert.
+    const banner = await screen.findByTestId("switch-failure-banner");
+    expect(banner).toBeInTheDocument();
+    expect(
+      within(banner).getByRole("button", { name: "Retry" })
+    ).toBeInTheDocument();
+    // Inline feedback (validation/giterr) has `role="alert"` on a <p>;
+    // a banner-derived error must not appear as one.
+    expect(screen.queryByRole("alert", { name: "" })).toBeNull();
+    // Verify the banner's role-alert uniqueness by querying all alerts.
+    const alerts = screen.getAllByRole("alert");
+    expect(alerts).toHaveLength(1);
+    expect(alerts[0]).toBe(banner);
+
+    // Dismiss hides the banner but does not remove the retryable known
+    // workspace or its catalog entry. The Dismiss control lives in the
+    // banner itself.
+    await user.click(
+      within(banner).getByRole("button", { name: "Dismiss switch failure" })
+    );
+    await waitFor(() => {
+      expect(screen.queryByTestId("switch-failure-banner")).toBeNull();
+    });
+    // The known second workspace still lives in the catalog and is still
+    // selectable for a later retry.
+    expect(
+      await screen.findByRole("button", {
+        name: "second, /work/second, Available",
+      })
+    ).toBeInTheDocument();
+    // A remains the marked-current entry.
+    expect(
+      within(screen.getByRole("navigation")).getByRole("button", {
+        name: "first, /work/first, Available",
+      })
+    ).toHaveAttribute("aria-current", "true");
+  });
+
+  it("Retry from a storeSaveFailed banner replays the validated candidate and atomically commits the new workspace with its snapshot", async () => {
+    const user = userEvent.setup();
+    const aIssue = buildIssue({ id: "bsm-current", title: "Current issue" });
+    const bIssue = buildIssue({ id: "bsm-second", title: "Second issue" });
+    loadIssueExplorerStateFromTauRpc.mockResolvedValue(
+      successState({ allIssues: [aIssue], workspacePath: "/work/first" })
+    );
+    // Initial state has A Current. After the failed switch, the catch
+    // branch calls refreshWorkspaceState, which returns the typed
+    // storeSaveFailed with B as the retained retry target.
+    workspaceState
+      .mockResolvedValueOnce(
+        workspace({
+          catalog: [
+            { availability: "available", path: "/work/first" },
+            { availability: "available", path: "/work/second" },
+          ],
+          currentWorkspace: {
+            availability: "available",
+            path: "/work/first",
+          },
+          generation: 1,
+        })
+      )
+      .mockResolvedValue(
+        workspace({
+          catalog: [
+            { availability: "available", path: "/work/first" },
+            { availability: "available", path: "/work/second" },
+          ],
+          currentWorkspace: {
+            availability: "available",
+            path: "/work/first",
+          },
+          error: {
+            kind: "storeSaveFailed",
+            message: "Could not save local workspace memory: disk full",
+            retryable: true,
+          },
+          generation: 2,
+          retryWorkspace: {
+            availability: "available",
+            path: "/work/second",
+          },
+        })
+      );
+    let calls = 0;
+    switchWorkspace.mockImplementation((path: string) => {
+      calls += 1;
+      if (calls === 1) {
+        // First attempt: save fails with disk full.
+        return Promise.reject(new Error("disk full"));
+      }
+      // Retry: success returns B as Current with B's snapshot.
+      return Promise.resolve({
+        issueData: {
+          allIssues: [bIssue],
+          blockedIssues: [],
+          readyIssues: [],
+          workspacePath: path,
+        },
+        state: workspace({
+          catalog: [
+            { availability: "available", path: "/work/first" },
+            { availability: "available", path: "/work/second" },
+          ],
+          currentWorkspace: { availability: "available", path },
+          generation: 3,
+        }),
+      });
+    });
+
+    render(<App />);
+
+    await user.click(
+      await screen.findByRole("button", {
+        name: "second, /work/second, Available",
+      })
+    );
+    const banner = await screen.findByTestId("switch-failure-banner");
+    expect(switchWorkspace).toHaveBeenCalledTimes(1);
+    expect(switchWorkspace).toHaveBeenCalledWith("/work/second");
+
+    // Retry plays through select_workspace with the retained path.
+    await user.click(within(banner).getByRole("button", { name: "Retry" }));
+    await waitFor(() => {
+      expect(switchWorkspace).toHaveBeenCalledTimes(2);
+    });
+    expect(switchWorkspace).toHaveBeenNthCalledWith(2, "/work/second");
+
+    // Retry atomically committed B as Current with B's snapshot.
+    expect(await screen.findByText("Second issue")).toBeInTheDocument();
+    expect(screen.queryByText("Current issue")).toBeNull();
+    expect(
+      within(screen.getByRole("navigation")).getByRole("button", {
+        name: "second, /work/second, Available",
+      })
+    ).toHaveAttribute("aria-current", "true");
+    // Banner cleared because the underlying error was cleared.
+    expect(screen.queryByTestId("switch-failure-banner")).toBeNull();
+    // Loading label is gone — the new workspace is fully committed.
+    expect(screen.queryByText(/^Loading second…$/u)).toBeNull();
+  });
+
+  it("preserves inline validation feedback (no banner) for non-retryable validation failures even when a retry target is present", async () => {
+    // Sanity that bsm-njq.2 does not flip the classification: the
+    // storeSaveFailed path is banner-driven, but validation failures
+    // remain inline. This test is the negative control for the new
+    // banner-driven behavior on the selector.
+    const user = userEvent.setup();
+    loadIssueExplorerStateFromTauRpc.mockResolvedValue(
+      successState({ allIssues: [buildIssue()] })
+    );
+    workspaceState
+      .mockResolvedValueOnce(
+        workspace({
+          catalog: [
+            { availability: "available", path: "/work/first" },
+            { availability: "available", path: "/work/second" },
+          ],
+          currentWorkspace: {
+            availability: "available",
+            path: "/work/first",
+          },
+        })
+      )
+      .mockResolvedValue(
+        workspace({
+          catalog: [
+            { availability: "available", path: "/work/first" },
+            { availability: "available", path: "/work/second" },
+          ],
+          currentWorkspace: {
+            availability: "available",
+            path: "/work/first",
+          },
+          error: {
+            kind: "validationFailed",
+            message: "Not a Beadwork workspace",
+            retryable: true,
+          },
+        })
+      );
+    switchWorkspace.mockRejectedValue(new Error("validation failed"));
+
+    render(<App />);
+
+    await user.click(
+      await screen.findByRole("button", {
+        name: "second, /work/second, Available",
+      })
+    );
+
+    // Inline validation alert is shown — no retry banner.
+    expect(await screen.findByText("Not a Beadwork workspace")).toHaveAttribute(
+      "role",
+      "alert"
+    );
+    expect(screen.queryByTestId("switch-failure-banner")).toBeNull();
+  });
 });
