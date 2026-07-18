@@ -1,7 +1,7 @@
 import { listen } from "@tauri-apps/api/event";
 import type { UnlistenFn } from "@tauri-apps/api/event";
 import { open } from "@tauri-apps/plugin-dialog";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useRef, useState } from "react";
 
 import "./App.css";
 import { Sidebar } from "./components/Sidebar";
@@ -184,7 +184,7 @@ export default function App() {
     void refreshWorkspaceState();
   });
 
-  useEffect(() => {
+  useMountEffect(() => {
     let disposed = false;
     let unlisten: UnlistenFn | undefined;
     void (async () => {
@@ -204,7 +204,7 @@ export default function App() {
       disposed = true;
       unlisten?.();
     };
-  }, [applyTransition]);
+  });
 
   const selectWorkspace = async (path: string) => {
     const expectedGeneration = transitionGateRef.current.acceptedGeneration + 1;
