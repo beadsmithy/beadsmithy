@@ -1,0 +1,21 @@
+src-tauri/src/workspace/tests.rs
+  s_d076caa393d502::t_7d3df1c182fae4 119-123,140-150,160-165,1571-1578,1588-1591,1598,1606,1608-1609,1627-1722
+src/App.workspace-recovery.test.tsx
+  s_d076caa393d502::t_3985aa01d734a0 1043-1044
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.14",
+  "base_commit_sha": "8615c15d4d7532d39c76189992151a00aaad2d46",
+  "prompts": {},
+  "sessions": {
+    "s_d076caa393d502": {
+      "agent_id": {
+        "tool": "pi",
+        "id": "019f76ff-c6c6-7bae-95e0-fb6c9ee68341",
+        "model": "MiniMax-M3"
+      },
+      "human_author": "Tomas Thor Jonsson <benregn@gmail.com>"
+    }
+  }
+}
