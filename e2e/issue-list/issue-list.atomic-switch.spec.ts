@@ -48,24 +48,17 @@ import {
   selectIssueListView,
   WORKSPACE_INLINE_ERROR_SELECTOR,
 } from "./helpers/sidebar.ts";
+import { parseHarnessEnvironment } from "./scripts/harness-inputs.ts";
+
+const harnessInputs = parseHarnessEnvironment(process.env);
+if (harnessInputs.scenario !== "atomic-switch") {
+  throw new Error(
+    "Atomic workspace-switch spec requires the atomic-switch scenario"
+  );
+}
+const { fixtureA: workspaceA, fixtureBSecond: workspaceB } = harnessInputs;
 
 describe("Atomic workspace switch (WebDriver e2e): two disposable Beadwork repositories", () => {
-  let workspaceA: string;
-  let workspaceB: string;
-
-  before(() => {
-    const a = process.env.BEADSMITH_E2E_WORKSPACE_A;
-    const b = process.env.BEADSMITH_E2E_WORKSPACE_B_SECOND;
-    if (!a) {
-      throw new Error("BEADSMITH_E2E_WORKSPACE_A is not set");
-    }
-    if (!b) {
-      throw new Error("BEADSMITH_E2E_WORKSPACE_B_SECOND is not set");
-    }
-    workspaceA = a;
-    workspaceB = b;
-  });
-
   it("starts empty and seeds the populated Workspace A through typed workspace switch", async () => {
     const initial = await invokeWorkspaceState();
     expect(initial.currentWorkspace).toBeNull();

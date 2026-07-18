@@ -5,14 +5,13 @@
 import { browser, expect } from "@wdio/globals";
 
 import { invokeTypedWorkspaceSwitch } from "./helpers/rpc.ts";
+import { parseHarnessEnvironment } from "./scripts/harness-inputs.ts";
+
+const { fixtureB } = parseHarnessEnvironment(process.env);
 
 describe("Issue List (WebDriver e2e): workspace with zero Beadwork issues", () => {
   it("renders the empty state instead of a failure or stale loading state", async () => {
-    const workspaceB = process.env.BEADSMITH_E2E_WORKSPACE_B;
-    if (!workspaceB) {
-      throw new Error("BEADSMITH_E2E_WORKSPACE_B is not set");
-    }
-    const result = await invokeTypedWorkspaceSwitch(workspaceB);
+    const result = await invokeTypedWorkspaceSwitch(fixtureB);
     if ("failure" in result) {
       throw new Error(result.failure);
     }
