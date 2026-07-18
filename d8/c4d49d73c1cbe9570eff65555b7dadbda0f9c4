@@ -1,0 +1,21 @@
+e2e/issue-list/scripts/harness-inputs.test.ts
+  s_74974a3ebf83bc::t_982ef41646d980 37-48
+e2e/issue-list/scripts/harness-inputs.ts
+  s_74974a3ebf83bc::t_3820d17817db8d 25
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.14",
+  "base_commit_sha": "d8c4d49d73c1cbe9570eff65555b7dadbda0f9c4",
+  "prompts": {},
+  "sessions": {
+    "s_74974a3ebf83bc": {
+      "agent_id": {
+        "tool": "pi",
+        "id": "019f73c4-ea49-7a1d-beef-d7a50830e3e0",
+        "model": "MiniMax-M3"
+      },
+      "human_author": "Tomas Thor Jonsson <benregn@gmail.com>"
+    }
+  }
+}
