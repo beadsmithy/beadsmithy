@@ -1040,10 +1040,8 @@ describe("App workspace recovery", () => {
     expect(
       within(banner).getByRole("button", { name: "Retry" })
     ).toBeInTheDocument();
-    // Inline feedback (validation/giterr) has `role="alert"` on a <p>;
-    // a banner-derived error must not appear as one.
-    expect(screen.queryByRole("alert", { name: "" })).toBeNull();
-    // Verify the banner's role-alert uniqueness by querying all alerts.
+    // No inline feedback: a validation/giterr `<p role="alert">` would
+    // appear as a second `role="alert"` node. The banner is the only one.
     const alerts = screen.getAllByRole("alert");
     expect(alerts).toHaveLength(1);
     expect(alerts[0]).toBe(banner);
