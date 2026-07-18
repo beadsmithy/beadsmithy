@@ -1,6 +1,11 @@
 import { useEffect } from "react";
 
 type EffectCleanup = () => void;
+// oxlint-disable-next-line typescript/no-invalid-void-type
+type MountEffectResult = EffectCleanup | undefined | void;
+
+const isEffectCleanup = (value: MountEffectResult): value is EffectCleanup =>
+  typeof value === "function";
 
 /**
  * Run an effect exactly once when the component mounts and clean up via
@@ -13,13 +18,14 @@ type EffectCleanup = () => void;
  * event handler, a remount boundary, or a data-fetching hook. The
  * no-use-effect Oxlint rule is suppressed only at the call site below.
  */
-export const useMountEffect = (
-  effect: () => EffectCleanup | undefined
-): void => {
+export const useMountEffect = (effect: () => MountEffectResult): void => {
   // The eslint-disable below keeps the react-hooks/exhaustive-deps rule
   // from warning about the intentionally-empty dependency list — this
   // hook exists to run `effect` exactly once on mount.
   // oxlint-disable-next-line no-use-effect/no-direct-use-effect
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  useEffect(() => effect(), []);
+  useEffect(() => {
+    const result = effect();
+    return isEffectCleanup(result) ? result : undefined;
+  }, []);
 };
