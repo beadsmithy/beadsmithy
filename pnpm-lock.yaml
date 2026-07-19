@@ -114,6 +114,9 @@ importers:
       oxlint:
         specifier: ^1.71.0
         version: 1.71.0
+      oxlint-plugin-eslint:
+        specifier: 1.71.0
+        version: 1.71.0
       oxlint-tailwindcss:
         specifier: ^1.3.3
         version: 1.3.3
@@ -4180,6 +4183,10 @@ packages:
         optional: true
       vite-plus:
         optional: true
+
+  oxlint-plugin-eslint@1.71.0:
+    resolution: {integrity: sha512-FDDai94pqkKlc2gr9uXgl9UG2BfhryPWqY0KGw4VMUsayF/kNEcDUYEGnGVosL/S5yWyYhRpOmBrun5FQG9law==}
+    engines: {node: ^20.19.0 || >=22.12.0}
 
   oxlint-plugin-react-doctor@0.5.8:
     resolution: {integrity: sha512-L0jveKAMbqF1qAqA2Ksu8aH0/Q8FDQxLwXmHYgALa2XlsxEUuamJ+1Da2MhPWJ2ahn+ekFbnWK20qixxD+fw6A==}
@@ -9305,6 +9312,8 @@ snapshots:
       '@oxfmt/binding-win32-arm64-msvc': 0.56.0
       '@oxfmt/binding-win32-ia32-msvc': 0.56.0
       '@oxfmt/binding-win32-x64-msvc': 0.56.0
+
+  oxlint-plugin-eslint@1.71.0: {}
 
   oxlint-plugin-react-doctor@0.5.8:
     dependencies:

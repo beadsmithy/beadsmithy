@@ -12,8 +12,8 @@ export default defineConfig({
   jsPlugins: [
     "oxlint-tailwindcss",
     {
-      name: "no-use-effect",
-      specifier: "./scripts/oxlint-plugin/no-use-effect-plugin.mjs",
+      name: "eslint-js",
+      specifier: "oxlint-plugin-eslint",
     },
   ],
   overrides: [
@@ -39,11 +39,17 @@ export default defineConfig({
   ],
   plugins: ["react", "react-perf"],
   rules: {
-    // Blocking enforcement for the no-use-effect policy. The diagnostic
-    // message points to the approved replacement patterns; the wrapper
-    // implementation in src/lib/use-mount-effect.ts is the only
-    // narrowly scoped suppression and is required by this rule itself.
-    "no-use-effect/no-direct-use-effect": "error",
+    // Blocking enforcement for the no-use-effect policy. Use the official
+    // ESLint compatibility plugin so this remains a declarative selector
+    // instead of a project-owned AST rule and suppression walker.
+    "eslint-js/no-restricted-syntax": [
+      "error",
+      {
+        message:
+          "Direct React `useEffect` is forbidden. Use derived state, an event handler, a `key`/remount boundary, a data-fetching hook, or the documented `useMountEffect` escape hatch in src/lib/use-mount-effect.ts instead.",
+        selector: "CallExpression[callee.name='useEffect']",
+      },
+    ],
 
     // Style and consistency
     "tailwindcss/consistent-variant-order": "warn",

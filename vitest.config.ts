@@ -32,7 +32,6 @@ export default defineConfig({
       "src/**/*.{test,spec}.{ts,tsx}",
       "e2e/issue-list/helpers/**/*.test.ts",
       "e2e/issue-list/scripts/**/*.test.ts",
-      "scripts/oxlint-plugin/**/*.test.mjs",
     ],
     setupFiles: ["src/test/setup.ts"],
   },

@@ -19,12 +19,11 @@ const isEffectCleanup = (value: MountEffectResult): value is EffectCleanup =>
  * no-use-effect Oxlint rule is suppressed only at the call site below.
  */
 export const useMountEffect = (effect: () => MountEffectResult): void => {
-  // The eslint/oxlint-disable directives below keep the
-  // react-hooks/exhaustive-deps rule from warning about the
-  // intentionally-empty dependency list — this hook exists to run
-  // `effect` exactly once on mount.
-  // oxlint-disable-next-line no-use-effect/no-direct-use-effect
-  // oxlint-disable-next-line react-hooks/exhaustive-deps
+  // Keep each directive adjacent to the rule it suppresses: the official
+  // eslint-js selector reports the call below, while the React Hooks rule
+  // checks the intentionally-empty dependency list.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  // oxlint-disable-next-line eslint-js/no-restricted-syntax
   useEffect(() => {
     const result = effect();
     return isEffectCleanup(result) ? result : undefined;
