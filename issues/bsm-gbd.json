@@ -2,6 +2,8 @@
   "assignee": "",
   "blocked_by": [],
   "blocks": [],
+  "closed_at": "2026-07-19T08:16:35Z",
+  "close_reason": "Completed the no-direct-useEffect migration and follow-up fixes for Mermaid lifecycle structure and App dependency semantics.",
   "created": "2026-07-18T21:22:28Z",
   "description": "Remove every direct React useEffect call and enforce the no-use-effect rule. Replace each call with the appropriate derived-state, event-handler, key/remount, data-query, or explicit useMountEffect pattern. The first child configures the Oxlint restriction; all migration children depend on it.",
   "id": "bsm-gbd",
@@ -13,8 +15,8 @@
     }
   ],
   "priority": 2,
-  "status": "open",
+  "status": "closed",
   "title": "Eliminate direct useEffect usage",
   "type": "epic",
-  "updated_at": "2026-07-19T08:11:24Z"
+  "updated_at": "2026-07-19T08:16:35Z"
 }
