@@ -9,7 +9,13 @@ const PROJECT_IGNORES = ["docs/research/infra/**", ".agents/skills/**"];
 export default defineConfig({
   extends: [core, react],
   ignorePatterns: [...(core.ignorePatterns ?? []), ...PROJECT_IGNORES],
-  jsPlugins: ["oxlint-tailwindcss"],
+  jsPlugins: [
+    "oxlint-tailwindcss",
+    {
+      name: "eslint-js",
+      specifier: "oxlint-plugin-eslint",
+    },
+  ],
   overrides: [
     {
       files: ["**/*.{jsx,tsx}"],
@@ -33,6 +39,18 @@ export default defineConfig({
   ],
   plugins: ["react", "react-perf"],
   rules: {
+    // Blocking enforcement for the no-use-effect policy. Use the official
+    // ESLint compatibility plugin so this remains a declarative selector
+    // instead of a project-owned AST rule and suppression walker.
+    "eslint-js/no-restricted-syntax": [
+      "error",
+      {
+        message:
+          "Direct React `useEffect` is forbidden. Use derived state, an event handler, a `key`/remount boundary, a data-fetching hook, or the documented `useMountEffect` escape hatch in src/lib/use-mount-effect.ts instead.",
+        selector: "CallExpression[callee.name='useEffect']",
+      },
+    ],
+
     // Style and consistency
     "tailwindcss/consistent-variant-order": "warn",
     "tailwindcss/enforce-canonical": "warn",

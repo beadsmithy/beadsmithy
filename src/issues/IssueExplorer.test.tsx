@@ -106,8 +106,12 @@ const getSearchInput = () =>
   screen.getByRole("textbox", { name: "Search issues" });
 
 const getIssueListScrollContainer = (): HTMLElement => {
-  const list = screen.getByRole("list", { name: "Issues" });
-  const container = list.parentElement;
+  // The container is keyed by the active Issue List View, so a view
+  // change remounts it. Use the stable data attribute to find whichever
+  // instance is currently rendered.
+  const container = document.querySelector(
+    "[data-issue-list-scroll-container]"
+  );
   if (!(container instanceof HTMLElement)) {
     throw new Error(
       "Expected the Issue List scroll container to be an HTMLElement"
@@ -1609,17 +1613,19 @@ describe("IssueExplorer", () => {
         <IssueExplorer activeIssueListViewId="open" issueState={state} />
       );
 
-      const scrollContainer = getIssueListScrollContainer();
+      let scrollContainer = getIssueListScrollContainer();
 
       // Simulate the user having scrolled the list.
       scrollContainer.scrollTop = 100;
       expect(scrollContainer.scrollTop).toBe(100);
 
-      // Switching views resets the scroll position to the top.
+      // Switching views remounts the scroll container; the new
+      // instance always starts at the top.
       rerender(
         <IssueExplorer activeIssueListViewId="closed" issueState={state} />
       );
 
+      scrollContainer = getIssueListScrollContainer();
       expect(scrollContainer.scrollTop).toBe(0);
 
       // Switching back also resets the scroll position.
@@ -1629,6 +1635,7 @@ describe("IssueExplorer", () => {
       rerender(
         <IssueExplorer activeIssueListViewId="ready" issueState={state} />
       );
+      scrollContainer = getIssueListScrollContainer();
       expect(scrollContainer.scrollTop).toBe(0);
     });
 

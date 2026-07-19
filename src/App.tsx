@@ -1,7 +1,7 @@
 import { listen } from "@tauri-apps/api/event";
 import type { UnlistenFn } from "@tauri-apps/api/event";
 import { open } from "@tauri-apps/plugin-dialog";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useRef, useState } from "react";
 
 import "./App.css";
 import { Sidebar } from "./components/Sidebar";
@@ -14,6 +14,7 @@ import {
 } from "./issues/issue-loader";
 import type { IssueExplorerLoadState } from "./issues/issue-loader";
 import { IssueExplorer } from "./issues/IssueExplorer";
+import { useExternalLifecycle } from "./lib/use-external-lifecycle";
 import { createTauRPCProxy } from "./rpc/bindings";
 import type {
   LoadIssueExplorerDataResponse,
@@ -150,7 +151,7 @@ export default function App() {
     }
   }, [applyTransition]);
 
-  useEffect(() => {
+  useExternalLifecycle(() => {
     const dispatchedAtCommittedGeneration =
       transitionGateRef.current.committedGeneration;
     void (async () => {
@@ -183,7 +184,7 @@ export default function App() {
     void refreshWorkspaceState();
   }, [refreshWorkspaceState]);
 
-  useEffect(() => {
+  useExternalLifecycle(() => {
     let disposed = false;
     let unlisten: UnlistenFn | undefined;
     void (async () => {

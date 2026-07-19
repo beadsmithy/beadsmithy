@@ -1,10 +1,11 @@
 import Panzoom from "@panzoom/panzoom";
 import type { PanzoomObject } from "@panzoom/panzoom";
 import { Maximize, TriangleAlert, ZoomIn, ZoomOut } from "lucide-react";
-import { useEffect, useId, useRef, useState } from "react";
+import { useCallback, useId, useRef, useState } from "react";
 
+import { useMountEffect } from "../../lib/use-mount-effect";
 import { Alert, AlertDescription, AlertTitle } from "../ui/Alert";
-import { renderMermaid } from "./mermaid-renderer";
+import { useMermaidSourceRender } from "./use-mermaid-source-render";
 
 type RenderState =
   | { status: "loading" }
@@ -83,12 +84,19 @@ interface MermaidDiagramViewportProps {
  * Mounts the Mermaid-generated SVG through a single controlled boundary and
  * attaches pan/zoom interactions. The SVG string never flows through React
  * children as HTML anywhere else.
+ *
+ * This component is keyed by the rendered SVG identity (see `MermaidDiagram`)
+ * so a new SVG always gets its own mount lifecycle — the parent component
+ * does the boundary, and the imperative work below runs exactly once on
+ * mount and tears down on unmount. The cleanup removes the wheel
+ * listener, destroys Panzoom, clears its ref, and empties the container
+ * so the previous diagram cannot survive a source change.
  */
 const MermaidDiagramViewport = ({ svg }: MermaidDiagramViewportProps) => {
   const containerRef = useRef<HTMLDivElement>(null);
   const panzoomRef = useRef<PanzoomObject | null>(null);
 
-  useEffect(() => {
+  useMountEffect(() => {
     const container = containerRef.current;
     if (container === null) {
       return;
@@ -136,7 +144,7 @@ const MermaidDiagramViewport = ({ svg }: MermaidDiagramViewportProps) => {
       panzoomRef.current = null;
       container.innerHTML = "";
     };
-  }, [svg]);
+  });
 
   const handleZoomIn = () => {
     panzoomRef.current?.zoomIn();
@@ -212,33 +220,15 @@ export const MermaidDiagram = ({ source }: MermaidDiagramProps) => {
     setActiveTab("diagram");
   }
 
-  useEffect(() => {
-    let active = true;
-
-    const run = async () => {
-      try {
-        const svg = await renderMermaid(source);
-        if (!active) {
-          return;
-        }
-        setRender({ status: "success", svg });
-        setActiveTab("diagram");
-      } catch (error) {
-        if (!active) {
-          return;
-        }
-        const message = error instanceof Error ? error.message : String(error);
-        setRender({ message, status: "error" });
-        setActiveTab("source");
-      }
-    };
-
-    void run();
-
-    return () => {
-      active = false;
-    };
-  }, [source]);
+  const handleRendered = useCallback((svg: string) => {
+    setRender({ status: "success", svg });
+    setActiveTab("diagram");
+  }, []);
+  const handleRenderError = useCallback((message: string) => {
+    setRender({ message, status: "error" });
+    setActiveTab("source");
+  }, []);
+  useMermaidSourceRender(source, handleRendered, handleRenderError);
 
   const isDiagramActive = activeTab === "diagram";
 
@@ -285,7 +275,7 @@ export const MermaidDiagram = ({ source }: MermaidDiagramProps) => {
         role="tabpanel"
       >
         {render.status === "success" ? (
-          <MermaidDiagramViewport svg={render.svg} />
+          <MermaidDiagramViewport key={render.svg} svg={render.svg} />
         ) : (
           <p className={STATUS_CLASSES}>
             {render.status === "loading"

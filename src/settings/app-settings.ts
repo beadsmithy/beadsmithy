@@ -1,12 +1,7 @@
 import { Effect } from "effect";
-import {
-  useCallback,
-  useEffect,
-  useLayoutEffect,
-  useRef,
-  useState,
-} from "react";
+import { useCallback, useLayoutEffect, useRef, useState } from "react";
 
+import { useMountEffect } from "../lib/use-mount-effect";
 import type {
   AppSettings,
   AppSettingsError,
@@ -236,7 +231,7 @@ export const useAppSettings = (
     processQueueRef.current = processQueue;
   }, [processQueue, state]);
 
-  useEffect(() => {
+  useMountEffect(() => {
     let cancelled = false;
 
     void (async () => {
@@ -276,7 +271,7 @@ export const useAppSettings = (
     return () => {
       cancelled = true;
     };
-  }, []);
+  });
 
   const setDraft = useCallback((value: string) => {
     hasUserEditedRef.current = true;
