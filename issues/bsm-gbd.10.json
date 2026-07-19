@@ -7,9 +7,15 @@
   "id": "bsm-gbd.10",
   "labels": [],
   "parent": "bsm-gbd",
+  "comments": [
+    {
+      "text": "Implemented in b2a813d3. App now uses useExternalLifecycle with [refreshWorkspaceState] and [applyTransition], and UseExternalLifecycle.test.tsx proves dependency-driven cleanup/rebinding and stable-dependency behavior. Verification: pnpm test (239 passed), pnpm build, pnpm check.",
+      "timestamp": "2026-07-19T08:16:35Z"
+    }
+  ],
   "priority": 2,
   "status": "in_progress",
   "title": "Preserve App lifecycle effect dependency semantics",
   "type": "bug",
-  "updated_at": "2026-07-19T08:14:47Z"
+  "updated_at": "2026-07-19T08:16:35Z"
 }
