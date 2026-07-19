@@ -33,7 +33,8 @@ If `bw start` rejects (issue already in progress), check the `.pi-subagents/arti
 
 ## Phase 3: Implement the issue
 
-- Formulate a plan based on the issue description.
+- Check the issue for a concrete implementation plan.
+- If there is no plan, formulate a plan based on the issue description and store as a comment on the issue.
 - Use /tdd where possible, at pre-agreed seams.
 - Run typechecking regularly, single test files regularly, and the full test suite once at the end.
 
