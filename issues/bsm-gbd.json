@@ -12,11 +12,15 @@
     {
       "text": "Plan for the two review findings on bsm-gbd/eliminate-direct-useeffect:\\n\\n1. %s — replace the null Mermaid lifecycle component with a source-aware rendering hook; preserve stale-result protection and keep visible UI in MermaidDiagram.\\n2. %s — add a dependency-aware external lifecycle helper and restore App's [refreshWorkspaceState] and [applyTransition] contracts.\\n\\nThe work is independent and can be implemented in either order:\\n\\ngraph LR\\n    A[bsm-gbd.9 Mermaid render hook] --\u003e C[verification and close]\\n    B[bsm-gbd.10 App dependency-aware lifecycle] --\u003e C",
       "timestamp": "2026-07-19T08:11:24Z"
+    },
+    {
+      "text": "Correction to the plan note above: bsm-gbd.9 replaces the null MermaidSourceRender with useMermaidSourceRender; bsm-gbd.10 adds dependency-aware useExternalLifecycle and restores App dependencies [refreshWorkspaceState] and [applyTransition]. Both tasks were implemented, verified, committed, and closed; the epic is now closed.",
+      "timestamp": "2026-07-19T08:17:18Z"
     }
   ],
   "priority": 2,
   "status": "closed",
   "title": "Eliminate direct useEffect usage",
   "type": "epic",
-  "updated_at": "2026-07-19T08:16:35Z"
+  "updated_at": "2026-07-19T08:17:18Z"
 }
