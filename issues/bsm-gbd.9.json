@@ -1,5 +1,5 @@
 {
-  "assignee": "",
+  "assignee": "Tomas Thor Jonsson",
   "blocked_by": [],
   "blocks": [],
   "created": "2026-07-19T08:11:24Z",
@@ -8,8 +8,8 @@
   "labels": [],
   "parent": "bsm-gbd",
   "priority": 2,
-  "status": "open",
+  "status": "in_progress",
   "title": "Replace Mermaid source lifecycle middleman with a render hook",
   "type": "bug",
-  "updated_at": "2026-07-19T08:11:24Z"
+  "updated_at": "2026-07-19T08:11:30Z"
 }
