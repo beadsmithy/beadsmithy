@@ -351,3 +351,60 @@ export const removeWorkspace = (workspace: BeadworkWorkspace): void => {
   console.log(`[e2e:fixture] removing workspace at ${workspace.path}`);
   rmSync(workspace.path, { force: true, recursive: true });
 };
+
+/**
+ * Two distinct titles created by the external-mutation proof in
+ * `issue-list.success.spec.ts`. The Ready blocker establishes a new
+ * Ready Issue; the Blocked target, added with `bw dep add`, joins the
+ * Blocked view through the new dependency. Both are appended to the
+ * already-selected disposable workspace so the proof is observable in
+ * the running Beadsmith UI without a manual refresh.
+ */
+export const FIXTURE_EXTERNAL_READY_BLOCKER_TITLE =
+  "External ready blocker for refresh proof";
+export const FIXTURE_EXTERNAL_BLOCKED_TARGET_TITLE =
+  "External blocked target for refresh proof";
+
+export interface ExternalMutationOutcome {
+  readyBlockerId: string;
+  blockedTargetId: string;
+  readyBlockerTitle: string;
+  blockedTargetTitle: string;
+}
+
+/**
+ * Apply real external `bw` mutations to an already-selected workspace
+ * so the Issue Explorer refresh proof can run from the WebDriver
+ * process. Creates one Ready Issue (the blocker) and one target Issue
+ * blocked by it; both appear under the same `bw`-authored ref so the
+ * `refs/heads/beadwork` probe observes two rapid SHA moves inside a
+ * single 2-second window.
+ */
+export const applyExternalMutation = (
+  workspacePath: string
+): ExternalMutationOutcome => {
+  console.log(`[e2e:fixture] applying external mutation to ${workspacePath}`);
+  const readyBlockerId = createTaskIssue({
+    priority: "2",
+    title: FIXTURE_EXTERNAL_READY_BLOCKER_TITLE,
+    workspacePath,
+  });
+  const blockedTargetId = createTaskIssue({
+    priority: "2",
+    title: FIXTURE_EXTERNAL_BLOCKED_TARGET_TITLE,
+    workspacePath,
+  });
+  runBw(
+    ["dep", "add", readyBlockerId, "blocks", blockedTargetId],
+    workspacePath
+  );
+  console.log(
+    `[e2e:fixture] external mutation applied: ready=${readyBlockerId}, blocked=${blockedTargetId}`
+  );
+  return {
+    blockedTargetId,
+    blockedTargetTitle: FIXTURE_EXTERNAL_BLOCKED_TARGET_TITLE,
+    readyBlockerId,
+    readyBlockerTitle: FIXTURE_EXTERNAL_READY_BLOCKER_TITLE,
+  };
+};

@@ -23,17 +23,20 @@ import type {
 import { useAppSettings } from "./settings/app-settings";
 import { SettingsPage } from "./settings/SettingsPage";
 import {
+  applyIssueExplorerRefresh,
   applyStartupIssueLoad,
   applyWorkspaceTransition,
   INITIAL_WORKSPACE_REMOUNT_KEY,
   INITIAL_WORKSPACE_TRANSITION_GATE_STATE,
 } from "./workspaces/transition-gate";
 import type {
+  IssueExplorerRefreshPayload,
   WorkspaceTransitionDecision,
   WorkspaceTransitionGateState,
 } from "./workspaces/transition-gate";
 
 const WORKSPACE_TRANSITION_EVENT = "workspace-transition";
+const ISSUE_EXPLORER_REFRESH_EVENT = "beadwork://issue-explorer-state-changed";
 
 interface WorkspaceTransition {
   issueData: LoadIssueExplorerDataResponse | null;
@@ -88,6 +91,30 @@ const applyTransitionDecision = (
   }
   setIssueState({ ...decision.snapshot, status: "success" });
   setWorkspaceKey(decision.remountKey);
+};
+
+/**
+ * Apply a `beadwork://issue-explorer-state-changed` event through the
+ * pure [`applyIssueExplorerRefresh`] decision. On admission the existing
+ * Issue Explorer snapshot is replaced with the new one in place: the
+ * outer remount key, active view, search query, and selected Issue are
+ * left untouched because the underlying Workspace identity is unchanged.
+ * A rejected event is silently dropped.
+ */
+const applyRefreshDecision = (
+  payload: IssueExplorerRefreshPayload,
+  gateRef: { current: WorkspaceTransitionGateState },
+  setIssueState: (state: IssueExplorerLoadState) => void
+): void => {
+  const { decision, next } = applyIssueExplorerRefresh(
+    gateRef.current,
+    payload
+  );
+  if (decision.kind === "ignore") {
+    return;
+  }
+  gateRef.current = next;
+  setIssueState({ ...decision.snapshot, status: "success" });
 };
 
 export default function App() {
@@ -152,59 +179,86 @@ export default function App() {
   }, [applyTransition]);
 
   useExternalLifecycle(() => {
-    const dispatchedAtCommittedGeneration =
-      transitionGateRef.current.committedGeneration;
-    void (async () => {
-      try {
-        const initial = await loadIssueExplorerStateFromTauRpc();
-        const { decision, next } = applyStartupIssueLoad(
-          transitionGateRef.current,
-          initial,
-          dispatchedAtCommittedGeneration
-        );
-        transitionGateRef.current = next;
-        if (decision.kind === "ignore") {
-          return;
-        }
-        setIssueState(decision.snapshot);
-        setWorkspaceKey(decision.remountKey);
-      } catch {
-        const { decision, next } = applyStartupIssueLoad(
-          transitionGateRef.current,
-          INITIAL_LOAD_FAILURE_STATE,
-          dispatchedAtCommittedGeneration
-        );
-        transitionGateRef.current = next;
-        if (decision.kind === "ignore") {
-          return;
-        }
-        setIssueState(decision.snapshot);
-      }
-    })();
-    void refreshWorkspaceState();
-  }, [refreshWorkspaceState]);
-
-  useExternalLifecycle(() => {
     let disposed = false;
-    let unlisten: UnlistenFn | undefined;
-    void (async () => {
-      const listener = await listen<WorkspaceTransition>(
+    let unlistenTransition: UnlistenFn | undefined;
+    let unlistenRefresh: UnlistenFn | undefined;
+
+    // Subscription-first: register both listeners before dispatching the
+    // startup snapshot read. Otherwise an emitted event that races the
+    // first poll would be lost forever — the renderer can only admit
+    // refreshes for the snapshot it has confirmed, and the only safe way
+    // to ensure the listener is alive when the first event lands is to
+    // await its registration before triggering the initial load.
+    const registerListeners = async () => {
+      const transitionListener = await listen<WorkspaceTransition>(
         WORKSPACE_TRANSITION_EVENT,
         (event) => {
           applyTransition(event.payload, null);
         }
       );
       if (disposed) {
-        listener();
+        transitionListener();
       } else {
-        unlisten = listener;
+        unlistenTransition = transitionListener;
       }
+
+      const refreshListener = await listen<IssueExplorerRefreshPayload>(
+        ISSUE_EXPLORER_REFRESH_EVENT,
+        (event) => {
+          applyRefreshDecision(event.payload, transitionGateRef, setIssueState);
+        }
+      );
+      if (disposed) {
+        refreshListener();
+      } else {
+        unlistenRefresh = refreshListener;
+      }
+    };
+
+    const dispatchStartupLoad = () => {
+      const dispatchedAtCommittedGeneration =
+        transitionGateRef.current.committedGeneration;
+      void (async () => {
+        try {
+          const initial = await loadIssueExplorerStateFromTauRpc();
+          const { decision, next } = applyStartupIssueLoad(
+            transitionGateRef.current,
+            initial,
+            dispatchedAtCommittedGeneration
+          );
+          transitionGateRef.current = next;
+          if (decision.kind === "ignore") {
+            return;
+          }
+          setIssueState(decision.snapshot);
+          setWorkspaceKey(decision.remountKey);
+        } catch {
+          const { decision, next } = applyStartupIssueLoad(
+            transitionGateRef.current,
+            INITIAL_LOAD_FAILURE_STATE,
+            dispatchedAtCommittedGeneration
+          );
+          transitionGateRef.current = next;
+          if (decision.kind === "ignore") {
+            return;
+          }
+          setIssueState(decision.snapshot);
+        }
+      })();
+      void refreshWorkspaceState();
+    };
+
+    void (async () => {
+      await registerListeners();
+      dispatchStartupLoad();
     })();
+
     return () => {
       disposed = true;
-      unlisten?.();
+      unlistenTransition?.();
+      unlistenRefresh?.();
     };
-  }, [applyTransition]);
+  }, [applyTransition, refreshWorkspaceState]);
 
   const selectWorkspace = async (path: string) => {
     const expectedGeneration = transitionGateRef.current.acceptedGeneration + 1;

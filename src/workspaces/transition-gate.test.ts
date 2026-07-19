@@ -2,12 +2,14 @@ import { describe, expect, it } from "vitest";
 
 import type { IssueExplorerLoadState } from "../issues/issue-loader";
 import type {
+  Issue,
   LoadIssueExplorerDataResponse,
   Workspace,
   WorkspaceError,
   WorkspaceState,
 } from "../rpc/bindings";
 import {
+  applyIssueExplorerRefresh,
   applyStartupIssueLoad,
   applyWorkspaceTransition,
   CLEARED_WORKSPACE_REMOUNT_KEY,
@@ -41,6 +43,7 @@ const snapshot = (
   allIssues: [],
   blockedIssues: [],
   readyIssues: [],
+  workspaceGeneration: 0,
   workspacePath: path,
   ...overrides,
 });
@@ -61,6 +64,28 @@ const initialGate = (
   overrides: Partial<WorkspaceTransitionGateState> = {}
 ): WorkspaceTransitionGateState => ({
   ...INITIAL_WORKSPACE_TRANSITION_GATE_STATE,
+  ...overrides,
+});
+
+const buildIssue = (overrides: Partial<Issue> = {}): Issue => ({
+  assignee: "",
+  blockedBy: [],
+  blocks: [],
+  closeReason: "",
+  closedAt: "",
+  comments: [],
+  created: "2026-07-07T08:00:00Z",
+  deferUntil: "",
+  description: "",
+  due: "",
+  id: "bsm-fixture",
+  labels: [],
+  parent: "",
+  priority: 2,
+  status: "open",
+  title: "fixture",
+  type: "task",
+  updatedAt: "2026-07-07T08:00:00Z",
   ...overrides,
 });
 
@@ -112,6 +137,7 @@ describe("applyWorkspaceTransition", () => {
       initialGate({
         acceptedGeneration: 3,
         committedGeneration: 3,
+        confirmedWorkspaceGeneration: 0,
         confirmedWorkspacePath: "/work/b",
       })
     );
@@ -534,7 +560,9 @@ describe("applyWorkspaceTransition", () => {
     });
     expect(duplicate.next).toEqual({
       acceptedGeneration: 5,
+      acceptedRefreshRevision: null,
       committedGeneration: 3,
+      confirmedWorkspaceGeneration: null,
       confirmedWorkspacePath: null,
       terminalGeneration: -1,
     });
@@ -601,6 +629,7 @@ describe("applyStartupIssueLoad", () => {
       blockedIssues: [],
       readyIssues: [],
       status: "success",
+      workspaceGeneration: 1,
       workspacePath: "/work/a",
     };
 
@@ -634,6 +663,7 @@ describe("applyStartupIssueLoad", () => {
       blockedIssues: [],
       readyIssues: [],
       status: "success",
+      workspaceGeneration: 1,
       workspacePath: "/work/a",
     };
 
@@ -669,9 +699,279 @@ describe("INITIAL_WORKSPACE_TRANSITION_GATE_STATE", () => {
   it("starts the admitted markers below the lowest possible backend generation", () => {
     expect(INITIAL_WORKSPACE_TRANSITION_GATE_STATE).toEqual({
       acceptedGeneration: 0,
+      acceptedRefreshRevision: null,
       committedGeneration: -1,
+      confirmedWorkspaceGeneration: null,
       confirmedWorkspacePath: null,
       terminalGeneration: -1,
     });
+  });
+});
+
+const refreshSnapshot = (
+  path: string,
+  generation: number,
+  overrides: Partial<LoadIssueExplorerDataResponse> = {}
+): LoadIssueExplorerDataResponse => ({
+  allIssues: [],
+  blockedIssues: [],
+  readyIssues: [],
+  workspaceGeneration: generation,
+  workspacePath: path,
+  ...overrides,
+});
+
+const refreshPayload = (overrides: {
+  issueData?: LoadIssueExplorerDataResponse;
+  observedRefSha?: string;
+  refreshRevision?: number;
+  workspacePath?: string;
+  workspaceSelectionGeneration?: number;
+}) => ({
+  issueData:
+    overrides.issueData ??
+    refreshSnapshot(
+      overrides.workspacePath ?? "/work/a",
+      overrides.workspaceSelectionGeneration ?? 1
+    ),
+  observedRefSha: overrides.observedRefSha ?? "abc123",
+  refreshRevision: overrides.refreshRevision ?? 1,
+  workspacePath: overrides.workspacePath ?? "/work/a",
+  workspaceSelectionGeneration: overrides.workspaceSelectionGeneration ?? 1,
+});
+
+describe("applyIssueExplorerRefresh", () => {
+  it("ignores a refresh when the gate has no confirmed snapshot identity", () => {
+    const gate = initialGate();
+    const result = applyIssueExplorerRefresh(gate, refreshPayload({}));
+    expect(result.decision).toEqual({ kind: "ignore" });
+    expect(result.next).toEqual(gate);
+  });
+
+  it("admits a matching newer refresh and advances the accepted revision", () => {
+    const gate = initialGate({
+      acceptedGeneration: 1,
+      committedGeneration: 1,
+      confirmedWorkspaceGeneration: 1,
+      confirmedWorkspacePath: "/work/a",
+    });
+    const newIssue = buildIssue({ id: "bsm-new", title: "New issue" });
+    const result = applyIssueExplorerRefresh(gate, {
+      ...refreshPayload({
+        refreshRevision: 5,
+      }),
+      issueData: refreshSnapshot("/work/a", 1, {
+        allIssues: [newIssue],
+      }),
+    });
+
+    expect(result.decision).toEqual({
+      kind: "commitRefreshSnapshot",
+      snapshot: refreshSnapshot("/work/a", 1, { allIssues: [newIssue] }),
+    });
+    expect(result.next.acceptedRefreshRevision).toBe(5);
+    // Identity markers are untouched: the snapshot is the same workspace.
+    expect(result.next.confirmedWorkspacePath).toBe("/work/a");
+    expect(result.next.confirmedWorkspaceGeneration).toBe(1);
+    expect(result.next.committedGeneration).toBe(1);
+  });
+
+  it("ignores an equal revision", () => {
+    const gate = initialGate({
+      committedGeneration: 1,
+      confirmedWorkspaceGeneration: 1,
+      confirmedWorkspacePath: "/work/a",
+    });
+    const result = applyIssueExplorerRefresh(gate, {
+      ...refreshPayload({ refreshRevision: 4 }),
+      issueData: refreshSnapshot("/work/a", 1, {
+        allIssues: [buildIssue({ id: "old", title: "old" })],
+      }),
+    });
+    // First admit: revision 4
+    expect(result.decision.kind).toBe("commitRefreshSnapshot");
+    expect(result.next.acceptedRefreshRevision).toBe(4);
+
+    // Equal revision must not regress.
+    const replay = applyIssueExplorerRefresh(result.next, {
+      ...refreshPayload({ refreshRevision: 4 }),
+      issueData: refreshSnapshot("/work/a", 1, {
+        allIssues: [buildIssue({ id: "stale", title: "stale" })],
+      }),
+    });
+    expect(replay.decision).toEqual({ kind: "ignore" });
+    expect(replay.next).toEqual(result.next);
+  });
+
+  it("ignores an older revision", () => {
+    const gate = initialGate({
+      committedGeneration: 1,
+      confirmedWorkspaceGeneration: 1,
+      confirmedWorkspacePath: "/work/a",
+    });
+    const newer = applyIssueExplorerRefresh(gate, {
+      ...refreshPayload({ refreshRevision: 10 }),
+      issueData: refreshSnapshot("/work/a", 1),
+    });
+    expect(newer.next.acceptedRefreshRevision).toBe(10);
+
+    const older = applyIssueExplorerRefresh(newer.next, {
+      ...refreshPayload({ refreshRevision: 9 }),
+      issueData: refreshSnapshot("/work/a", 1, {
+        allIssues: [buildIssue({ id: "stale", title: "stale" })],
+      }),
+    });
+    expect(older.decision).toEqual({ kind: "ignore" });
+    expect(older.next).toEqual(newer.next);
+  });
+
+  it("rejects a refresh for a different workspace path", () => {
+    const gate = initialGate({
+      committedGeneration: 1,
+      confirmedWorkspaceGeneration: 1,
+      confirmedWorkspacePath: "/work/a",
+    });
+    const result = applyIssueExplorerRefresh(gate, {
+      ...refreshPayload({ workspacePath: "/work/b" }),
+      issueData: refreshSnapshot("/work/b", 1),
+    });
+    expect(result.decision).toEqual({ kind: "ignore" });
+    expect(result.next).toEqual(gate);
+  });
+
+  it("rejects a refresh for a different selection generation", () => {
+    const gate = initialGate({
+      committedGeneration: 2,
+      confirmedWorkspaceGeneration: 2,
+      confirmedWorkspacePath: "/work/a",
+    });
+    const result = applyIssueExplorerRefresh(gate, {
+      ...refreshPayload({
+        refreshRevision: 5,
+        workspaceSelectionGeneration: 1,
+      }),
+      issueData: refreshSnapshot("/work/a", 1),
+    });
+    expect(result.decision).toEqual({ kind: "ignore" });
+    expect(result.next).toEqual(gate);
+  });
+
+  it("rejects a refresh whose nested snapshot identity disagrees with the outer envelope", () => {
+    const gate = initialGate({
+      committedGeneration: 1,
+      confirmedWorkspaceGeneration: 1,
+      confirmedWorkspacePath: "/work/a",
+    });
+    const result = applyIssueExplorerRefresh(gate, {
+      ...refreshPayload({}),
+      issueData: refreshSnapshot("/work/b", 1),
+    });
+    expect(result.decision).toEqual({ kind: "ignore" });
+    expect(result.next).toEqual(gate);
+  });
+
+  it("a newer event followed by a late older event cannot regress state", () => {
+    const gate = initialGate({
+      committedGeneration: 1,
+      confirmedWorkspaceGeneration: 1,
+      confirmedWorkspacePath: "/work/a",
+    });
+    const newSnapshot = refreshSnapshot("/work/a", 1, {
+      allIssues: [buildIssue({ id: "newest", title: "newest" })],
+    });
+    const newer = applyIssueExplorerRefresh(gate, {
+      ...refreshPayload({ refreshRevision: 20 }),
+      issueData: newSnapshot,
+    });
+    expect(newer.decision.kind).toBe("commitRefreshSnapshot");
+    expect(newer.next.acceptedRefreshRevision).toBe(20);
+
+    // Late older event arrives after a newer one was admitted.
+    const lateOlder = applyIssueExplorerRefresh(newer.next, {
+      ...refreshPayload({ refreshRevision: 19 }),
+      issueData: refreshSnapshot("/work/a", 1, {
+        allIssues: [buildIssue({ id: "stale", title: "stale" })],
+      }),
+    });
+    expect(lateOlder.decision).toEqual({ kind: "ignore" });
+    expect(lateOlder.next).toEqual(newer.next);
+  });
+
+  it("committing a new workspace snapshot resets the refresh admission marker", () => {
+    const gate = initialGate({
+      acceptedRefreshRevision: 5,
+      committedGeneration: 2,
+      confirmedWorkspaceGeneration: 1,
+      confirmedWorkspacePath: "/work/a",
+    });
+    const result = applyWorkspaceTransition(
+      gate,
+      {
+        issueData: refreshSnapshot("/work/b", 2),
+        state: workspaceState({
+          currentWorkspace: workspace("/work/b"),
+          generation: 3,
+        }),
+      },
+      null
+    );
+
+    expect(result.decision.kind).toBe("commitSnapshot");
+    expect(result.next.confirmedWorkspacePath).toBe("/work/b");
+    expect(result.next.confirmedWorkspaceGeneration).toBe(2);
+    expect(result.next.acceptedRefreshRevision).toBeNull();
+  });
+
+  it("a Pending transition retains the rendered identity, then succeeds into B without reset", () => {
+    // Pending transitions must not clear the confirmed identity so a
+    // refresh event for the still-current A is not silently dropped
+    // during the switch attempt.
+    const gate = initialGate({
+      acceptedRefreshRevision: 5,
+      committedGeneration: 2,
+      confirmedWorkspaceGeneration: 2,
+      confirmedWorkspacePath: "/work/a",
+    });
+    const pending = applyWorkspaceTransition(
+      gate,
+      {
+        issueData: null,
+        state: workspaceState({
+          currentWorkspace: workspace("/work/a"),
+          generation: 3,
+          pendingWorkspace: workspace("/work/b"),
+        }),
+      },
+      null
+    );
+    expect(pending.decision.kind).toBe("acceptStateRetainSnapshot");
+    expect(pending.next.confirmedWorkspacePath).toBe("/work/a");
+    expect(pending.next.confirmedWorkspaceGeneration).toBe(2);
+    expect(pending.next.acceptedRefreshRevision).toBe(5);
+  });
+
+  it("clearing Current clears the refresh identity", () => {
+    const gate = initialGate({
+      acceptedRefreshRevision: 5,
+      committedGeneration: 3,
+      confirmedWorkspaceGeneration: 2,
+      confirmedWorkspacePath: "/work/a",
+    });
+    const result = applyWorkspaceTransition(
+      gate,
+      {
+        issueData: null,
+        state: workspaceState({
+          currentWorkspace: null,
+          generation: 4,
+        }),
+      },
+      null
+    );
+
+    expect(result.decision.kind).toBe("clearSnapshot");
+    expect(result.next.confirmedWorkspacePath).toBeNull();
+    expect(result.next.confirmedWorkspaceGeneration).toBeNull();
+    expect(result.next.acceptedRefreshRevision).toBeNull();
   });
 });

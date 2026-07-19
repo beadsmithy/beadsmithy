@@ -69,8 +69,14 @@ export type ListIssuesResponse = { workspacePath: string; issues: Issue[] }
 
 /**
  * Successful Issue Explorer RPC payload containing Beadwork-authored base views.
+ *
+ * `workspace_generation` is the [`WorkspaceState::generation`] that owned
+ * the snapshot at construction time. It is captured under the same runtime
+ * lock as `workspace_path` and the Beadwork views so the renderer can pair
+ * the snapshot with the matching selection generation atomically, instead of
+ * racing two separately-completing IPC reads.
  */
-export type LoadIssueExplorerDataResponse = { workspacePath: string; allIssues: Issue[]; readyIssues: Issue[]; blockedIssues: Issue[] }
+export type LoadIssueExplorerDataResponse = { workspacePath: string; workspaceGeneration: number; allIssues: Issue[]; readyIssues: Issue[]; blockedIssues: Issue[] }
 
 export type MarkdownSettings = { fontSizePx: number }
 

@@ -42,12 +42,27 @@ import { isRetryableSwitchFailureKind } from "../workspace-switch-failure";
  *   by the Issue Explorer. It lets a remove-current transition replace
  *   that snapshot with the chooser state without clearing A during
  *   Pending or a failed replacement.
+ * - `confirmedWorkspaceGeneration`: backend `WorkspaceState.generation`
+ *   paired with `confirmedWorkspacePath`. Refresh events for the
+ *   Current Workspace intentionally carry the same selection
+ *   generation as the snapshot they refresh, so this marker is the
+ *   peer of `committedGeneration` but scoped to the currently rendered
+ *   identity rather than the highest-ever committed one. A future
+ *   selector that revisits the same path under a new generation rebinds
+ *   it without remounting.
+ * - `acceptedRefreshRevision`: highest monotonic refresh revision the
+ *   renderer has admitted. A late older revision cannot regress the
+ *   Issue Explorer once a newer one has rendered. Reset to its sentinel
+ *   whenever a different snapshot identity is committed or the snapshot
+ *   is cleared so the next refresh has the full window to advance.
  */
 export interface WorkspaceTransitionGateState {
   readonly acceptedGeneration: number;
   readonly committedGeneration: number;
   readonly terminalGeneration: number;
   readonly confirmedWorkspacePath: string | null;
+  readonly confirmedWorkspaceGeneration: number | null;
+  readonly acceptedRefreshRevision: number | null;
 }
 
 /**
@@ -60,7 +75,9 @@ export interface WorkspaceTransitionGateState {
 export const INITIAL_WORKSPACE_TRANSITION_GATE_STATE: WorkspaceTransitionGateState =
   {
     acceptedGeneration: 0,
+    acceptedRefreshRevision: null,
     committedGeneration: -1,
+    confirmedWorkspaceGeneration: null,
     confirmedWorkspacePath: null,
     terminalGeneration: -1,
   };
@@ -191,6 +208,63 @@ export const INITIAL_WORKSPACE_REMOUNT_KEY = "/__initial__";
  * replay cannot regress the retry banner or inline validation
  * feedback.
  */
+/**
+ * Compute the next confirmed-identity markers and the snapshot decision
+ * for a single admitted Workspace transition. Pulled out of
+ * [`applyWorkspaceTransition`] to keep its complexity under the lint
+ * ceiling; the helper is pure and only reads the inputs already
+ * validated by its caller.
+ */
+const decideSnapshotCommit = (
+  current: WorkspaceTransitionGateState,
+  currentPath: string | null,
+  issueData: LoadIssueExplorerDataResponse | null
+): {
+  confirmedWorkspacePath: string | null;
+  confirmedWorkspaceGeneration: number | null;
+  decision: WorkspaceTransitionDecision;
+} => {
+  let { confirmedWorkspacePath } = current;
+  let { confirmedWorkspaceGeneration } = current;
+  let decision: WorkspaceTransitionDecision;
+
+  if (issueData !== null && issueData.workspacePath === currentPath) {
+    confirmedWorkspacePath = currentPath;
+    confirmedWorkspaceGeneration = issueData.workspaceGeneration;
+    decision = {
+      kind: "commitSnapshot",
+      remountKey: issueData.workspacePath,
+      snapshot: issueData,
+    };
+  } else if (currentPath === null && current.confirmedWorkspacePath !== null) {
+    confirmedWorkspacePath = null;
+    confirmedWorkspaceGeneration = null;
+    decision = {
+      kind: "clearSnapshot",
+      remountKey: CLEARED_WORKSPACE_REMOUNT_KEY,
+    };
+  } else {
+    decision = { kind: "acceptStateRetainSnapshot" };
+  }
+
+  return {
+    confirmedWorkspaceGeneration,
+    confirmedWorkspacePath,
+    decision,
+  };
+};
+
+/**
+ * True when this Workspace transition should bump the renderer's
+ * terminal-generation marker (so a delayed same-generation Pending
+ * replay cannot regress the retry banner or inline validation
+ * feedback).
+ */
+const shouldAdvanceTerminalGeneration = (state: WorkspaceState): boolean =>
+  state.pendingWorkspace === null &&
+  (isRetryableSwitchFailureKind(state.error?.kind) ||
+    (state.error !== null && state.retryWorkspace === null));
+
 export const applyWorkspaceTransition = (
   current: WorkspaceTransitionGateState,
   payload: WorkspaceTransitionPayload,
@@ -220,43 +294,35 @@ export const applyWorkspaceTransition = (
   const currentPath = state.currentWorkspace?.path ?? null;
   const { issueData } = payload;
 
-  let { confirmedWorkspacePath } = current;
-  let decision: WorkspaceTransitionDecision;
+  const { confirmedWorkspacePath, confirmedWorkspaceGeneration, decision } =
+    decideSnapshotCommit(current, currentPath, issueData);
 
-  if (issueData !== null && issueData.workspacePath === currentPath) {
-    confirmedWorkspacePath = currentPath;
-    decision = {
-      kind: "commitSnapshot",
-      remountKey: issueData.workspacePath,
-      snapshot: issueData,
-    };
-  } else if (currentPath === null && current.confirmedWorkspacePath !== null) {
-    confirmedWorkspacePath = null;
-    decision = {
-      kind: "clearSnapshot",
-      remountKey: CLEARED_WORKSPACE_REMOUNT_KEY,
-    };
-  } else {
-    decision = { kind: "acceptStateRetainSnapshot" };
-  }
+  const terminalGeneration = shouldAdvanceTerminalGeneration(state)
+    ? generation
+    : current.terminalGeneration;
 
-  let { terminalGeneration } = current;
-  if (
-    state.pendingWorkspace === null &&
-    (isRetryableSwitchFailureKind(state.error?.kind) ||
-      (state.error !== null && state.retryWorkspace === null))
-  ) {
-    terminalGeneration = generation;
-  }
+  const previousIdentity =
+    current.confirmedWorkspacePath !== null &&
+    current.confirmedWorkspaceGeneration !== null;
+  const nextIdentity =
+    confirmedWorkspacePath !== null && confirmedWorkspaceGeneration !== null;
+  const identityChanged =
+    current.confirmedWorkspacePath !== confirmedWorkspacePath ||
+    current.confirmedWorkspaceGeneration !== confirmedWorkspaceGeneration ||
+    previousIdentity !== nextIdentity;
 
   return {
     decision,
     next: {
       acceptedGeneration: generation,
+      acceptedRefreshRevision: identityChanged
+        ? null
+        : current.acceptedRefreshRevision,
       committedGeneration:
         decision.kind === "commitSnapshot"
           ? generation
           : current.committedGeneration,
+      confirmedWorkspaceGeneration,
       confirmedWorkspacePath,
       terminalGeneration,
     },
@@ -274,9 +340,11 @@ export const applyWorkspaceTransition = (
  * committed transition wins, and the startup result is discarded.
  *
  * A non-superseded successful load establishes the confirmed snapshot
- * path so a later remove-current transition can clear it. A
- * non-superseded failed load publishes the failure snapshot but does
- * not record a confirmed path.
+ * path and generation so a later remove-current transition can clear
+ * it and so a refresh event for the same identity can be admitted by
+ * the [`applyIssueExplorerRefresh`] decision. A non-superseded failed
+ * load publishes the failure snapshot but does not record a confirmed
+ * identity.
  */
 export const applyStartupIssueLoad = (
   current: WorkspaceTransitionGateState,
@@ -296,6 +364,8 @@ export const applyStartupIssueLoad = (
       },
       next: {
         ...current,
+        acceptedRefreshRevision: null,
+        confirmedWorkspaceGeneration: load.workspaceGeneration,
         confirmedWorkspacePath: load.workspacePath,
       },
     };
@@ -308,5 +378,123 @@ export const applyStartupIssueLoad = (
       snapshot: load,
     },
     next: current,
+  };
+};
+
+/**
+ * Snapshot payload carried by a `beadwork://issue-explorer-state-changed`
+ * event. The renderer mirrors only this small envelope; the nested
+ * `LoadIssueExplorerDataResponse` is generated from the same Rust source
+ * of truth that the typed `load_issue_explorer_data` RPC returns.
+ */
+export interface IssueExplorerRefreshPayload {
+  readonly issueData: LoadIssueExplorerDataResponse;
+  readonly observedRefSha: string;
+  readonly refreshRevision: number;
+  readonly workspacePath: string;
+  readonly workspaceSelectionGeneration: number;
+}
+
+/**
+ * Decision returned by [`applyIssueExplorerRefresh`].
+ *
+ * - `ignore`: the refresh did not match the snapshot identity the
+ *   renderer is currently showing, the revision was not newer than the
+ *   already-accepted one, or the gate has no confirmed snapshot to
+ *   admit against.
+ * - `commitRefreshSnapshot`: the refresh supersedes the renderer's
+ *   current Issue Explorer snapshot. The caller must replace the
+ *   `IssueExplorerLoadState` with the new success snapshot; the
+ *   outer Issue Explorer remount key, active view, search, and
+ *   selected Issue remain unchanged because the underlying identity
+ *   is the same.
+ */
+export type IssueExplorerRefreshDecision =
+  | { readonly kind: "ignore" }
+  | {
+      readonly kind: "commitRefreshSnapshot";
+      readonly snapshot: LoadIssueExplorerDataResponse;
+    };
+
+/**
+ * Result of admitting one `beadwork://issue-explorer-state-changed`
+ * refresh payload.
+ */
+export interface IssueExplorerRefreshResult {
+  readonly next: WorkspaceTransitionGateState;
+  readonly decision: IssueExplorerRefreshDecision;
+}
+
+/**
+ * Admit one Issue Explorer refresh payload against the current gate
+ * state.
+ *
+ * A refresh event is admitted only when:
+ *
+ * 1. the gate has a confirmed rendered snapshot identity (path +
+ *    generation);
+ * 2. the event's `workspacePath` matches the confirmed path;
+ * 3. the event's `workspaceSelectionGeneration` matches the confirmed
+ *    generation (so a refresh for a previous selection cannot land
+ *    during a Pending transition);
+ * 4. the nested `issueData.workspacePath` and `issueData.workspaceGeneration`
+ *    match the same identity (an inconsistent envelope is rejected
+ *    rather than trusted);
+ * 5. `refreshRevision` is strictly greater than the highest revision
+ *    the renderer has already accepted for that identity.
+ *
+ * On admission the gate advances only the refresh marker. The Issue
+ * Explorer remount key, active view, search, and selected Issue remain
+ * stable because the underlying identity is unchanged. Equal/older
+ * revisions and mismatched identities return `ignore` without
+ * mutating the gate.
+ */
+export const applyIssueExplorerRefresh = (
+  current: WorkspaceTransitionGateState,
+  payload: IssueExplorerRefreshPayload
+): IssueExplorerRefreshResult => {
+  if (
+    current.confirmedWorkspacePath === null ||
+    current.confirmedWorkspaceGeneration === null
+  ) {
+    return { decision: { kind: "ignore" }, next: current };
+  }
+
+  if (payload.workspacePath !== current.confirmedWorkspacePath) {
+    return { decision: { kind: "ignore" }, next: current };
+  }
+
+  if (
+    payload.workspaceSelectionGeneration !==
+    current.confirmedWorkspaceGeneration
+  ) {
+    return { decision: { kind: "ignore" }, next: current };
+  }
+
+  if (
+    payload.issueData.workspacePath !== current.confirmedWorkspacePath ||
+    payload.issueData.workspaceGeneration !==
+      current.confirmedWorkspaceGeneration
+  ) {
+    return { decision: { kind: "ignore" }, next: current };
+  }
+
+  const previousRevision = current.acceptedRefreshRevision;
+  if (
+    previousRevision !== null &&
+    payload.refreshRevision <= previousRevision
+  ) {
+    return { decision: { kind: "ignore" }, next: current };
+  }
+
+  return {
+    decision: {
+      kind: "commitRefreshSnapshot",
+      snapshot: payload.issueData,
+    },
+    next: {
+      ...current,
+      acceptedRefreshRevision: payload.refreshRevision,
+    },
   };
 };

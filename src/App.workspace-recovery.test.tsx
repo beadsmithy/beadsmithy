@@ -8,10 +8,10 @@ import type * as BindingsModule from "./rpc/bindings";
 import type { WorkspaceState, WorkspaceSwitchResponse } from "./rpc/bindings";
 import {
   buildIssue,
+  createBothListenersMock,
   successState,
   workspace,
 } from "./test/app-workspace-fixtures";
-import type { WorkspaceTransitionListener } from "./test/app-workspace-fixtures";
 
 const loadIssueExplorerStateFromTauRpc =
   vi.fn<() => Promise<IssueExplorerLoadState>>();
@@ -277,12 +277,9 @@ describe("App workspace recovery", () => {
     // late same-generation Pending transition so the Retry banner does
     // not disappear when an out-of-order Pending event arrives after the
     // load failure has already been accepted.
-    let transitionListener: WorkspaceTransitionListener | undefined;
+    const { listeners, implementation } = createBothListenersMock();
     // oxlint-disable-next-line promise/prefer-await-to-callbacks
-    listen.mockImplementation((_eventName, callback) => {
-      transitionListener = callback;
-      return Promise.resolve(vi.fn());
-    });
+    listen.mockImplementation(implementation);
 
     const aIssue = buildIssue({ id: "shared", title: "A issue" });
     loadIssueExplorerStateFromTauRpc.mockResolvedValue(
@@ -322,7 +319,7 @@ describe("App workspace recovery", () => {
     const user = userEvent.setup();
     render(<App />);
     await waitFor(() => {
-      expect(transitionListener).toBeDefined();
+      expect(listeners.transition).toBeDefined();
     });
 
     // Click into B's catalog entry to trigger the switch.
@@ -340,7 +337,7 @@ describe("App workspace recovery", () => {
     // It must not roll the renderer back to "pending=B, current=A, no
     // error" — the banner must remain visible.
     act(() => {
-      transitionListener?.({
+      listeners.transition?.({
         payload: {
           issueData: null,
           state: workspace({
@@ -362,12 +359,9 @@ describe("App workspace recovery", () => {
     expect(screen.getByTestId("switch-failure-banner")).toBeInTheDocument();
   });
   it("preserves inline validation feedback when delayed Pending follows a non-retryable failure", async () => {
-    let transitionListener: WorkspaceTransitionListener | undefined;
+    const { listeners, implementation } = createBothListenersMock();
     // oxlint-disable-next-line promise/prefer-await-to-callbacks
-    listen.mockImplementation((_eventName, callback) => {
-      transitionListener = callback;
-      return Promise.resolve(vi.fn());
-    });
+    listen.mockImplementation(implementation);
 
     loadIssueExplorerStateFromTauRpc.mockResolvedValue(
       successState({ allIssues: [buildIssue({ title: "A issue" })] })
@@ -403,7 +397,7 @@ describe("App workspace recovery", () => {
     const user = userEvent.setup();
     render(<App />);
     await waitFor(() => {
-      expect(transitionListener).toBeDefined();
+      expect(listeners.transition).toBeDefined();
     });
 
     await user.click(
@@ -415,7 +409,7 @@ describe("App workspace recovery", () => {
     );
 
     act(() => {
-      transitionListener?.({
+      listeners.transition?.({
         payload: {
           issueData: null,
           state: workspace({
@@ -447,12 +441,9 @@ describe("App workspace recovery", () => {
     // than accepted". The fix on the backend is that cancel_pending
     // without a pending request does not bump the generation, so a
     // same-generation success transition must still apply.
-    let transitionListener: WorkspaceTransitionListener | undefined;
+    const { listeners, implementation } = createBothListenersMock();
     // oxlint-disable-next-line promise/prefer-await-to-callbacks
-    listen.mockImplementation((_eventName, callback) => {
-      transitionListener = callback;
-      return Promise.resolve(vi.fn());
-    });
+    listen.mockImplementation(implementation);
 
     const aIssue = buildIssue({ id: "shared", title: "A issue" });
     const bIssue = buildIssue({ id: "shared", title: "B issue" });
@@ -488,6 +479,7 @@ describe("App workspace recovery", () => {
         allIssues: [bIssue],
         blockedIssues: [],
         readyIssues: [],
+        workspaceGeneration: 2,
         workspacePath: "/work/b",
       },
       state: workspace({
@@ -513,7 +505,7 @@ describe("App workspace recovery", () => {
     const user = userEvent.setup();
     render(<App />);
     await waitFor(() => {
-      expect(transitionListener).toBeDefined();
+      expect(listeners.transition).toBeDefined();
     });
 
     // Start B and show its Pending state. The user can still click Cancel
@@ -522,7 +514,7 @@ describe("App workspace recovery", () => {
       await screen.findByRole("button", { name: "b, /work/b, Available" })
     );
     act(() => {
-      transitionListener?.({
+      listeners.transition?.({
         payload: {
           issueData: null,
           state: workspace({
@@ -564,6 +556,7 @@ describe("App workspace recovery", () => {
           allIssues: [bIssue],
           blockedIssues: [],
           readyIssues: [],
+          workspaceGeneration: 2,
           workspacePath: "/work/b",
         },
         state: workspace({
@@ -767,12 +760,9 @@ describe("App workspace recovery", () => {
     // delayed success publication. The success RPC in this test never
     // resolves within the assertion window, so any visible B snapshot
     // must come from the cancel response alone.
-    let transitionListener: WorkspaceTransitionListener | undefined;
+    const { listeners, implementation } = createBothListenersMock();
     // oxlint-disable-next-line promise/prefer-await-to-callbacks
-    listen.mockImplementation((_eventName, callback) => {
-      transitionListener = callback;
-      return Promise.resolve(vi.fn());
-    });
+    listen.mockImplementation(implementation);
 
     const aIssue = buildIssue({ id: "shared", title: "A issue" });
     const bIssue = buildIssue({ id: "shared", title: "B issue" });
@@ -809,6 +799,7 @@ describe("App workspace recovery", () => {
         allIssues: [bIssue],
         blockedIssues: [],
         readyIssues: [],
+        workspaceGeneration: 2,
         workspacePath: "/work/b",
       },
       state: workspace({
@@ -824,7 +815,7 @@ describe("App workspace recovery", () => {
     const user = userEvent.setup();
     render(<App />);
     await waitFor(() => {
-      expect(transitionListener).toBeDefined();
+      expect(listeners.transition).toBeDefined();
     });
 
     // Start B and surface its Pending window; the prior A snapshot is
@@ -833,7 +824,7 @@ describe("App workspace recovery", () => {
       await screen.findByRole("button", { name: "b, /work/b, Available" })
     );
     act(() => {
-      transitionListener?.({
+      listeners.transition?.({
         payload: {
           issueData: null,
           state: workspace({
@@ -879,6 +870,7 @@ describe("App workspace recovery", () => {
           allIssues: [bIssue],
           blockedIssues: [],
           readyIssues: [],
+          workspaceGeneration: 2,
           workspacePath: "/work/b",
         },
         state: workspace({
