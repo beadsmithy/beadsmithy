@@ -361,20 +361,13 @@ const ChildIssuesSection = ({ childIssues }: { childIssues: Issue[] }) => (
       Child Issues
     </h3>
     {childIssues.length > 0 ? (
-      <ul
-        aria-label="Child Issues"
-        className="mt-2 flex flex-col gap-1"
-        data-child-issues-count={childIssues.length}
-      >
+      <ul aria-label="Child Issues" className="mt-2 flex flex-col gap-1">
         {childIssues.map((childIssue) => (
           <ChildIssueRow issue={childIssue} key={childIssue.id} />
         ))}
       </ul>
     ) : (
-      <p
-        className="mt-2 rounded-lg border border-border-main bg-surface px-4 py-3 font-mono text-xs text-muted"
-        data-child-issues-empty="true"
-      >
+      <p className="mt-2 rounded-lg border border-border-main bg-surface px-4 py-3 font-mono text-xs text-muted">
         No Child Issues
       </p>
     )}
