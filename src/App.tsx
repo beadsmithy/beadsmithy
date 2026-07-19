@@ -14,7 +14,7 @@ import {
 } from "./issues/issue-loader";
 import type { IssueExplorerLoadState } from "./issues/issue-loader";
 import { IssueExplorer } from "./issues/IssueExplorer";
-import { useMountEffect } from "./lib/use-mount-effect";
+import { useExternalLifecycle } from "./lib/use-external-lifecycle";
 import { createTauRPCProxy } from "./rpc/bindings";
 import type {
   LoadIssueExplorerDataResponse,
@@ -151,7 +151,7 @@ export default function App() {
     }
   }, [applyTransition]);
 
-  useMountEffect(() => {
+  useExternalLifecycle(() => {
     const dispatchedAtCommittedGeneration =
       transitionGateRef.current.committedGeneration;
     void (async () => {
@@ -182,9 +182,9 @@ export default function App() {
       }
     })();
     void refreshWorkspaceState();
-  });
+  }, [refreshWorkspaceState]);
 
-  useMountEffect(() => {
+  useExternalLifecycle(() => {
     let disposed = false;
     let unlisten: UnlistenFn | undefined;
     void (async () => {
@@ -204,7 +204,7 @@ export default function App() {
       disposed = true;
       unlisten?.();
     };
-  });
+  }, [applyTransition]);
 
   const selectWorkspace = async (path: string) => {
     const expectedGeneration = transitionGateRef.current.acceptedGeneration + 1;
