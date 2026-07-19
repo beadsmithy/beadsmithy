@@ -17,10 +17,13 @@ import {
   getIssueListEmptyTitle,
 } from "./issue-explorer-state";
 import type { IssueListEmptyReason } from "./issue-explorer-state";
+import { getChildIssues } from "./issue-hierarchy";
 import type { IssueListViewId } from "./issue-list-view";
 import type { IssueExplorerLoadState } from "./issue-loader";
 import { toIssueViewModel } from "./issue-view";
 import type { IssueTone } from "./issue-view";
+
+const EMPTY_CHILD_ISSUES: Issue[] = [];
 
 const TONE_DOT_CLASSES: Record<IssueTone, string> = {
   blocked: "bg-danger",
@@ -336,11 +339,48 @@ const MetadataRow = ({ label, value }: { label: string; value: string }) => (
   </div>
 );
 
+const ChildIssueRow = ({ issue }: { issue: Issue }) => {
+  const view = toIssueViewModel(issue);
+
+  return (
+    <li className="flex flex-wrap items-center gap-x-2 gap-y-1 rounded border border-border-main bg-surface px-2 py-1.5">
+      <span className="font-mono text-xs text-text-main">{view.id}</span>
+      <span
+        className={`shrink-0 rounded-full border px-1.5 py-0.5 font-mono text-[10px] ${TONE_BADGE_CLASSES[view.badgeTone]}`}
+      >
+        {view.statusLabel}
+      </span>
+      <span className="text-sm text-text-main">{view.title}</span>
+    </li>
+  );
+};
+
+const ChildIssuesSection = ({ childIssues }: { childIssues: Issue[] }) => (
+  <section>
+    <h3 className="font-mono text-[10px] tracking-wider text-muted uppercase">
+      Child Issues
+    </h3>
+    {childIssues.length > 0 ? (
+      <ul aria-label="Child Issues" className="mt-2 flex flex-col gap-1">
+        {childIssues.map((childIssue) => (
+          <ChildIssueRow issue={childIssue} key={childIssue.id} />
+        ))}
+      </ul>
+    ) : (
+      <p className="mt-2 rounded-lg border border-border-main bg-surface px-4 py-3 font-mono text-xs text-muted">
+        No Child Issues
+      </p>
+    )}
+  </section>
+);
+
 const IssueDetailContent = ({
+  childIssues,
   issue,
   markdownFontSizePx,
   openExternalLink,
 }: {
+  childIssues: Issue[];
   issue: Issue;
   markdownFontSizePx?: number;
   openExternalLink: ExternalLinkOpener;
@@ -444,6 +484,7 @@ const IssueDetailContent = ({
           </dl>
         </div>
       </section>
+      <ChildIssuesSection childIssues={childIssues} />
       <section>
         <h3 className="font-mono text-[10px] tracking-wider text-muted uppercase">
           Other metadata
@@ -490,10 +531,12 @@ const IssueDetailContent = ({
 };
 
 const IssueDetailPane = ({
+  childIssues,
   selectedIssue,
   markdownFontSizePx,
   openExternalLink,
 }: {
+  childIssues: Issue[];
   selectedIssue: Issue | null;
   markdownFontSizePx?: number;
   openExternalLink: ExternalLinkOpener;
@@ -502,6 +545,7 @@ const IssueDetailPane = ({
     <IssueDetailEmpty />
   ) : (
     <IssueDetailContent
+      childIssues={childIssues}
       issue={selectedIssue}
       markdownFontSizePx={markdownFontSizePx}
       openExternalLink={openExternalLink}
@@ -544,6 +588,20 @@ export const IssueExplorer = ({
     selectedIssue,
     visibleIssues,
   } = derivedState;
+
+  // Derive Child Issues from the successful explorer's complete `allIssues`
+  // collection by matching the Beadwork `parent` field. This deliberately
+  // does not change list selection, the active Issue List View, or
+  // selection-clearing semantics. The selected Issue's ID is the lookup
+  // key only; candidates come exclusively from `allIssues` regardless of
+  // which view or search is active.
+  const childIssues = useMemo<Issue[]>(() => {
+    if (issueState.status !== "success" || selectedIssue === null) {
+      return EMPTY_CHILD_ISSUES;
+    }
+
+    return getChildIssues(issueState.allIssues, selectedIssue.id);
+  }, [issueState, selectedIssue]);
 
   // Reset the Issue List scroll position to the top when the active
   // Issue List View changes. Search changes intentionally do not reset
@@ -609,6 +667,7 @@ export const IssueExplorer = ({
         </div>
       </section>
       <IssueDetailPane
+        childIssues={childIssues}
         markdownFontSizePx={markdownFontSizePx}
         openExternalLink={openExternalLink}
         selectedIssue={selectedIssue}

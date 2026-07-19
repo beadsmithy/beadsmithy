@@ -696,6 +696,7 @@ describe("IssueExplorer", () => {
       "Labels",
       "Description",
       "Dependencies",
+      "Child Issues",
       "Other metadata",
       "Comments",
     ]);
@@ -1099,6 +1100,191 @@ describe("IssueExplorer", () => {
     // Exact empty-state copy locked by the bead.
     expect(depsScope.getByText("No blockers")).toBeInTheDocument();
     expect(depsScope.getByText("Not blocking anything")).toBeInTheDocument();
+  });
+
+  describe("Child Issues section", () => {
+    const getChildIssuesSection = () => {
+      const detail = getDetail();
+      const heading = detail.getByRole("heading", {
+        level: 3,
+        name: "Child Issues",
+      });
+      return within(requireHTMLElement(heading.closest("section")));
+    };
+
+    it("renders matching children in loaded order with id, status, then title", async () => {
+      const user = userEvent.setup();
+      // `allIssues` order is intentionally not sorted: this proves the
+      // section preserves the source order from the loaded collection.
+      const parent = buildIssue({
+        id: "bsm-parent",
+        parent: "",
+        status: "open",
+        title: "Parent epic",
+      });
+      const secondChild = buildIssue({
+        id: "bsm-parent.2",
+        parent: "bsm-parent",
+        status: "in_progress",
+        title: "Second child task",
+      });
+      const firstChild = buildIssue({
+        id: "bsm-parent.1",
+        parent: "bsm-parent",
+        status: "open",
+        title: "First child task",
+      });
+      const unrelated = buildIssue({
+        id: "bsm-other",
+        parent: "bsm-other-parent",
+        status: "open",
+        title: "Unrelated Issue",
+      });
+
+      renderExplorer([parent, secondChild, firstChild, unrelated]);
+
+      await user.click(getRowButton(parent));
+
+      const section = getChildIssuesSection();
+
+      // Section is present directly after Dependencies.
+      expect(
+        section.getByRole("heading", { level: 3, name: "Child Issues" })
+      ).toBeInTheDocument();
+
+      // Only matching children appear, and only in `allIssues` order.
+      const list = section.getByRole("list", { name: "Child Issues" });
+      const items = within(list).getAllByRole("listitem");
+      expect(items).toHaveLength(2);
+      expect(
+        within(items[0] as HTMLElement).getByText("bsm-parent.2")
+      ).toBeInTheDocument();
+      expect(
+        within(items[1] as HTMLElement).getByText("bsm-parent.1")
+      ).toBeInTheDocument();
+      // Unrelated Issue does not leak in.
+      expect(section.queryByText("Unrelated Issue")).toBeNull();
+
+      // Each entry exposes id, humanized status badge, and title in that order.
+      const firstItem = items[0] as HTMLElement;
+      const firstItemText = firstItem.textContent ?? "";
+      expect(firstItemText.indexOf("bsm-parent.2")).toBeLessThan(
+        firstItemText.indexOf("In Progress")
+      );
+      expect(firstItemText.indexOf("In Progress")).toBeLessThan(
+        firstItemText.indexOf("Second child task")
+      );
+
+      const secondItem = items[1] as HTMLElement;
+      const secondItemText = secondItem.textContent ?? "";
+      expect(secondItemText.indexOf("bsm-parent.1")).toBeLessThan(
+        secondItemText.indexOf("Open")
+      );
+      expect(secondItemText.indexOf("Open")).toBeLessThan(
+        secondItemText.indexOf("First child task")
+      );
+
+      // No explicit empty-state copy when the list is populated.
+      expect(section.queryByText("No Child Issues")).toBeNull();
+
+      // Entries are read-only: no links, buttons, or clickable surfaces.
+      expect(section.queryByRole("link")).toBeNull();
+      expect(section.queryByRole("button")).toBeNull();
+
+      // The full section flow still places Child Issues between
+      // Dependencies and Other metadata when children are populated.
+      expect(getDetailSectionFlow()).toEqual([
+        "title/header",
+        "primary metadata",
+        "Labels",
+        "Description",
+        "Dependencies",
+        "Child Issues",
+        "Other metadata",
+      ]);
+    });
+
+    it("renders the explicit empty state for an Issue with no loaded children", async () => {
+      const user = userEvent.setup();
+      const issue = buildIssue({
+        id: "bsm-no-children",
+        parent: "",
+        title: "Lonely Issue",
+      });
+      const unrelated = buildIssue({
+        id: "bsm-other",
+        parent: "bsm-other-parent",
+        title: "Unrelated",
+      });
+
+      renderExplorer([issue, unrelated]);
+
+      await user.click(getRowButton(issue));
+
+      const section = getChildIssuesSection();
+
+      // The section is still present even when there are no children.
+      expect(
+        section.getByRole("heading", { level: 3, name: "Child Issues" })
+      ).toBeInTheDocument();
+
+      // Exact empty-state copy locked by the bead.
+      expect(section.getByText("No Child Issues")).toBeInTheDocument();
+
+      // No list rendered for the empty state.
+      expect(section.queryByRole("list", { name: "Child Issues" })).toBeNull();
+    });
+
+    it("derives children from the successful allIssues collection even when a non-All view is active", async () => {
+      const user = userEvent.setup();
+      const parent = buildIssue({
+        id: "bsm-cross-view-parent",
+        parent: "",
+        status: "open",
+        title: "Cross-view parent",
+      });
+      const child = buildIssue({
+        id: "bsm-cross-view-child",
+        parent: "bsm-cross-view-parent",
+        status: "closed",
+        title: "Cross-view child",
+      });
+      // Active view is "closed" but the parent's status is "open", so the
+      // parent only appears when viewing "all". Child derivation must still
+      // come from `allIssues`, not from the active view's visible list.
+      const state = {
+        ...successState([parent, child]),
+        blockedIssues: [],
+        readyIssues: [],
+      };
+
+      const { rerender } = render(
+        <IssueExplorer activeIssueListViewId="closed" issueState={state} />
+      );
+
+      // Parent is not in the Closed view; select it via All.
+      rerender(
+        <IssueExplorer activeIssueListViewId="all" issueState={state} />
+      );
+      await user.click(getRowButton(parent));
+
+      const section = getChildIssuesSection();
+      expect(
+        section.getByRole("list", { name: "Child Issues" })
+      ).toBeInTheDocument();
+      const listItems = within(
+        section.getByRole("list", { name: "Child Issues" })
+      ).getAllByRole("listitem");
+      expect(listItems).toHaveLength(1);
+      const childRow = listItems[0] as HTMLElement;
+      expect(
+        within(childRow).getByText("bsm-cross-view-child")
+      ).toBeInTheDocument();
+      expect(within(childRow).getByText("Closed")).toBeInTheDocument();
+      expect(
+        within(childRow).getByText("Cross-view child")
+      ).toBeInTheDocument();
+    });
   });
 
   it("renders the Other metadata section with raw values when all optional fields are present", async () => {
