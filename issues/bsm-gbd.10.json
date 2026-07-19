@@ -1,0 +1,15 @@
+{
+  "assignee": "",
+  "blocked_by": [],
+  "blocks": [],
+  "created": "2026-07-19T08:11:24Z",
+  "description": "## Background\nThe App startup load and workspace-transition subscription originally depended on `[refreshWorkspaceState]` and `[applyTransition]`. The migration replaced both with `useMountEffect`, whose implementation always passes `[]`. That erases the reactive contract and leaves those asynchronous closures bound to the first callback identities if either dependency ever changes.\n\n## Evaluation and plan\nAdd a clearly named dependency-aware `useExternalLifecycle` helper alongside `useMountEffect`. Both helpers may centralize the one intentionally suppressed underlying React effect, but their interfaces must make the lifecycle contract explicit: `useMountEffect` remains mount-only, while `useExternalLifecycle(effect, dependencies)` re-runs and cleans up when its dependency list changes. Restore the original dependency arrays at the App call sites: `[refreshWorkspaceState]` for initial issue/workspace loading and `[applyTransition]` for native workspace-transition subscription.\n\nDo not solve this by disabling lint at App call sites or by relying on the current `useCallback` identities remaining stable. Keep asynchronous listener registration disposal-safe and preserve startup transition-gate ordering, failure handling, and listener cleanup. Add a focused helper test proving rerun/cleanup on dependency changes; retain existing App startup and workspace-transition tests.\n\n## Acceptance criteria\n- [ ] App no longer uses mount-only semantics for effects that have reactive dependencies.\n- [ ] The startup load rebinds/re-runs when `refreshWorkspaceState` changes, matching its original dependency contract.\n- [ ] The workspace-transition listener is removed and re-registered when `applyTransition` changes, with late registration still disposed after unmount.\n- [ ] `useMountEffect` remains correct for genuinely mount-only lifecycles.\n- [ ] No direct `useEffect` call or call-site suppression is introduced outside the centralized lifecycle helper.\n- [ ] Focused App/helper tests cover dependency reruns, cleanup, stale callback avoidance, and existing transition behavior.\n- [ ] Typecheck, lint, and focused tests pass.\n\n## Verification\n- `pnpm exec vitest run src/App.workspace-switching.test.tsx src/App.workspace-recovery.test.tsx src/lib/use-external-lifecycle.test.tsx`\n- `pnpm build`\n- `pnpm check`\n\nTriage: planned for implementation on `bsm-gbd/eliminate-direct-useeffect`.",
+  "id": "bsm-gbd.10",
+  "labels": [],
+  "parent": "bsm-gbd",
+  "priority": 2,
+  "status": "open",
+  "title": "Preserve App lifecycle effect dependency semantics",
+  "type": "bug",
+  "updated_at": "2026-07-19T08:11:24Z"
+}
