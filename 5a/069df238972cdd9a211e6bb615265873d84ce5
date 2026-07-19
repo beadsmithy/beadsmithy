@@ -1,0 +1,25 @@
+oxlint.config.ts
+  s_dbd16ed4fa6b05::t_3b491f083acba4 15-16,42-52
+src/lib/use-mount-effect.ts
+  s_dbd16ed4fa6b05::t_f54302940486dc 22-26
+package.json
+  s_dbd16ed4fa6b05::t_1ee47e56056e2d 70
+pnpm-lock.yaml
+  s_dbd16ed4fa6b05::t_edf66be08dcdac 117-119,4187-4190,9316-9317
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.14",
+  "base_commit_sha": "5a069df238972cdd9a211e6bb615265873d84ce5",
+  "prompts": {},
+  "sessions": {
+    "s_dbd16ed4fa6b05": {
+      "agent_id": {
+        "tool": "pi",
+        "id": "019f7938-1334-7631-9881-74fa51bdad95",
+        "model": "gpt-5.6-luna"
+      },
+      "human_author": "Tomas Thor Jonsson <benregn@gmail.com>"
+    }
+  }
+}
