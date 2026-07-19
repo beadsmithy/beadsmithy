@@ -360,17 +360,11 @@ const ChildIssuesSection = ({ childIssues }: { childIssues: Issue[] }) => (
     <h3 className="font-mono text-[10px] tracking-wider text-muted uppercase">
       Child Issues
     </h3>
-    {childIssues.length > 0 ? (
-      <ul aria-label="Child Issues" className="mt-2 flex flex-col gap-1">
-        {childIssues.map((childIssue) => (
-          <ChildIssueRow issue={childIssue} key={childIssue.id} />
-        ))}
-      </ul>
-    ) : (
-      <p className="mt-2 rounded-lg border border-border-main bg-surface px-4 py-3 font-mono text-xs text-muted">
-        No Child Issues
-      </p>
-    )}
+    <ul aria-label="Child Issues" className="mt-2 flex flex-col gap-1">
+      {childIssues.map((childIssue) => (
+        <ChildIssueRow issue={childIssue} key={childIssue.id} />
+      ))}
+    </ul>
   </section>
 );
 
@@ -484,7 +478,9 @@ const IssueDetailContent = ({
           </dl>
         </div>
       </section>
-      <ChildIssuesSection childIssues={childIssues} />
+      {childIssues.length > 0 ? (
+        <ChildIssuesSection childIssues={childIssues} />
+      ) : null}
       <section>
         <h3 className="font-mono text-[10px] tracking-wider text-muted uppercase">
           Other metadata
