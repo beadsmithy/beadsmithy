@@ -685,8 +685,17 @@ describe("IssueExplorer", () => {
       labels: ["ready-for-agent"],
       parent: "bsm-7en",
     });
+    // A matching child is included so the conditional Child Issues
+    // section is part of the section flow in this scenario. When the
+    // selected Issue has no children, the section is omitted entirely
+    // and "Child Issues" disappears from the flow.
+    const child = buildIssue({
+      id: "bsm-section-order.1",
+      parent: "bsm-section-order",
+      title: "Section-order child",
+    });
 
-    renderExplorer([issue]);
+    renderExplorer([issue, child]);
 
     await user.click(getRowButton(issue));
 
@@ -1112,27 +1121,54 @@ describe("IssueExplorer", () => {
       return within(requireHTMLElement(heading.closest("section")));
     };
 
-    it("renders matching children in loaded order with id, status, then title", async () => {
+    it("renders matching children in priority/created order with id, status, then title", async () => {
       const user = userEvent.setup();
-      // `allIssues` order is intentionally not sorted: this proves the
-      // section preserves the source order from the loaded collection.
+      // `allIssues` order is intentionally not the priority/date order:
+      // the section reorders matching children by priority ascending,
+      // then `created` ascending. The Issue List itself must still
+      // render rows in the loaded (incoming) order.
       const parent = buildIssue({
         id: "bsm-parent",
         parent: "",
         status: "open",
         title: "Parent epic",
       });
-      const secondChild = buildIssue({
-        id: "bsm-parent.2",
+      // P1 with a newer created timestamp — should appear after the
+      // older P1, before any P2/P4 children.
+      const newerP1Child = buildIssue({
+        created: "2026-07-10T00:00:00Z",
+        id: "bsm-parent.p1-newer",
         parent: "bsm-parent",
+        priority: 1,
         status: "in_progress",
-        title: "Second child task",
+        title: "Newer P1 task",
       });
-      const firstChild = buildIssue({
-        id: "bsm-parent.1",
+      // P1 with an older created timestamp — should appear first.
+      const olderP1Child = buildIssue({
+        created: "2026-07-01T00:00:00Z",
+        id: "bsm-parent.p1-older",
         parent: "bsm-parent",
+        priority: 1,
+        status: "in_progress",
+        title: "Older P1 task",
+      });
+      // P4 with a default created timestamp — must come after every
+      // P0/P1/P2 entry, regardless of `created`.
+      const p4Child = buildIssue({
+        id: "bsm-parent.p4",
+        parent: "bsm-parent",
+        priority: 4,
         status: "open",
-        title: "First child task",
+        title: "Low-priority task",
+      });
+      // P2 with an older created timestamp — must follow both P1s.
+      const p2Child = buildIssue({
+        created: "2026-07-02T00:00:00Z",
+        id: "bsm-parent.p2",
+        parent: "bsm-parent",
+        priority: 2,
+        status: "open",
+        title: "Default-priority task",
       });
       const unrelated = buildIssue({
         id: "bsm-other",
@@ -1141,7 +1177,14 @@ describe("IssueExplorer", () => {
         title: "Unrelated Issue",
       });
 
-      renderExplorer([parent, secondChild, firstChild, unrelated]);
+      renderExplorer([
+        parent,
+        p4Child,
+        newerP1Child,
+        unrelated,
+        p2Child,
+        olderP1Child,
+      ]);
 
       await user.click(getRowButton(parent));
 
@@ -1152,40 +1195,33 @@ describe("IssueExplorer", () => {
         section.getByRole("heading", { level: 3, name: "Child Issues" })
       ).toBeInTheDocument();
 
-      // Only matching children appear, and only in `allIssues` order.
+      // Only matching children appear, ordered P1-oldest, P1-newer,
+      // P2, then P4. The unrelated Issue does not leak in.
       const list = section.getByRole("list", { name: "Child Issues" });
       const items = within(list).getAllByRole("listitem");
-      expect(items).toHaveLength(2);
-      expect(
-        within(items[0] as HTMLElement).getByText("bsm-parent.2")
-      ).toBeInTheDocument();
-      expect(
-        within(items[1] as HTMLElement).getByText("bsm-parent.1")
-      ).toBeInTheDocument();
-      // Unrelated Issue does not leak in.
+      expect(items).toHaveLength(4);
+      const orderedIds = items.map(
+        (item) =>
+          within(item as HTMLElement).getByText(/^bsm-parent\./u).textContent ??
+          ""
+      );
+      expect(orderedIds).toEqual([
+        "bsm-parent.p1-older",
+        "bsm-parent.p1-newer",
+        "bsm-parent.p2",
+        "bsm-parent.p4",
+      ]);
       expect(section.queryByText("Unrelated Issue")).toBeNull();
 
       // Each entry exposes id, humanized status badge, and title in that order.
       const firstItem = items[0] as HTMLElement;
       const firstItemText = firstItem.textContent ?? "";
-      expect(firstItemText.indexOf("bsm-parent.2")).toBeLessThan(
+      expect(firstItemText.indexOf("bsm-parent.p1-older")).toBeLessThan(
         firstItemText.indexOf("In Progress")
       );
       expect(firstItemText.indexOf("In Progress")).toBeLessThan(
-        firstItemText.indexOf("Second child task")
+        firstItemText.indexOf("Older P1 task")
       );
-
-      const secondItem = items[1] as HTMLElement;
-      const secondItemText = secondItem.textContent ?? "";
-      expect(secondItemText.indexOf("bsm-parent.1")).toBeLessThan(
-        secondItemText.indexOf("Open")
-      );
-      expect(secondItemText.indexOf("Open")).toBeLessThan(
-        secondItemText.indexOf("First child task")
-      );
-
-      // No explicit empty-state copy when the list is populated.
-      expect(section.queryByText("No Child Issues")).toBeNull();
 
       // Entries are read-only: no links, buttons, or clickable surfaces.
       expect(section.queryByRole("link")).toBeNull();
@@ -1202,9 +1238,23 @@ describe("IssueExplorer", () => {
         "Child Issues",
         "Other metadata",
       ]);
+
+      // The Issue List rows themselves remain in their loaded order:
+      // the derived reordering of children must not have mutated the
+      // shared `allIssues` collection. The unrelated Issue sits
+      // between two children in the input, which is also the order
+      // the list renders.
+      expect(getRenderedIssueIds()).toEqual([
+        "bsm-parent",
+        "bsm-parent.p4",
+        "bsm-parent.p1-newer",
+        "bsm-other",
+        "bsm-parent.p2",
+        "bsm-parent.p1-older",
+      ]);
     });
 
-    it("renders the explicit empty state for an Issue with no loaded children", async () => {
+    it("omits the Child Issues section entirely when no children exist", async () => {
       const user = userEvent.setup();
       const issue = buildIssue({
         id: "bsm-no-children",
@@ -1214,25 +1264,41 @@ describe("IssueExplorer", () => {
       const unrelated = buildIssue({
         id: "bsm-other",
         parent: "bsm-other-parent",
-        title: "Unrelated",
+        title: "Unrelated Issue",
       });
 
       renderExplorer([issue, unrelated]);
 
       await user.click(getRowButton(issue));
 
-      const section = getChildIssuesSection();
+      // The Issue Detail scope is the selected Issue's `<main>` only;
+      // this guards against accidental matches in the Issue List
+      // (which is separate and renders the issues themselves).
+      const detail = getDetail();
 
-      // The section is still present even when there are no children.
+      // No Child Issues heading is rendered.
       expect(
-        section.getByRole("heading", { level: 3, name: "Child Issues" })
-      ).toBeInTheDocument();
+        detail.queryByRole("heading", { level: 3, name: "Child Issues" })
+      ).toBeNull();
 
-      // Exact empty-state copy locked by the bead.
-      expect(section.getByText("No Child Issues")).toBeInTheDocument();
+      // No "No Child Issues" empty-state copy is rendered anywhere in
+      // the detail — neither as the section body nor as a fallback.
+      expect(detail.queryByText("No Child Issues")).toBeNull();
 
-      // No list rendered for the empty state.
-      expect(section.queryByRole("list", { name: "Child Issues" })).toBeNull();
+      // No Child Issues list is rendered.
+      expect(detail.queryByRole("list", { name: "Child Issues" })).toBeNull();
+
+      // The section flow for an Issue without children skips straight
+      // from Dependencies to Other metadata; Comments is absent
+      // because the lonely Issue has no comments either.
+      expect(getDetailSectionFlow()).toEqual([
+        "title/header",
+        "primary metadata",
+        "Labels",
+        "Description",
+        "Dependencies",
+        "Other metadata",
+      ]);
     });
 
     it("derives children from the successful allIssues collection even when a non-All view is active", async () => {
