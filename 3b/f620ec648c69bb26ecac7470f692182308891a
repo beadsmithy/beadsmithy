@@ -1,0 +1,29 @@
+src/components/mermaid/use-mermaid-source-render.ts
+  s_be1dfdb4cc7c72::t_fce374882127cc 1-42
+src/lib/use-external-lifecycle.ts
+  s_be1dfdb4cc7c72::t_f564b80b9b30d1 3-4,8-9,11-29,31-35,37
+  s_be1dfdb4cc7c72::t_cb16eaeceec59c 30,36
+  s_be1dfdb4cc7c72::t_0670c7c79881aa 5-7,10
+  s_be1dfdb4cc7c72::t_e45402c52307a2 1-2
+src/lib/use-mount-effect.ts
+  s_be1dfdb4cc7c72::t_a3a28021f4837a 1-2
+  s_be1dfdb4cc7c72::t_d2f606a8b77799 5-6,8-9,11-13,15-16
+src/components/mermaid/MermaidDiagram.tsx
+  s_be1dfdb4cc7c72::t_49bdf30fa2718e 4,8,223-232
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.14",
+  "base_commit_sha": "3bf620ec648c69bb26ecac7470f692182308891a",
+  "prompts": {},
+  "sessions": {
+    "s_be1dfdb4cc7c72": {
+      "agent_id": {
+        "tool": "pi",
+        "id": "019f7967-22a8-73f2-95b0-eda2f00feff4",
+        "model": "gpt-5.6-luna"
+      },
+      "human_author": "Tomas Thor Jonsson <benregn@gmail.com>"
+    }
+  }
+}
