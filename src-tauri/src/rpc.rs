@@ -13,6 +13,9 @@ use tauri::Emitter;
 #[cfg(test)]
 use crate::issues::CommandRunner;
 use crate::issues::{self, ListIssuesError, ProcessRunner};
+use crate::refresh::{
+    start_refresh_task, IssueExplorerRefreshEvent, PublishOutcome, ISSUE_EXPLORER_REFRESH_EVENT,
+};
 use crate::settings::{
     AppSettings, AppSettingsError, AppSettingsState, AppSettingsUpdate, SettingsService,
     TauriAppSettingsStore,
@@ -39,11 +42,12 @@ pub struct WorkspaceTransition {
 }
 
 /// In-memory data is only published after the workspace service's durable
+/// In-memory data is only published after the workspace service's durable
 /// Current commit. It lets Issue Explorer reload without accepting a path.
-struct WorkspaceRuntime {
+pub(crate) struct WorkspaceRuntime {
     app: tauri::AppHandle<tauri::Wry>,
-    service: WorkspaceService<TauriWorkspaceStore<tauri::Wry>>,
-    snapshot: Option<IssueExplorerData>,
+    pub(crate) service: WorkspaceService<TauriWorkspaceStore<tauri::Wry>>,
+    pub(crate) snapshot: Option<IssueExplorerData>,
 }
 
 fn emit_transition(
@@ -248,6 +252,15 @@ impl BeadsmithApiImpl {
         });
     }
 
+    /// Spawn the process-lifetime refresh coordinator task. Must be
+    /// called once from Tauri setup after [`initialize_workspace`] so
+    /// the runtime mutex exists before the scheduler's first probe.
+    /// The first tick is delayed by `PROBE_INTERVAL` so the renderer
+    /// has time to register its listener before any event can fire.
+    pub fn start_refresh(&self) {
+        let _ = start_refresh_task(self.workspace.clone());
+    }
+
     fn with_runtime<T>(&self, operation: impl FnOnce(&mut WorkspaceRuntime) -> T) -> T {
         let mut runtime = self
             .workspace
@@ -351,7 +364,8 @@ impl BeadsmithApi for BeadsmithApiImpl {
                 .as_ref()
                 .map(|workspace| workspace.path.as_str())
                 .unwrap_or_default();
-            Ok(workspace_data_response(data, path))
+            let generation = state.generation;
+            Ok(workspace_data_response(data, path, generation))
         })
     }
 
@@ -429,7 +443,8 @@ impl BeadsmithApi for BeadsmithApiImpl {
             )?;
             let state =
                 committed_state.expect("a successful switch must emit its commit transition");
-            let issue_data = workspace_data_response(&data, validated.path.as_str());
+            let issue_data =
+                workspace_data_response(&data, validated.path.as_str(), state.generation);
             Ok((runtime.app.clone(), state, issue_data))
         });
         let (app, state, issue_data) = match result {
@@ -484,10 +499,11 @@ impl BeadsmithApi for BeadsmithApiImpl {
             runtime.snapshot = snapshot.clone();
             let state = runtime.service.state().clone();
             let app = runtime.app.clone();
-            let issue_data = snapshot
-                .as_ref()
-                .zip(state.current_workspace.as_ref())
-                .map(|(data, workspace)| workspace_data_response(data, workspace.path.as_str()));
+            let issue_data = snapshot.as_ref().zip(state.current_workspace.as_ref()).map(
+                |(data, workspace)| {
+                    workspace_data_response(data, workspace.path.as_str(), state.generation)
+                },
+            );
             (state, app, issue_data)
         });
         if let Some(issue_data) = issue_data.as_ref() {
@@ -565,11 +581,102 @@ fn cancel_response_issue_data(
     had_pending: bool,
 ) -> Option<LoadIssueExplorerDataResponse> {
     if !had_pending && state.current_workspace.is_some() {
-        snapshot
-            .zip(state.current_workspace.as_ref())
-            .map(|(data, workspace)| workspace_data_response(data, workspace.path.as_str()))
+        snapshot.zip(state.current_workspace.as_ref()).map(|(data, workspace)| {
+            workspace_data_response(data, workspace.path.as_str(), state.generation)
+        })
     } else {
         None
+    }
+}
+
+/// Bind the refresh coordinator to the Current Workspace under the
+/// runtime lock. Returns `Some((workspace_path, selection_generation))`
+/// only when a Current Workspace exists and no Pending transition is
+/// in flight. A Pending or absent Current returns `None`; the
+/// coordinator must not probe or load in that state.
+pub(crate) fn current_workspace_binding(
+    runtime: &WorkspaceRuntime,
+) -> Option<(PathBuf, u32)> {
+    let state = runtime.service.state();
+    let path = state.current_workspace.as_ref()?.path.clone();
+    if state.pending_workspace.is_some() {
+        return None;
+    }
+    Some((PathBuf::from(path), state.generation))
+}
+
+/// Publish a successful refresh load: verify the binding still matches
+/// the current runtime, replace the snapshot, build the event payload
+/// in one critical section, then emit after releasing the lock.
+///
+/// Returns the publication outcome so the coordinator can advance
+/// `last_published_sha` only when the snapshot was admitted and the
+/// renderer was actually notified.
+pub(crate) fn publish_loaded_snapshot(
+    runtime: &mut WorkspaceRuntime,
+    binding_path: &Path,
+    binding_generation: u32,
+    observed_sha: &str,
+    refresh_revision: u64,
+    data: IssueExplorerData,
+) -> PublishOutcome {
+    let event: Option<IssueExplorerRefreshEvent> = {
+        let state = runtime.service.state();
+        let current_path = state
+            .current_workspace
+            .as_ref()
+            .map(|workspace| workspace.path.clone());
+        let current_generation = state.generation;
+        let matches = current_path
+            .as_deref()
+            .is_some_and(|path| Path::new(path) == binding_path)
+            && current_generation == binding_generation;
+
+        if !matches {
+            return PublishOutcome::Discarded;
+        }
+        if state.pending_workspace.is_some() {
+            // A Pending transition arrived while the load was running.
+            // Discard: the next probe will retry against the new Current.
+            return PublishOutcome::Discarded;
+        }
+
+        let path_string = current_path.expect("matches branch guarantees current_path");
+        runtime.snapshot = Some(data.clone());
+        let response = workspace_data_response(&data, path_string.as_str(), current_generation);
+        Some(IssueExplorerRefreshEvent {
+            issue_data: response,
+            observed_ref_sha: observed_sha.to_string(),
+            refresh_revision,
+            workspace_path: path_string,
+            workspace_selection_generation: current_generation,
+        })
+    };
+
+    let Some(event) = event else {
+        return PublishOutcome::Discarded;
+    };
+
+    // Clone the AppHandle here so the emit happens outside the runtime
+    // lock; the AppHandle's `Emit` trait is not bound to the runtime
+    // mutex and the lock must be released before any cross-task work.
+    let app = runtime.app.clone();
+    match app.emit(ISSUE_EXPLORER_REFRESH_EVENT, event) {
+        Ok(()) => PublishOutcome::Published,
+        Err(error) => {
+            log::error!(
+                target: "beadsmith::refresh",
+                "failed to emit `{}` (revision={}, sha={}): {}",
+                ISSUE_EXPLORER_REFRESH_EVENT,
+                refresh_revision,
+                observed_sha,
+                error,
+            );
+            // Snapshot is already updated so later `load_issue_explorer_data`
+            // reads stay fresh, but the SHA is retryable so the next probe
+            // re-emits the same snapshot to a reachable renderer.
+            PublishOutcome::EmitFailed
+        }
     }
 }
 
@@ -680,11 +787,18 @@ pub struct ListIssuesResponse {
 }
 
 /// Successful Issue Explorer RPC payload containing Beadwork-authored base views.
+///
+/// `workspace_generation` is the [`WorkspaceState::generation`] that owned
+/// the snapshot at construction time. It is captured under the same runtime
+/// lock as `workspace_path` and the Beadwork views so the renderer can pair
+/// the snapshot with the matching selection generation atomically, instead of
+/// racing two separately-completing IPC reads.
 #[taurpc::ipc_type]
 #[derive(Debug, PartialEq, Eq)]
 #[serde(rename_all = "camelCase")]
 pub struct LoadIssueExplorerDataResponse {
     pub workspace_path: String,
+    pub workspace_generation: u32,
     pub all_issues: Vec<Issue>,
     pub ready_issues: Vec<Issue>,
     pub blocked_issues: Vec<Issue>,
@@ -750,9 +864,11 @@ pub struct IssueListError {
 fn workspace_data_response(
     data: &IssueExplorerData,
     workspace_path: &str,
+    workspace_generation: u32,
 ) -> LoadIssueExplorerDataResponse {
     LoadIssueExplorerDataResponse {
         workspace_path: workspace_path.to_string(),
+        workspace_generation,
         all_issues: map_issue_collection(data.all_issues.clone()),
         ready_issues: map_issue_collection(data.ready_issues.clone()),
         blocked_issues: map_issue_collection(data.blocked_issues.clone()),
@@ -866,6 +982,7 @@ fn load_issue_explorer_data_from_adapter(
     );
     Ok(LoadIssueExplorerDataResponse {
         workspace_path: workspace.display().to_string(),
+        workspace_generation: 0,
         all_issues,
         ready_issues,
         blocked_issues,

@@ -12,6 +12,13 @@ export interface IssueLoadError {
 
 export interface IssueExplorerData {
   workspacePath: string;
+  /**
+   * Backend `WorkspaceState.generation` that owned this snapshot at the
+   * moment it was built. The renderer pairs this with the rendered
+   * Workspace identity so refresh events for a previous selection cannot
+   * silently overwrite the current one.
+   */
+  workspaceGeneration: number;
   allIssues: Issue[];
   readyIssues: Issue[];
   blockedIssues: Issue[];
@@ -70,6 +77,7 @@ const toIssueExplorerSuccessState = (
   blockedIssues: response.blockedIssues,
   readyIssues: response.readyIssues,
   status: "success",
+  workspaceGeneration: response.workspaceGeneration,
   workspacePath: response.workspacePath,
 });
 
