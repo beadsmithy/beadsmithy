@@ -1,0 +1,110 @@
+src/App.issue-refresh.test.tsx
+  s_6fb984dda49892::t_f9fdcd2458bedc 1
+  s_6fb984dda49892::t_6252131b847d35 2-126,132-164,166-177,183-219,226-228,230-231,233,235-247,249,268,270,273-280,286-325,331-386,392-434,440-496,499-500
+  s_6fb984dda49892::t_1acf02b5e4eb55 220-225,229,232,248,250-267,269,271-272
+  s_6fb984dda49892::t_a45d59ff96e2d3 127-131,165,178-182,234,281-285,326-330,387-391,435-439
+  s_6fb984dda49892::t_37828d5a84c719 497-498,501-502
+src-tauri/src/lib.rs
+  s_6fb984dda49892::t_be9de7e78d11b4 9
+  s_6fb984dda49892::t_872c58c5837a24 79
+src/test/app-workspace-fixtures.ts
+  s_6fb984dda49892::t_76bcff733c358d 63-67,69,72
+  s_6fb984dda49892::t_e1a6c20015c4f1 2-6,19-36
+  s_6fb984dda49892::t_c42570a179c570 45-50,53,56-58,68,70
+  s_6fb984dda49892::t_b86a0535d40e20 38-44,51-52,54-55,71,73-74
+  s_6fb984dda49892::t_c48981de950dfd 59-62
+  s_6fb984dda49892::t_daa7acf6e7e352 101,108
+  s_6fb984dda49892::t_12f609a2edf213 37
+src/issues/issue-loader.ts
+  s_6fb984dda49892::t_387e8dba017059 15-21,80
+src/workspaces/transition-gate.ts
+  s_6fb984dda49892::t_9db463a17167ef 306-312,318-320
+  s_6fb984dda49892::t_c134596ccc86d8 211-267,297-298,300-302,304
+  s_6fb984dda49892::t_72590d642fb5f4 344-347,367-368,383-500
+  s_6fb984dda49892::t_61beb709c04b41 45-57,64-65,78,80
+  s_6fb984dda49892::t_fad2e4974b3654 305,325,343
+src/App.workspace-switching.test.tsx
+  s_6fb984dda49892::t_2991ff6f46ce10 250
+  s_6fb984dda49892::t_71acf2022836e7 11,82-83,99,103,121,179-180,212,222,273-274,313,324,344
+src/issues/issue-list-view.test.ts
+  s_6fb984dda49892::t_f6c2edd5e02700 41,55,62
+src/App.tsx
+  s_6fb984dda49892::t_b4a91ce45535f1 251-253
+  s_6fb984dda49892::t_582b5c8319bfaf 26,33,39,96-117
+  s_6fb984dda49892::t_015da2098c83fd 183-193,200,202,204-250,255,258-259,261
+  s_6fb984dda49892::t_9bd64b04ec01b1 118-119
+src/issues/IssueExplorer.test.tsx
+  s_6fb984dda49892::t_83aa992ece17c3 40-41,47
+src/issues/issue-explorer-state.test.ts
+  s_6fb984dda49892::t_8fc7a19299da2e 47,54
+docs/agents/webdriver-e2e.md
+  s_6fb984dda49892::t_1ef52243ff88aa 163-168
+  s_6fb984dda49892::t_fb0d5343637e00 46-50
+e2e/issue-list/fixtures/workspace.ts
+  s_6fb984dda49892::t_41b26e6d0d2c13 354-410
+e2e/issue-list/helpers/sidebar.ts
+  s_6fb984dda49892::t_5c32e1aa0b049c 81-82,84-86,97-106
+e2e/issue-list/issue-list.success.spec.ts
+  s_6fb984dda49892::t_9d7a18ff0715de 266-267
+  s_6fb984dda49892::t_aef65c17fd73ad 20-21,25,222-235,237-265
+  s_6fb984dda49892::t_39dc57f9d4e07c 236
+  s_6fb984dda49892::t_004c846aa28b51 268-269
+src/workspaces/transition-gate.test.ts
+  s_6fb984dda49892::t_8483b65ce077c8 5,70-88
+  s_6fb984dda49892::t_33f650a2f96771 12
+  s_6fb984dda49892::t_1b559ab6c28943 140,563,565,632,666,702,704
+  s_6fb984dda49892::t_c7ba455f6167e2 46
+  s_6fb984dda49892::t_e9cadd21b51b3a 89-91,710-977
+docs/adr/0007-refresh-issue-list-by-polling-beadwork-ref.md
+  s_6fb984dda49892::t_1b948b60e53f05 24,40
+src-tauri/src/refresh/tests.rs
+  s_6fb984dda49892::t_eed765d781a786 1-31,33-201,207-366
+  s_6fb984dda49892::t_4b44ec88ca84bc 202-206
+  s_6fb984dda49892::t_20192d2ab6ed15 32
+src-tauri/src/rpc.rs
+  s_6fb984dda49892::t_aa9bc0e12e8072 367-368,446-447,502-506,584-586
+  s_6fb984dda49892::t_a332798cb5fe52 790-795,801,867,871,985
+  s_6fb984dda49892::t_0a3299ba61dd73 47,49-50
+  s_6fb984dda49892::t_21e38cd86de655 623,636-638,641,643-653,656-678
+  s_6fb984dda49892::t_86ac8aa1f9ff4b 592-622,624-635,639-640,642,654-655,679-682
+  s_6fb984dda49892::t_7ac17f6f9254fe 255-263
+  s_6fb984dda49892::t_46368bb2396153 16-18
+  s_6fb984dda49892::t_6adb0fda1b018f 44
+src-tauri/src/refresh.rs
+  s_6fb984dda49892::t_5f0c963d31c466 41
+  s_6fb984dda49892::t_7cf87bce3fa272 578-579
+  s_6fb984dda49892::t_ca63066b64cfe6 557-564,574
+  s_6fb984dda49892::t_cfa0ffe1f2e4f0 40,44-45,48-49,332-349,351-404,419-460,479-509,511-527,529-534,536-556,565-573,575
+  s_6fb984dda49892::t_c892a265bd6d65 47
+  s_6fb984dda49892::t_d4d50b0143761c 1-39,42-43,46,50-221,226-244,246-250,252,255,260-261,267-283,285-301,303-308,310-331,576-577
+  s_6fb984dda49892::t_10af72c7e5ba97 510,528,535
+  s_6fb984dda49892::t_f359250c2f2459 405-418,461-478
+  s_6fb984dda49892::t_370910f79e8a35 222-225,245,251,253-254,256-259,262-266,284,302,309
+  s_6fb984dda49892::t_1d71fbc91bbc28 350
+src/issues/issue-loader.test.ts
+  s_6fb984dda49892::t_2347f3226cf395 69,77,88,96,110
+src/App.workspace-recovery.test.tsx
+  s_6fb984dda49892::t_2e06a1e85d6ba0 559,873
+  s_6fb984dda49892::t_de00e26ffa0cdf 11
+  s_6fb984dda49892::t_69a3b6f45018f5 280,282,322,340,362,364,400,412,444,446,482,508,517,763,765,802,818,827
+src-tauri/src/rpc/tests.rs
+  s_6fb984dda49892::t_a3138bb80bf886 653
+src/rpc/bindings.ts
+  s_6fb984dda49892::t_d1c0bd535c3986 72-77,79
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.14",
+  "base_commit_sha": "3c572098c60c904e1399a664c7d25ec6f6313645",
+  "prompts": {},
+  "sessions": {
+    "s_6fb984dda49892": {
+      "agent_id": {
+        "tool": "pi",
+        "id": "019f7c31-7802-740d-a6e1-8085d4f1149d",
+        "model": "MiniMax-M3"
+      },
+      "human_author": "Tomas Thor Jonsson <benregn@gmail.com>"
+    }
+  }
+}
