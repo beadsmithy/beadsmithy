@@ -1,5 +1,5 @@
 {
-  "assignee": "",
+  "assignee": "Tomas Thor Jonsson",
   "blocked_by": [
     "bsm-nd7.1"
   ],
@@ -18,8 +18,8 @@
     }
   ],
   "priority": 2,
-  "status": "open",
+  "status": "in_progress",
   "title": "Polish Child Issue ordering and empty-state visibility",
   "type": "task",
-  "updated_at": "2026-07-19T10:21:23Z"
+  "updated_at": "2026-07-19T13:36:04Z"
 }
