@@ -1,10 +1,16 @@
 import {
   AlertTriangle,
+  CheckCircle2,
+  Circle,
+  CircleSlash,
+  Clock,
   FileText,
   Inbox,
   LoaderCircle,
+  PlayCircle,
   Search,
 } from "lucide-react";
+import type { LucideIcon } from "lucide-react";
 import { useMemo, useState } from "react";
 
 import type { ExternalLinkOpener } from "../components/external-link-opener";
@@ -25,12 +31,20 @@ import type { IssueTone } from "./issue-view";
 
 const EMPTY_CHILD_ISSUES: Issue[] = [];
 
-const TONE_DOT_CLASSES: Record<IssueTone, string> = {
-  blocked: "bg-danger",
-  closed: "bg-success",
-  deferred: "border border-muted bg-surface",
-  inProgress: "bg-accent",
-  open: "border border-muted bg-background",
+const ISSUE_TONE_ICONS: Record<IssueTone, LucideIcon> = {
+  blocked: CircleSlash,
+  closed: CheckCircle2,
+  deferred: Clock,
+  inProgress: PlayCircle,
+  open: Circle,
+};
+
+const ISSUE_TONE_ICON_CLASSES: Record<IssueTone, string> = {
+  blocked: "text-danger",
+  closed: "text-success",
+  deferred: "text-muted",
+  inProgress: "text-accent",
+  open: "text-muted",
 };
 
 const TONE_BADGE_CLASSES: Record<IssueTone, string> = {
@@ -55,6 +69,7 @@ const IssueRow = ({
   onSelect: (issueId: string) => void;
 }) => {
   const view = toIssueViewModel(issue);
+  const ToneIcon = ISSUE_TONE_ICONS[view.tone];
   const rowContainerClassName = isSelected
     ? `border-b border-border-main ${SELECTED_ROW_CLASSES}`
     : "border-b border-border-main";
@@ -75,17 +90,12 @@ const IssueRow = ({
           type="button"
         >
           <div className="mb-1.5 flex min-w-0 items-center gap-2">
-            <div
+            <ToneIcon
               aria-hidden="true"
-              className={`size-1.5 shrink-0 rounded-full ${TONE_DOT_CLASSES[view.tone]}`}
+              className={`size-4 shrink-0 ${ISSUE_TONE_ICON_CLASSES[view.tone]}`}
             />
             <span className="shrink-0 font-mono text-[12px] text-muted">
               {view.id}
-            </span>
-            <span
-              className={`shrink-0 rounded-full border px-1.5 py-0.5 font-mono text-[10px] ${TONE_BADGE_CLASSES[view.badgeTone]}`}
-            >
-              {view.statusLabel}
             </span>
           </div>
           <h3 className="truncate text-[13px] font-medium text-text-main">
