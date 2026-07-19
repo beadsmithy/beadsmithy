@@ -1,0 +1,15 @@
+{
+  "assignee": "",
+  "blocked_by": [],
+  "blocks": [],
+  "created": "2026-07-19T08:11:24Z",
+  "description": "## Background\nThe no-useEffect migration introduced `MermaidSourceRender` in `src/components/mermaid/MermaidDiagram.tsx`. It returns `null`, performs the asynchronous `renderMermaid` lifecycle solely to call parent setters, and is keyed only to manufacture a remount boundary. This is a shallow React component seam: it has no UI and delegates all presentation state back to `MermaidDiagram`.\n\n## Evaluation and plan\nReplace the null-returning component with a purpose-built `useMermaidSourceRender` hook. The hook will own the asynchronous Mermaid request and its active/unmounted stale-result guard; its small interface will report successful SVG output or a normalized error to the presentation component. Use the dependency-aware external-lifecycle helper with `[source, onRendered, onError]` so a source change is a real reactive rebind rather than an implicit mount-only assumption. Memoize the parent result callbacks so the hook does not restart for ordinary renders.\n\nKeep the visible tab, loading, error, source, and SVG viewport UI in `MermaidDiagram`. Keep the keyed `MermaidDiagramViewport` mount boundary because it owns the imperative DOM/Panzoom lifecycle. Remove the `MermaidSourceRender` key and component entirely; source changes should reset render state synchronously and let the hook restart from the current source.\n\n## Acceptance criteria\n- [ ] No null-returning `MermaidSourceRender` component remains.\n- [ ] Mermaid source rendering is encapsulated by a named custom hook with an explicit source/callback interface.\n- [ ] Every source renders, successful output selects Diagram, and failures select Source with the complete error message.\n- [ ] A stale render cannot update state after a source change or unmount.\n- [ ] Existing SVG mounting, Panzoom controls, cleanup, and source-change behavior remain intact.\n- [ ] Mermaid component tests cover success, failure, stale completion, unmount completion, and Panzoom cleanup.\n- [ ] Typecheck, lint, and focused tests pass.\n\n## Verification\n- `pnpm exec vitest run src/components/mermaid/MermaidDiagram.test.tsx`\n- `pnpm build`\n- `pnpm check`\n\nTriage: planned for implementation on `bsm-gbd/eliminate-direct-useeffect`.",
+  "id": "bsm-gbd.9",
+  "labels": [],
+  "parent": "bsm-gbd",
+  "priority": 2,
+  "status": "open",
+  "title": "Replace Mermaid source lifecycle middleman with a render hook",
+  "type": "bug",
+  "updated_at": "2026-07-19T08:11:24Z"
+}
