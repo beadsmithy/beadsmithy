@@ -746,6 +746,16 @@ mod tests;
 
 /// Backend-owned adapter for the supported Tauri store plugin. The frontend
 /// never receives direct store access.
+///
+/// Persistence is treated as a single-shot transaction: a save or reset that
+/// fails to flush its mutation must restore the previously committed snapshot
+/// before returning, so a later successful save, auto-save, restart, or
+/// shutdown flush cannot republish a rejected Current Workspace, MRU
+/// promotion, catalog mutation, or explicit reset. To eliminate the auto-save
+/// race that would otherwise write the rejected mutation mid-rollback, the
+/// store handle is built with auto-save disabled — the only path that writes
+/// to disk for this resource is the explicit, serialized `save`/`reset`
+/// call below.
 pub struct TauriWorkspaceStore<R: tauri::Runtime> {
     app: tauri::AppHandle<R>,
 }
@@ -767,8 +777,27 @@ impl<R: tauri::Runtime> TauriWorkspaceStore<R> {
     fn store(&self) -> Result<std::sync::Arc<tauri_plugin_store::Store<R>>, String> {
         use tauri_plugin_store::StoreExt;
         self.app
-            .store(self.store_path())
+            .store_builder(self.store_path())
+            .disable_auto_save()
+            .build()
             .map_err(|error| error.to_string())
+    }
+
+    /// Restore the previously committed serialized snapshot in the plugin
+    /// store's in-memory cache, then attempt to flush that rollback so the
+    /// next flush cannot republish the rejected mutation. A secondary flush
+    /// failure is intentionally swallowed: the cache is already correct, and
+    /// the original error is what the caller needs to surface.
+    fn rollback(&self, store: &tauri_plugin_store::Store<R>, prior: Option<&serde_json::Value>) {
+        match prior {
+            Some(prior_value) => {
+                store.set("workspaceState", prior_value.clone());
+            }
+            None => {
+                store.delete("workspaceState");
+            }
+        }
+        let _ = store.save();
     }
 }
 
@@ -786,17 +815,36 @@ impl<R: tauri::Runtime> WorkspaceStore for TauriWorkspaceStore<R> {
     fn save(&self, state: &PersistedWorkspaceState) -> Result<(), String> {
         let value = serde_json::to_value(state).map_err(|error| error.to_string())?;
         let store = self.store()?;
+        // Snapshot the previously committed value before mutating the
+        // plugin-store cache. A failed final flush must roll this back so
+        // the rejected proposal cannot be republished by the service lock
+        // being released, a later save attempt, an auto-save, a restart, or
+        // the RunEvent::Exit flush.
+        let prior = store.get("workspaceState");
         store.set("workspaceState", value);
-        store.save().map_err(|error| error.to_string())
+        if let Err(error) = store.save() {
+            self.rollback(&store, prior.as_ref());
+            return Err(error.to_string());
+        }
+        Ok(())
     }
 
     fn reset(&self) -> Result<(), String> {
         match self.store() {
             Ok(store) => {
-                store.clear();
-                store.save().map_err(|error| error.to_string())
+                let prior = store.get("workspaceState");
+                store.delete("workspaceState");
+                if let Err(error) = store.save() {
+                    self.rollback(&store, prior.as_ref());
+                    return Err(error.to_string());
+                }
+                Ok(())
             }
             Err(_) => {
+                // Fallback when the plugin's resource table cannot serve a
+                // Store for this path (early lifecycle or migration races).
+                // No mutation is possible here, so failure to unlink simply
+                // surfaces and the prior on-disk state remains authoritative.
                 use tauri::{path::BaseDirectory, Manager};
                 let store_path = self.store_path();
                 let path = if store_path.is_absolute() {

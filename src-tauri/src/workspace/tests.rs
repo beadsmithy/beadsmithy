@@ -107,6 +107,80 @@ impl WorkspaceStore for PersistentTestStore {
     }
 }
 
+/// A persistable store with an injectable failure queue, used to prove the
+/// transactional guarantee for `WorkspaceStore::save` and `reset`. A failed
+/// save does not mutate the persistent image, so a later `load` (or a fresh
+/// `WorkspaceService::from_store` over the same handle) observes the prior
+/// committed state — never the rejected proposal.
+#[derive(Clone, Default)]
+struct TransactingTestStore {
+    state: std::rc::Rc<RefCell<Option<PersistedWorkspaceState>>>,
+    failures: std::rc::Rc<RefCell<VecDeque<String>>>,
+    /// Targeted failure: fails only the save call whose 1-indexed count
+    /// matches the configured threshold, with the supplied message. Stored
+    /// separately from `failures` so the two mechanisms cannot consume
+    /// each other.
+    fail_at_save: std::rc::Rc<RefCell<Option<(usize, String)>>>,
+    save_attempts: std::rc::Rc<RefCell<usize>>,
+    reset_attempts: std::rc::Rc<RefCell<usize>>,
+}
+
+impl TransactingTestStore {
+    fn empty() -> Self {
+        Self::default()
+    }
+
+    fn load_inner(&self) -> Option<PersistedWorkspaceState> {
+        self.state.borrow().clone()
+    }
+
+    fn enqueue_failure(&self, error: impl Into<String>) {
+        self.failures.borrow_mut().push_back(error.into());
+    }
+
+    /// Fail only the `n`-th save call (1-indexed). Other saves proceed
+    /// normally. The targeted failure is independent of the FIFO failure
+    /// queue.
+    fn fail_nth_save(&self, n: usize, error: impl Into<String>) {
+        *self.fail_at_save.borrow_mut() = Some((n, error.into()));
+    }
+
+    fn save_count(&self) -> usize {
+        *self.save_attempts.borrow()
+    }
+}
+
+impl WorkspaceStore for TransactingTestStore {
+    fn load(&self) -> Result<Option<PersistedWorkspaceState>, String> {
+        Ok(self.state.borrow().clone())
+    }
+
+    fn save(&self, state: &PersistedWorkspaceState) -> Result<(), String> {
+        *self.save_attempts.borrow_mut() += 1;
+        let current = *self.save_attempts.borrow();
+        if let Some((threshold, message)) = self.fail_at_save.borrow().clone() {
+            if current == threshold {
+                return Err(message);
+            }
+        }
+        if let Some(error) = self.failures.borrow_mut().pop_front() {
+            return Err(error);
+        }
+        *self.state.borrow_mut() = Some(state.clone());
+        Ok(())
+    }
+
+    fn reset(&self) -> Result<(), String> {
+        *self.reset_attempts.borrow_mut() += 1;
+        if let Some(error) = self.failures.borrow_mut().pop_front() {
+            // Failed reset must leave the prior durable image in place.
+            return Err(error);
+        }
+        *self.state.borrow_mut() = None;
+        Ok(())
+    }
+}
+
 impl WorkspaceStore for FakeStore {
     fn load(&self) -> Result<Option<PersistedWorkspaceState>, String> {
         self.load_result.borrow().clone()
@@ -1438,5 +1512,348 @@ fn commit_loaded_phase_rejects_stale_generation() {
             .map(|w| w.path.as_str()),
         Some("/work/first"),
         "Current must remain A when the commit phase is stale"
+    );
+}
+
+// ---------------------------------------------------------------------------
+// bsm-njq.1 — Transactional failure-boundary tests
+//
+// A failed persistence operation must leave both service memory and the
+// durable store image at the previously committed value, so a later save,
+// reset, auto-save, or fresh load cannot republish the rejected mutation.
+// ---------------------------------------------------------------------------
+
+#[test]
+fn transactional_store_failed_save_leaves_prior_state_durable() {
+    let store = TransactingTestStore::empty();
+    let mut service = WorkspaceService::from_store(store.clone());
+
+    // Commit A so the durable image holds A.
+    service
+        .select_workspace(
+            &FakeRunner::with_outputs(command_outputs("/work/first")),
+            "/work/first",
+        )
+        .expect("first selection should succeed");
+    let committed_first = store
+        .load_inner()
+        .expect("first selection should be durable");
+    assert_eq!(
+        committed_first.current_workspace_path.as_deref(),
+        Some("/work/first")
+    );
+
+    // Queue a failure for the validated-candidate save of B.
+    store.enqueue_failure("disk full".to_string());
+    let error = service
+        .select_workspace(
+            &FakeRunner::with_outputs(command_outputs("/work/second")),
+            "/work/second",
+        )
+        .expect_err("candidate save should fail");
+    assert_eq!(error.kind, WorkspaceErrorKind::StoreSaveFailed);
+
+    // The durable image must still be the previously committed A; no part
+    // of the rejected B catalog mutation may have been published.
+    let after_failure = store
+        .load_inner()
+        .expect("durable image must still exist after a failed save");
+    assert_eq!(
+        after_failure.current_workspace_path.as_deref(),
+        Some("/work/first"),
+        "rejected B must not become Current durably"
+    );
+    assert_eq!(after_failure.catalog.len(), 1);
+    assert_eq!(after_failure.catalog[0].path, "/work/first");
+}
+
+#[test]
+fn transactional_store_failed_validated_candidate_save_leaves_prior_state_durable() {
+    // Validated-candidate save failure: `retain_validated` is the first
+    // commit phase and its `commit_proposed` save is the only one attempted
+    // (issue-load and `commit_loaded` are skipped). A retryable
+    // `storeSaveFailed` must leave the previously committed Current and
+    // catalog authoritative; the validated candidate and any partial
+    // catalog mutation must not survive the failure, and a follow-up load
+    // observes only the prior committed state.
+    let store = TransactingTestStore::empty();
+    let mut service = WorkspaceService::from_store(store.clone());
+    service
+        .select_workspace(
+            &FakeRunner::with_outputs(command_outputs("/work/first")),
+            "/work/first",
+        )
+        .expect("first selection should succeed");
+
+    // Fail the validated-candidate save. Only one failure is consumed
+    // because `commit_proposed` inside `retain_validated` is the first
+    // and only save attempted for this transaction — the issue-load
+    // and `commit_loaded` phases are skipped once retain_validated fails.
+    store.enqueue_failure("disk full".to_string());
+    let error = service
+        .select_workspace(
+            &FakeRunner::with_outputs(command_outputs("/work/second")),
+            "/work/second",
+        )
+        .expect_err("validated-candidate save should fail");
+    assert_eq!(error.kind, WorkspaceErrorKind::StoreSaveFailed);
+
+    // Durable image unchanged.
+    let durable = store.load_inner().expect("durable image must survive");
+    assert_eq!(
+        durable.current_workspace_path.as_deref(),
+        Some("/work/first"),
+        "old Current must remain authoritative after a failed validated-candidate save"
+    );
+    assert_eq!(durable.catalog.len(), 1);
+    assert_eq!(durable.catalog[0].path, "/work/first");
+
+    // A fresh load simulates restart: only the prior committed state loads.
+    let reloaded = WorkspaceService::from_store(store.clone());
+    let provisional = reloaded.state();
+    assert!(
+        provisional.current_workspace.is_none(),
+        "fresh load must not pre-publish Current; restore_current will validate"
+    );
+    assert_eq!(provisional.catalog.len(), 1);
+    assert_eq!(provisional.catalog[0].path, "/work/first");
+    assert_eq!(
+        provisional.error.as_ref().map(|e| &e.kind),
+        None,
+        "load itself is successful; only the proposed save failed"
+    );
+}
+
+#[test]
+fn transactional_store_failed_final_save_leaves_old_current_authoritative() {
+    // Final-save failure: `retain_validated` succeeds and durably extends
+    // the catalog with the validated candidate, but the second
+    // `commit_proposed` inside `commit_loaded` (the Current/MRU save)
+    // fails. The old Current must remain authoritative; the validated
+    // candidate's catalog entry must survive the failure because it was
+    // durably committed in `retain_validated`; the service must surface
+    // `storeSaveFailed` with the candidate exposed via `retry_workspace`;
+    // and a follow-up load must observe the catalog extension without a
+    // promoted Current.
+    //
+    // `select_workspace` issues two save calls per transaction (one each
+    // from `retain_validated` and `commit_loaded`). `fail_nth_save(4, _)`
+    // lets the first three saves through (initial-load setup + retained
+    // B) and only fails the fourth (commit_loaded's Current/MRU save),
+    // which is exactly the boundary under test.
+    let store = TransactingTestStore::empty();
+    let mut service = WorkspaceService::from_store(store.clone());
+    service
+        .select_workspace(
+            &FakeRunner::with_outputs(command_outputs("/work/first")),
+            "/work/first",
+        )
+        .expect("first selection should succeed");
+
+    // Saves 3 (retain_validated for B) and 4 (commit_loaded for B) are
+    // about to be called. We want save 3 to succeed and save 4 to fail.
+    store.fail_nth_save(4, "disk still full".to_string());
+    let error = service
+        .select_workspace(
+            &FakeRunner::with_outputs(command_outputs("/work/second")),
+            "/work/second",
+        )
+        .expect_err("final save should fail");
+    assert_eq!(error.kind, WorkspaceErrorKind::StoreSaveFailed);
+    assert_eq!(store.save_count(), 4);
+
+    // Durable catalog must reflect BOTH workspaces, because the validated
+    // candidate retention was durably committed before the final save
+    // failed. Current must remain A: the failed final-save left no
+    // promotion behind.
+    let durable = store
+        .load_inner()
+        .expect("durable image must survive a failed final save");
+    assert_eq!(
+        durable.current_workspace_path.as_deref(),
+        Some("/work/first"),
+        "old Current must remain authoritative after a failed final save"
+    );
+    assert_eq!(
+        durable.catalog.len(),
+        2,
+        "validated candidate must have been durably committed before the final save"
+    );
+    let catalog_paths: Vec<&str> = durable.catalog.iter().map(|w| w.path.as_str()).collect();
+    assert_eq!(catalog_paths, vec!["/work/first", "/work/second"]);
+
+    // Service state mirrors the durable view: Current stays A, the
+    // validated candidate is surfaced for Retry because the failure was a
+    // post-validation final save.
+    let state = service.state();
+    assert_eq!(
+        state.current_workspace.as_ref().map(|w| w.path.as_str()),
+        Some("/work/first"),
+        "service Current must remain A after a failed final B save"
+    );
+    assert_eq!(
+        state.retry_workspace.as_ref().map(|w| w.path.as_str()),
+        Some("/work/second"),
+        "Retry must still expose the validated candidate after a final-save failure"
+    );
+
+    // A fresh load simulates restart: only the prior committed durable
+    // state loads, with B retained as a known candidate and A as the
+    // provisional Current Pending restore_current validation.
+    let reloaded = WorkspaceService::from_store(store.clone());
+    let provisional = reloaded.state();
+    assert!(
+        provisional.current_workspace.is_none(),
+        "fresh load must not pre-publish Current; restore_current will validate"
+    );
+    assert_eq!(provisional.catalog.len(), 2);
+    let provisional_paths: Vec<&str> = provisional
+        .catalog
+        .iter()
+        .map(|w| w.path.as_str())
+        .collect();
+    assert_eq!(provisional_paths, vec!["/work/first", "/work/second"]);
+    assert_eq!(
+        provisional.error.as_ref().map(|e| &e.kind),
+        None,
+        "load itself is successful; only the proposed final save failed"
+    );
+}
+
+#[test]
+fn transactional_store_successful_save_after_failure_does_not_resurrect_rejected() {
+    // After a failed save of B, a successful save of C must persist C
+    // atomically. The rejected B must not have been partially published
+    // between the failed B and the successful C.
+    let store = TransactingTestStore::empty();
+    let mut service = WorkspaceService::from_store(store.clone());
+    service
+        .select_workspace(
+            &FakeRunner::with_outputs(command_outputs("/work/first")),
+            "/work/first",
+        )
+        .expect("first selection should succeed");
+
+    store.enqueue_failure("transient".to_string());
+    service
+        .select_workspace(
+            &FakeRunner::with_outputs(command_outputs("/work/second")),
+            "/work/second",
+        )
+        .expect_err("second save should fail");
+
+    // Now successfully commit C. The durable image must reflect C — the
+    // rejected B must not have been published and then overwritten. We
+    // observe only the final committed state.
+    service
+        .select_workspace(
+            &FakeRunner::with_outputs(command_outputs("/work/third")),
+            "/work/third",
+        )
+        .expect("third save should succeed");
+    let durable = store.load_inner().expect("durable image must exist");
+    assert_eq!(
+        durable.current_workspace_path.as_deref(),
+        Some("/work/third"),
+        "successful save after a failure must persist the new state"
+    );
+    assert_eq!(durable.catalog.len(), 2);
+    assert_eq!(durable.catalog[0].path, "/work/third");
+    assert_eq!(durable.catalog[1].path, "/work/first");
+}
+
+#[test]
+fn transactional_store_failed_reset_leaves_prior_state_durable() {
+    let store = TransactingTestStore::empty();
+    let mut service = WorkspaceService::from_store(store.clone());
+    service
+        .select_workspace(
+            &FakeRunner::with_outputs(command_outputs("/work/first")),
+            "/work/first",
+        )
+        .expect("first selection should succeed");
+
+    // Fail the reset.
+    store.enqueue_failure("disk full".to_string());
+    let error = service
+        .reset_memory()
+        .expect_err("reset must fail without persisting");
+    assert_eq!(error.kind, WorkspaceErrorKind::StoreSaveFailed);
+
+    // The durable image must still hold the previously committed catalog and
+    // Current — the failed reset must not leave an unintended cleared or
+    // partial catalog durable.
+    let durable = store.load_inner().expect("durable image must survive");
+    assert_eq!(
+        durable.current_workspace_path.as_deref(),
+        Some("/work/first"),
+        "failed reset must not clear or null Current durably"
+    );
+    assert_eq!(durable.catalog.len(), 1);
+    assert_eq!(durable.catalog[0].path, "/work/first");
+}
+
+#[test]
+fn transactional_store_successful_reset_after_failure_clears_state() {
+    // After a failed reset, a successful reset must clear the prior state.
+    // The failed attempt must not have pre-cleared anything.
+    let store = TransactingTestStore::empty();
+    let mut service = WorkspaceService::from_store(store.clone());
+    service
+        .select_workspace(
+            &FakeRunner::with_outputs(command_outputs("/work/first")),
+            "/work/first",
+        )
+        .expect("first selection should succeed");
+
+    store.enqueue_failure("transient".to_string());
+    let _ = service.reset_memory().expect_err("first reset should fail");
+
+    service.reset_memory().expect("second reset should succeed");
+    assert!(
+        store.load_inner().is_none(),
+        "successful reset must clear the prior durable state"
+    );
+    assert!(service.state().current_workspace.is_none());
+    assert!(service.state().catalog.is_empty());
+}
+
+#[test]
+fn transactional_store_failed_save_leaves_service_retryable() {
+    // After a final-save failure the candidate must remain retryable, and
+    // the prior Current must be preserved. Neither the failed proposal nor a
+    // future save of an unrelated proposal may promote the rejected
+    // candidate.
+    let store = TransactingTestStore::empty();
+    let mut service = WorkspaceService::from_store(store.clone());
+    service
+        .select_workspace(
+            &FakeRunner::with_outputs(command_outputs("/work/first")),
+            "/work/first",
+        )
+        .expect("first selection should succeed");
+
+    store.enqueue_failure("disk full".to_string());
+    store.enqueue_failure("disk still full".to_string());
+    let error = service
+        .select_workspace(
+            &FakeRunner::with_outputs(command_outputs("/work/second")),
+            "/work/second",
+        )
+        .expect_err("save should fail");
+    assert_eq!(error.kind, WorkspaceErrorKind::StoreSaveFailed);
+
+    // Service retains the validated candidate for Retry.
+    let state = service.state();
+    assert_eq!(
+        state.retry_workspace.as_ref().map(|w| w.path.as_str()),
+        Some("/work/second"),
+        "Retry must still expose the validated candidate after a save failure"
+    );
+    // Service Current is unchanged.
+    assert_eq!(
+        state.current_workspace.as_ref().map(|w| w.path.as_str()),
+        Some("/work/first"),
+        "Current must remain A after a failed B"
     );
 }
