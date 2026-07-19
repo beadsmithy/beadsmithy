@@ -1,5 +1,5 @@
 {
-  "assignee": "",
+  "assignee": "Tomas Thor Jonsson",
   "blocked_by": [],
   "blocks": [
     "bsm-nd7.2",
@@ -21,8 +21,8 @@
     }
   ],
   "priority": 2,
-  "status": "open",
+  "status": "in_progress",
   "title": "Derive and display Child Issues in Issue Detail",
   "type": "task",
-  "updated_at": "2026-07-19T10:14:49Z"
+  "updated_at": "2026-07-19T13:13:23Z"
 }
