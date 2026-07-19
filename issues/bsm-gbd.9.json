@@ -9,9 +9,15 @@
   "id": "bsm-gbd.9",
   "labels": [],
   "parent": "bsm-gbd",
+  "comments": [
+    {
+      "text": "Verification after 3bf620ec: focused Mermaid tests pass (10/10), pnpm build passes, and pnpm check passes. The shared useExternalLifecycle helper is now used by the Mermaid render hook and by App's reactive lifecycles.",
+      "timestamp": "2026-07-19T08:17:00Z"
+    }
+  ],
   "priority": 2,
   "status": "closed",
   "title": "Replace Mermaid source lifecycle middleman with a render hook",
   "type": "bug",
-  "updated_at": "2026-07-19T08:14:36Z"
+  "updated_at": "2026-07-19T08:17:00Z"
 }
