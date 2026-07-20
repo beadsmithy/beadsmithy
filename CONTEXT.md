@@ -12,6 +12,18 @@ _Avoid_: Local issue, cached issue, Beadsmith issue
 A live collection of Issues read from the current workspace. Beadsmith may reshape it for presentation, but Beadwork remains the source of truth.
 _Avoid_: Local issue store, fixture list, cached database
 
+**Issue Location**:
+The identity of an Issue together with the Workspace that contains it. An Issue ID alone is not an Issue Location because the same ID may exist in multiple Workspaces.
+_Avoid_: Global issue, issue URL
+
+**Issue Reference**:
+A Beadwork-stored Issue ID shown as context on another Issue, such as its Parent or dependency. An Issue Reference is navigable to its Issue Location when that Issue exists in the Current Workspace.
+_Avoid_: Issue link, foreign key
+
+**Issue Navigation Entry**:
+A session-only destination containing a Workspace, Issue List View, search query, and optional selected Issue. Back and Forward traverse Issue Navigation Entries; search edits replace the current entry instead of adding one.
+_Avoid_: Page, browser history item, route state
+
 **Issue Detail**:
 The selected Issue's readable view: title, concise metadata, Markdown description, hierarchy and dependency context, and read-only comments when present. It is a view of Beadwork issue data, not a separate Beadsmith document.
 _Avoid_: Detail document, local issue page, cached issue body
