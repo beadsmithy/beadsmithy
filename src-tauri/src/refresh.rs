@@ -45,7 +45,10 @@ use tokio::task::JoinHandle;
 use tokio::time::{interval_at, Instant, MissedTickBehavior};
 
 use crate::issues::{CommandOutput, CommandRunner, ProcessRunner};
-use crate::rpc::{current_workspace_binding, publish_loaded_snapshot, LoadIssueExplorerDataResponse, WorkspaceRuntime};
+use crate::rpc::{
+    build_refresh_event, current_workspace_binding, emit_refresh_event,
+    LoadIssueExplorerDataResponse, WorkspaceRuntime,
+};
 use crate::workspace::{load_issue_explorer_data, IssueExplorerData};
 
 /// Fully-qualified Beadwork ref the coordinator probes.
@@ -141,14 +144,15 @@ pub fn probe_beadwork_ref(
     runner: &dyn CommandRunner,
     workspace: &Path,
 ) -> Result<String, ProbeError> {
-    let output: CommandOutput = runner
-        .run(GIT_PROGRAM, PROBE_ARGS, workspace)
-        .map_err(|error| match error.kind() {
-            io::ErrorKind::NotFound => {
-                ProbeError::Spawn(format!("{GIT_PROGRAM} executable was not found on PATH"))
-            }
-            _ => ProbeError::Spawn(format!("could not run {GIT_PROGRAM}: {error}")),
-        })?;
+    let output: CommandOutput =
+        runner
+            .run(GIT_PROGRAM, PROBE_ARGS, workspace)
+            .map_err(|error| match error.kind() {
+                io::ErrorKind::NotFound => {
+                    ProbeError::Spawn(format!("{GIT_PROGRAM} executable was not found on PATH"))
+                }
+                _ => ProbeError::Spawn(format!("could not run {GIT_PROGRAM}: {error}")),
+            })?;
 
     if output.status != 0 {
         return Err(ProbeError::CommandFailed {
@@ -347,143 +351,232 @@ pub struct PublishReport {
 ///   (probes and loads run on `spawn_blocking`).
 ///
 /// Returns the [`JoinHandle`] so the caller can abort it during teardown.
-pub(crate) fn start_refresh_task(
-    runtime: Arc<Mutex<Option<WorkspaceRuntime>>>,
-) -> JoinHandle<()> {
+pub(crate) fn start_refresh_task(runtime: Arc<Mutex<Option<WorkspaceRuntime>>>) -> JoinHandle<()> {
     tokio::spawn(async move {
         run_refresh_loop(runtime).await;
     })
 }
 
+/// Outcome of a single load attempt plus the binding it was started
+/// for, sent back to the scheduler loop when the load task completes.
+#[derive(Debug)]
+struct LoadCompletion {
+    binding: LoadBinding,
+    observed_sha: String,
+    outcome: LoadOutcome,
+}
+
+impl LoadCompletion {
+    fn revision(&self) -> u64 {
+        self.binding.refresh_revision
+    }
+
+    fn workspace_path(&self) -> &Path {
+        &self.binding.workspace_path
+    }
+}
+
 async fn run_refresh_loop(runtime: Arc<Mutex<Option<WorkspaceRuntime>>>) {
     let coordinator = Arc::new(Mutex::new(CoordinatorState::unseeded()));
-    let mut ticker = interval_at(
-        Instant::now() + PROBE_INTERVAL,
-        PROBE_INTERVAL,
-    );
+    let (load_done_tx, mut load_done_rx) = tokio::sync::mpsc::unbounded_channel::<LoadCompletion>();
+
+    let mut ticker = interval_at(Instant::now() + PROBE_INTERVAL, PROBE_INTERVAL);
     ticker.set_missed_tick_behavior(MissedTickBehavior::Skip);
 
     loop {
-        ticker.tick().await;
-
-        let binding = runtime_binding(&runtime);
-        let Some((path, generation)) = binding else {
-            // No Current Workspace or a Pending transition is in flight:
-            // the coordinator stays idle. The next tick will retry once
-            // the runtime regains a stable binding.
-            continue;
-        };
-
-        let observed = match probe_off_lock(&path).await {
-            Ok(sha) => sha,
-            Err(error) => {
-                log::warn!(
-                    target: "beadsmith::refresh",
-                    "ref probe failed for {}: {:?}",
-                    path.display(),
-                    error,
-                );
-                continue;
+        tokio::select! {
+            _ = ticker.tick() => {
+                handle_tick(&runtime, &coordinator, &load_done_tx).await;
             }
-        };
-
-        let decision = {
-            let mut state = coordinator.lock().expect("coordinator lock poisoned");
-            state.apply_probe(&observed)
-        };
-
-        let Some(decision) = decision else {
-            continue;
-        };
-        let LoadDecision::StartLoad(mut load_binding) = decision;
-        load_binding.workspace_path = path.clone();
-        load_binding.workspace_selection_generation = generation;
-
-        let outcome = run_load(&runtime, &load_binding).await;
-        let published = runtime_publish(&runtime, &load_binding, &observed, outcome);
-
-        // Reflect the load completion in the coordinator state. Only
-        // Published advances `last_published_sha`; failures, stale
-        // completions, and emit failures leave the SHA retryable so the
-        // next probe can re-emit.
-        {
-            let mut state = coordinator.lock().expect("coordinator lock poisoned");
-            match published {
-                PublishOutcome::Published => state.apply_load_success(&load_binding),
-                PublishOutcome::Discarded | PublishOutcome::EmitFailed => {
-                    state.apply_load_failure();
-                }
-            }
-        }
-
-        // Post-completion dirty handling: re-probe once if the active
-        // load's lifetime observed a different SHA, and load exactly one
-        // follow-up if the current tip still differs from the published
-        // SHA. This avoids loading a transient dirty SHA that has
-        // already reverted.
-        let dirty = {
-            let mut state = coordinator.lock().expect("coordinator lock poisoned");
-            state.take_dirty_target()
-        };
-        if let Some(_) = dirty {
-            let (path, generation) = match runtime_binding(&runtime) {
-                Some(binding) => binding,
-                None => continue,
-            };
-            let observed = match probe_off_lock(&path).await {
-                Ok(sha) => sha,
-                Err(error) => {
-                    log::warn!(
-                        target: "beadsmith::refresh",
-                        "post-load probe failed for {}: {:?}",
-                        path.display(),
-                        error,
-                    );
+            maybe_completion = load_done_rx.recv() => {
+                let Some(completion) = maybe_completion else {
                     continue;
-                }
-            };
-            let needs_followup = {
-                let state = coordinator.lock().expect("coordinator lock poisoned");
-                state
-                    .last_published_sha
-                    .as_deref()
-                    .is_none_or(|published| published != observed.as_str())
-            };
-            if needs_followup {
-                let decision = {
-                    let mut state = coordinator.lock().expect("coordinator lock poisoned");
-                    state.apply_probe(&observed)
                 };
-                if let Some(LoadDecision::StartLoad(mut followup_binding)) = decision {
-                    followup_binding.workspace_path = path.clone();
-                    followup_binding.workspace_selection_generation = generation;
-                    let outcome = run_load(&runtime, &followup_binding).await;
-                    let published = runtime_publish(
-                        &runtime,
-                        &followup_binding,
-                        &observed,
-                        outcome,
-                    );
-                    {
-                        let mut state =
-                            coordinator.lock().expect("coordinator lock poisoned");
-                        match published {
-                            PublishOutcome::Published => {
-                                state.apply_load_success(&followup_binding)
-                            }
-                            PublishOutcome::Discarded | PublishOutcome::EmitFailed => {
-                                state.apply_load_failure()
-                            }
-                        }
-                    }
-                }
-            } else {
-                // The dirty target has reverted to the already-published
-                // SHA; nothing to do.
+                handle_completion(&runtime, &coordinator, &load_done_tx, completion).await;
             }
         }
-        let _ = published;
     }
+}
+
+/// One probe-tick step: snapshot the runtime binding, probe the ref,
+/// and let the coordinator decide whether to start a load. Probes
+/// during an in-flight load only update the dirty target; the load
+/// completion handler picks them up.
+async fn handle_tick(
+    runtime: &Arc<Mutex<Option<WorkspaceRuntime>>>,
+    coordinator: &Arc<Mutex<CoordinatorState>>,
+    load_done_tx: &tokio::sync::mpsc::UnboundedSender<LoadCompletion>,
+) {
+    let Some((path, generation)) = runtime_binding(runtime) else {
+        return;
+    };
+
+    let observed = match probe_off_lock(&path).await {
+        Ok(sha) => sha,
+        Err(error) => {
+            log::warn!(
+                target: "beadsmith::refresh",
+                "ref probe failed for {}: {:?}",
+                path.display(),
+                error,
+            );
+            return;
+        }
+    };
+
+    let decision = {
+        let mut state = coordinator.lock().expect("coordinator lock poisoned");
+        state.apply_probe(&observed)
+    };
+    let Some(LoadDecision::StartLoad(mut load_binding)) = decision else {
+        return;
+    };
+    load_binding.workspace_path = path;
+    load_binding.workspace_selection_generation = generation;
+    spawn_load(
+        runtime.clone(),
+        load_done_tx.clone(),
+        load_binding,
+        observed,
+    );
+}
+
+/// One load-completion step: build and emit the event (under the
+/// runtime lock for the build, outside the lock for the emit), advance
+/// the coordinator's published SHA, and trigger at most one follow-up
+/// load for the current ref tip if the previous load's lifetime
+/// observed a different SHA.
+async fn handle_completion(
+    runtime: &Arc<Mutex<Option<WorkspaceRuntime>>>,
+    coordinator: &Arc<Mutex<CoordinatorState>>,
+    load_done_tx: &tokio::sync::mpsc::UnboundedSender<LoadCompletion>,
+    completion: LoadCompletion,
+) {
+    let Some((app, event)) = build_event_for_completion(runtime, &completion).await else {
+        let mut state = coordinator.lock().expect("coordinator lock poisoned");
+        state.apply_load_failure();
+        return;
+    };
+
+    let published =
+        emit_refresh_event(&app, event, completion.revision(), &completion.observed_sha);
+
+    {
+        let mut state = coordinator.lock().expect("coordinator lock poisoned");
+        match published {
+            PublishOutcome::Published => {
+                state.apply_load_success(&completion.binding);
+            }
+            PublishOutcome::Discarded | PublishOutcome::EmitFailed => {
+                state.apply_load_failure();
+            }
+        }
+    }
+
+    // Post-completion dirty handling: if the previous load's lifetime
+    // observed a different SHA, probe the current ref tip and start at
+    // most one follow-up load for it.
+    let dirty_observed = {
+        let mut state = coordinator.lock().expect("coordinator lock poisoned");
+        state.take_dirty_target()
+    };
+    if dirty_observed.is_none() {
+        return;
+    }
+
+    let Some((path, generation)) = runtime_binding(runtime) else {
+        return;
+    };
+    let observed = match probe_off_lock(&path).await {
+        Ok(sha) => sha,
+        Err(error) => {
+            log::warn!(
+                target: "beadsmith::refresh",
+                "post-load probe failed for {}: {:?}",
+                path.display(),
+                error,
+            );
+            return;
+        }
+    };
+    let needs_followup = {
+        let state = coordinator.lock().expect("coordinator lock poisoned");
+        state
+            .last_published_sha
+            .as_deref()
+            .is_none_or(|published| published != observed.as_str())
+    };
+    if !needs_followup {
+        return;
+    }
+    let decision = {
+        let mut state = coordinator.lock().expect("coordinator lock poisoned");
+        state.apply_probe(&observed)
+    };
+    let Some(LoadDecision::StartLoad(mut followup_binding)) = decision else {
+        return;
+    };
+    followup_binding.workspace_path = path;
+    followup_binding.workspace_selection_generation = generation;
+    spawn_load(
+        runtime.clone(),
+        load_done_tx.clone(),
+        followup_binding,
+        observed,
+    );
+}
+
+/// Build the refresh event payload under the runtime lock and return
+/// the (AppHandle, event) pair outside it. `None` when the binding no
+/// longer matches, when a Pending transition arrived, when the runtime
+/// is uninitialized, or when the load outcome was a failure/stale.
+async fn build_event_for_completion(
+    runtime: &Arc<Mutex<Option<WorkspaceRuntime>>>,
+    completion: &LoadCompletion,
+) -> Option<(tauri::AppHandle<tauri::Wry>, IssueExplorerRefreshEvent)> {
+    match &completion.outcome {
+        LoadOutcome::Success(_, data) => {
+            let data = data.clone();
+            let mut guard = runtime.lock().expect("runtime lock poisoned");
+            let runtime_ref = guard.as_mut()?;
+            build_refresh_event(
+                runtime_ref,
+                completion.workspace_path(),
+                completion.binding.workspace_selection_generation,
+                &completion.observed_sha,
+                completion.revision(),
+                data,
+            )
+        }
+        LoadOutcome::Failure(message) => {
+            log::warn!(
+                target: "beadsmith::refresh",
+                "refresh load failed for {}: {}",
+                completion.workspace_path().display(),
+                message,
+            );
+            None
+        }
+        LoadOutcome::Stale => None,
+    }
+}
+
+/// Spawn one full-load task and route its completion back to the
+/// scheduler loop through the supplied mpsc sender.
+fn spawn_load(
+    runtime: Arc<Mutex<Option<WorkspaceRuntime>>>,
+    load_done_tx: tokio::sync::mpsc::UnboundedSender<LoadCompletion>,
+    binding: LoadBinding,
+    observed_sha: String,
+) {
+    tokio::spawn(async move {
+        let outcome = run_load(&runtime, &binding).await;
+        let _ = load_done_tx.send(LoadCompletion {
+            binding,
+            observed_sha,
+            outcome,
+        });
+    });
 }
 
 /// Read the Current Workspace binding from the runtime mutex briefly.
@@ -514,9 +607,7 @@ async fn run_load(
         // starts so a Pending transition that arrived while this load
         // was queued can short-circuit.
         {
-            let guard = coordinator_marker
-                .lock()
-                .expect("runtime lock poisoned");
+            let guard = coordinator_marker.lock().expect("runtime lock poisoned");
             let Some(runtime) = guard.as_ref() else {
                 return LoadOutcome::Stale;
             };
@@ -533,46 +624,14 @@ async fn run_load(
         }
         match load_issue_explorer_data(&ProcessRunner::new(), &path) {
             Ok(data) => LoadOutcome::Success(binding_for_task, data),
-            Err(error) => LoadOutcome::Failure(format!(
-                "Could not load Issue Explorer data: {error}"
-            )),
+            Err(error) => {
+                LoadOutcome::Failure(format!("Could not load Issue Explorer data: {error}"))
+            }
         }
     })
     .await
     .expect("load task panicked");
     probe_outcome
-}
-
-fn runtime_publish(
-    runtime: &Arc<Mutex<Option<WorkspaceRuntime>>>,
-    binding: &LoadBinding,
-    observed_sha: &str,
-    outcome: LoadOutcome,
-) -> PublishOutcome {
-    let mut guard = runtime.lock().expect("runtime lock poisoned");
-    let Some(runtime_ref) = guard.as_mut() else {
-        return PublishOutcome::Discarded;
-    };
-    match outcome {
-        LoadOutcome::Success(_, data) => publish_loaded_snapshot(
-            runtime_ref,
-            &binding.workspace_path,
-            binding.workspace_selection_generation,
-            observed_sha,
-            binding.refresh_revision,
-            data,
-        ),
-        LoadOutcome::Failure(message) => {
-            log::warn!(
-                target: "beadsmith::refresh",
-                "refresh load failed for {}: {}",
-                binding.workspace_path.display(),
-                message,
-            );
-            PublishOutcome::Discarded
-        }
-        LoadOutcome::Stale => PublishOutcome::Discarded,
-    }
 }
 
 #[cfg(test)]

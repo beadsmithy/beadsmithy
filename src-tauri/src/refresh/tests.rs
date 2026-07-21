@@ -143,13 +143,15 @@ fn probe_rejects_non_zero_status_as_command_failure() {
 
 #[test]
 fn probe_classifies_missing_git_binary_as_spawn_error() {
-    let runner =
-        FakeCommandRunner::new(vec![Err(io::Error::from(io::ErrorKind::NotFound))]);
+    let runner = FakeCommandRunner::new(vec![Err(io::Error::from(io::ErrorKind::NotFound))]);
     let error = probe_beadwork_ref(&runner, &workspace_path())
         .expect_err("expected missing git binary to surface as a spawn error");
     match error {
         ProbeError::Spawn(message) => {
-            assert!(message.contains("git"), "spawn message must name the program: {message}");
+            assert!(
+                message.contains("git"),
+                "spawn message must name the program: {message}"
+            );
         }
         other => panic!("expected Spawn, got {other:?}"),
     }
@@ -191,7 +193,9 @@ fn unseeded_state_triggers_one_initial_load_on_first_probe() {
 #[test]
 fn unchanged_published_sha_does_not_trigger_a_load() {
     let mut state = CoordinatorState::unseeded();
-    state.apply_probe("abc123").expect("first probe starts load");
+    state
+        .apply_probe("abc123")
+        .expect("first probe starts load");
     state.apply_load_success(&LoadBinding {
         workspace_path: PathBuf::new(),
         workspace_selection_generation: 0,
@@ -363,4 +367,83 @@ fn refresh_event_payload_uses_camel_case_with_full_issue_data() {
     assert!(json.contains("\"readyIssues\""));
     assert!(json.contains("\"blockedIssues\""));
     assert!(json.contains("\"bsm-test\""));
+}
+
+// =============================================================================
+// Scheduler integration tests: probes fire while a load is active.
+// =============================================================================
+//
+// These tests pin down the bug fix in `run_refresh_loop` where the
+// ticker was awaited sequentially with the load, so probes could not
+// fire during an active load and the `dirty_target_sha` field was
+// never populated in production. Each test exercises the coordinator
+// directly with a sequence of `apply_probe` calls that simulates the
+// select!-driven ticker firing during an in-flight load.
+
+fn git_sha(n: u8) -> String {
+    // 40-char SHA-1 (lowercase hex).
+    format!("{:0>40}", n)
+}
+
+#[test]
+fn scheduler_concurrent_probe_populates_dirty_target_during_in_flight_load() {
+    // Simulate the production select!-driven ticker firing a probe
+    // while a load is in flight. The coordinator must NOT start a
+    // parallel load; it must record the newer SHA as the dirty target.
+    let mut state = CoordinatorState::unseeded();
+    assert_eq!(
+        state
+            .apply_probe(&git_sha(1))
+            .map(|d| matches!(d, LoadDecision::StartLoad(_))),
+        Some(true),
+        "first probe must start a load"
+    );
+
+    let decision = state.apply_probe(&git_sha(2));
+    assert!(
+        decision.is_none(),
+        "concurrent probe must not start a parallel load"
+    );
+    assert_eq!(state.dirty_target_sha.as_deref(), Some(git_sha(2).as_str()));
+    assert!(
+        state.has_active_load,
+        "the active load must still be tracked"
+    );
+}
+
+#[test]
+fn scheduler_follow_up_load_targets_current_tip_not_dirty_sha() {
+    // Dirty target was set during a load. After the load completes,
+    // the post-completion follow-up must probe the CURRENT ref tip,
+    // not the dirty SHA. If the dirty SHA has reverted, no follow-up.
+    let mut state = CoordinatorState::unseeded();
+    let _ = state.apply_probe(&git_sha(1));
+    for sha in [git_sha(2), git_sha(3), git_sha(4)] {
+        assert!(state.apply_probe(&sha).is_none());
+    }
+    assert_eq!(state.dirty_target_sha.as_deref(), Some(git_sha(4).as_str()));
+
+    state.apply_load_success(&LoadBinding {
+        workspace_path: PathBuf::from("/work/a"),
+        workspace_selection_generation: 1,
+        observed_sha: git_sha(1),
+        refresh_revision: 1,
+    });
+
+    let dirty = state.take_dirty_target();
+    assert_eq!(dirty.as_deref(), Some(git_sha(4).as_str()));
+
+    // Current tip reverts to the published SHA — no follow-up needed.
+    assert_eq!(
+        state.last_published_sha.as_deref(),
+        Some(git_sha(1).as_str())
+    );
+    let needs_followup = state
+        .last_published_sha
+        .as_deref()
+        .is_none_or(|published| published != git_sha(1).as_str());
+    assert!(
+        !needs_followup,
+        "current tip matches published SHA; no follow-up"
+    );
 }

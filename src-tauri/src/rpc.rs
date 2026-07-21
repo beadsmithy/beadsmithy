@@ -488,24 +488,25 @@ impl BeadsmithApi for BeadsmithApiImpl {
         // transition event; an earlier implementation returned just the
         // state without `issue_data`, leaving the Issue Explorer stuck on
         // the prior identity even though backend memory had moved on.
-        let (state, app, issue_data) = self.with_runtime(|runtime| {
-            let store = TauriWorkspaceStore::new(runtime.app.clone());
-            let mut service = WorkspaceService::from_store(store);
-            let snapshot = service
-                .restore_current(&ProcessRunner::new())
-                .ok()
-                .flatten();
-            runtime.service = service;
-            runtime.snapshot = snapshot.clone();
-            let state = runtime.service.state().clone();
-            let app = runtime.app.clone();
-            let issue_data = snapshot.as_ref().zip(state.current_workspace.as_ref()).map(
-                |(data, workspace)| {
-                    workspace_data_response(data, workspace.path.as_str(), state.generation)
-                },
-            );
-            (state, app, issue_data)
-        });
+        let (state, app, issue_data) =
+            self.with_runtime(|runtime| {
+                let store = TauriWorkspaceStore::new(runtime.app.clone());
+                let mut service = WorkspaceService::from_store(store);
+                let snapshot = service
+                    .restore_current(&ProcessRunner::new())
+                    .ok()
+                    .flatten();
+                runtime.service = service;
+                runtime.snapshot = snapshot.clone();
+                let state = runtime.service.state().clone();
+                let app = runtime.app.clone();
+                let issue_data = snapshot.as_ref().zip(state.current_workspace.as_ref()).map(
+                    |(data, workspace)| {
+                        workspace_data_response(data, workspace.path.as_str(), state.generation)
+                    },
+                );
+                (state, app, issue_data)
+            });
         if let Some(issue_data) = issue_data.as_ref() {
             emit_transition(&app, state.clone(), Some(issue_data.clone()));
         } else {
@@ -581,9 +582,11 @@ fn cancel_response_issue_data(
     had_pending: bool,
 ) -> Option<LoadIssueExplorerDataResponse> {
     if !had_pending && state.current_workspace.is_some() {
-        snapshot.zip(state.current_workspace.as_ref()).map(|(data, workspace)| {
-            workspace_data_response(data, workspace.path.as_str(), state.generation)
-        })
+        snapshot
+            .zip(state.current_workspace.as_ref())
+            .map(|(data, workspace)| {
+                workspace_data_response(data, workspace.path.as_str(), state.generation)
+            })
     } else {
         None
     }
@@ -594,9 +597,7 @@ fn cancel_response_issue_data(
 /// only when a Current Workspace exists and no Pending transition is
 /// in flight. A Pending or absent Current returns `None`; the
 /// coordinator must not probe or load in that state.
-pub(crate) fn current_workspace_binding(
-    runtime: &WorkspaceRuntime,
-) -> Option<(PathBuf, u32)> {
+pub(crate) fn current_workspace_binding(runtime: &WorkspaceRuntime) -> Option<(PathBuf, u32)> {
     let state = runtime.service.state();
     let path = state.current_workspace.as_ref()?.path.clone();
     if state.pending_workspace.is_some() {
@@ -605,62 +606,65 @@ pub(crate) fn current_workspace_binding(
     Some((PathBuf::from(path), state.generation))
 }
 
-/// Publish a successful refresh load: verify the binding still matches
-/// the current runtime, replace the snapshot, build the event payload
-/// in one critical section, then emit after releasing the lock.
+/// Build the refresh event payload under the [`WorkspaceRuntime`]
+/// lock without emitting it. Capturing the [`AppHandle`] here, while
+/// the lock is held, lets the caller drop the lock and then emit
+/// without holding the runtime mutex across Tauri's IPC machinery.
 ///
-/// Returns the publication outcome so the coordinator can advance
-/// `last_published_sha` only when the snapshot was admitted and the
-/// renderer was actually notified.
-pub(crate) fn publish_loaded_snapshot(
+/// Returns `None` when the binding no longer matches the current
+/// runtime, when a Pending transition arrived during the load, or
+/// when the runtime is uninitialized. The caller reports
+/// [`PublishOutcome::Discarded`] in those cases.
+pub(crate) fn build_refresh_event(
     runtime: &mut WorkspaceRuntime,
     binding_path: &Path,
     binding_generation: u32,
     observed_sha: &str,
     refresh_revision: u64,
     data: IssueExplorerData,
+) -> Option<(tauri::AppHandle<tauri::Wry>, IssueExplorerRefreshEvent)> {
+    let state = runtime.service.state();
+    let current_path = state
+        .current_workspace
+        .as_ref()
+        .map(|workspace| workspace.path.clone());
+    let current_generation = state.generation;
+    let matches = current_path
+        .as_deref()
+        .is_some_and(|path| Path::new(path) == binding_path)
+        && current_generation == binding_generation;
+
+    if !matches {
+        return None;
+    }
+    if state.pending_workspace.is_some() {
+        // A Pending transition arrived while the load was running.
+        // Discard: the next probe will retry against the new Current.
+        return None;
+    }
+
+    let path_string = current_path.expect("matches branch guarantees current_path");
+    runtime.snapshot = Some(data.clone());
+    let response = workspace_data_response(&data, path_string.as_str(), current_generation);
+    let event = IssueExplorerRefreshEvent {
+        issue_data: response,
+        observed_ref_sha: observed_sha.to_string(),
+        refresh_revision,
+        workspace_path: path_string,
+        workspace_selection_generation: current_generation,
+    };
+    Some((runtime.app.clone(), event))
+}
+
+/// Emit a refresh event built by [`build_refresh_event`] outside the
+/// [`WorkspaceRuntime`] mutex. Returns the [`PublishOutcome`] for the
+/// coordinator to decide whether to advance `last_published_sha`.
+pub(crate) fn emit_refresh_event(
+    app: &tauri::AppHandle<tauri::Wry>,
+    event: IssueExplorerRefreshEvent,
+    refresh_revision: u64,
+    observed_sha: &str,
 ) -> PublishOutcome {
-    let event: Option<IssueExplorerRefreshEvent> = {
-        let state = runtime.service.state();
-        let current_path = state
-            .current_workspace
-            .as_ref()
-            .map(|workspace| workspace.path.clone());
-        let current_generation = state.generation;
-        let matches = current_path
-            .as_deref()
-            .is_some_and(|path| Path::new(path) == binding_path)
-            && current_generation == binding_generation;
-
-        if !matches {
-            return PublishOutcome::Discarded;
-        }
-        if state.pending_workspace.is_some() {
-            // A Pending transition arrived while the load was running.
-            // Discard: the next probe will retry against the new Current.
-            return PublishOutcome::Discarded;
-        }
-
-        let path_string = current_path.expect("matches branch guarantees current_path");
-        runtime.snapshot = Some(data.clone());
-        let response = workspace_data_response(&data, path_string.as_str(), current_generation);
-        Some(IssueExplorerRefreshEvent {
-            issue_data: response,
-            observed_ref_sha: observed_sha.to_string(),
-            refresh_revision,
-            workspace_path: path_string,
-            workspace_selection_generation: current_generation,
-        })
-    };
-
-    let Some(event) = event else {
-        return PublishOutcome::Discarded;
-    };
-
-    // Clone the AppHandle here so the emit happens outside the runtime
-    // lock; the AppHandle's `Emit` trait is not bound to the runtime
-    // mutex and the lock must be released before any cross-task work.
-    let app = runtime.app.clone();
     match app.emit(ISSUE_EXPLORER_REFRESH_EVENT, event) {
         Ok(()) => PublishOutcome::Published,
         Err(error) => {

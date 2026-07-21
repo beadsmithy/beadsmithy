@@ -91,6 +91,11 @@ const buildIssue = (overrides: Partial<Issue> = {}): Issue => ({
 
 describe("applyWorkspaceTransition", () => {
   it("admits a Pending transition while retaining the existing snapshot", () => {
+    // A pending switch attempt bumps the selection generation even
+    // when Current Workspace does not change. The retained-current
+    // path rebinds the confirmed generation so subsequent refresh
+    // events for the still-current workspace are not silently
+    // rejected by `applyIssueExplorerRefresh`.
     const gate = initialGate({ confirmedWorkspacePath: "/work/a" });
     const payload = {
       issueData: null,
@@ -107,6 +112,8 @@ describe("applyWorkspaceTransition", () => {
     expect(result.next).toEqual(
       initialGate({
         acceptedGeneration: 2,
+        acceptedRefreshRevision: null,
+        confirmedWorkspaceGeneration: 2,
         confirmedWorkspacePath: "/work/a",
       })
     );
@@ -946,7 +953,7 @@ describe("applyIssueExplorerRefresh", () => {
     );
     expect(pending.decision.kind).toBe("acceptStateRetainSnapshot");
     expect(pending.next.confirmedWorkspacePath).toBe("/work/a");
-    expect(pending.next.confirmedWorkspaceGeneration).toBe(2);
+    expect(pending.next.confirmedWorkspaceGeneration).toBe(3);
     expect(pending.next.acceptedRefreshRevision).toBe(5);
   });
 
@@ -973,5 +980,55 @@ describe("applyIssueExplorerRefresh", () => {
     expect(result.next.confirmedWorkspacePath).toBeNull();
     expect(result.next.confirmedWorkspaceGeneration).toBeNull();
     expect(result.next.acceptedRefreshRevision).toBeNull();
+  });
+
+  it("admits refresh events after a failed switch that retained the Current workspace", () => {
+    // A is committed at generation 2 (rev 4). The user starts a switch
+    // to B; the backend bumps the selection generation to 3 before the
+    // load fails, and A stays Current. The retained-current branch
+    // rebinds the confirmed generation to 3 so the next refresh event
+    // for A is admitted.
+    const gate = initialGate({
+      acceptedGeneration: 2,
+      acceptedRefreshRevision: 4,
+      committedGeneration: 2,
+      confirmedWorkspaceGeneration: 2,
+      confirmedWorkspacePath: "/work/a",
+    });
+
+    const failedSwitch = applyWorkspaceTransition(
+      gate,
+      {
+        issueData: null,
+        state: workspaceState({
+          currentWorkspace: workspace("/work/a"),
+          error: {
+            kind: "loadFailed",
+            message: "Could not load B",
+            retryable: true,
+          },
+          generation: 3,
+          pendingWorkspace: null,
+          retryWorkspace: workspace("/work/b"),
+        }),
+      },
+      null
+    );
+    expect(failedSwitch.decision.kind).toBe("acceptStateRetainSnapshot");
+    expect(failedSwitch.next.confirmedWorkspaceGeneration).toBe(3);
+    expect(failedSwitch.next.acceptedRefreshRevision).toBe(4);
+
+    const refresh = applyIssueExplorerRefresh(failedSwitch.next, {
+      ...refreshPayload({
+        refreshRevision: 5,
+        workspaceSelectionGeneration: 3,
+      }),
+      issueData: refreshSnapshot("/work/a", 3),
+    });
+    expect(refresh.decision).toEqual({
+      kind: "commitRefreshSnapshot",
+      snapshot: refreshSnapshot("/work/a", 3),
+    });
+    expect(refresh.next.acceptedRefreshRevision).toBe(5);
   });
 });

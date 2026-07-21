@@ -650,4 +650,3 @@ fn cancel_response_omits_snapshot_when_locally_unavailable() {
         "absent runtime snapshot must not be invented"
     );
 }
-
