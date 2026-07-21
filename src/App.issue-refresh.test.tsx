@@ -62,12 +62,15 @@ const refreshPayload = (overrides: {
   observedRefSha?: string;
   refreshRevision: number;
   issueData: LoadIssueExplorerDataResponse;
+  workspaceSelectionGeneration?: number;
 }) => ({
   issueData: overrides.issueData,
   observedRefSha: overrides.observedRefSha ?? "abc123",
   refreshRevision: overrides.refreshRevision,
   workspacePath: overrides.issueData.workspacePath,
-  workspaceSelectionGeneration: overrides.issueData.workspaceGeneration,
+  workspaceSelectionGeneration:
+    overrides.workspaceSelectionGeneration ??
+    overrides.issueData.workspaceGeneration,
 });
 
 describe("App issue explorer refresh", () => {
@@ -481,7 +484,11 @@ describe("App issue explorer refresh", () => {
       });
     });
 
-    // Refresh for the still-current A must still be admitted.
+    // Refresh for the still-current A must still be admitted. The
+    // Pending transition bumped the backend selection generation to 2,
+    // and the gate's confirmed generation rebinds to that value so a
+    // stale generation-1 event is correctly rejected; a fresh
+    // generation-2 event is admitted.
     act(() => {
       listeners.refresh?.({
         payload: refreshPayload({
@@ -489,10 +496,11 @@ describe("App issue explorer refresh", () => {
             allIssues: [newIssue],
             blockedIssues: [],
             readyIssues: [],
-            workspaceGeneration: 1,
+            workspaceGeneration: 2,
             workspacePath: "/work/a",
           },
           refreshRevision: 4,
+          workspaceSelectionGeneration: 2,
         }),
       });
     });

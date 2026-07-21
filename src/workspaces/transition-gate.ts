@@ -215,9 +215,29 @@ export const INITIAL_WORKSPACE_REMOUNT_KEY = "/__initial__";
  * ceiling; the helper is pure and only reads the inputs already
  * validated by its caller.
  */
+/**
+ * Compute the next confirmed-identity markers and the snapshot decision
+ * for a single admitted Workspace transition. Pulled out of
+ * [`applyWorkspaceTransition`] to keep its complexity under the lint
+ * ceiling; the helper is pure and only reads the inputs already
+ * validated by its caller.
+ *
+ * The retained-current branch rebinds `confirmedWorkspaceGeneration` to
+ * the new state's generation. The workspace-management epic bumps the
+ * selection generation on every admitted switch attempt (including
+ * failures and cancellations), so a retained-current transition that
+ * carries an older confirmed generation would silently lock the
+ * renderer out of every subsequent refresh event for the same
+ * workspace. The plan explicitly forbids that: "When an admitted
+ * failure/cancellation ends Pending but retains the same Current
+ * path under a newly incremented selection generation, rebind the
+ * confirmed generation to that accepted generation without
+ * resetting/remounting the snapshot."
+ */
 const decideSnapshotCommit = (
   current: WorkspaceTransitionGateState,
   currentPath: string | null,
+  currentGeneration: number,
   issueData: LoadIssueExplorerDataResponse | null
 ): {
   confirmedWorkspacePath: string | null;
@@ -243,6 +263,19 @@ const decideSnapshotCommit = (
       kind: "clearSnapshot",
       remountKey: CLEARED_WORKSPACE_REMOUNT_KEY,
     };
+  } else if (
+    currentPath !== null &&
+    currentPath === current.confirmedWorkspacePath
+  ) {
+    // Same path retained (e.g., a failed switch that left Current
+    // unchanged but bumped the selection generation). Rebind the
+    // confirmed generation to the new state's value so a still-current
+    // workspace's refresh events are not silently rejected; the
+    // accepted refresh revision survives because the identity presence
+    // did not flip.
+    confirmedWorkspacePath = currentPath;
+    confirmedWorkspaceGeneration = currentGeneration;
+    decision = { kind: "acceptStateRetainSnapshot" };
   } else {
     decision = { kind: "acceptStateRetainSnapshot" };
   }
@@ -292,24 +325,26 @@ export const applyWorkspaceTransition = (
   }
 
   const currentPath = state.currentWorkspace?.path ?? null;
+  const currentGeneration = state.generation;
   const { issueData } = payload;
 
   const { confirmedWorkspacePath, confirmedWorkspaceGeneration, decision } =
-    decideSnapshotCommit(current, currentPath, issueData);
+    decideSnapshotCommit(current, currentPath, currentGeneration, issueData);
 
   const terminalGeneration = shouldAdvanceTerminalGeneration(state)
     ? generation
     : current.terminalGeneration;
 
-  const previousIdentity =
-    current.confirmedWorkspacePath !== null &&
-    current.confirmedWorkspaceGeneration !== null;
-  const nextIdentity =
-    confirmedWorkspacePath !== null && confirmedWorkspaceGeneration !== null;
-  const identityChanged =
-    current.confirmedWorkspacePath !== confirmedWorkspacePath ||
-    current.confirmedWorkspaceGeneration !== confirmedWorkspaceGeneration ||
-    previousIdentity !== nextIdentity;
+  // `acceptedRefreshRevision` is the gate's per-identity admission
+  // marker; it survives a generation bump on the same workspace
+  // because the rendered identity (path + presence) is unchanged.
+  // Only a path change or a presence flip resets it; a generation-only
+  // bump rebinds `confirmedWorkspaceGeneration` without losing the
+  // already-admitted revision.
+  const pathChanged = current.confirmedWorkspacePath !== confirmedWorkspacePath;
+  const previousIdentity = current.confirmedWorkspacePath !== null;
+  const nextIdentity = confirmedWorkspacePath !== null;
+  const identityChanged = pathChanged || previousIdentity !== nextIdentity;
 
   return {
     decision,
