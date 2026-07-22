@@ -5,6 +5,7 @@ import { useCallback, useRef, useState } from "react";
 
 import "./App.css";
 import { Sidebar } from "./components/Sidebar";
+import { Titlebar } from "./components/Titlebar";
 import { pickerDefaultPath } from "./components/WorkspaceSelector";
 import { DEFAULT_ISSUE_LIST_VIEW_ID } from "./issues/issue-list-view";
 import type { IssueListViewId } from "./issues/issue-list-view";
@@ -313,70 +314,76 @@ export default function App() {
   };
 
   return (
-    <div className="flex h-screen w-screen overflow-hidden bg-background font-primary text-text-main antialiased">
-      <Sidebar
-        activeIssueListViewId={activeIssueListViewId}
-        appDestination={appDestination}
-        collapsed={sidebarCollapsed}
-        disabled={sidebarDisabled}
-        dismissedSwitchErrorGeneration={dismissedSwitchErrorGeneration}
-        issueState={issueState}
-        onCollapseToggle={setSidebarCollapsed}
-        onIssueListViewSelect={handleIssueListViewSelect}
-        onSettingsClick={() => setAppDestination("settings")}
-        workspaceHandlers={workspaceHandlers}
-        workspaceState={workspaceState}
+    <div className="flex h-screen w-screen flex-col overflow-hidden bg-background font-primary text-text-main antialiased">
+      <Titlebar
+        onToggleSidebar={() => setSidebarCollapsed((collapsed) => !collapsed)}
+        sidebarCollapsed={sidebarCollapsed}
       />
+      <div className="flex flex-1 overflow-hidden">
+        <Sidebar
+          activeIssueListViewId={activeIssueListViewId}
+          appDestination={appDestination}
+          collapsed={sidebarCollapsed}
+          disabled={sidebarDisabled}
+          dismissedSwitchErrorGeneration={dismissedSwitchErrorGeneration}
+          issueState={issueState}
+          onCollapseToggle={setSidebarCollapsed}
+          onIssueListViewSelect={handleIssueListViewSelect}
+          onSettingsClick={() => setAppDestination("settings")}
+          workspaceHandlers={workspaceHandlers}
+          workspaceState={workspaceState}
+        />
 
-      <div className="relative flex flex-1">
-        <div
-          key={workspaceKey}
-          aria-hidden={appDestination === "settings" ? true : undefined}
-          className={`flex flex-1 ${
-            appDestination === "settings" ? "invisible" : ""
-          }`}
-          inert={appDestination === "settings" ? true : undefined}
-        >
-          {workspaceState !== null &&
-          workspaceState.currentWorkspace === null ? (
-            <main
-              aria-label="Choose a workspace"
-              className="flex flex-1 items-center justify-center bg-background p-8 text-center"
-            >
-              <div>
-                <h1 className="text-lg font-semibold text-primary">
-                  Choose a workspace
-                </h1>
-                <p className="mt-2 text-sm text-muted">
-                  Select a Beadwork repository to load its issue views.
-                </p>
-                <button
-                  className="mt-4 rounded border border-border-main px-3 py-2 text-sm hover:bg-white/5"
-                  onClick={() => void chooseWorkspace()}
-                  type="button"
-                >
-                  Choose folder
-                </button>
-              </div>
-            </main>
-          ) : (
-            <IssueExplorer
-              activeIssueListViewId={activeIssueListViewId}
-              issueState={issueState}
-              markdownFontSizePx={settings.state.appliedFontSizePx}
-              onIssueListViewChange={setActiveIssueListViewId}
+        <div className="relative flex flex-1">
+          <div
+            key={workspaceKey}
+            aria-hidden={appDestination === "settings" ? true : undefined}
+            className={`flex flex-1 ${
+              appDestination === "settings" ? "invisible" : ""
+            }`}
+            inert={appDestination === "settings" ? true : undefined}
+          >
+            {workspaceState !== null &&
+            workspaceState.currentWorkspace === null ? (
+              <main
+                aria-label="Choose a workspace"
+                className="flex flex-1 items-center justify-center bg-background p-8 text-center"
+              >
+                <div>
+                  <h1 className="text-lg font-semibold text-primary">
+                    Choose a workspace
+                  </h1>
+                  <p className="mt-2 text-sm text-muted">
+                    Select a Beadwork repository to load its issue views.
+                  </p>
+                  <button
+                    className="mt-4 rounded border border-border-main px-3 py-2 text-sm hover:bg-white/5"
+                    onClick={() => void chooseWorkspace()}
+                    type="button"
+                  >
+                    Choose folder
+                  </button>
+                </div>
+              </main>
+            ) : (
+              <IssueExplorer
+                activeIssueListViewId={activeIssueListViewId}
+                issueState={issueState}
+                markdownFontSizePx={settings.state.appliedFontSizePx}
+                onIssueListViewChange={setActiveIssueListViewId}
+              />
+            )}
+          </div>
+          {appDestination === "settings" ? (
+            <SettingsPage
+              className="absolute inset-0 z-10"
+              onDraftChange={settings.setDraft}
+              onReset={settings.reset}
+              onRetry={settings.retry}
+              state={settings.state}
             />
-          )}
+          ) : null}
         </div>
-        {appDestination === "settings" ? (
-          <SettingsPage
-            className="absolute inset-0 z-10"
-            onDraftChange={settings.setDraft}
-            onReset={settings.reset}
-            onRetry={settings.retry}
-            state={settings.state}
-          />
-        ) : null}
       </div>
     </div>
   );

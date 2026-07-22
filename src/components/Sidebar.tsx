@@ -4,11 +4,8 @@ import {
   CircleChevronRight,
   CircleSlash,
   Clock,
-  Folder,
   HardDrive,
   Inbox,
-  PanelLeftClose,
-  PanelLeftOpen,
   PlayCircle,
   Settings as SettingsIcon,
 } from "lucide-react";
@@ -157,36 +154,6 @@ export const Sidebar = ({
         collapsed ? "w-14" : "w-60"
       }`}
     >
-      <div
-        className={`flex h-12 items-center font-semibold ${
-          collapsed ? "justify-center px-4" : "px-4 text-[14px]"
-        }`}
-      >
-        {collapsed ? (
-          <button
-            aria-label="Expand sidebar"
-            className="flex size-8 items-center justify-center rounded text-muted transition-colors hover:bg-white/5 hover:text-text-main"
-            onClick={() => onCollapseToggle(false)}
-            type="button"
-          >
-            <PanelLeftOpen className="size-4" />
-          </button>
-        ) : (
-          <>
-            <Folder className="mr-2 size-4 text-accent" />
-            <span className="flex-1">Beadwork</span>
-            <button
-              aria-label="Collapse sidebar"
-              className="flex size-8 items-center justify-center rounded text-muted transition-colors hover:bg-white/5 hover:text-text-main"
-              onClick={() => onCollapseToggle(true)}
-              type="button"
-            >
-              <PanelLeftClose className="size-4" />
-            </button>
-          </>
-        )}
-      </div>
-
       <div className="flex-1 overflow-y-auto py-2">
         <div className="px-4 py-2 font-mono text-[10px] tracking-wider text-muted uppercase">
           {collapsed ? <hr className="border-border-main" /> : "Views"}
