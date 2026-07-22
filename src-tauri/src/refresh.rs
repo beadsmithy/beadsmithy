@@ -75,14 +75,6 @@ impl RefreshOps for ProcessOps {
     }
 }
 
-/// Fully-qualified Beadwork ref the coordinator probes.
-///
-/// Resolving through Git's `rev-parse` (rather than reading loose / packed
-/// ref files directly) handles loose refs, packed refs, atomic ref updates,
-/// and worktree shared gitdirs uniformly and avoids a custom parser that
-/// would need to mirror Git's ref resolution rules.
-pub const BEADWORK_REF: &str = "refs/heads/beadwork";
-
 /// Git program used for ref resolution.
 const GIT_PROGRAM: &str = "git";
 
@@ -219,20 +211,12 @@ pub enum LoadOutcome {
     Stale,
 }
 
-/// Closure used by the async scheduler to perform one full load. The
-/// production scheduler passes a closure that runs `bw list --all`,
-/// `bw ready`, `bw blocked` on Tokio's blocking pool. Tests inject a
-/// deterministic closure that returns canned outcomes for each
-/// `(binding, runner)` pair.
-pub type LoadFn =
-    Arc<dyn Fn(LoadBinding, Arc<dyn CommandRunner>) -> LoadOutcome + Send + Sync + 'static>;
-
 /// Pure coordinator state.
 ///
 /// The state is plain data so the decision logic is testable without
 /// spinning up a Tokio runtime or a Tauri app handle. The async
-/// scheduler in [`RefreshService`] wraps this with `interval_at` and a
-/// single `JoinHandle` for the active load.
+/// scheduler (`start_refresh_task` / `run_refresh_loop`) wraps this
+/// with `interval_at` and an mpsc load-completion channel.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct CoordinatorState {
     /// Highest revision already published for the current selection, or
@@ -351,14 +335,6 @@ pub enum LoadDecision {
     StartLoad(LoadBinding),
 }
 
-/// Outcome of [`RefreshService::publish_loaded_snapshot`], surfaced so the
-/// scheduler can advance `last_published_sha` only when publication actually
-/// reached the renderer.
-pub struct PublishReport {
-    pub outcome: PublishOutcome,
-    pub binding: LoadBinding,
-}
-
 /// Start one process-lifetime refresh task bound to the supplied
 /// runtime. The task:
 ///
@@ -475,9 +451,9 @@ async fn handle_tick(
 
 /// One load-completion step: build and emit the event (under the
 /// runtime lock for the build, outside the lock for the emit), advance
-/// the coordinator's published SHA, and trigger at most one follow-up
-/// load for the current ref tip if the previous load's lifetime
-/// observed a different SHA.
+/// the coordinator's published SHA only when the binding is still
+/// current, and trigger at most one follow-up load for the current
+/// ref tip if the previous load's lifetime observed a different SHA.
 async fn handle_completion(
     runtime: &Arc<Mutex<Option<WorkspaceRuntime>>>,
     coordinator: &Arc<Mutex<CoordinatorState>>,
@@ -485,38 +461,96 @@ async fn handle_completion(
     ops: Arc<dyn RefreshOps>,
     completion: LoadCompletion,
 ) {
-    let Some((app, event)) = build_event_for_completion(runtime, &completion).await else {
+    let build = build_event_for_completion(runtime, &completion).await;
+
+    // Always do dirty follow-up work, regardless of whether the load
+    // built an event. The dirty target is set by probes that ran
+    // during the load's lifetime and is independent of whether the
+    // load itself succeeded.
+    let dirty_observed = {
         let mut state = coordinator.lock().expect("coordinator lock poisoned");
-        state.apply_load_failure();
+        state.take_dirty_target()
+    };
+
+    let Some((app, event)) = build else {
+        // No event to emit (failure/stale). Update the coordinator so
+        // the active-load flag is cleared and a future probe can start
+        // a new load; the dirty follow-up below will still run if the
+        // previous load's lifetime observed a different SHA.
+        let needs_dirty_followup = {
+            let mut state = coordinator.lock().expect("coordinator lock poisoned");
+            state.apply_load_failure();
+            dirty_observed.is_some()
+        };
+        if needs_dirty_followup {
+            handle_dirty_follow_up(runtime, coordinator, load_done_tx, ops).await;
+        }
         return;
     };
 
     let published =
         emit_refresh_event(&app, event, completion.revision(), &completion.observed_sha);
 
+    // Revalidate the binding under the lock AFTER the emit. The lock
+    // is released between `build_refresh_event` and `emit_refresh_event`,
+    // so a concurrent switch may have advanced the selection generation
+    // or installed a Pending transition that makes the emitted event
+    // stale for the renderer. In that case leave `last_published_sha`
+    // unchanged so the dirty follow-up (or the next probe) re-emits a
+    // current-tip load for the renderer.
+    let still_matches = {
+        let mut guard = runtime.lock().expect("runtime lock poisoned");
+        match guard.as_mut() {
+            Some(runtime_ref) => {
+                runtime_ref.service.state().pending_workspace.is_none()
+                    && runtime_ref
+                        .service
+                        .state()
+                        .current_workspace
+                        .as_ref()
+                        .is_some_and(|current| {
+                            current.path == completion.workspace_path().display().to_string()
+                        })
+                    && runtime_ref.service.state().generation
+                        == completion.binding.workspace_selection_generation
+            }
+            None => false,
+        }
+    };
+
     {
         let mut state = coordinator.lock().expect("coordinator lock poisoned");
-        match published {
-            PublishOutcome::Published => {
+        match (published, still_matches) {
+            (PublishOutcome::Published, true) => {
                 state.apply_load_success(&completion.binding);
             }
-            PublishOutcome::Discarded | PublishOutcome::EmitFailed => {
+            _ => {
+                // Either the emit failed or the binding drifted
+                // between build and emit. Leave `last_published_sha`
+                // unchanged so a future probe can re-emit a
+                // current-tip load for the renderer.
                 state.apply_load_failure();
             }
         }
     }
 
-    // Post-completion dirty handling: if the previous load's lifetime
-    // observed a different SHA, probe the current ref tip and start at
-    // most one follow-up load for it.
-    let dirty_observed = {
-        let mut state = coordinator.lock().expect("coordinator lock poisoned");
-        state.take_dirty_target()
-    };
-    if dirty_observed.is_none() {
-        return;
+    if dirty_observed.is_some() {
+        handle_dirty_follow_up(runtime, coordinator, load_done_tx, ops).await;
     }
+}
 
+
+/// Post-completion dirty handling: if the previous load's lifetime
+/// observed a different SHA, probe the current ref tip and start at
+/// most one follow-up load for it. Runs on every terminal load
+/// outcome (success, failure, stale) because the dirty observation
+/// is independent of the load result.
+async fn handle_dirty_follow_up(
+    runtime: &Arc<Mutex<Option<WorkspaceRuntime>>>,
+    coordinator: &Arc<Mutex<CoordinatorState>>,
+    load_done_tx: &tokio::sync::mpsc::UnboundedSender<LoadCompletion>,
+    ops: Arc<dyn RefreshOps>,
+) {
     let Some((path, generation)) = runtime_binding(runtime) else {
         return;
     };

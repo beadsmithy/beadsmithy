@@ -215,13 +215,6 @@ export const INITIAL_WORKSPACE_REMOUNT_KEY = "/__initial__";
  * [`applyWorkspaceTransition`] to keep its complexity under the lint
  * ceiling; the helper is pure and only reads the inputs already
  * validated by its caller.
- */
-/**
- * Compute the next confirmed-identity markers and the snapshot decision
- * for a single admitted Workspace transition. Pulled out of
- * [`applyWorkspaceTransition`] to keep its complexity under the lint
- * ceiling; the helper is pure and only reads the inputs already
- * validated by its caller.
  *
  * The retained-current branch rebinds `confirmedWorkspaceGeneration` to
  * the new state's generation. The workspace-management epic bumps the
@@ -329,9 +322,12 @@ export const applyWorkspaceTransition = (
     return { decision: { kind: "ignore" }, next: current };
   }
 
-  const currentPath = state.currentWorkspace?.path ?? null;
-  const currentGeneration = state.generation;
-  const pendingWorkspace = state.pendingWorkspace;
+  const {
+    currentWorkspace,
+    generation: currentGeneration,
+    pendingWorkspace,
+  } = state;
+  const currentPath = currentWorkspace?.path ?? null;
   const { issueData } = payload;
 
   const { confirmedWorkspacePath, confirmedWorkspaceGeneration, decision } =

@@ -42,7 +42,6 @@ pub struct WorkspaceTransition {
 }
 
 /// In-memory data is only published after the workspace service's durable
-/// In-memory data is only published after the workspace service's durable
 /// Current commit. It lets Issue Explorer reload without accepting a path.
 pub(crate) struct WorkspaceRuntime {
     app: tauri::AppHandle<tauri::Wry>,

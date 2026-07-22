@@ -249,7 +249,21 @@ export default function App() {
     };
 
     void (async () => {
-      await registerListeners();
+      // Subscription-first: register both listeners before dispatching
+      // the startup snapshot read. The startup load is guarded with a
+      // try/catch so a listener registration failure does not strand
+      // the renderer on the loading presentation forever — the
+      // existing initial-load behavior is preserved even when one of
+      // the `listen` calls rejects.
+      try {
+        await registerListeners();
+      } catch (error) {
+        // eslint-disable-next-line no-console
+        console.warn("beadsmith: failed to register refresh listeners", error);
+      }
+      if (disposed) {
+        return;
+      }
       dispatchStartupLoad();
     })();
 
