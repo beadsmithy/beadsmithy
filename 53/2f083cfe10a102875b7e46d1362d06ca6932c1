@@ -1,0 +1,40 @@
+src/workspaces/transition-gate.test.ts
+  s_6fb984dda49892::t_6a294c2c2db3ae 936-941,962,966-1009
+  s_6fb984dda49892::t_ecb39a29870263 95-102,120
+  s_6fb984dda49892::t_346d9dc7ce0f80 1010-1011
+src-tauri/src/rpc.rs
+  s_6fb984dda49892::t_1b1ab27e0a117e 261-263
+src-tauri/src/refresh/tests.rs
+  s_6fb984dda49892::t_bd586c48454d07 451-464
+  s_6fb984dda49892::t_2e3bf8f48ad26e 450
+src/App.issue-refresh.test.tsx
+  s_6fb984dda49892::t_46cd5e483b4dad 487-491,499,503
+src-tauri/src/refresh.rs
+  s_6fb984dda49892::t_99f00b91425f1d 380
+  s_6fb984dda49892::t_cfc5db618f3e7b 54-56,64,66-72,75-76
+  s_6fb984dda49892::t_57f163aeba2d42 58-59
+  s_6fb984dda49892::t_9457f91ae75386 57,60
+  s_6fb984dda49892::t_5e588746cbe60d 61-63,65,73-74
+  s_6fb984dda49892::t_038291528fb078 77,403,413,419-426,440,446,485,523,624,626-627
+src/workspaces/transition-gate.ts
+  s_6fb984dda49892::t_acd19f34561836 273-280
+  s_6fb984dda49892::t_b5eef43c90320d 21
+  s_6fb984dda49892::t_df8fa9b08176ca 242,269
+  s_6fb984dda49892::t_1006d61c43451d 334,338-344
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.15",
+  "base_commit_sha": "532f083cfe10a102875b7e46d1362d06ca6932c1",
+  "prompts": {},
+  "sessions": {
+    "s_6fb984dda49892": {
+      "agent_id": {
+        "tool": "pi",
+        "id": "019f7c31-7802-740d-a6e1-8085d4f1149d",
+        "model": "MiniMax-M3"
+      },
+      "human_author": "Tomas Thor Jonsson <benregn@gmail.com>"
+    }
+  }
+}
