@@ -1,0 +1,16 @@
+{
+  "assignee": "Devin AI",
+  "blocked_by": [],
+  "blocks": [],
+  "closed_at": "2026-07-22T09:23:35Z",
+  "close_reason": "Implemented in PR #56",
+  "created": "2026-07-22T09:17:24Z",
+  "description": "Make the topbar look like the attached image: remove the folder icon and 'Beadwork' text, and create a custom Tauri titlebar with window controls.",
+  "id": "bsm-f80",
+  "labels": [],
+  "priority": 2,
+  "status": "closed",
+  "title": "Remove Beadwork folder/text from topbar and add custom titlebar",
+  "type": "task",
+  "updated_at": "2026-07-22T09:23:35Z"
+}
