@@ -1,10 +1,16 @@
 import {
   AlertTriangle,
+  Circle,
+  CircleCheck,
+  CircleSlash,
+  Clock,
   FileText,
   Inbox,
   LoaderCircle,
+  PlayCircle,
   Search,
 } from "lucide-react";
+import type { LucideIcon } from "lucide-react";
 import { useMemo, useState } from "react";
 
 import type { ExternalLinkOpener } from "../components/external-link-opener";
@@ -25,17 +31,25 @@ import type { IssueTone } from "./issue-view";
 
 const EMPTY_CHILD_ISSUES: Issue[] = [];
 
-const TONE_DOT_CLASSES: Record<IssueTone, string> = {
-  blocked: "bg-danger",
-  closed: "bg-success",
-  deferred: "border border-muted bg-surface",
-  inProgress: "bg-accent",
-  open: "border border-muted bg-background",
+const ISSUE_TONE_ICONS: Record<IssueTone, LucideIcon> = {
+  blocked: CircleSlash,
+  closed: CircleCheck,
+  deferred: Clock,
+  inProgress: PlayCircle,
+  open: Circle,
+};
+
+const ISSUE_TONE_ICON_CLASSES: Record<IssueTone, string> = {
+  blocked: "text-danger",
+  closed: "text-muted opacity-60",
+  deferred: "text-muted",
+  inProgress: "text-accent",
+  open: "text-muted",
 };
 
 const TONE_BADGE_CLASSES: Record<IssueTone, string> = {
   blocked: "border-danger/30 bg-danger/10 text-red-200",
-  closed: "border-success/30 bg-success/10 text-emerald-200",
+  closed: "border-border-main bg-surface text-muted",
   deferred: "border-border-main bg-surface text-muted",
   inProgress: "border-accent/40 bg-accent/10 text-indigo-200",
   open: "border-border-main bg-surface text-text-main",
@@ -48,13 +62,16 @@ const SELECTED_ROW_CLASSES = "bg-surface";
 const IssueRow = ({
   issue,
   isSelected,
+  issueMap,
   onSelect,
 }: {
   issue: Issue;
   isSelected: boolean;
+  issueMap: Record<string, Issue>;
   onSelect: (issueId: string) => void;
 }) => {
-  const view = toIssueViewModel(issue);
+  const view = toIssueViewModel(issue, issueMap);
+  const ToneIcon = ISSUE_TONE_ICONS[view.tone];
   const rowContainerClassName = isSelected
     ? `border-b border-border-main ${SELECTED_ROW_CLASSES}`
     : "border-b border-border-main";
@@ -75,17 +92,12 @@ const IssueRow = ({
           type="button"
         >
           <div className="mb-1.5 flex min-w-0 items-center gap-2">
-            <div
+            <ToneIcon
               aria-hidden="true"
-              className={`size-1.5 shrink-0 rounded-full ${TONE_DOT_CLASSES[view.tone]}`}
+              className={`size-4 shrink-0 ${ISSUE_TONE_ICON_CLASSES[view.tone]}`}
             />
             <span className="shrink-0 font-mono text-[12px] text-muted">
               {view.id}
-            </span>
-            <span
-              className={`shrink-0 rounded-full border px-1.5 py-0.5 font-mono text-[10px] ${TONE_BADGE_CLASSES[view.badgeTone]}`}
-            >
-              {view.statusLabel}
             </span>
           </div>
           <h3 className="truncate text-[13px] font-medium text-text-main">
@@ -160,6 +172,7 @@ const IssueListEmptyState = ({
 const IssueListContent = ({
   activeViewLabel,
   emptyReason,
+  issueMap,
   onSelect,
   rawSearchQuery,
   selectedIssueId,
@@ -168,6 +181,7 @@ const IssueListContent = ({
 }: {
   activeViewLabel: string;
   emptyReason: IssueListEmptyReason | null;
+  issueMap: Record<string, Issue>;
   onSelect: (issueId: string) => void;
   rawSearchQuery: string;
   selectedIssueId: string | null;
@@ -221,6 +235,7 @@ const IssueListContent = ({
         <IssueRow
           issue={issue}
           isSelected={issue.id === selectedIssueId}
+          issueMap={issueMap}
           key={issue.id}
           onSelect={onSelect}
         />
@@ -339,8 +354,14 @@ const MetadataRow = ({ label, value }: { label: string; value: string }) => (
   </div>
 );
 
-const ChildIssueRow = ({ issue }: { issue: Issue }) => {
-  const view = toIssueViewModel(issue);
+const ChildIssueRow = ({
+  issue,
+  issueMap,
+}: {
+  issue: Issue;
+  issueMap: Record<string, Issue>;
+}) => {
+  const view = toIssueViewModel(issue, issueMap);
 
   return (
     <li className="flex flex-wrap items-center gap-x-2 gap-y-1 rounded border border-border-main bg-surface px-2 py-1.5">
@@ -355,14 +376,24 @@ const ChildIssueRow = ({ issue }: { issue: Issue }) => {
   );
 };
 
-const ChildIssuesSection = ({ childIssues }: { childIssues: Issue[] }) => (
+const ChildIssuesSection = ({
+  childIssues,
+  issueMap,
+}: {
+  childIssues: Issue[];
+  issueMap: Record<string, Issue>;
+}) => (
   <section>
     <h3 className="font-mono text-[10px] tracking-wider text-muted uppercase">
       Child Issues
     </h3>
     <ul aria-label="Child Issues" className="mt-2 flex flex-col gap-1">
       {childIssues.map((childIssue) => (
-        <ChildIssueRow issue={childIssue} key={childIssue.id} />
+        <ChildIssueRow
+          issue={childIssue}
+          issueMap={issueMap}
+          key={childIssue.id}
+        />
       ))}
     </ul>
   </section>
@@ -371,15 +402,17 @@ const ChildIssuesSection = ({ childIssues }: { childIssues: Issue[] }) => (
 const IssueDetailContent = ({
   childIssues,
   issue,
+  issueMap,
   markdownFontSizePx,
   openExternalLink,
 }: {
   childIssues: Issue[];
   issue: Issue;
+  issueMap: Record<string, Issue>;
   markdownFontSizePx?: number;
   openExternalLink: ExternalLinkOpener;
 }) => {
-  const view = toIssueViewModel(issue);
+  const view = toIssueViewModel(issue, issueMap);
   const hasDescription = issue.description.trim().length > 0;
   const hasComments = issue.comments.length > 0;
   const hasParent = issue.parent.trim().length > 0;
@@ -479,7 +512,7 @@ const IssueDetailContent = ({
         </div>
       </section>
       {childIssues.length > 0 ? (
-        <ChildIssuesSection childIssues={childIssues} />
+        <ChildIssuesSection childIssues={childIssues} issueMap={issueMap} />
       ) : null}
       <section>
         <h3 className="font-mono text-[10px] tracking-wider text-muted uppercase">
@@ -528,11 +561,13 @@ const IssueDetailContent = ({
 
 const IssueDetailPane = ({
   childIssues,
+  issueMap,
   selectedIssue,
   markdownFontSizePx,
   openExternalLink,
 }: {
   childIssues: Issue[];
+  issueMap: Record<string, Issue>;
   selectedIssue: Issue | null;
   markdownFontSizePx?: number;
   openExternalLink: ExternalLinkOpener;
@@ -543,6 +578,7 @@ const IssueDetailPane = ({
     <IssueDetailContent
       childIssues={childIssues}
       issue={selectedIssue}
+      issueMap={issueMap}
       markdownFontSizePx={markdownFontSizePx}
       openExternalLink={openExternalLink}
     />
@@ -599,6 +635,16 @@ export const IssueExplorer = ({
     return getChildIssues(issueState.allIssues, selectedIssue.id);
   }, [issueState, selectedIssue]);
 
+  const issueMap = useMemo<Record<string, Issue>>(() => {
+    if (issueState.status !== "success") {
+      return {};
+    }
+
+    return Object.fromEntries(
+      issueState.allIssues.map((issue) => [issue.id, issue])
+    );
+  }, [issueState]);
+
   // Reset the Issue List scroll position to the top when the active
   // Issue List View changes. Search changes intentionally do not reset
   // scroll; only view changes do. We accomplish this by remounting the
@@ -654,6 +700,7 @@ export const IssueExplorer = ({
           <IssueListContent
             activeViewLabel={activeViewLabel}
             emptyReason={emptyReason}
+            issueMap={issueMap}
             onSelect={handleSelect}
             rawSearchQuery={searchQuery}
             selectedIssueId={selectedIssueId}
@@ -664,6 +711,7 @@ export const IssueExplorer = ({
       </section>
       <IssueDetailPane
         childIssues={childIssues}
+        issueMap={issueMap}
         markdownFontSizePx={markdownFontSizePx}
         openExternalLink={openExternalLink}
         selectedIssue={selectedIssue}

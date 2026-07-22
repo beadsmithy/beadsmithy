@@ -1,6 +1,7 @@
 import {
-  CheckCircle2,
   Circle,
+  CircleCheck,
+  CircleChevronRight,
   CircleSlash,
   Clock,
   Folder,
@@ -32,11 +33,11 @@ type AppDestination = "issueExplorer" | "settings";
 const ISSUE_LIST_VIEW_ICONS: Record<IssueListViewId, LucideIcon> = {
   all: Inbox,
   blocked: CircleSlash,
-  closed: CheckCircle2,
+  closed: CircleCheck,
   deferred: Clock,
   in_progress: PlayCircle,
   open: Circle,
-  ready: CheckCircle2,
+  ready: CircleChevronRight,
 };
 
 const SidebarSettingsButton = ({

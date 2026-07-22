@@ -477,7 +477,9 @@ describe("IssueExplorer", () => {
     ]);
     expect(screen.queryByText(closedIssue.title)).toBeNull();
     expect(screen.queryByText(unknownStatusIssue.title)).toBeNull();
-    expect(screen.getAllByText("In Progress")).toHaveLength(2);
+    expect(
+      screen.getAllByRole("button", { name: /In Progress/u })
+    ).toHaveLength(2);
     expect(screen.getByText("blocked by 1 · blocks 1")).toBeInTheDocument();
 
     await user.click(getRowButton(inProgressEpic));
