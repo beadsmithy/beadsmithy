@@ -18,6 +18,7 @@
 import type { IssueExplorerLoadState } from "../issues/issue-loader";
 import type {
   LoadIssueExplorerDataResponse,
+  Workspace,
   WorkspaceState,
 } from "../rpc/bindings";
 import { isRetryableSwitchFailureKind } from "../workspace-switch-failure";
@@ -238,6 +239,7 @@ const decideSnapshotCommit = (
   current: WorkspaceTransitionGateState,
   currentPath: string | null,
   currentGeneration: number,
+  pendingWorkspace: Workspace | null,
   issueData: LoadIssueExplorerDataResponse | null
 ): {
   confirmedWorkspacePath: string | null;
@@ -264,15 +266,18 @@ const decideSnapshotCommit = (
       remountKey: CLEARED_WORKSPACE_REMOUNT_KEY,
     };
   } else if (
+    pendingWorkspace === null &&
     currentPath !== null &&
     currentPath === current.confirmedWorkspacePath
   ) {
-    // Same path retained (e.g., a failed switch that left Current
-    // unchanged but bumped the selection generation). Rebind the
-    // confirmed generation to the new state's value so a still-current
-    // workspace's refresh events are not silently rejected; the
-    // accepted refresh revision survives because the identity presence
-    // did not flip.
+    // Same path retained after a non-Pending transition (failed
+    // switch, cancellation that left Current unchanged, etc.).
+    // Rebind the confirmed generation to the new state's value so
+    // subsequent refresh events are not silently rejected; the
+    // accepted refresh revision survives because the identity
+    // presence did not flip. While Pending, the old generation must
+    // survive so an already-emitted refresh event for the
+    // still-current workspace is still admitted.
     confirmedWorkspacePath = currentPath;
     confirmedWorkspaceGeneration = currentGeneration;
     decision = { kind: "acceptStateRetainSnapshot" };
@@ -326,10 +331,17 @@ export const applyWorkspaceTransition = (
 
   const currentPath = state.currentWorkspace?.path ?? null;
   const currentGeneration = state.generation;
+  const pendingWorkspace = state.pendingWorkspace;
   const { issueData } = payload;
 
   const { confirmedWorkspacePath, confirmedWorkspaceGeneration, decision } =
-    decideSnapshotCommit(current, currentPath, currentGeneration, issueData);
+    decideSnapshotCommit(
+      current,
+      currentPath,
+      currentGeneration,
+      pendingWorkspace,
+      issueData
+    );
 
   const terminalGeneration = shouldAdvanceTerminalGeneration(state)
     ? generation

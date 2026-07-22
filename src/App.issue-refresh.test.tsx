@@ -484,11 +484,11 @@ describe("App issue explorer refresh", () => {
       });
     });
 
-    // Refresh for the still-current A must still be admitted. The
-    // Pending transition bumped the backend selection generation to 2,
-    // and the gate's confirmed generation rebinds to that value so a
-    // stale generation-1 event is correctly rejected; a fresh
-    // generation-2 event is admitted.
+    // Refresh for the still-current A must still be admitted while the
+    // Pending transition is in flight. The gate intentionally does
+    // NOT rebind during Pending (an already-emitted gen-1 refresh for
+    // A might arrive after this transition event), so the refresh event
+    // carries the prior generation and is admitted as-is.
     act(() => {
       listeners.refresh?.({
         payload: refreshPayload({
@@ -496,11 +496,11 @@ describe("App issue explorer refresh", () => {
             allIssues: [newIssue],
             blockedIssues: [],
             readyIssues: [],
-            workspaceGeneration: 2,
+            workspaceGeneration: 1,
             workspacePath: "/work/a",
           },
           refreshRevision: 4,
-          workspaceSelectionGeneration: 2,
+          workspaceSelectionGeneration: 1,
         }),
       });
     });

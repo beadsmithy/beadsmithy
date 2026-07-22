@@ -258,7 +258,9 @@ impl BeadsmithApiImpl {
     /// The first tick is delayed by `PROBE_INTERVAL` so the renderer
     /// has time to register its listener before any event can fire.
     pub fn start_refresh(&self) {
-        let _ = start_refresh_task(self.workspace.clone());
+        // Fire-and-forget task; its lifetime matches the runtime's.
+        // Dropping the `JoinHandle` does not abort the task.
+        drop(start_refresh_task(self.workspace.clone()));
     }
 
     fn with_runtime<T>(&self, operation: impl FnOnce(&mut WorkspaceRuntime) -> T) -> T {

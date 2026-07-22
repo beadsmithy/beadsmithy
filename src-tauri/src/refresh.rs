@@ -51,6 +51,30 @@ use crate::rpc::{
 };
 use crate::workspace::{load_issue_explorer_data, IssueExplorerData};
 
+/// Subprocess seam for the refresh scheduler. The production
+/// implementation wraps [`ProcessRunner`]; tests inject a fake so the
+/// scheduler's wiring can be exercised without spawning `git` or `bw`.
+///
+/// The trait exposes `probe_op` returning a `Box<dyn Fn>` so each
+/// call can hand a fresh closure to `tokio::task::spawn_blocking`
+/// (which requires `Send + 'static` and cannot share `&dyn RefreshOps`
+/// across the move). Implementors that hold `Arc<Self>` can return
+/// `Arc::clone(self).probe(...)`-shaped closures; the default below
+/// works for static implementations.
+pub(crate) trait RefreshOps: Send + Sync + 'static {
+    fn probe_op(&self) -> Box<dyn Fn(&Path) -> Result<String, ProbeError> + Send + 'static>;
+}
+
+/// Production [`RefreshOps`] that shells out to `git rev-parse` and
+/// `bw list/ready/blocked` via the existing [`ProcessRunner`].
+struct ProcessOps;
+
+impl RefreshOps for ProcessOps {
+    fn probe_op(&self) -> Box<dyn Fn(&Path) -> Result<String, ProbeError> + Send + 'static> {
+        Box::new(|p| probe_beadwork_ref(&ProcessRunner::new(), p))
+    }
+}
+
 /// Fully-qualified Beadwork ref the coordinator probes.
 ///
 /// Resolving through Git's `rev-parse` (rather than reading loose / packed
@@ -353,7 +377,7 @@ pub struct PublishReport {
 /// Returns the [`JoinHandle`] so the caller can abort it during teardown.
 pub(crate) fn start_refresh_task(runtime: Arc<Mutex<Option<WorkspaceRuntime>>>) -> JoinHandle<()> {
     tokio::spawn(async move {
-        run_refresh_loop(runtime).await;
+        run_refresh_loop(runtime, Arc::new(ProcessOps)).await;
     })
 }
 
@@ -376,7 +400,7 @@ impl LoadCompletion {
     }
 }
 
-async fn run_refresh_loop(runtime: Arc<Mutex<Option<WorkspaceRuntime>>>) {
+async fn run_refresh_loop(runtime: Arc<Mutex<Option<WorkspaceRuntime>>>, ops: Arc<dyn RefreshOps>) {
     let coordinator = Arc::new(Mutex::new(CoordinatorState::unseeded()));
     let (load_done_tx, mut load_done_rx) = tokio::sync::mpsc::unbounded_channel::<LoadCompletion>();
 
@@ -386,13 +410,20 @@ async fn run_refresh_loop(runtime: Arc<Mutex<Option<WorkspaceRuntime>>>) {
     loop {
         tokio::select! {
             _ = ticker.tick() => {
-                handle_tick(&runtime, &coordinator, &load_done_tx).await;
+                handle_tick(&runtime, &coordinator, &load_done_tx, ops.clone()).await;
             }
             maybe_completion = load_done_rx.recv() => {
                 let Some(completion) = maybe_completion else {
                     continue;
                 };
-                handle_completion(&runtime, &coordinator, &load_done_tx, completion).await;
+                handle_completion(
+                    &runtime,
+                    &coordinator,
+                    &load_done_tx,
+                    ops.clone(),
+                    completion,
+                )
+                .await;
             }
         }
     }
@@ -406,12 +437,13 @@ async fn handle_tick(
     runtime: &Arc<Mutex<Option<WorkspaceRuntime>>>,
     coordinator: &Arc<Mutex<CoordinatorState>>,
     load_done_tx: &tokio::sync::mpsc::UnboundedSender<LoadCompletion>,
+    ops: Arc<dyn RefreshOps>,
 ) {
     let Some((path, generation)) = runtime_binding(runtime) else {
         return;
     };
 
-    let observed = match probe_off_lock(&path).await {
+    let observed = match probe_off_lock(&path, ops.as_ref()).await {
         Ok(sha) => sha,
         Err(error) => {
             log::warn!(
@@ -450,6 +482,7 @@ async fn handle_completion(
     runtime: &Arc<Mutex<Option<WorkspaceRuntime>>>,
     coordinator: &Arc<Mutex<CoordinatorState>>,
     load_done_tx: &tokio::sync::mpsc::UnboundedSender<LoadCompletion>,
+    ops: Arc<dyn RefreshOps>,
     completion: LoadCompletion,
 ) {
     let Some((app, event)) = build_event_for_completion(runtime, &completion).await else {
@@ -487,7 +520,7 @@ async fn handle_completion(
     let Some((path, generation)) = runtime_binding(runtime) else {
         return;
     };
-    let observed = match probe_off_lock(&path).await {
+    let observed = match probe_off_lock(&path, ops.as_ref()).await {
         Ok(sha) => sha,
         Err(error) => {
             log::warn!(
@@ -588,9 +621,10 @@ fn runtime_binding(runtime: &Arc<Mutex<Option<WorkspaceRuntime>>>) -> Option<(Pa
     current_workspace_binding(runtime)
 }
 
-async fn probe_off_lock(path: &Path) -> Result<String, ProbeError> {
+async fn probe_off_lock(path: &Path, ops: &dyn RefreshOps) -> Result<String, ProbeError> {
     let path = path.to_path_buf();
-    tokio::task::spawn_blocking(move || probe_beadwork_ref(&ProcessRunner::new(), &path))
+    let ops = ops.probe_op();
+    tokio::task::spawn_blocking(move || ops(path.as_path()))
         .await
         .expect("probe task panicked")
 }

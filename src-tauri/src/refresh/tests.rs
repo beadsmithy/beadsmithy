@@ -447,3 +447,18 @@ fn scheduler_follow_up_load_targets_current_tip_not_dirty_sha() {
         "current tip matches published SHA; no follow-up"
     );
 }
+
+// NOTE: a true scheduler-integration test would construct a real
+// `WorkspaceRuntime` (so `current_workspace_binding` and
+// `build_refresh_event` are real), inject a blocking `RefreshOps`
+// impl, and drive `handle_tick` while a load is parked to prove a
+// concurrent probe populates the dirty target. The
+// `WorkspaceRuntime` holds a `tauri::AppHandle<tauri::Wry>`, which
+// requires the full Tauri test harness to construct; the harness is
+// not currently wired into the unit-test build. The
+// `scheduler_concurrent_probe_populates_dirty_target_during_in_flight_load`
+// test above pins the reducer-side invariant the scheduler relies on
+// (a probe arriving while a load is in flight is recorded as the
+// dirty target rather than starting a parallel load), and the
+// `RefreshOps` seam added here makes a future end-to-end integration
+// test mechanical once the harness is wired up.

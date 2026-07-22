@@ -92,10 +92,14 @@ const buildIssue = (overrides: Partial<Issue> = {}): Issue => ({
 describe("applyWorkspaceTransition", () => {
   it("admits a Pending transition while retaining the existing snapshot", () => {
     // A pending switch attempt bumps the selection generation even
-    // when Current Workspace does not change. The retained-current
-    // path rebinds the confirmed generation so subsequent refresh
-    // events for the still-current workspace are not silently
-    // rejected by `applyIssueExplorerRefresh`.
+    // when Current Workspace does not change. Pending transitions do
+    // NOT rebind the confirmed generation — an already-emitted
+    // refresh event for the still-current A (the backend releases the
+    // lock before emitting) may arrive after the Pending transition
+    // event, and rebinding would lock the renderer out of that
+    // refresh event. The rebind only happens once Pending resolves
+    // (see the "rebinds the confirmed generation after a failed
+    // switch" test below).
     const gate = initialGate({ confirmedWorkspacePath: "/work/a" });
     const payload = {
       issueData: null,
@@ -113,7 +117,7 @@ describe("applyWorkspaceTransition", () => {
       initialGate({
         acceptedGeneration: 2,
         acceptedRefreshRevision: null,
-        confirmedWorkspaceGeneration: 2,
+        confirmedWorkspaceGeneration: null,
         confirmedWorkspacePath: "/work/a",
       })
     );
@@ -929,10 +933,12 @@ describe("applyIssueExplorerRefresh", () => {
     expect(result.next.acceptedRefreshRevision).toBeNull();
   });
 
-  it("a Pending transition retains the rendered identity, then succeeds into B without reset", () => {
-    // Pending transitions must not clear the confirmed identity so a
-    // refresh event for the still-current A is not silently dropped
-    // during the switch attempt.
+  it("a Pending transition retains the rendered identity without rebinding generation", () => {
+    // Pending transitions must not rebind the confirmed generation
+    // because an already-emitted refresh event for the still-current
+    // A (the backend releases the lock before emitting) may arrive
+    // after the Pending transition event. Rebinding here would lock
+    // the renderer out of that refresh event.
     const gate = initialGate({
       acceptedRefreshRevision: 5,
       committedGeneration: 2,
@@ -953,8 +959,54 @@ describe("applyIssueExplorerRefresh", () => {
     );
     expect(pending.decision.kind).toBe("acceptStateRetainSnapshot");
     expect(pending.next.confirmedWorkspacePath).toBe("/work/a");
-    expect(pending.next.confirmedWorkspaceGeneration).toBe(3);
+    expect(pending.next.confirmedWorkspaceGeneration).toBe(2);
     expect(pending.next.acceptedRefreshRevision).toBe(5);
+  });
+
+  it("rebinds the confirmed generation after a failed switch that ends Pending", () => {
+    // Once the Pending transition resolves (here, with a failure that
+    // retains A as Current), the gate rebinds to the new selection
+    // generation so subsequent refresh events for A are admitted.
+    const gate = initialGate({
+      acceptedRefreshRevision: 5,
+      committedGeneration: 2,
+      confirmedWorkspaceGeneration: 2,
+      confirmedWorkspacePath: "/work/a",
+    });
+    const pending = applyWorkspaceTransition(
+      gate,
+      {
+        issueData: null,
+        state: workspaceState({
+          currentWorkspace: workspace("/work/a"),
+          generation: 3,
+          pendingWorkspace: workspace("/work/b"),
+        }),
+      },
+      null
+    );
+    expect(pending.next.confirmedWorkspaceGeneration).toBe(2);
+
+    const failed = applyWorkspaceTransition(
+      pending.next,
+      {
+        issueData: null,
+        state: workspaceState({
+          currentWorkspace: workspace("/work/a"),
+          error: {
+            kind: "loadFailed",
+            message: "Snapshot bytes could not be loaded",
+            retryable: true,
+          },
+          generation: 3,
+          pendingWorkspace: null,
+          retryWorkspace: workspace("/work/b"),
+        }),
+      },
+      null
+    );
+    expect(failed.next.confirmedWorkspaceGeneration).toBe(3);
+    expect(failed.next.acceptedRefreshRevision).toBe(5);
   });
 
   it("clearing Current clears the refresh identity", () => {
