@@ -2,13 +2,14 @@
   "assignee": "",
   "blocked_by": [],
   "blocks": [],
+  "closed_at": "2026-07-22T09:04:24Z",
   "created": "2026-07-19T20:53:15Z",
   "description": "Replace the separate leading dot and trailing status badge in the Issue List with a single status icon that mirrors the sidebar status icons.",
   "id": "bsm-4ca",
   "labels": [],
   "priority": 2,
-  "status": "open",
+  "status": "closed",
   "title": "Merge issue list indicators into status icon",
   "type": "task",
-  "updated_at": "2026-07-22T09:04:19Z"
+  "updated_at": "2026-07-22T09:04:24Z"
 }
