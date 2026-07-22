@@ -1,7 +1,7 @@
 import {
-  CheckCircle2,
   Circle,
   CircleCheck,
+  CircleChevronRight,
   CircleSlash,
   Clock,
   Folder,
@@ -37,7 +37,7 @@ const ISSUE_LIST_VIEW_ICONS: Record<IssueListViewId, LucideIcon> = {
   deferred: Clock,
   in_progress: PlayCircle,
   open: Circle,
-  ready: CheckCircle2,
+  ready: CircleChevronRight,
 };
 
 const SidebarSettingsButton = ({
