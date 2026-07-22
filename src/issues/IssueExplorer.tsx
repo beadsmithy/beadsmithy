@@ -1,7 +1,7 @@
 import {
   AlertTriangle,
-  Check,
   Circle,
+  CircleCheck,
   CircleSlash,
   Clock,
   FileText,
@@ -33,7 +33,7 @@ const EMPTY_CHILD_ISSUES: Issue[] = [];
 
 const ISSUE_TONE_ICONS: Record<IssueTone, LucideIcon> = {
   blocked: CircleSlash,
-  closed: Check,
+  closed: CircleCheck,
   deferred: Clock,
   inProgress: PlayCircle,
   open: Circle,

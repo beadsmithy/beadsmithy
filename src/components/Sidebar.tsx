@@ -1,7 +1,7 @@
 import {
-  Check,
   CheckCircle2,
   Circle,
+  CircleCheck,
   CircleSlash,
   Clock,
   Folder,
@@ -33,7 +33,7 @@ type AppDestination = "issueExplorer" | "settings";
 const ISSUE_LIST_VIEW_ICONS: Record<IssueListViewId, LucideIcon> = {
   all: Inbox,
   blocked: CircleSlash,
-  closed: Check,
+  closed: CircleCheck,
   deferred: Clock,
   in_progress: PlayCircle,
   open: Circle,
