@@ -65,6 +65,10 @@ const badgeToneFor = (issue: Issue): IssueTone => {
 };
 
 const issueToneFor = (issue: Issue): IssueTone => {
+  if (issue.status === "closed") {
+    return "closed";
+  }
+
   if (issue.blockedBy.length > 0) {
     return "blocked";
   }

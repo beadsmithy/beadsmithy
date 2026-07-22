@@ -1,6 +1,6 @@
 import {
   AlertTriangle,
-  CheckCircle2,
+  Check,
   Circle,
   CircleSlash,
   Clock,
@@ -33,7 +33,7 @@ const EMPTY_CHILD_ISSUES: Issue[] = [];
 
 const ISSUE_TONE_ICONS: Record<IssueTone, LucideIcon> = {
   blocked: CircleSlash,
-  closed: CheckCircle2,
+  closed: Check,
   deferred: Clock,
   inProgress: PlayCircle,
   open: Circle,
@@ -41,7 +41,7 @@ const ISSUE_TONE_ICONS: Record<IssueTone, LucideIcon> = {
 
 const ISSUE_TONE_ICON_CLASSES: Record<IssueTone, string> = {
   blocked: "text-danger",
-  closed: "text-success",
+  closed: "text-muted opacity-60",
   deferred: "text-muted",
   inProgress: "text-accent",
   open: "text-muted",
@@ -49,7 +49,7 @@ const ISSUE_TONE_ICON_CLASSES: Record<IssueTone, string> = {
 
 const TONE_BADGE_CLASSES: Record<IssueTone, string> = {
   blocked: "border-danger/30 bg-danger/10 text-red-200",
-  closed: "border-success/30 bg-success/10 text-emerald-200",
+  closed: "border-border-main bg-surface text-muted",
   deferred: "border-border-main bg-surface text-muted",
   inProgress: "border-accent/40 bg-accent/10 text-indigo-200",
   open: "border-border-main bg-surface text-text-main",
