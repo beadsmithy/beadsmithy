@@ -64,12 +64,24 @@ const badgeToneFor = (issue: Issue): IssueTone => {
   return "open";
 };
 
-const issueToneFor = (issue: Issue): IssueTone => {
+const hasOpenBlocker = (
+  issue: Issue,
+  issueMap: Record<string, Issue>
+): boolean => issue.blockedBy.some((id) => issueMap[id]?.status === "open");
+
+const issueToneFor = (
+  issue: Issue,
+  issueMap?: Record<string, Issue>
+): IssueTone => {
   if (issue.status === "closed") {
     return "closed";
   }
 
-  if (issue.blockedBy.length > 0) {
+  const isBlocked = issueMap
+    ? hasOpenBlocker(issue, issueMap)
+    : issue.blockedBy.length > 0;
+
+  if (isBlocked) {
     return "blocked";
   }
 
@@ -90,7 +102,10 @@ const dependencyLabelFor = (issue: Issue): string => {
   return fragments.join(" · ");
 };
 
-export const toIssueViewModel = (issue: Issue): IssueViewModel => {
+export const toIssueViewModel = (
+  issue: Issue,
+  issueMap?: Record<string, Issue>
+): IssueViewModel => {
   const statusLabel =
     STATUS_LABELS[issue.status] ?? toDisplayLabel(issue.status);
   const typeLabel = toDisplayLabel(normalizeText(issue.type, "issue"));
@@ -109,7 +124,7 @@ export const toIssueViewModel = (issue: Issue): IssueViewModel => {
     priorityLabel,
     statusLabel,
     title: normalizeText(issue.title, "Untitled issue"),
-    tone: issueToneFor(issue),
+    tone: issueToneFor(issue, issueMap),
     typeLabel,
   };
 };
