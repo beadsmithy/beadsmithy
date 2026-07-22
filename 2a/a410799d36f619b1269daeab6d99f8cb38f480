@@ -1,0 +1,42 @@
+docs/adr/0008-identify-issues-in-deep-links-by-workspace-path.md
+  s_d395fd199f257e::t_6c9c5d98f4da61 8
+  s_e9cc4f3b405a6d::t_9fc424bde1323d 1-2,4,6,10,25-26
+  s_e9cc4f3b405a6d::t_30bbdb1fbb89f7 3,5,7,9,11-24,27
+CONTEXT.md
+  s_e9cc4f3b405a6d::t_206e45edd1baee 15-16,22
+  s_e9cc4f3b405a6d::t_a17141fc58fc48 17-21
+  s_e9cc4f3b405a6d::t_ebbafd7d4d3b67 23-26
+docs/adr/0009-use-wouter-for-renderer-navigation.md
+  s_e9cc4f3b405a6d::t_e43e28477c4f3c 12-13
+  s_e9cc4f3b405a6d::t_1f808cd0de07d9 14-15
+  s_d395fd199f257e::t_709687be193241 11
+  s_e9cc4f3b405a6d::t_2a387e31213cab 1-7
+  s_e9cc4f3b405a6d::t_a188dc53015377 8-9
+  s_e9cc4f3b405a6d::t_af4c8f3c626125 10
+  s_e9cc4f3b405a6d::t_495d903b32fe02 16-18
+  s_e9cc4f3b405a6d::t_43da0616c64019 19-25
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.14",
+  "base_commit_sha": "2aa410799d36f619b1269daeab6d99f8cb38f480",
+  "prompts": {},
+  "sessions": {
+    "s_d395fd199f257e": {
+      "agent_id": {
+        "tool": "pi",
+        "id": "019f7bf3-c6e3-789a-ac36-5a7302206abb",
+        "model": "gpt-5.6-luna"
+      },
+      "human_author": "Tomas Thor Jonsson <benregn@gmail.com>"
+    },
+    "s_e9cc4f3b405a6d": {
+      "agent_id": {
+        "tool": "pi",
+        "id": "019f79e5-480b-75bb-a559-b067e11d5ee0",
+        "model": "gpt-5.6-luna"
+      },
+      "human_author": "Tomas Thor Jonsson <benregn@gmail.com>"
+    }
+  }
+}
