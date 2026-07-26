@@ -1,0 +1,25 @@
+src/lib/UseExternalLifecycle.test.tsx
+  s_345da80000e12c::t_64173d747793bf 46,51-52,81
+  s_345da80000e12c::t_c9dcd542163b7e 95
+  s_345da80000e12c::t_554a1f806b7ec1 44
+  s_345da80000e12c::t_94dde1c4ef9e04 1-2,47-50,53-79,82-93
+  s_345da80000e12c::t_850ac91be4a98e 45
+  s_345da80000e12c::t_2b4b373380f259 80
+  s_345da80000e12c::t_af8987af8c95e6 94
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.16",
+  "base_commit_sha": "976f8f84a3d52cfa7579abb30ab92590db9a316d",
+  "prompts": {},
+  "sessions": {
+    "s_345da80000e12c": {
+      "agent_id": {
+        "tool": "pi",
+        "id": "019f9d81-c7a1-7f3a-8056-66f4db32550e",
+        "model": "gpt-5.6-luna"
+      },
+      "human_author": "Tomas Thor Jonsson <benregn@gmail.com>"
+    }
+  }
+}
