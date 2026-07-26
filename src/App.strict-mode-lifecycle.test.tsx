@@ -1,7 +1,15 @@
 import type { UnlistenFn } from "@tauri-apps/api/event";
 import { act, render } from "@testing-library/react";
 import { StrictMode } from "react";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import {
+  afterAll,
+  afterEach,
+  beforeEach,
+  describe,
+  expect,
+  it,
+  vi,
+} from "vitest";
 
 import type { IssueExplorerLoadState } from "./issues/issue-loader";
 import type * as IssueLoaderModule from "./issues/issue-loader";
@@ -170,6 +178,9 @@ vi.mock("@tauri-apps/api/event", () => ({
 
 const { default: App } = await import("./App");
 
+const consoleErrorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+const consoleWarnSpy = vi.spyOn(console, "warn").mockImplementation(() => {});
+
 const completionOrders = [
   {
     label: "T1 → R1 → T2 → R2",
@@ -212,6 +223,13 @@ describe("App StrictMode listener lifecycle", () => {
     updateAppSettings.mockReset();
     workspaceState.mockReset();
     workspaceState.mockResolvedValue(workspace());
+  });
+
+  afterEach(() => {
+    expect(consoleErrorSpy).not.toHaveBeenCalled();
+    expect(consoleWarnSpy).not.toHaveBeenCalled();
+    consoleErrorSpy.mockClear();
+    consoleWarnSpy.mockClear();
   });
 
   it.each(completionOrders)(
@@ -410,4 +428,9 @@ describe("App StrictMode listener lifecycle", () => {
     expect(loadIssueExplorerStateFromTauRpc).toHaveBeenCalledTimes(1);
     expect(workspaceState).toHaveBeenCalledTimes(1);
   });
+});
+
+afterAll(() => {
+  consoleErrorSpy.mockRestore();
+  consoleWarnSpy.mockRestore();
 });
