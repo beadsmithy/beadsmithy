@@ -1,0 +1,15 @@
+{
+  "assignee": "",
+  "blocked_by": [],
+  "blocks": [],
+  "created": "2026-07-26T07:20:03Z",
+  "description": "## Goal\n\nUse the deferred listener harness to prove the ordering cited by the original review: the live StrictMode setup completes before stale setup 1's listener promises resolve.\n\n**Triage:** ready-for-agent\n\n## Background\n\n`src/App.tsx:182` declares `disposed` inside the lifecycle callback. StrictMode invokes that callback twice, creating different variables: cleanup 1 sets only `disposed_1`, while setup 2 owns `disposed_2`. The review claimed that if run 2 finishes first and run 1 finishes later, both listener sets could persist or startup could be skipped. That would require the runs to share one binding; they do not.\n\nThe listener lifecycle is `src/App.tsx:181-274`. Transition and refresh are registered sequentially at `src/App.tsx:192-216`; post-await checks remove stale handles; the outer check suppresses stale startup.\n\nThis task assumes the controlled harness from the preceding child exists in the focused App StrictMode test suite.\n\n## Work\n\nRender the real App under `React.StrictMode` with startup Issue/TauRPC calls mocked. Resolve listener promises in live-first order:\n\n```text\nT2 → R2 → T1 → R1\n```\n\nAssert at the moment `R2` settles:\n\n- `T2` and `R2` are retained;\n- the initial Issue load and `workspace_state()` each dispatch once.\n\nThen resolve `T1` and `R1`. Assert:\n\n- each stale unlisten spy runs exactly once immediately after its handle arrives;\n- stale completion does not remove `T2` or `R2`;\n- stale completion does not dispatch another startup load;\n- total startup Issue and Workspace read counts remain exactly one after all microtasks flush.\n\nName the test so failure output identifies “live registration completes before stale registration.”\n\n## Guardrails\n\n- Do not change production `disposed` ownership.\n- Do not replace the local flag with `useRef\u003cboolean\u003e`; that would make stale run 1 observe setup 2's reset value.\n- Do not rely only on `applyWorkspaceTransition` or refresh revision deduplication. Assert listener/unlistener ownership directly.\n- Do not use sleeps or fake timing.\n\n## Acceptance criteria\n\n- [ ] The live-first ordering is deterministic.\n- [ ] `T2`/`R2` remain active while App is mounted.\n- [ ] Late `T1`/`R1` each unlisten exactly once.\n- [ ] Late stale completion cannot remove live listeners.\n- [ ] Startup Issue and Workspace reads each remain at exactly one call.\n- [ ] Focused App lifecycle tests and `pnpm check` pass.",
+  "id": "bsm-wj1.5.3",
+  "labels": [],
+  "parent": "bsm-wj1.5",
+  "priority": 2,
+  "status": "open",
+  "title": "Test live-first App listener registration under StrictMode",
+  "type": "task",
+  "updated_at": "2026-07-26T07:20:03Z"
+}
