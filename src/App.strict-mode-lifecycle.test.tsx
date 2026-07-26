@@ -48,6 +48,7 @@ interface Registration {
   eventName: string;
   name: RegistrationName;
   requested: boolean;
+  resolved: boolean;
   resolve: () => void;
   unlisten: UnlistenFn;
 }
@@ -65,7 +66,7 @@ interface ListenerController {
 const createListenerController = (): ListenerController => {
   const registrations = new Map<RegistrationName, Registration>();
   let transitionCount = 0;
-  let refreshCount = 0;
+  const refreshOwners = new Set<"T1" | "T2">();
 
   const implementation = (
     eventName: string,
@@ -80,14 +81,28 @@ const createListenerController = (): ListenerController => {
       throw new Error(`Unexpected listener event: ${eventName}`);
     }
 
-    const count = isTransition ? (transitionCount += 1) : (refreshCount += 1);
-    if (count > 2) {
-      throw new Error(
-        `Unexpected ${isTransition ? "transition" : "refresh"} registration`
-      );
+    if (isTransition) {
+      transitionCount += 1;
+      if (transitionCount > 2) {
+        throw new Error("Unexpected transition registration");
+      }
     }
 
-    const name: RegistrationName = isTransition ? `T${count}` : `R${count}`;
+    const name: RegistrationName = isTransition
+      ? `T${transitionCount}`
+      : (() => {
+          const owner = (["T1", "T2"] as const).find((transitionName) => {
+            const transition = registrations.get(transitionName);
+            return transition?.resolved && !refreshOwners.has(transitionName);
+          });
+          if (!owner) {
+            throw new Error(
+              "Refresh registration requested before its transition resolved"
+            );
+          }
+          refreshOwners.add(owner);
+          return owner === "T1" ? "R1" : "R2";
+        })();
     let resolvePromise: (unlisten: UnlistenFn) => void = () => {
       throw new Error(`Registration ${name} was resolved twice`);
     };
@@ -105,8 +120,10 @@ const createListenerController = (): ListenerController => {
       requested: true,
       resolve: () => {
         registration.active = true;
+        registration.resolved = true;
         resolvePromise(registration.unlisten);
       },
+      resolved: false,
       unlisten: vi.fn(() => {
         registration.active = false;
       }),
@@ -230,6 +247,78 @@ describe("App StrictMode listener lifecycle", () => {
     ).not.toHaveBeenCalled();
     expect(listenerController.registration("T2").active).toBe(true);
     expect(listenerController.registration("R2").active).toBe(true);
+    expect(loadIssueExplorerStateFromTauRpc).toHaveBeenCalledTimes(1);
+    expect(workspaceState).toHaveBeenCalledTimes(1);
+
+    await act(async () => {
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+
+    expect(loadIssueExplorerStateFromTauRpc).toHaveBeenCalledTimes(1);
+    expect(workspaceState).toHaveBeenCalledTimes(1);
+  });
+
+  it("keeps live listeners when live registration completes before stale registration", async () => {
+    render(
+      <StrictMode>
+        <App />
+      </StrictMode>
+    );
+
+    expect(listenerController.listen).toHaveBeenCalledTimes(2);
+
+    await act(async () => {
+      listenerController.resolve("T2");
+      await Promise.resolve();
+    });
+    expect(listenerController.registration("R2").eventName).toBe(
+      refreshEventName
+    );
+
+    await act(async () => {
+      listenerController.resolve("R2");
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+
+    expect(listenerController.registration("T2").active).toBe(true);
+    expect(listenerController.registration("R2").active).toBe(true);
+    expect(
+      listenerController.registration("T2").unlisten
+    ).not.toHaveBeenCalled();
+    expect(
+      listenerController.registration("R2").unlisten
+    ).not.toHaveBeenCalled();
+    expect(loadIssueExplorerStateFromTauRpc).toHaveBeenCalledTimes(1);
+    expect(workspaceState).toHaveBeenCalledTimes(1);
+
+    await act(async () => {
+      listenerController.resolve("T1");
+      await Promise.resolve();
+    });
+    expect(listenerController.registration("R1").eventName).toBe(
+      refreshEventName
+    );
+    expect(
+      listenerController.registration("T1").unlisten
+    ).toHaveBeenCalledTimes(1);
+
+    await act(async () => {
+      listenerController.resolve("R1");
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+
+    expect(
+      listenerController.registration("R1").unlisten
+    ).toHaveBeenCalledTimes(1);
+    expect(
+      listenerController.registration("T2").unlisten
+    ).not.toHaveBeenCalled();
+    expect(
+      listenerController.registration("R2").unlisten
+    ).not.toHaveBeenCalled();
     expect(loadIssueExplorerStateFromTauRpc).toHaveBeenCalledTimes(1);
     expect(workspaceState).toHaveBeenCalledTimes(1);
 
