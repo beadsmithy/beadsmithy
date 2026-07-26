@@ -1,0 +1,22 @@
+src/App.strict-mode-lifecycle.test.tsx
+  s_345da80000e12c::t_cc21c6733ea7ff 71-72,95-96,145-146,151
+  s_345da80000e12c::t_11fd73c0311467 142,147-150,152,155
+  s_345da80000e12c::t_227a80a1f498bf 1-70,73-94,97-141,143-144,153-154,156-238
+  s_345da80000e12c::t_afd5a6fa1250ca 239-244
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.16",
+  "base_commit_sha": "340a0a5cec660dd6252a5d679b4f4810dec0c884",
+  "prompts": {},
+  "sessions": {
+    "s_345da80000e12c": {
+      "agent_id": {
+        "tool": "pi",
+        "id": "019f9d81-c7a1-7f3a-8056-66f4db32550e",
+        "model": "gpt-5.6-luna"
+      },
+      "human_author": "Tomas Thor Jonsson <benregn@gmail.com>"
+    }
+  }
+}
