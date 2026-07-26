@@ -341,4 +341,73 @@ describe("App StrictMode listener lifecycle", () => {
     expect(loadIssueExplorerStateFromTauRpc).not.toHaveBeenCalled();
     expect(workspaceState).not.toHaveBeenCalled();
   });
+
+  it("removes only live listeners when unmounted after startup", async () => {
+    const { unmount } = render(
+      <StrictMode>
+        <App />
+      </StrictMode>
+    );
+
+    const resolveRegistration = async (
+      name: RegistrationName
+    ): Promise<void> => {
+      await act(async () => {
+        listenerController.resolve(name);
+        await Promise.resolve();
+        await Promise.resolve();
+      });
+    };
+
+    await resolveRegistration("T1");
+    await resolveRegistration("R1");
+    await resolveRegistration("T2");
+    await resolveRegistration("R2");
+
+    expect(listenerController.registration("T1").active).toBe(false);
+    expect(listenerController.registration("R1").active).toBe(false);
+    expect(listenerController.registration("T2").active).toBe(true);
+    expect(listenerController.registration("R2").active).toBe(true);
+    expect(
+      listenerController.registration("T1").unlisten
+    ).toHaveBeenCalledTimes(1);
+    expect(
+      listenerController.registration("R1").unlisten
+    ).toHaveBeenCalledTimes(1);
+    expect(
+      listenerController.registration("T2").unlisten
+    ).not.toHaveBeenCalled();
+    expect(
+      listenerController.registration("R2").unlisten
+    ).not.toHaveBeenCalled();
+    expect(loadIssueExplorerStateFromTauRpc).toHaveBeenCalledTimes(1);
+    expect(workspaceState).toHaveBeenCalledTimes(1);
+
+    act(() => {
+      unmount();
+    });
+
+    await act(async () => {
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+
+    expect(
+      listenerController.registration("T1").unlisten
+    ).toHaveBeenCalledTimes(1);
+    expect(
+      listenerController.registration("R1").unlisten
+    ).toHaveBeenCalledTimes(1);
+    expect(
+      listenerController.registration("T2").unlisten
+    ).toHaveBeenCalledTimes(1);
+    expect(
+      listenerController.registration("R2").unlisten
+    ).toHaveBeenCalledTimes(1);
+    for (const name of ["T1", "T2", "R1", "R2"] as const) {
+      expect(listenerController.registration(name).active).toBe(false);
+    }
+    expect(loadIssueExplorerStateFromTauRpc).toHaveBeenCalledTimes(1);
+    expect(workspaceState).toHaveBeenCalledTimes(1);
+  });
 });
