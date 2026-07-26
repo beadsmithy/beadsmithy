@@ -2,14 +2,15 @@
   "assignee": "Tomas Thor Jonsson",
   "blocked_by": [],
   "blocks": [],
+  "closed_at": "2026-07-26T12:22:28Z",
   "created": "2026-07-26T07:20:03Z",
   "description": "## Goal\n\nAdd a focused StrictMode test for `useExternalLifecycle` proving that each effect setup gets a separate function-local disposal binding and that deferred work from setup 1 cannot observe setup 2's live state.\n\n**Triage:** ready-for-agent\n\n## Background and reasoning\n\n`src/main.tsx:16-18` renders the app inside `React.StrictMode`. In development, React performs an extra effect setup → cleanup → setup cycle. `src/lib/use-external-lifecycle.ts:32-34` calls the supplied `effect()` callback during every setup. JavaScript creates a new lexical environment for every callback invocation, so a local `let disposed = false` is a different variable in setup 1 and setup 2.\n\nThis property is load-bearing in `src/App.tsx:181-274`, where asynchronous Tauri listener registration captures a setup-local `disposed` flag. A review incorrectly treated the two locals as shared state. The App behavior is correct, but `src/lib/UseExternalLifecycle.test.tsx` currently covers only dependency changes and stable dependencies; it does not demonstrate StrictMode plus work deferred past cleanup.\n\n## Work\n\nUpdate `src/lib/UseExternalLifecycle.test.tsx` with a small probe rendered inside `\u003cReact.StrictMode\u003e`. The probe should:\n\n1. Allocate a run number and `let disposed = false` inside the lifecycle callback.\n2. Record setup observations.\n3. Schedule a manually controlled or microtask-deferred continuation that reads the same run's local binding.\n4. Return cleanup that sets that run's local binding to `true` and records cleanup.\n5. Flush deferred work through `act` so the test has no React warnings.\n\nAssert the meaningful sequence:\n\n```text\nsetup 1 sees disposed=false\ncleanup 1 sees disposed=true\nsetup 2 sees disposed=false\ncontinuation 1 sees disposed=true\ncontinuation 2 sees disposed=false\n```\n\nThe test should describe the public ownership behavior, not React internals beyond StrictMode's documented extra setup/cleanup cycle.\n\n## Guardrails\n\n- Do not change `src/lib/use-external-lifecycle.ts` unless the test exposes a real defect.\n- Do not use a shared `useRef\u003cboolean\u003e` in the probe; the point is to prove per-invocation local state.\n- Do not duplicate the full App listener algorithm here.\n- Keep existing dependency lifecycle tests intact.\n\n## Acceptance criteria\n\n- [ ] The real `useExternalLifecycle` hook runs under `React.StrictMode`.\n- [ ] The test proves setup 1 and setup 2 observe independent local disposal state.\n- [ ] Deferred setup-1 work observes its own cleaned-up binding.\n- [ ] Deferred setup-2 work observes its own live binding.\n- [ ] The test is deterministic and emits no act/unhandled-promise warnings.\n- [ ] `pnpm exec vitest run src/lib/UseExternalLifecycle.test.tsx` passes.\n- [ ] `pnpm check` passes.",
   "id": "bsm-wj1.5.1",
   "labels": [],
   "parent": "bsm-wj1.5",
   "priority": 2,
-  "status": "in_progress",
+  "status": "closed",
   "title": "Prove useExternalLifecycle has setup-local state under StrictMode",
   "type": "task",
-  "updated_at": "2026-07-26T12:20:33Z"
+  "updated_at": "2026-07-26T12:22:28Z"
 }
