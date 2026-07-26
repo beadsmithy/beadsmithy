@@ -279,4 +279,66 @@ describe("App StrictMode listener lifecycle", () => {
       expect(workspaceState).toHaveBeenCalledTimes(1);
     }
   );
+
+  it("unregisters every listener when unmounted with registrations pending", async () => {
+    const { unmount } = render(
+      <StrictMode>
+        <App />
+      </StrictMode>
+    );
+
+    expect(listenerController.listen).toHaveBeenCalledTimes(2);
+
+    act(() => {
+      unmount();
+    });
+
+    await act(async () => {
+      listenerController.resolve("T1");
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+    expect(
+      listenerController.registration("T1").unlisten
+    ).toHaveBeenCalledTimes(1);
+    expect(listenerController.registration("R1").eventName).toBe(
+      refreshEventName
+    );
+
+    await act(async () => {
+      listenerController.resolve("T2");
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+    expect(
+      listenerController.registration("T2").unlisten
+    ).toHaveBeenCalledTimes(1);
+    expect(listenerController.registration("R2").eventName).toBe(
+      refreshEventName
+    );
+
+    await act(async () => {
+      listenerController.resolve("R1");
+      listenerController.resolve("R2");
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+
+    for (const name of ["T1", "T2", "R1", "R2"] as const) {
+      expect(listenerController.registration(name).active).toBe(false);
+      expect(
+        listenerController.registration(name).unlisten
+      ).toHaveBeenCalledTimes(1);
+    }
+    expect(loadIssueExplorerStateFromTauRpc).not.toHaveBeenCalled();
+    expect(workspaceState).not.toHaveBeenCalled();
+
+    await act(async () => {
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+
+    expect(loadIssueExplorerStateFromTauRpc).not.toHaveBeenCalled();
+    expect(workspaceState).not.toHaveBeenCalled();
+  });
 });
