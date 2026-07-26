@@ -170,6 +170,33 @@ vi.mock("@tauri-apps/api/event", () => ({
 
 const { default: App } = await import("./App");
 
+const completionOrders = [
+  {
+    label: "T1 → R1 → T2 → R2",
+    order: ["T1", "R1", "T2", "R2"],
+  },
+  {
+    label: "T1 → T2 → R1 → R2",
+    order: ["T1", "T2", "R1", "R2"],
+  },
+  {
+    label: "T1 → T2 → R2 → R1",
+    order: ["T1", "T2", "R2", "R1"],
+  },
+  {
+    label: "T2 → T1 → R1 → R2",
+    order: ["T2", "T1", "R1", "R2"],
+  },
+  {
+    label: "T2 → T1 → R2 → R1",
+    order: ["T2", "T1", "R2", "R1"],
+  },
+  {
+    label: "T2 → R2 → T1 → R1",
+    order: ["T2", "R2", "T1", "R1"],
+  },
+] as const;
+
 describe("App StrictMode listener lifecycle", () => {
   beforeEach(() => {
     listenerController = createListenerController();
@@ -187,147 +214,69 @@ describe("App StrictMode listener lifecycle", () => {
     workspaceState.mockResolvedValue(workspace());
   });
 
-  it("cleans stale-first registrations and starts only the live setup", async () => {
-    render(
-      <StrictMode>
-        <App />
-      </StrictMode>
-    );
+  it.each(completionOrders)(
+    "keeps only live listeners for completion order $label",
+    async ({ order }) => {
+      render(
+        <StrictMode>
+          <App />
+        </StrictMode>
+      );
 
-    expect(listenerController.listen).toHaveBeenCalledTimes(2);
-    expect(listenerController.registration("T1").eventName).toBe(
-      transitionEventName
-    );
-    expect(listenerController.registration("T2").eventName).toBe(
-      transitionEventName
-    );
+      expect(listenerController.listen).toHaveBeenCalledTimes(2);
 
-    await act(async () => {
-      listenerController.resolve("T1");
-      await Promise.resolve();
-    });
-    expect(listenerController.registration("R1").eventName).toBe(
-      refreshEventName
-    );
-    expect(listenerController.listen).toHaveBeenCalledTimes(3);
+      const resolveRegistration = async (
+        name: RegistrationName
+      ): Promise<void> => {
+        await act(async () => {
+          listenerController.resolve(name);
+          await Promise.resolve();
+          await Promise.resolve();
+        });
+      };
+      let startupStarted = false;
 
-    await act(async () => {
-      listenerController.resolve("R1");
-      await Promise.resolve();
-    });
-    expect(
-      listenerController.registration("T1").unlisten
-    ).toHaveBeenCalledTimes(1);
-    expect(loadIssueExplorerStateFromTauRpc).not.toHaveBeenCalled();
-    expect(workspaceState).not.toHaveBeenCalled();
+      for (const name of order) {
+        // eslint-disable-next-line no-await-in-loop
+        await resolveRegistration(name);
 
-    await act(async () => {
-      listenerController.resolve("T2");
-      await Promise.resolve();
-    });
-    expect(listenerController.registration("R2").eventName).toBe(
-      refreshEventName
-    );
+        if (name === "R2") {
+          startupStarted = true;
+          expect(loadIssueExplorerStateFromTauRpc).toHaveBeenCalledTimes(1);
+          expect(workspaceState).toHaveBeenCalledTimes(1);
+        } else if (!startupStarted) {
+          expect(loadIssueExplorerStateFromTauRpc).not.toHaveBeenCalled();
+          expect(workspaceState).not.toHaveBeenCalled();
+        }
+      }
 
-    await act(async () => {
-      listenerController.resolve("R2");
-      await Promise.resolve();
-      await Promise.resolve();
-    });
+      expect(listenerController.listen).toHaveBeenCalledTimes(4);
+      expect(listenerController.registration("T1").active).toBe(false);
+      expect(listenerController.registration("R1").active).toBe(false);
+      expect(listenerController.registration("T2").active).toBe(true);
+      expect(listenerController.registration("R2").active).toBe(true);
+      expect(
+        listenerController.registration("T1").unlisten
+      ).toHaveBeenCalledTimes(1);
+      expect(
+        listenerController.registration("R1").unlisten
+      ).toHaveBeenCalledTimes(1);
+      expect(
+        listenerController.registration("T2").unlisten
+      ).not.toHaveBeenCalled();
+      expect(
+        listenerController.registration("R2").unlisten
+      ).not.toHaveBeenCalled();
+      expect(loadIssueExplorerStateFromTauRpc).toHaveBeenCalledTimes(1);
+      expect(workspaceState).toHaveBeenCalledTimes(1);
 
-    expect(listenerController.listen).toHaveBeenCalledTimes(4);
-    expect(
-      listenerController.registration("R1").unlisten
-    ).toHaveBeenCalledTimes(1);
-    expect(
-      listenerController.registration("T2").unlisten
-    ).not.toHaveBeenCalled();
-    expect(
-      listenerController.registration("R2").unlisten
-    ).not.toHaveBeenCalled();
-    expect(listenerController.registration("T2").active).toBe(true);
-    expect(listenerController.registration("R2").active).toBe(true);
-    expect(loadIssueExplorerStateFromTauRpc).toHaveBeenCalledTimes(1);
-    expect(workspaceState).toHaveBeenCalledTimes(1);
+      await act(async () => {
+        await Promise.resolve();
+        await Promise.resolve();
+      });
 
-    await act(async () => {
-      await Promise.resolve();
-      await Promise.resolve();
-    });
-
-    expect(loadIssueExplorerStateFromTauRpc).toHaveBeenCalledTimes(1);
-    expect(workspaceState).toHaveBeenCalledTimes(1);
-  });
-
-  it("keeps live listeners when live registration completes before stale registration", async () => {
-    render(
-      <StrictMode>
-        <App />
-      </StrictMode>
-    );
-
-    expect(listenerController.listen).toHaveBeenCalledTimes(2);
-
-    await act(async () => {
-      listenerController.resolve("T2");
-      await Promise.resolve();
-    });
-    expect(listenerController.registration("R2").eventName).toBe(
-      refreshEventName
-    );
-
-    await act(async () => {
-      listenerController.resolve("R2");
-      await Promise.resolve();
-      await Promise.resolve();
-    });
-
-    expect(listenerController.registration("T2").active).toBe(true);
-    expect(listenerController.registration("R2").active).toBe(true);
-    expect(
-      listenerController.registration("T2").unlisten
-    ).not.toHaveBeenCalled();
-    expect(
-      listenerController.registration("R2").unlisten
-    ).not.toHaveBeenCalled();
-    expect(loadIssueExplorerStateFromTauRpc).toHaveBeenCalledTimes(1);
-    expect(workspaceState).toHaveBeenCalledTimes(1);
-
-    await act(async () => {
-      listenerController.resolve("T1");
-      await Promise.resolve();
-    });
-    expect(listenerController.registration("R1").eventName).toBe(
-      refreshEventName
-    );
-    expect(
-      listenerController.registration("T1").unlisten
-    ).toHaveBeenCalledTimes(1);
-
-    await act(async () => {
-      listenerController.resolve("R1");
-      await Promise.resolve();
-      await Promise.resolve();
-    });
-
-    expect(
-      listenerController.registration("R1").unlisten
-    ).toHaveBeenCalledTimes(1);
-    expect(
-      listenerController.registration("T2").unlisten
-    ).not.toHaveBeenCalled();
-    expect(
-      listenerController.registration("R2").unlisten
-    ).not.toHaveBeenCalled();
-    expect(loadIssueExplorerStateFromTauRpc).toHaveBeenCalledTimes(1);
-    expect(workspaceState).toHaveBeenCalledTimes(1);
-
-    await act(async () => {
-      await Promise.resolve();
-      await Promise.resolve();
-    });
-
-    expect(loadIssueExplorerStateFromTauRpc).toHaveBeenCalledTimes(1);
-    expect(workspaceState).toHaveBeenCalledTimes(1);
-  });
+      expect(loadIssueExplorerStateFromTauRpc).toHaveBeenCalledTimes(1);
+      expect(workspaceState).toHaveBeenCalledTimes(1);
+    }
+  );
 });
