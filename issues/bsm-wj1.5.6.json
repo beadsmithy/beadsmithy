@@ -1,0 +1,15 @@
+{
+  "assignee": "",
+  "blocked_by": [],
+  "blocks": [],
+  "created": "2026-07-26T07:20:04Z",
+  "description": "## Goal\n\nProve steady-state cleanup: after StrictMode startup finishes correctly, a real App unmount removes the live lifecycle's listeners exactly once without re-cleaning stale ownership or repeating startup.\n\n**Triage:** ready-for-agent\n\n## Background\n\nAfter the StrictMode probe cycle, stale run 1 should have removed `T1` and `R1`, while live run 2 owns stored `unlistenTransition` and `unlistenRefresh` handles (`src/App.tsx:183-184`, `202`, `214`). Cleanup 2 at `src/App.tsx:270-274` must invoke only those live handles. The stale lifecycle's cleanup has already run and its late handles should already have been removed by post-await checks.\n\nThis task complements the pending-unmount case by covering the normal mounted steady state followed by an actual unmount.\n\n## Work\n\nUsing the focused App StrictMode harness:\n\n1. Complete all four registrations in any deterministic valid order.\n2. Before unmount, assert `T1` and `R1` have unlistened once, `T2` and `R2` remain live, and startup Issue/Workspace reads each ran once.\n3. Unmount App.\n4. Flush cleanup and any queued work.\n\nAssert after unmount:\n\n- `T2` and `R2` unlisten exactly once;\n- `T1` and `R1` remain at exactly one unlisten call, proving cleanup 2 does not own stale handles;\n- no listener remains active;\n- `loadIssueExplorerStateFromTauRpc()` remains at one call;\n- TauRPC `workspace_state()` remains at one call;\n- cleanup produces no warnings or unhandled rejections.\n\n## Guardrails\n\n- Assert pre-unmount steady state before testing cleanup so failures identify registration versus unmount defects.\n- Do not use gate deduplication as a substitute for listener ownership assertions.\n- No production, Rust, or WebDriver changes are expected.\n\n## Acceptance criteria\n\n- [ ] Pre-unmount state has only `T2`/`R2` live and exactly one startup dispatch.\n- [ ] Real unmount removes `T2`/`R2` once each.\n- [ ] Stale unlisten counts do not change during live cleanup.\n- [ ] Startup call counts do not change during cleanup.\n- [ ] No listeners or asynchronous warnings remain.\n- [ ] Focused tests, full frontend tests, `pnpm check`, and `pnpm doctor` pass.",
+  "id": "bsm-wj1.5.6",
+  "labels": [],
+  "parent": "bsm-wj1.5",
+  "priority": 2,
+  "status": "open",
+  "title": "Test unmount after StrictMode listener registration completes",
+  "type": "task",
+  "updated_at": "2026-07-26T07:20:04Z"
+}
