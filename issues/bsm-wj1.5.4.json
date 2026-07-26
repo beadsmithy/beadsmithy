@@ -1,0 +1,15 @@
+{
+  "assignee": "",
+  "blocked_by": [],
+  "blocks": [],
+  "created": "2026-07-26T07:20:04Z",
+  "description": "## Goal\n\nExtend the focused App StrictMode suite from the two edge orderings to every topologically valid listener-registration completion order.\n\n**Triage:** ready-for-agent\n\n## Background\n\nEach StrictMode lifecycle registers the Workspace transition listener before the Issue Explorer refresh listener (`src/App.tsx:192-216`). Therefore `R1` cannot be requested before `T1` resolves, and `R2` cannot be requested before `T2` resolves. Across the two runs, six completion orders satisfy those constraints.\n\nThe core invariant is order-independent because run 1 captures `disposed_1 === true` after cleanup and run 2 captures its separate `disposed_2 === false` while mounted. Every stale handle must unlisten; every live handle must remain; startup must come only from run 2.\n\nThis task assumes the deferred listener controller and the stale-first/live-first proofs already exist.\n\n## Work\n\nUse `it.each` or an equally clear parameterized structure to cover:\n\n```text\nT1 → R1 → T2 → R2\nT1 → T2 → R1 → R2\nT1 → T2 → R2 → R1\nT2 → T1 → R1 → R2\nT2 → T1 → R2 → R1\nT2 → R2 → T1 → R1\n```\n\nIt is fine to fold the existing stale-first and live-first tests into this matrix if each row has a descriptive name and failures report the ordering. Do not retain duplicate tests that assert the same path without adding diagnostic value.\n\nFor every row, assert after all continuations settle:\n\n```text\nlive registrations: T2 and R2 only\nT1 unlisten calls: 1\nR1 unlisten calls: 1\nT2/R2 unlisten calls before unmount: 0\nstartup Issue load calls: 1\nstartup workspace_state calls: 1\n```\n\nAlso assert startup does not begin before the live refresh registration `R2` resolves. The harness must enforce actual request sequencing rather than pre-creating refresh registrations that App has not requested.\n\n## Guardrails\n\n- Keep the matrix readable; use typed logical registration names rather than array indexes or unexplained magic numbers.\n- Do not model listeners outside App and test only the model.\n- Avoid spreading setup across so many helpers that the ownership assertions become hard to follow.\n- No production code or WebDriver changes are expected.\n\n## Acceptance criteria\n\n- [ ] All six valid orders execute against the real App lifecycle.\n- [ ] Invalid transition/refresh orderings are not presented as possible App behavior.\n- [ ] Every row proves only `T2`/`R2` remain live before unmount.\n- [ ] Every row proves stale handles unlisten once and startup reads run once.\n- [ ] Failure output identifies the completion order.\n- [ ] Focused tests, related App tests, and `pnpm check` pass.",
+  "id": "bsm-wj1.5.4",
+  "labels": [],
+  "parent": "bsm-wj1.5",
+  "priority": 2,
+  "status": "open",
+  "title": "Cover every valid StrictMode listener completion order",
+  "type": "task",
+  "updated_at": "2026-07-26T07:20:04Z"
+}
