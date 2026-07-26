@@ -1,5 +1,5 @@
 {
-  "assignee": "",
+  "assignee": "Tomas Thor Jonsson",
   "blocked_by": [],
   "blocks": [],
   "created": "2026-07-26T07:20:03Z",
@@ -8,8 +8,8 @@
   "labels": [],
   "parent": "bsm-wj1.5",
   "priority": 2,
-  "status": "open",
+  "status": "in_progress",
   "title": "Prove useExternalLifecycle has setup-local state under StrictMode",
   "type": "task",
-  "updated_at": "2026-07-26T07:20:03Z"
+  "updated_at": "2026-07-26T12:20:33Z"
 }
