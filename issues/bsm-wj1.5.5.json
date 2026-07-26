@@ -6,14 +6,15 @@
   "blocks": [
     "bsm-wj1.5.6"
   ],
+  "closed_at": "2026-07-26T12:47:28Z",
   "created": "2026-07-26T07:20:04Z",
   "description": "## Goal\n\nProve that a real App unmount while both StrictMode listener lifecycles still have pending registrations cannot leave listeners active or dispatch startup later.\n\n**Triage:** ready-for-agent\n\n## Background\n\nStrictMode cleanup 1 happens during the development probe cycle, but users can also cause a real cleanup by closing/remounting the renderer. `src/App.tsx:270-274` marks the current lifecycle disposed and calls handles already received. If a `listen()` promise has not resolved yet, the unlisten handle is unavailable during cleanup. The post-await checks at `src/App.tsx:199-203` and `211-215` are responsible for immediately removing those late handles when they arrive.\n\nThe App registers transition before refresh in each lifecycle, so after unmount and late resolution of `T1`/`T2`, the disposed asynchronous functions will still request `R1`/`R2`; those refresh handles must also unlisten on arrival. Neither lifecycle may reach startup.\n\nThis task uses the controlled listener harness from the focused App StrictMode suite.\n\n## Work\n\n1. Render the real App under `React.StrictMode`.\n2. Wait until setup 1 and setup 2 have requested `T1` and `T2`.\n3. Unmount before either transition promise resolves.\n4. Resolve `T1` and `T2` through `act`; observe App request `R1` and `R2` from the now-disposed flows.\n5. Resolve `R1` and `R2`.\n6. Flush all queued continuations.\n\nAssert:\n\n- `T1`, `T2`, `R1`, and `R2` unlisten exactly once;\n- no listener remains active;\n- `loadIssueExplorerStateFromTauRpc()` is never called;\n- TauRPC `workspace_state()` is never called;\n- no React state-update-after-unmount warning appears;\n- no unhandled rejection or unresolved test promise remains.\n\n## Guardrails\n\n- This is a real `unmount()` test, not another simulated cleanup assertion.\n- Do not suppress warnings globally to make the test pass.\n- Do not stop after transition handles; both sequential refresh registrations must be resolved and checked.\n- No production changes are expected.\n\n## Acceptance criteria\n\n- [ ] App unmounts before pending registrations resolve.\n- [ ] All four late registrations remove themselves exactly once.\n- [ ] No startup Issue or Workspace read occurs.\n- [ ] No listener, warning, or unhandled asynchronous work remains.\n- [ ] Focused App lifecycle tests and `pnpm check` pass.",
   "id": "bsm-wj1.5.5",
   "labels": [],
   "parent": "bsm-wj1.5",
   "priority": 2,
-  "status": "in_progress",
+  "status": "closed",
   "title": "Test unmount while StrictMode listener registrations are pending",
   "type": "task",
-  "updated_at": "2026-07-26T12:46:34Z"
+  "updated_at": "2026-07-26T12:47:28Z"
 }
