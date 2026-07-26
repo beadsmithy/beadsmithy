@@ -78,8 +78,12 @@ export const selectIssueListView = async (
  * Assert the sidebar button for `label` reports `countLabel` in its
  * rendered `aria-label`. The sidebar derives the count from the real
  * Beadwork Issue set, so this proves the typed `switch_workspace`
- * payload has reached the renderer and was rendered into the
+ * payload (or a fresh `beadwork://issue-explorer-state-changed`
+ * refresh) has reached the renderer and was rendered into the
  * `All` / `Ready` / `Blocked` / `Closed` / `Deferred` counts.
+ *
+ * The check is condition-waited so external `bw` mutations can drive
+ * the count change without fixed sleeps or manual refresh actions.
  */
 export const expectSidebarCount = async (
   label: string,
@@ -90,8 +94,16 @@ export const expectSidebarCount = async (
     timeout: 120_000,
     timeoutMsg: `Expected sidebar count to render for ${label}`,
   });
-  const ariaLabel = await button.getAttribute("aria-label");
-  expect(ariaLabel).toBe(`${label}, ${countLabel}`);
+  await browser.waitUntil(
+    async () => {
+      const ariaLabel = await button.getAttribute("aria-label");
+      return ariaLabel === `${label}, ${countLabel}`;
+    },
+    {
+      timeout: 30_000,
+      timeoutMsg: `Expected sidebar count for ${label} to converge to "${countLabel}"`,
+    }
+  );
 };
 
 /**

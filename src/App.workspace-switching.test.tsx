@@ -8,10 +8,10 @@ import type * as BindingsModule from "./rpc/bindings";
 import type { WorkspaceState, WorkspaceSwitchResponse } from "./rpc/bindings";
 import {
   buildIssue,
+  createBothListenersMock,
   successState,
   workspace,
 } from "./test/app-workspace-fixtures";
-import type { WorkspaceTransitionListener } from "./test/app-workspace-fixtures";
 
 const loadIssueExplorerStateFromTauRpc =
   vi.fn<() => Promise<IssueExplorerLoadState>>();
@@ -79,12 +79,8 @@ describe("App workspace switching", () => {
   });
 
   it("drops a late older-generation workspace transition", async () => {
-    let transitionListener: WorkspaceTransitionListener | undefined;
-    // oxlint-disable-next-line promise/prefer-await-to-callbacks
-    listen.mockImplementation((_eventName, callback) => {
-      transitionListener = callback;
-      return Promise.resolve(vi.fn());
-    });
+    const { listeners, implementation } = createBothListenersMock();
+    listen.mockImplementation(implementation);
 
     const aIssue = buildIssue({ id: "shared", title: "A issue" });
     const bIssue = buildIssue({ id: "shared", title: "B issue" });
@@ -100,11 +96,11 @@ describe("App workspace switching", () => {
 
     render(<App />);
     await waitFor(() => {
-      expect(transitionListener).toBeDefined();
+      expect(listeners.transition).toBeDefined();
     });
 
     act(() => {
-      transitionListener?.({
+      listeners.transition?.({
         payload: {
           issueData: {
             allIssues: [bIssue],
@@ -122,7 +118,7 @@ describe("App workspace switching", () => {
     expect(await screen.findByText("B issue")).toBeInTheDocument();
 
     act(() => {
-      transitionListener?.({
+      listeners.transition?.({
         payload: {
           issueData: {
             allIssues: [aIssue],
@@ -180,12 +176,8 @@ describe("App workspace switching", () => {
     expect(await screen.findByText("Current issue")).toBeInTheDocument();
   });
   it("keeps a Pending transition visible until the success RPC commits, then ignores a delayed same-generation replay", async () => {
-    let transitionListener: WorkspaceTransitionListener | undefined;
-    // oxlint-disable-next-line promise/prefer-await-to-callbacks
-    listen.mockImplementation((_eventName, callback) => {
-      transitionListener = callback;
-      return Promise.resolve(vi.fn());
-    });
+    const { listeners, implementation } = createBothListenersMock();
+    listen.mockImplementation(implementation);
 
     const aIssue = buildIssue({ id: "shared", title: "A issue" });
     const bIssue = buildIssue({ id: "shared", title: "B issue" });
@@ -217,7 +209,7 @@ describe("App workspace switching", () => {
     const user = userEvent.setup();
     render(<App />);
     await waitFor(() => {
-      expect(transitionListener).toBeDefined();
+      expect(listeners.transition).toBeDefined();
     });
 
     await user.click(
@@ -227,7 +219,7 @@ describe("App workspace switching", () => {
     // Pending arrives before the success RPC. This is the legitimate
     // Pending-before-success sequence the renderer must still surface.
     act(() => {
-      transitionListener?.({
+      listeners.transition?.({
         payload: {
           issueData: null,
           state: workspace({
@@ -255,6 +247,7 @@ describe("App workspace switching", () => {
           allIssues: [bIssue],
           blockedIssues: [],
           readyIssues: [],
+          workspaceGeneration: 2,
           workspacePath: "/work/b",
         },
         state: workspace({
@@ -277,12 +270,8 @@ describe("App workspace switching", () => {
     // afterward (a real race against `emit_transition` ordering), the
     // renderer must not end up with workspaceState pointing at "pending=B,
     // current=null" while the Issue Explorer still shows B's snapshot.
-    let transitionListener: WorkspaceTransitionListener | undefined;
-    // oxlint-disable-next-line promise/prefer-await-to-callbacks
-    listen.mockImplementation((_eventName, callback) => {
-      transitionListener = callback;
-      return Promise.resolve(vi.fn());
-    });
+    const { listeners, implementation } = createBothListenersMock();
+    listen.mockImplementation(implementation);
 
     const aIssue = buildIssue({ id: "shared", title: "A issue" });
     const bIssue = buildIssue({ id: "shared", title: "B issue" });
@@ -321,7 +310,7 @@ describe("App workspace switching", () => {
     const user = userEvent.setup();
     render(<App />);
     await waitFor(() => {
-      expect(transitionListener).toBeDefined();
+      expect(listeners.transition).toBeDefined();
     });
 
     await user.click(
@@ -332,7 +321,7 @@ describe("App workspace switching", () => {
     // Backend delivered the success RPC first (commit), then the Pending
     // transition event for the same generation arrives late.
     act(() => {
-      transitionListener?.({
+      listeners.transition?.({
         payload: {
           issueData: null,
           state: workspace({
@@ -352,7 +341,7 @@ describe("App workspace switching", () => {
     // the committed guard cannot reintroduce a mixed state through this
     // other hand-rolled payload shape.
     act(() => {
-      transitionListener?.({
+      listeners.transition?.({
         payload: {
           issueData: null,
           state: workspace({

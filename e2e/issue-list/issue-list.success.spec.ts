@@ -17,9 +17,12 @@ import {
   FIXTURE_DESCRIPTION_BULLET,
   FIXTURE_DESCRIPTION_HEADING,
   FIXTURE_DESCRIPTION_INLINE_CODE,
+  FIXTURE_EXTERNAL_BLOCKED_TARGET_TITLE,
+  FIXTURE_EXTERNAL_READY_BLOCKER_TITLE,
   FIXTURE_ISSUE_TITLE,
   FIXTURE_READY_SEARCH_QUERY,
   FIXTURE_READY_TITLE,
+  applyExternalMutation,
 } from "./fixtures/workspace.ts";
 import {
   expectIssueNotVisible,
@@ -214,6 +217,54 @@ describe("Issue explorer (WebDriver e2e): workspace with selectable Issue List V
     console.log(`[e2e:spec] asserting sidebar reports workspace: ${fixtureA}`);
 
     await expectCurrentWorkspace(fixtureA);
+  });
+
+  it("converges Issue Explorer counts after an external bw mutation in the selected workspace", async () => {
+    // External local mutation proof for the
+    // `beadwork://issue-explorer-state-changed` refresh event. The
+    // desktop binary is currently selected into fixtureA; we run real
+    // `bw create` and `bw dep add` against the same workspace from
+    // the WDIO process and wait by condition for the sidebar counts
+    // to converge without a manual refresh, fixed sleep, or backend
+    // load RPC. The 2-second polling plus full-load event path keeps
+    // every existing Issue visible throughout (no chooser flash, no
+    // initial-load spinner).
+    console.log(`[e2e:spec] applying external mutation to ${fixtureA}`);
+    const startedAt = Date.now();
+    const outcome = applyExternalMutation(fixtureA);
+    console.log(
+      `[e2e:spec] external mutation completed in ${Date.now() - startedAt}ms`
+    );
+
+    await expectCurrentWorkspace(fixtureA);
+    await expectSidebarCount("All", "8 issues");
+    await expectSidebarCount("Ready", "4 issues");
+    await expectSidebarCount("Blocked", "2 issues");
+
+    // Both new Issues appear in All.
+    await selectIssueListView("All", "all");
+    await expectIssueVisible(FIXTURE_EXTERNAL_READY_BLOCKER_TITLE);
+    await expectIssueVisible(FIXTURE_EXTERNAL_BLOCKED_TARGET_TITLE);
+    // An existing Issue remains visible to prove the list never blanked
+    // out during the refresh.
+    await expectIssueVisible(FIXTURE_ISSUE_TITLE);
+    // Closed / Deferred counts stay at the original 1 issue.
+    await expectSidebarCount("Closed", "1 issue");
+    await expectSidebarCount("Deferred", "1 issue");
+
+    // Blocker is Ready, target is Blocked.
+    await selectIssueListView("Ready", "ready");
+    await expectIssueVisible(FIXTURE_EXTERNAL_READY_BLOCKER_TITLE);
+    await expectIssueNotVisible(FIXTURE_EXTERNAL_BLOCKED_TARGET_TITLE);
+
+    await selectIssueListView("Blocked", "blocked");
+    await expectIssueVisible(FIXTURE_EXTERNAL_BLOCKED_TARGET_TITLE);
+    await expectIssueNotVisible(FIXTURE_EXTERNAL_READY_BLOCKER_TITLE);
+
+    // Diagnostic timing only: the test must not fail on a slow CI.
+    console.log(`[e2e:spec] refresh converged in ${Date.now() - startedAt}ms`);
+    expect(outcome.readyBlockerId).toMatch(/^e2e-/u);
+    expect(outcome.blockedTargetId).toMatch(/^e2e-/u);
   });
 
   it("switches to the second fixture and preserves it after an invalid typed switch", async () => {

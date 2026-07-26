@@ -38,6 +38,7 @@ const data = (allIssues: Issue[]): IssueExplorerData => ({
   allIssues,
   blockedIssues: [],
   readyIssues: [],
+  workspaceGeneration: 1,
   workspacePath: "/Users/dev/work/beads",
 });
 
@@ -51,12 +52,14 @@ const successState = (
     allIssues?: Issue[];
     blockedIssues?: Issue[];
     readyIssues?: Issue[];
+    workspaceGeneration?: number;
   } = {}
 ): SuccessfulIssueExplorerLoadState => ({
   allIssues: overrides.allIssues ?? [],
   blockedIssues: overrides.blockedIssues ?? [],
   readyIssues: overrides.readyIssues ?? [],
   status: "success",
+  workspaceGeneration: overrides.workspaceGeneration ?? 1,
   workspacePath: "/Users/dev/work/beads",
 });
 

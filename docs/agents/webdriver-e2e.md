@@ -43,9 +43,11 @@ pnpm test:e2e:settings
 pnpm test:e2e:mermaid
 ```
 
-Requires `bw` on `PATH` (used both to build the disposable fixture workspaces
-and by the running app). `pnpm e2e:issue-list:*` fails fast with a clear error
-if `bw` isn't found or the debug binary hasn't been built yet.
+Requires `bw` and `git` on `PATH` (used both to build the disposable
+fixture workspaces and by the running app; the desktop binary resolves
+the local Beadwork ref through `git rev-parse`). `pnpm e2e:issue-list:*`
+fails fast with a clear error if `bw` or `git` isn't found or the debug
+binary hasn't been built yet.
 
 ## Mermaid diagram in Issue Detail suite
 
@@ -158,6 +160,12 @@ catalog changed.
   `TauRPC__retry_workspace_memory` boundary to prove its response shape
   and post-refresh rendering; the renderer-level recovery panel that calls
   `App.retryWorkspaceMemory` is covered in `App.workspace-recovery.test.tsx`.
+  A dedicated scenario applies real external `bw create` and `bw dep add`
+  mutations to the already-selected Workspace A from the WDIO process and
+  condition-waits for the sidebar counts to converge to the post-mutation
+  values (`All: 6 → 8`, `Ready: 3 → 4`, `Blocked: 1 → 2`) without a manual
+  refresh or fixed sleep. This is the slice-level proof of the
+  `beadwork://issue-explorer-state-changed` refresh event end to end.
 - `empty` (`e2e/issue-list/issue-list.empty.spec.ts`): the empty Workspace
   B is selected through the typed RPC and the true-empty Issue Explorer
   state is asserted end to end. The spec proves the empty-startup

@@ -37,12 +37,14 @@ type SuccessfulIssueExplorerLoadState = Extract<
 
 const successState = (
   issues: Issue[],
-  workspacePath = "/Users/dev/work/portal"
+  workspacePath = "/Users/dev/work/portal",
+  workspaceGeneration = 1
 ): SuccessfulIssueExplorerLoadState => ({
   allIssues: issues,
   blockedIssues: [],
   readyIssues: [],
   status: "success",
+  workspaceGeneration,
   workspacePath,
 });
 

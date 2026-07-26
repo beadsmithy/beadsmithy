@@ -6,6 +6,7 @@
 //! the desktop app.
 
 pub mod issues;
+pub mod refresh;
 pub mod rpc;
 pub mod settings;
 pub mod workspace;
@@ -75,6 +76,7 @@ pub async fn run() {
         .setup(move |_app| {
             workspace_setup_api.initialize_workspace(_app.handle().clone());
             workspace_setup_api.initialize_settings(_app.handle().clone());
+            workspace_setup_api.start_refresh();
             #[cfg(debug_assertions)]
             start_dev_bridge(_app.handle());
             Ok(())

@@ -66,6 +66,7 @@ describe("loadIssueExplorerState", () => {
         allIssues: [allIssue],
         blockedIssues: [blockedIssue],
         readyIssues: [readyIssue],
+        workspaceGeneration: 4,
         workspacePath: "/Users/dev/work/portal",
       })
     ).resolves.toEqual({
@@ -73,6 +74,7 @@ describe("loadIssueExplorerState", () => {
       blockedIssues: [blockedIssue],
       readyIssues: [readyIssue],
       status: "success",
+      workspaceGeneration: 4,
       workspacePath: "/Users/dev/work/portal",
     });
   });
@@ -83,6 +85,7 @@ describe("loadIssueExplorerState", () => {
         allIssues: [],
         blockedIssues: [],
         readyIssues: [],
+        workspaceGeneration: 0,
         workspacePath: "/Users/dev/work/empty",
       })
     ).resolves.toEqual({
@@ -90,6 +93,7 @@ describe("loadIssueExplorerState", () => {
       blockedIssues: [],
       readyIssues: [],
       status: "success",
+      workspaceGeneration: 0,
       workspacePath: "/Users/dev/work/empty",
     });
   });
@@ -103,6 +107,7 @@ describe("loadIssueExplorerState", () => {
       allIssues: [allIssue],
       blockedIssues: [blockedIssue],
       readyIssues: [readyIssue],
+      workspaceGeneration: 1,
       workspacePath: "/Users/dev/work/portal",
     });
 
