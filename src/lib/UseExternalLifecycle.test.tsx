@@ -1,7 +1,23 @@
-import { render } from "@testing-library/react";
-import { describe, expect, it } from "vitest";
+import { act, render } from "@testing-library/react";
+import { StrictMode } from "react";
+import { afterAll, afterEach, describe, expect, it, vi } from "vitest";
 
 import { useExternalLifecycle } from "./use-external-lifecycle";
+
+const consoleErrorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+const consoleWarnSpy = vi.spyOn(console, "warn").mockImplementation(() => {});
+
+afterEach(() => {
+  expect(consoleErrorSpy).not.toHaveBeenCalled();
+  expect(consoleWarnSpy).not.toHaveBeenCalled();
+  consoleErrorSpy.mockClear();
+  consoleWarnSpy.mockClear();
+});
+
+afterAll(() => {
+  consoleErrorSpy.mockRestore();
+  consoleWarnSpy.mockRestore();
+});
 
 interface LifecycleProbeProps {
   events: string[];
@@ -37,6 +53,58 @@ describe("useExternalLifecycle", () => {
       "cleanup:first",
       "start:second",
       "cleanup:second",
+    ]);
+  });
+
+  it("keeps deferred work tied to its StrictMode setup", () => {
+    const events: string[] = [];
+    const continuations: (() => void)[] = [];
+    let nextRun = 0;
+
+    const StrictModeProbe = (): null => {
+      useExternalLifecycle(() => {
+        nextRun += 1;
+        const run = nextRun;
+        let disposed = false;
+
+        events.push(`setup ${run} sees disposed=${disposed}`);
+        continuations.push(() => {
+          events.push(`continuation ${run} sees disposed=${disposed}`);
+        });
+
+        return () => {
+          disposed = true;
+          events.push(`cleanup ${run} sees disposed=${disposed}`);
+        };
+      }, []);
+
+      return null;
+    };
+
+    render(
+      <StrictMode>
+        <StrictModeProbe />
+      </StrictMode>
+    );
+
+    expect(events).toEqual([
+      "setup 1 sees disposed=false",
+      "cleanup 1 sees disposed=true",
+      "setup 2 sees disposed=false",
+    ]);
+
+    act(() => {
+      for (const continuation of continuations) {
+        continuation();
+      }
+    });
+
+    expect(events).toEqual([
+      "setup 1 sees disposed=false",
+      "cleanup 1 sees disposed=true",
+      "setup 2 sees disposed=false",
+      "continuation 1 sees disposed=true",
+      "continuation 2 sees disposed=false",
     ]);
   });
 
