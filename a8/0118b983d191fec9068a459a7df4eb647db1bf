@@ -1,0 +1,65 @@
+e2e/issue-list/helpers/rpc.test.ts
+  s_4326a847fdf2bc::t_fb7daf5b258217 13-18,42-79
+  s_4326a847fdf2bc::t_0157540b30be08 80
+package.json
+  s_4326a847fdf2bc::t_0c14cd401f1154 20,22-23
+wdio.issue-list.conf.ts
+  s_4326a847fdf2bc::t_ef36e5f5e88fa5 10-12,15-21
+  s_4326a847fdf2bc::t_a447babb098593 97-99,130-132
+e2e/issue-list/scripts/harness-inputs.ts
+  s_4326a847fdf2bc::t_2f1adc1e225870 21,25-30,39,45,90,148
+e2e/issue-list/fixtures/workspace.ts
+  s_4326a847fdf2bc::t_47b054a61b004a 29-36,39,41
+  s_4326a847fdf2bc::t_7c572a551c531c 45,57,88,384-420,422-592
+  s_4326a847fdf2bc::t_b7e317b77f624f 83-85,87
+  s_4326a847fdf2bc::t_a8fcdeccd4794a 421
+  s_4326a847fdf2bc::t_f44083cc3c07cf 37-38,40,52-53
+  s_4326a847fdf2bc::t_dc86e9d4e381c0 42-44,56,58,64,67,82,89-91,593-595
+e2e/issue-list/issue-list.child-issues.spec.ts
+  s_4326a847fdf2bc::t_eb6707b9488458 457
+  s_4326a847fdf2bc::t_e55cfa093df8c1 509-512,527,548-551,558,564
+  s_4326a847fdf2bc::t_620085f31e0d89 61
+  s_4326a847fdf2bc::t_502bb6bbdb4a0e 34,43
+  s_4326a847fdf2bc::t_8def991a513487 33,36-42,65-69,72-75,77-97,164-174,338,398,412,437,440-443,445,452,466,487,489,522-523,534-536
+  s_4326a847fdf2bc::t_c3cf0b05f882b0 358,366-388
+  s_4326a847fdf2bc::t_ca32345b63676c 280
+  s_4326a847fdf2bc::t_bf584fc017505c 292
+  s_4326a847fdf2bc::t_e11deaddfe205c 439,447
+  s_4326a847fdf2bc::t_0481f517020158 176-270
+  s_4326a847fdf2bc::t_dec5f64918724b 403
+  s_4326a847fdf2bc::t_e9e04e50239043 1-32,35,44-60,62-64,70-71,76,98-163,175,339-357,359,361-365,389-397,399-402,404-411,413-436,438,444,446,448-451,453-456,458-465,467-486,488,490-508,513-521,524-526,528-533,537-547,552-557,559-563,565-573
+  s_4326a847fdf2bc::t_b09f1b02cf79a0 360
+  s_4326a847fdf2bc::t_9273a759d85993 271-279,281-291,293-314,316-337
+  s_4326a847fdf2bc::t_3f828d35f805ae 315
+e2e/issue-list/scripts/harness-inputs.test.ts
+  s_4326a847fdf2bc::t_8064b2e46fa4c4 10-18,22,48,107,131-145
+docs/agents/webdriver-e2e.md
+  s_4326a847fdf2bc::t_5126b4dc8f6d82 190-213
+  s_4326a847fdf2bc::t_fa40a808b16b05 314-322
+  s_4326a847fdf2bc::t_5a137b66d80679 230-234,236,242-249
+  s_4326a847fdf2bc::t_1e968a208766f8 263-267
+  s_4326a847fdf2bc::t_d971c2273d3531 288-290
+  s_4326a847fdf2bc::t_bfd9d47a890c98 34
+e2e/issue-list/helpers/rpc.ts
+  s_4326a847fdf2bc::t_c9304fd94d6116 86-92,95-102,217-241
+  s_4326a847fdf2bc::t_a8f36dc29c2ff3 242
+e2e/issue-list/scripts/run-scenario.ts
+  s_4326a847fdf2bc::t_4921c72af59a70 20,37,71-74,100
+  s_4326a847fdf2bc::t_69acbd79460de1 230-233,240-246
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.16",
+  "base_commit_sha": "a80118b983d191fec9068a459a7df4eb647db1bf",
+  "prompts": {},
+  "sessions": {
+    "s_4326a847fdf2bc": {
+      "agent_id": {
+        "tool": "pi",
+        "id": "019fa575-4f96-7e85-8cfe-76962c4b813b",
+        "model": "MiniMax-M3"
+      },
+      "human_author": "Tomas Thor Jonsson <benregn@gmail.com>"
+    }
+  }
+}
