@@ -357,21 +357,31 @@ const MetadataRow = ({ label, value }: { label: string; value: string }) => (
 const ChildIssueRow = ({
   issue,
   issueMap,
+  onSelect,
 }: {
   issue: Issue;
   issueMap: Record<string, Issue>;
+  onSelect: (issueId: string) => void;
 }) => {
   const view = toIssueViewModel(issue, issueMap);
 
   return (
-    <li className="flex flex-wrap items-center gap-x-2 gap-y-1 rounded border border-border-main bg-surface px-2 py-1.5">
-      <span className="font-mono text-xs text-text-main">{view.id}</span>
-      <span
-        className={`shrink-0 rounded-full border px-1.5 py-0.5 font-mono text-[10px] ${TONE_BADGE_CLASSES[view.badgeTone]}`}
+    <li>
+      <button
+        aria-label={`${view.id}: ${view.title}. ${view.statusLabel}`}
+        className="flex w-full cursor-pointer flex-wrap items-center gap-x-2 gap-y-1 rounded border border-border-main bg-surface px-2 py-1.5 text-left transition-colors hover:bg-white/5 focus:bg-white/5 focus:outline-none"
+        data-child-issue-id={issue.id}
+        onClick={() => onSelect(issue.id)}
+        type="button"
       >
-        {view.statusLabel}
-      </span>
-      <span className="text-sm text-text-main">{view.title}</span>
+        <span className="font-mono text-xs text-text-main">{view.id}</span>
+        <span
+          className={`shrink-0 rounded-full border px-1.5 py-0.5 font-mono text-[10px] ${TONE_BADGE_CLASSES[view.badgeTone]}`}
+        >
+          {view.statusLabel}
+        </span>
+        <span className="text-sm text-text-main">{view.title}</span>
+      </button>
     </li>
   );
 };
@@ -379,9 +389,11 @@ const ChildIssueRow = ({
 const ChildIssuesSection = ({
   childIssues,
   issueMap,
+  onSelect,
 }: {
   childIssues: Issue[];
   issueMap: Record<string, Issue>;
+  onSelect: (issueId: string) => void;
 }) => (
   <section>
     <h3 className="font-mono text-[10px] tracking-wider text-muted uppercase">
@@ -393,6 +405,7 @@ const ChildIssuesSection = ({
           issue={childIssue}
           issueMap={issueMap}
           key={childIssue.id}
+          onSelect={onSelect}
         />
       ))}
     </ul>
@@ -404,12 +417,14 @@ const IssueDetailContent = ({
   issue,
   issueMap,
   markdownFontSizePx,
+  onSelect,
   openExternalLink,
 }: {
   childIssues: Issue[];
   issue: Issue;
   issueMap: Record<string, Issue>;
   markdownFontSizePx?: number;
+  onSelect: (issueId: string) => void;
   openExternalLink: ExternalLinkOpener;
 }) => {
   const view = toIssueViewModel(issue, issueMap);
@@ -512,7 +527,11 @@ const IssueDetailContent = ({
         </div>
       </section>
       {childIssues.length > 0 ? (
-        <ChildIssuesSection childIssues={childIssues} issueMap={issueMap} />
+        <ChildIssuesSection
+          childIssues={childIssues}
+          issueMap={issueMap}
+          onSelect={onSelect}
+        />
       ) : null}
       <section>
         <h3 className="font-mono text-[10px] tracking-wider text-muted uppercase">
@@ -564,12 +583,14 @@ const IssueDetailPane = ({
   issueMap,
   selectedIssue,
   markdownFontSizePx,
+  onSelect,
   openExternalLink,
 }: {
   childIssues: Issue[];
   issueMap: Record<string, Issue>;
   selectedIssue: Issue | null;
   markdownFontSizePx?: number;
+  onSelect: (issueId: string) => void;
   openExternalLink: ExternalLinkOpener;
 }) =>
   selectedIssue === null ? (
@@ -580,6 +601,7 @@ const IssueDetailPane = ({
       issue={selectedIssue}
       issueMap={issueMap}
       markdownFontSizePx={markdownFontSizePx}
+      onSelect={onSelect}
       openExternalLink={openExternalLink}
     />
   );
@@ -622,11 +644,11 @@ export const IssueExplorer = ({
   } = derivedState;
 
   // Derive Child Issues from the successful explorer's complete `allIssues`
-  // collection by matching the Beadwork `parent` field. This deliberately
-  // does not change list selection, the active Issue List View, or
-  // selection-clearing semantics. The selected Issue's ID is the lookup
-  // key only; candidates come exclusively from `allIssues` regardless of
-  // which view or search is active.
+  // collection by matching the Beadwork `parent` field. The selected Issue
+  // is resolved from `allIssues` (see `issue-explorer-state`), so the
+  // children shown here are consistent with whichever Issue is currently
+  // in Issue Detail — including Issues that the active view or search
+  // query is hiding. The `childIssues` derivation itself is unchanged.
   const childIssues = useMemo<Issue[]>(() => {
     if (issueState.status !== "success" || selectedIssue === null) {
       return EMPTY_CHILD_ISSUES;
@@ -652,12 +674,16 @@ export const IssueExplorer = ({
   // avoids any post-render imperative synchronization.
   const issueListScrollContainerKey = activeViewId;
 
-  // Clear the selected Issue ID when it is no longer visible after a
-  // view or search change. The cleared state is not auto-restored if a
-  // later view/search change makes the Issue visible again.
+  // Clear the selected Issue ID when it is no longer present in
+  // `allIssues`. The cleared state is not auto-restored if a later load
+  // makes the Issue visible again. Workspace transitions are handled
+  // separately by the App-level `workspaceKey` remount — this effect
+  // runs only inside the explorer's React subtree, so the only clearing
+  // trigger here is `allIssues` membership.
   if (
+    issueState.status === "success" &&
     selectedIssueId !== null &&
-    !visibleIssues.some((issue) => issue.id === selectedIssueId)
+    !issueState.allIssues.some((issue) => issue.id === selectedIssueId)
   ) {
     setSelectedIssueId(null);
   }
@@ -713,6 +739,7 @@ export const IssueExplorer = ({
         childIssues={childIssues}
         issueMap={issueMap}
         markdownFontSizePx={markdownFontSizePx}
+        onSelect={handleSelect}
         openExternalLink={openExternalLink}
         selectedIssue={selectedIssue}
       />
