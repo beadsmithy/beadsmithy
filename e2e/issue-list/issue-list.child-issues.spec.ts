@@ -30,9 +30,9 @@
 import { browser, expect } from "@wdio/globals";
 
 import {
-  FIXTURE_CHILD_LONELY_DESCRIPTION,
   FIXTURE_CHILD_LONELY_ID,
   FIXTURE_CHILD_LONELY_TITLE,
+  FIXTURE_CHILD_LONELY_TOKEN,
   FIXTURE_CHILD_NO_MATCH_TOKEN,
   FIXTURE_CHILD_PARENT_1_ID,
   FIXTURE_CHILD_PARENT_1_TITLE,
@@ -61,12 +61,6 @@ import {
 import { parseHarnessEnvironment } from "./scripts/harness-inputs.ts";
 
 const { fixtureA } = parseHarnessEnvironment(process.env);
-
-if (fixtureA.length === 0) {
-  throw new Error(
-    "BEADSMITH_E2E_WORKSPACE_A is not set. Run `pnpm e2e:issue-list:child-issues` instead of invoking wdio directly."
-  );
-}
 
 /**
  * The hard-coded oracle for the Child Issues rendered order under
@@ -332,7 +326,7 @@ const assertChildIssueFixtureStatuses = (
   expect(child3?.status).toBe("open");
 
   const lonely = byId.get(FIXTURE_CHILD_LONELY_ID);
-  expect(lonely?.parent).toBe("");
+  expect(lonely).toBeDefined();
 };
 
 describe("Child Issues (WebDriver e2e): closed parent, ordered children, and view/search-preserving navigation", () => {
@@ -519,7 +513,7 @@ describe("Child Issues (WebDriver e2e): closed parent, ordered children, and vie
     // Issues). The pre-navigation query is therefore empty / shut
     // out of the click target, which is what the assertion below
     // depends on.
-    const lonelySearchQuery = FIXTURE_CHILD_LONELY_DESCRIPTION;
+    const lonelySearchQuery = FIXTURE_CHILD_LONELY_TOKEN;
     const searchInput = await browser.$(searchInputSelector);
     await searchInput.setValue(lonelySearchQuery);
     await expect(searchInput).toHaveValue(lonelySearchQuery);

@@ -226,12 +226,17 @@ const provisionResources = (phases: readonly Phase[]): ScenarioResources => {
   const storePath = path.join(storeDirectory, "workspace-catalog.json");
 
   // The two populated fixtures are deterministic throwaway repos seeded
-  // via `bw`; only create what each scenario needs.
+  // via `bw`; only create what each scenario needs. The child-issues
+  // scenario provisions only the dedicated closed-parent fixture for
+  // Workspace A and skips the always-true-empty Workspace B that the
+  // other scenarios share, so the one-Workspace harness shape does
+  // not leave a leaked temp directory behind on cleanup.
   const workspaceA =
     scenario === "child-issues"
       ? createChildIssuesWorkspace()
       : createIssueListWorkspace();
-  const workspaceBEmpty = createEmptyWorkspace();
+  const workspaceBEmpty =
+    scenario === "child-issues" ? undefined : createEmptyWorkspace();
   const workspaceBSecond =
     scenario === "atomic-switch" ? createSecondIssueListWorkspace() : undefined;
   // `issues` and `empty` use B (true-empty) directly; `atomic-switch`

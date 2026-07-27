@@ -428,14 +428,19 @@ export const FIXTURE_CHILD_LONELY_TITLE =
 export const FIXTURE_CHILD_LONELY_PRIORITY = "2";
 export const FIXTURE_CHILD_LONELY_CREATED = "2026-01-05T09:00:00Z";
 /**
- * Unique description token for the no-children Issue. The desktop
- * navigation test searches `Ready` for this token to produce a
- * deterministic non-empty Ready result that excludes the closed
- * child, so the `childIssueButtonSelector` click really must change
- * Issue Detail against a useful list.
+ * Unique description token the no-children Issue carries. The desktop
+ * navigation test searches `Ready` for this token so the active
+ * Ready/search result is a deterministic non-empty list that
+ * excludes the closed child, which is what the Click + view/search
+ * persistence proof relies on.
  */
-export const FIXTURE_CHILD_LONELY_DESCRIPTION =
-  "nd7-child-lonely-needle — only this Issue matches this token";
+export const FIXTURE_CHILD_LONELY_TOKEN = "nd7-child-lonely-needle";
+/**
+ * Full description for the no-children Issue: it contains the token
+ * (so a search for the token matches) plus a short human-readable
+ * suffix so the description is not just the bare token.
+ */
+export const FIXTURE_CHILD_LONELY_DESCRIPTION = `${FIXTURE_CHILD_LONELY_TOKEN} — only this Issue matches this token`;
 /**
  * Secondary search token used to drive the Issue List View to a
  * deterministic empty state while Issue Detail still holds the
@@ -446,31 +451,37 @@ export const FIXTURE_CHILD_NO_MATCH_TOKEN = "xyz-no-match-needle-7c2";
 
 /**
  * Strongly-typed child Issues bag exposed by
- * `createChildIssuesWorkspace()`. The desktop spec reads these from
- * the typed `TauRPC__switch_workspace` response and uses the title
- * / status fields to build the Child Issue accessible-name selector
- * (`childIssueButtonSelector`). The bag is separate from the
- * existing `BeadworkWorkspace.issue` shape so the empty-fixture
- * contract used by the success / atomic-switch / restoration suites
- * is unchanged.
+ * `createChildIssuesWorkspace()`. The desktop spec reads the
+ * structured `id` / `parent` / `priority` / `created` / `status`
+ * fields from the typed `TauRPC__switch_workspace` response and
+ * uses this bag for the visible-name parts of every selector: the
+ * five explicit IDs, the five titles, and the three Child Issue
+ * humanised status labels. The harness and any future spec that
+ * inspects the typed contract can read this bag directly from the
+ * returned `BeadworkWorkspace.hierarchy`; the current
+ * spec asserts the same names through the exported constants so
+ * the spec stays a pure WebDriver consumer of the typed RCP
+ * response.
+ *
+ * The bag is separate from the existing `BeadworkWorkspace.issue`
+ * shape so the empty-fixture contract used by the success /
+ * atomic-switch / restoration suites is unchanged.
  */
 export interface ChildIssuesFixture {
-  child1ClosedOlderId: string;
-  child1ClosedOlderTitle: string;
-  child1StatusLabel: "Closed";
-  child2InProgressNewerId: string;
-  child2InProgressNewerTitle: string;
-  child2StatusLabel: "In Progress";
-  child3OpenOlderId: string;
-  child3OpenOlderTitle: string;
-  child3StatusLabel: "Open";
-  lonelyDescriptionToken: string;
-  lonelyId: string;
-  lonelyTitle: string;
-  noMatchToken: string;
-  parentClosedAt: string;
-  parentId: string;
-  parentTitle: string;
+  readonly child1ClosedOlderId: string;
+  readonly child1ClosedOlderStatus: "Closed";
+  readonly child1ClosedOlderTitle: string;
+  readonly child2InProgressNewerId: string;
+  readonly child2InProgressNewerStatus: "In Progress";
+  readonly child2InProgressNewerTitle: string;
+  readonly child3OpenOlderId: string;
+  readonly child3OpenOlderStatus: "Open";
+  readonly child3OpenOlderTitle: string;
+  readonly lonelyId: string;
+  readonly lonelyTitle: string;
+  readonly lonelyToken: string;
+  readonly parentId: string;
+  readonly parentTitle: string;
 }
 
 /**
@@ -573,19 +584,17 @@ export const createChildIssuesWorkspace = (): BeadworkWorkspace & {
   return {
     hierarchy: {
       child1ClosedOlderId: child1Id,
+      child1ClosedOlderStatus: "Closed",
       child1ClosedOlderTitle: FIXTURE_CHILD_PARENT_1_TITLE,
-      child1StatusLabel: "Closed",
       child2InProgressNewerId: child2Id,
+      child2InProgressNewerStatus: "In Progress",
       child2InProgressNewerTitle: FIXTURE_CHILD_PARENT_2_TITLE,
-      child2StatusLabel: "In Progress",
       child3OpenOlderId: child3Id,
+      child3OpenOlderStatus: "Open",
       child3OpenOlderTitle: FIXTURE_CHILD_PARENT_3_TITLE,
-      child3StatusLabel: "Open",
-      lonelyDescriptionToken: FIXTURE_CHILD_LONELY_DESCRIPTION,
       lonelyId,
       lonelyTitle: FIXTURE_CHILD_LONELY_TITLE,
-      noMatchToken: FIXTURE_CHILD_NO_MATCH_TOKEN,
-      parentClosedAt: FIXTURE_CHILD_PARENT_CLOSED_AT,
+      lonelyToken: FIXTURE_CHILD_LONELY_TOKEN,
       parentId,
       parentTitle: FIXTURE_CHILD_PARENT_TITLE,
     },
