@@ -1,5 +1,5 @@
 {
-  "assignee": "",
+  "assignee": "Tomas Thor Jonsson",
   "blocked_by": [
     "bsm-nd7.2",
     "bsm-nd7.3"
@@ -21,8 +21,8 @@
     }
   ],
   "priority": 2,
-  "status": "open",
+  "status": "in_progress",
   "title": "Prove Child Issues in the desktop E2E suite",
   "type": "task",
-  "updated_at": "2026-07-27T21:13:18Z"
+  "updated_at": "2026-07-27T21:22:56Z"
 }
