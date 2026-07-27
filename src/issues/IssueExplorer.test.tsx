@@ -1427,9 +1427,14 @@ describe("IssueExplorer", () => {
       await user.click(getChildIssueRowButton(child));
 
       const detail = getDetail();
-      expect(
-        detail.getByRole("heading", { level: 2, name: "Child task" })
-      ).toBeInTheDocument();
+      const heading = detail.getByRole("heading", {
+        level: 2,
+        name: "Child task",
+      });
+      expect(heading).toBeInTheDocument();
+      expect(document.activeElement).toBe(heading);
+      expect(getDetailElement()).toHaveAttribute("aria-live", "polite");
+      expect(getDetailElement()).toHaveTextContent("Child task");
       expect(detail.getByText("bsm-child")).toBeInTheDocument();
       expect(detail.queryByText("Parent epic")).toBeNull();
     });
@@ -1511,9 +1516,12 @@ describe("IssueExplorer", () => {
       await user.keyboard("{Enter}");
 
       const detail = getDetail();
-      expect(
-        detail.getByRole("heading", { level: 2, name: "Child task" })
-      ).toBeInTheDocument();
+      const heading = detail.getByRole("heading", {
+        level: 2,
+        name: "Child task",
+      });
+      expect(heading).toBeInTheDocument();
+      expect(document.activeElement).toBe(heading);
       expect(detail.getByText("bsm-child")).toBeInTheDocument();
     });
 
@@ -1538,9 +1546,67 @@ describe("IssueExplorer", () => {
       await user.keyboard(" ");
 
       const detail = getDetail();
-      expect(
-        detail.getByRole("heading", { level: 2, name: "Child task" })
-      ).toBeInTheDocument();
+      const heading = detail.getByRole("heading", {
+        level: 2,
+        name: "Child task",
+      });
+      expect(heading).toBeInTheDocument();
+      expect(document.activeElement).toBe(heading);
+    });
+
+    it("does not move focus during initial mount", () => {
+      const focusSpy = vi.spyOn(HTMLElement.prototype, "focus");
+
+      try {
+        renderExplorer([
+          buildIssue({
+            id: "bsm-initial-focus",
+            title: "Initial focus issue",
+          }),
+        ]);
+
+        expect(focusSpy).not.toHaveBeenCalled();
+      } finally {
+        focusSpy.mockRestore();
+      }
+    });
+
+    it("does not move focus during initial mount", () => {
+      const focusSpy = vi.spyOn(HTMLElement.prototype, "focus");
+
+      try {
+        renderExplorer([
+          buildIssue({
+            id: "bsm-initial-focus",
+            title: "Initial focus issue",
+          }),
+        ]);
+
+        expect(focusSpy).not.toHaveBeenCalled();
+      } finally {
+        focusSpy.mockRestore();
+      }
+    });
+
+    it("keeps focus in the Issue List when an Issue List row is selected", async () => {
+      const user = userEvent.setup();
+      const issue = buildIssue({
+        id: "bsm-list-focus",
+        title: "Issue List focus",
+      });
+
+      renderExplorer([issue]);
+
+      const row = getRowButton(issue);
+      await user.click(row);
+
+      expect(document.activeElement).toBe(row);
+      expect(document.activeElement).not.toBe(
+        getDetail().getByRole("heading", {
+          level: 2,
+          name: "Issue List focus",
+        })
+      );
     });
 
     it("keeps the selected child selected across a re-render with a different active view", async () => {
@@ -1845,6 +1911,59 @@ describe("IssueExplorer", () => {
       const restoredRow = getRowButton(selected);
       expect(restoredRow).not.toHaveAttribute("aria-current");
       expect(restoredRow).toHaveAttribute("data-selected", "false");
+    });
+
+    it("does not move focus when the explorer remounts on a workspace transition", async () => {
+      const user = userEvent.setup();
+      const parent = buildIssue({
+        id: "bsm-workspace-parent",
+        title: "Workspace parent",
+      });
+      const child = buildIssue({
+        id: "bsm-workspace-child",
+        parent: "bsm-workspace-parent",
+        title: "Workspace child",
+      });
+      const focusSpy = vi.spyOn(HTMLElement.prototype, "focus");
+
+      try {
+        const { rerender } = render(
+          <div key="workspace-a">
+            <IssueExplorer issueState={successState([parent, child])} />
+          </div>
+        );
+
+        await user.click(getRowButton(parent));
+        const childButton = screen
+          .getAllByRole("button")
+          .find(
+            (button) => button.dataset.childIssueId === "bsm-workspace-child"
+          );
+        if (!(childButton instanceof HTMLElement)) {
+          throw new Error(
+            "Expected the Child Issue button to be an HTMLElement"
+          );
+        }
+        focusSpy.mockClear();
+        await user.click(childButton);
+        expect(document.activeElement).toBe(
+          getDetail().getByRole("heading", {
+            level: 2,
+            name: "Workspace child",
+          })
+        );
+
+        focusSpy.mockClear();
+        rerender(
+          <div key="workspace-b">
+            <IssueExplorer issueState={successState([parent, child])} />
+          </div>
+        );
+
+        expect(focusSpy).not.toHaveBeenCalled();
+      } finally {
+        focusSpy.mockRestore();
+      }
     });
 
     it("drops the local selection when the explorer's React key changes", async () => {

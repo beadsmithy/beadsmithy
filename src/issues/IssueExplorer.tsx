@@ -11,11 +11,13 @@ import {
   Search,
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
-import { useMemo, useState } from "react";
+import type { RefObject } from "react";
+import { useMemo, useRef, useState } from "react";
 
 import type { ExternalLinkOpener } from "../components/external-link-opener";
 import { openExternalLink as defaultOpenExternalLink } from "../components/external-link-opener";
 import { MarkdownContent } from "../components/MarkdownContent";
+import { useExternalLifecycle } from "../lib/use-external-lifecycle";
 import type { Issue, IssueComment } from "../rpc/bindings";
 import {
   deriveIssueExplorerState,
@@ -358,10 +360,12 @@ const ChildIssueRow = ({
   issue,
   issueMap,
   onSelect,
+  onUserDrivenSelect,
 }: {
   issue: Issue;
   issueMap: Record<string, Issue>;
   onSelect: (issueId: string) => void;
+  onUserDrivenSelect: () => void;
 }) => {
   const view = toIssueViewModel(issue, issueMap);
 
@@ -371,7 +375,19 @@ const ChildIssueRow = ({
         aria-label={`${view.id}: ${view.title}. ${view.statusLabel}`}
         className="flex w-full cursor-pointer flex-wrap items-center gap-x-2 gap-y-1 rounded border border-border-main bg-surface px-2 py-1.5 text-left transition-colors hover:bg-white/5 focus:bg-white/5 focus:outline-none"
         data-child-issue-id={issue.id}
-        onClick={() => onSelect(issue.id)}
+        onClick={() => {
+          onUserDrivenSelect();
+          onSelect(issue.id);
+        }}
+        onKeyDown={(event) => {
+          if (event.key !== "Enter" && event.key !== " ") {
+            return;
+          }
+
+          event.preventDefault();
+          onUserDrivenSelect();
+          onSelect(issue.id);
+        }}
         type="button"
       >
         <span className="font-mono text-xs text-text-main">{view.id}</span>
@@ -390,10 +406,12 @@ const ChildIssuesSection = ({
   childIssues,
   issueMap,
   onSelect,
+  onUserDrivenSelect,
 }: {
   childIssues: Issue[];
   issueMap: Record<string, Issue>;
   onSelect: (issueId: string) => void;
+  onUserDrivenSelect: () => void;
 }) => (
   <section>
     <h3 className="font-mono text-[10px] tracking-wider text-muted uppercase">
@@ -406,6 +424,7 @@ const ChildIssuesSection = ({
           issueMap={issueMap}
           key={childIssue.id}
           onSelect={onSelect}
+          onUserDrivenSelect={onUserDrivenSelect}
         />
       ))}
     </ul>
@@ -418,14 +437,18 @@ const IssueDetailContent = ({
   issueMap,
   markdownFontSizePx,
   onSelect,
+  onUserDrivenSelect,
   openExternalLink,
+  titleRef,
 }: {
   childIssues: Issue[];
   issue: Issue;
   issueMap: Record<string, Issue>;
   markdownFontSizePx?: number;
   onSelect: (issueId: string) => void;
+  onUserDrivenSelect: () => void;
   openExternalLink: ExternalLinkOpener;
+  titleRef: RefObject<HTMLHeadingElement | null>;
 }) => {
   const view = toIssueViewModel(issue, issueMap);
   const hasDescription = issue.description.trim().length > 0;
@@ -435,6 +458,7 @@ const IssueDetailContent = ({
   return (
     <main
       aria-label="Issue detail"
+      aria-live="polite"
       className="flex flex-1 flex-col gap-6 overflow-y-auto bg-background p-8"
     >
       <header>
@@ -444,7 +468,11 @@ const IssueDetailContent = ({
           {view.statusLabel}
         </span>
         <div className="mt-3 flex flex-wrap items-baseline gap-x-3 gap-y-1">
-          <h2 className="text-2xl leading-tight font-semibold text-primary">
+          <h2
+            className="text-2xl leading-tight font-semibold text-primary"
+            ref={titleRef}
+            tabIndex={-1}
+          >
             {view.title}
           </h2>
           <span className="font-mono text-xs text-muted">{view.id}</span>
@@ -531,6 +559,7 @@ const IssueDetailContent = ({
           childIssues={childIssues}
           issueMap={issueMap}
           onSelect={onSelect}
+          onUserDrivenSelect={onUserDrivenSelect}
         />
       ) : null}
       <section>
@@ -584,14 +613,18 @@ const IssueDetailPane = ({
   selectedIssue,
   markdownFontSizePx,
   onSelect,
+  onUserDrivenSelect,
   openExternalLink,
+  titleRef,
 }: {
   childIssues: Issue[];
   issueMap: Record<string, Issue>;
   selectedIssue: Issue | null;
   markdownFontSizePx?: number;
   onSelect: (issueId: string) => void;
+  onUserDrivenSelect: () => void;
   openExternalLink: ExternalLinkOpener;
+  titleRef: RefObject<HTMLHeadingElement | null>;
 }) =>
   selectedIssue === null ? (
     <IssueDetailEmpty />
@@ -602,7 +635,9 @@ const IssueDetailPane = ({
       issueMap={issueMap}
       markdownFontSizePx={markdownFontSizePx}
       onSelect={onSelect}
+      onUserDrivenSelect={onUserDrivenSelect}
       openExternalLink={openExternalLink}
+      titleRef={titleRef}
     />
   );
 
@@ -622,6 +657,17 @@ export const IssueExplorer = ({
   void onIssueListViewChange;
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedIssueId, setSelectedIssueId] = useState<string | null>(null);
+  const childIssueSelectionRef = useRef(false);
+  const detailHeadingRef = useRef<HTMLHeadingElement>(null);
+
+  useExternalLifecycle(() => {
+    if (!childIssueSelectionRef.current) {
+      return;
+    }
+
+    detailHeadingRef.current?.focus({ preventScroll: true });
+    childIssueSelectionRef.current = false;
+  }, [selectedIssueId]);
 
   const derivedState = useMemo(
     () =>
@@ -692,6 +738,10 @@ export const IssueExplorer = ({
     setSelectedIssueId(issueId);
   };
 
+  const handleUserDrivenChildIssueSelect = () => {
+    childIssueSelectionRef.current = true;
+  };
+
   return (
     <>
       <section
@@ -740,8 +790,10 @@ export const IssueExplorer = ({
         issueMap={issueMap}
         markdownFontSizePx={markdownFontSizePx}
         onSelect={handleSelect}
+        onUserDrivenSelect={handleUserDrivenChildIssueSelect}
         openExternalLink={openExternalLink}
         selectedIssue={selectedIssue}
+        titleRef={detailHeadingRef}
       />
     </>
   );
