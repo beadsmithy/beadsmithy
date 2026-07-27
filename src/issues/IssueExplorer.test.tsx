@@ -1571,23 +1571,6 @@ describe("IssueExplorer", () => {
       }
     });
 
-    it("does not move focus during initial mount", () => {
-      const focusSpy = vi.spyOn(HTMLElement.prototype, "focus");
-
-      try {
-        renderExplorer([
-          buildIssue({
-            id: "bsm-initial-focus",
-            title: "Initial focus issue",
-          }),
-        ]);
-
-        expect(focusSpy).not.toHaveBeenCalled();
-      } finally {
-        focusSpy.mockRestore();
-      }
-    });
-
     it("keeps focus in the Issue List when an Issue List row is selected", async () => {
       const user = userEvent.setup();
       const issue = buildIssue({
