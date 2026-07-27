@@ -31,6 +31,7 @@ pnpm test:e2e:issue-list
 pnpm e2e:issue-list:success
 pnpm e2e:issue-list:empty
 pnpm e2e:issue-list:atomic-switch
+pnpm e2e:issue-list:child-issues
 pnpm e2e:issue-list:restoration
 
 # Build + run the issue-list slice in one step (success, empty, atomic-switch, and restoration):
@@ -186,6 +187,30 @@ catalog changed.
   subsequent commit to B (clearing prior Detail/search via the
   `workspaceKey` remount); and an invalid typed switch preserves B as
   Current -- including both B's path AND B-only issue data.
+- `child-issues` (`e2e/issue-list/issue-list.child-issues.spec.ts`):
+  real-desktop acceptance for the Child Issues rendering / ordering /
+  navigation contract (bsm-nd7.4). One dedicated Beadwork workspace
+  is provisioned via `createChildIssuesWorkspace()` with a closed
+  parent, three children (older P1 / closed, newer P1 / in progress,
+  older P3 / open) and one open root Issue with no children. Every
+  Issue is created through real `bw create --parent` calls with
+  explicit IDs and fixed `BW_CLOCK` timestamps so the expected
+  child order is declared, not inferred. The spec drives the
+  assembled binary through the typed `TauRPC__switch_workspace`
+  boundary, asserts the structured Issue data crossed the real
+  Rust / TauRPC boundary, then proves in the rendered DOM: the
+  Child Issues section appears immediately after Dependencies; the
+  rows match the hard-coded priority/date oracle with id, status,
+  and title in that visible order; each Child Issue button's
+  accessible name is `<id>: <title>. <status>`; an Issue with no
+  children renders no Child Issues heading, list, or fallback copy;
+  clicking a Child Issue button changes Issue Detail while the
+  active Issue List View (Ready) and the local Issue Search query
+  are preserved; the selected closed child remains in Issue Detail
+  while the active Ready/search result and a subsequent no-match
+  search exclude it. Uses the same built binary, typed Workspace
+  switch, embedded WebDriver port, isolated store, and semantic
+  selector conventions as the rest of the Issue List suite.
 - `restoration` (`e2e/issue-list/issue-list.restoration.spec.ts`): the
   restoration acceptance gate. The harness launches **two sequential
   Beadsmith binaries** against the same scenario-owned store. Phase 1
@@ -202,20 +227,26 @@ catalog changed.
 
 - **Fixtures** (`e2e/issue-list/fixtures/workspace.ts`): each scenario gets
   throwaway git repositories under the OS temp directory, initialized with
-  `bw init` and (for the populated `issues`, `atomic-switch`, and
-  `restoration` scenarios) populated with real `bw create`,
-  `bw label`, `bw dep add`, `bw close`, `bw defer`, and `bw comment` calls.
-  Both populated workspaces expose the same explicit Issue ID
+  `bw init` and (for the populated `issues`, `atomic-switch`,
+  `child-issues`, and `restoration` scenarios) populated with real
+  `bw create`, `bw label`, `bw dep add`, `bw close`, `bw defer`, and
+  `bw comment` calls. The populated workspaces that exercise
+  cross-workspace interaction tests expose the same explicit Issue ID
   (`FIXTURE_SHARED_ID`, supplied through Beadwork's supported `bw create
---id` flag) so the cross-workspace interaction tests have a deliberate
-  collision. The fixture includes a Ready Issue with a unique search
+--id` flag). The fixture includes a Ready Issue with a unique search
   token, a Blocked Issue with an unresolved blocker, a Closed Issue, a
   Deferred Issue, and a deliberately colliding shared-ID Issue, so the
   sidebar views and the cross-workspace assertion exercise real
   Beadwork state while the selected detail view has labels, dependency
   context, Markdown description output, and authored comments to render.
-  Nothing is committed to this repo and no machine-specific path is baked
-  in -- everything is created fresh per run and removed afterward.
+  The `child-issues` scenario uses a separate, dedicated fixture
+  (`createChildIssuesWorkspace()`) with a closed parent, three children
+  whose `parent` is set through `bw create --parent`, and a lonely root
+  Issue with a unique description token; every timestamp is fixed
+  through `BW_CLOCK` so the expected child order is declared, not
+  inferred. Nothing is committed to this repo and no machine-specific
+  path is baked in -- everything is created fresh per run and removed
+  afterward.
 - **Scenario harness** (`e2e/issue-list/scripts/run-scenario.ts`): owns
   the full process lifecycle for one named scenario. It creates the
   scenario-owned fixtures, a fresh temporary backend-store path, the
@@ -229,7 +260,11 @@ catalog changed.
   and WDIO's local runner re-evaluates the config module in more than
   one Node process. Restoration's two phases share one
   scenario-owned store path; every other run gets a fresh store and
-  fresh fixture roots.
+  fresh fixture roots. The `child-issues` scenario uses only the
+  dedicated hierarchy fixture for Workspace A and publishes only
+  `BEADSMITH_E2E_WORKSPACE_A` and `BEADSMITH_WORKSPACE_STORE_PATH`,
+  mirroring the `restoration` shape; the harness's Resource
+  guard forbids a stray Workspace B into the scenario.
 - **Store-isolation helper**
   (`e2e/issue-list/scripts/store-isolation.ts`): captures and compares
   read-only fingerprints of the developer's normal app-data
@@ -250,7 +285,9 @@ catalog changed.
   Backend and frontend log capture are both enabled so failures show
   Rust/TauRPC/Effect/UI signals, not just a WebDriver timeout. Spec
   selection is driven by `BEADSMITH_E2E_SCENARIO` and
-  `BEADSMITH_E2E_PHASE`.
+  `BEADSMITH_E2E_PHASE`; the `child-issues` scenario routes to
+  `e2e/issue-list/issue-list.child-issues.spec.ts` through the same
+  config file (no separate config or port).
 - **WDIO plugin wiring**: debug builds register both `tauri-plugin-wdio`
   and `tauri-plugin-wdio-webdriver`. `pnpm e2e:build` merges
   `src-tauri/tauri.e2e.conf.json` so `withGlobalTauri` is enabled only
@@ -274,6 +311,15 @@ catalog changed.
   Cancel, deterministically waits beyond the intentionally delayed
   cancelled worker's completion boundary, commits B, and verifies that
   an invalid typed target preserves B (path AND data).
+  `issue-list.child-issues.spec.ts` exercises the dedicated
+  closed-parent fixture through the typed transport, asserts the
+  structured `id`/`parent`/`priority`/`created`/`status` data crossed
+  the real Rust / TauRPC boundary, then proves Child Issues rendering,
+  ordering, omission, and view/search-preserving navigation in the
+  rendered DOM. The selector for a Child Issue button is exposed as
+  `childIssueButtonSelector(id, title, status)` in
+  `e2e/issue-list/helpers/rpc.ts`; the spec never re-encodes the
+  selector string.
   `issue-list.restoration.spec.ts` selects A through the typed RPC on
   the first launched binary, then on a second launched binary proves A
   is restored without any seed selection. Direct typed transport is

@@ -10,7 +10,12 @@
  */
 import { describe, expect, it } from "vitest";
 
-import { issueRowSelector, searchInputSelector } from "./rpc.ts";
+import {
+  childIssueButtonSelector,
+  childIssuesListSelector,
+  issueRowSelector,
+  searchInputSelector,
+} from "./rpc.ts";
 
 describe("issueRowSelector", () => {
   it("emits an aria-label prefix-selector for the given title", () => {
@@ -31,6 +36,45 @@ describe("issueRowSelector", () => {
     expect(issueRowSelector("Anything")).toMatch(
       /^article\[aria-label\*=".*"\]$/u
     );
+  });
+});
+
+describe("childIssueButtonSelector", () => {
+  it("emits the named-list scoped button selector for the (id, title, status) tuple", () => {
+    expect(
+      childIssueButtonSelector(
+        "bsm-e2e-child-parent-1",
+        "Hierarchy P1 closed older child",
+        "Closed"
+      )
+    ).toBe(
+      'ul[aria-label="Child Issues"] button[aria-label="bsm-e2e-child-parent-1: Hierarchy P1 closed older child. Closed"]'
+    );
+  });
+
+  it("preserves the exact id, title, and status text inside the selector (no escaping)", () => {
+    // The renderer uses the raw id / title / status text in the
+    // accessible name, so the selector must use them verbatim. Any
+    // escaping would silently break the e2e suite the first time a
+    // title contains a quote.
+    const id = 'bsm-q"uote';
+    const title = 'Title with "quotes" and spaces';
+    const status = "In Progress";
+    expect(childIssueButtonSelector(id, title, status)).toBe(
+      `ul[aria-label="Child Issues"] button[aria-label="${id}: ${title}. ${status}"]`
+    );
+  });
+
+  it("always scopes the button to the named Child Issues list", () => {
+    expect(childIssueButtonSelector("x", "y", "z")).toMatch(
+      /^ul\[aria-label="Child Issues"\] button\[aria-label=".*"\]$/u
+    );
+  });
+});
+
+describe("childIssuesListSelector", () => {
+  it("points at the Child Issues named list", () => {
+    expect(childIssuesListSelector()).toBe('ul[aria-label="Child Issues"]');
   });
 });
 

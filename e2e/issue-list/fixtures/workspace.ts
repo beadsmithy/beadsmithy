@@ -26,24 +26,45 @@ export interface BeadworkWorkspace {
   sharedIssue?: FixtureIssue;
 }
 
-const runBw = (args: string[], cwd: string): string =>
-  execFileSync(BW_BINARY, args, { cwd, encoding: "utf-8" }).trim();
+const runBw = (
+  args: string[],
+  cwd: string,
+  env?: NodeJS.ProcessEnv
+): string => {
+  // Pass `BW_CLOCK` only to intended invocations. The override is
+  // merged with `process.env` so the `bw` binary still finds the
+  // `PATH` it needs; the harness never mutates `process.env` so a
+  // fixed clock cannot leak into other fixture operations.
+  const fullEnv: NodeJS.ProcessEnv =
+    env === undefined ? process.env : { ...process.env, ...env };
+  return execFileSync(BW_BINARY, args, {
+    cwd,
+    encoding: "utf-8",
+    env: fullEnv,
+  }).trim();
+};
 
 const runGit = (args: string[], cwd: string): void => {
   execFileSync("git", args, { cwd, stdio: "ignore" });
 };
 
 interface TaskIssueOptions {
+  /** Optional Beadwork `BW_CLOCK` for this single invocation. */
+  clock?: string;
   description?: string;
   explicitId?: string;
-  priority: "2" | "3";
+  /** Optional structured `parent` reference for this Issue. */
+  parent?: string;
+  priority: "1" | "2" | "3" | "4";
   title: string;
   workspacePath: string;
 }
 
 const createTaskIssue = ({
+  clock,
   description,
   explicitId,
+  parent,
   priority,
   title,
   workspacePath,
@@ -58,8 +79,16 @@ const createTaskIssue = ({
     args.push("--id", explicitId);
   }
 
+  if (parent !== undefined) {
+    args.push("--parent", parent);
+  }
+
   args.push("--silent");
-  return runBw(args, workspacePath);
+  const clockEnv: NodeJS.ProcessEnv = {};
+  if (clock !== undefined) {
+    clockEnv.BW_CLOCK = clock;
+  }
+  return runBw(args, workspacePath, clockEnv);
 };
 
 /** Resolve the `bw` binary path (or a diagnostic message) for e2e logging. */
@@ -350,6 +379,218 @@ export const createSecondIssueListWorkspace = (): BeadworkWorkspace => {
 export const removeWorkspace = (workspace: BeadworkWorkspace): void => {
   console.log(`[e2e:fixture] removing workspace at ${workspace.path}`);
   rmSync(workspace.path, { force: true, recursive: true });
+};
+
+/**
+ * Fixed-RFC3339 fixture for the Child Issues desktop acceptance scenario
+ * (`bsm-nd7.4`). One closed parent and three children exercise both
+ * ordering keys (priority ascending, then `created` ascending); one
+ * open, root Issue with a unique description token proves the "no
+ * children" empty-section branch. Every timestamp is fixed so the
+ * expected Child Issues order is declared, not inferred from wall-clock
+ * timing.
+ *
+ * The parent is `closed` so it does not appear in `Ready` (or any
+ * non-All/non-Closed view). That is what the navigation preservation
+ * test relies on: the parent's Issue List row genuinely disappears
+ * while Issue Detail (and its Child Issues section) persist because
+ * selection is backed by `allIssues`.
+ */
+export const FIXTURE_CHILD_PARENT_ID = "bsm-e2e-child-parent";
+export const FIXTURE_CHILD_PARENT_TITLE = "Hierarchy parent (closed) fixture";
+export const FIXTURE_CHILD_PARENT_PRIORITY = "2";
+export const FIXTURE_CHILD_PARENT_CREATED = "2026-01-10T09:00:00Z";
+export const FIXTURE_CHILD_PARENT_CLOSED_AT = "2026-02-03T09:00:00Z";
+export const FIXTURE_CHILD_PARENT_CLOSE_REASON = "e2e closed fixture";
+
+export const FIXTURE_CHILD_PARENT_1_ID = "bsm-e2e-child-parent-1";
+export const FIXTURE_CHILD_PARENT_1_TITLE = "Hierarchy P1 closed older child";
+export const FIXTURE_CHILD_PARENT_1_PRIORITY = "1";
+export const FIXTURE_CHILD_PARENT_1_CREATED = "2025-12-01T09:00:00Z";
+export const FIXTURE_CHILD_PARENT_1_CLOSED_AT = "2026-02-02T09:00:00Z";
+export const FIXTURE_CHILD_PARENT_1_CLOSE_REASON = "e2e closed fixture";
+
+export const FIXTURE_CHILD_PARENT_2_ID = "bsm-e2e-child-parent-2";
+export const FIXTURE_CHILD_PARENT_2_TITLE =
+  "Hierarchy P1 in-progress newer child";
+export const FIXTURE_CHILD_PARENT_2_PRIORITY = "1";
+export const FIXTURE_CHILD_PARENT_2_CREATED = "2026-01-02T09:00:00Z";
+export const FIXTURE_CHILD_PARENT_2_IN_PROGRESS_AT = "2026-02-01T09:00:00Z";
+
+export const FIXTURE_CHILD_PARENT_3_ID = "bsm-e2e-child-parent-3";
+export const FIXTURE_CHILD_PARENT_3_TITLE = "Hierarchy P3 open older child";
+export const FIXTURE_CHILD_PARENT_3_PRIORITY = "3";
+export const FIXTURE_CHILD_PARENT_3_CREATED = "2025-11-15T09:00:00Z";
+
+export const FIXTURE_CHILD_LONELY_ID = "bsm-e2e-child-lonely";
+export const FIXTURE_CHILD_LONELY_TITLE =
+  "Hierarchy no-children lonely fixture";
+export const FIXTURE_CHILD_LONELY_PRIORITY = "2";
+export const FIXTURE_CHILD_LONELY_CREATED = "2026-01-05T09:00:00Z";
+/**
+ * Unique description token for the no-children Issue. The desktop
+ * navigation test searches `Ready` for this token to produce a
+ * deterministic non-empty Ready result that excludes the closed
+ * child, so the `childIssueButtonSelector` click really must change
+ * Issue Detail against a useful list.
+ */
+export const FIXTURE_CHILD_LONELY_DESCRIPTION =
+  "nd7-child-lonely-needle — only this Issue matches this token";
+/**
+ * Secondary search token used to drive the Issue List View to a
+ * deterministic empty state while Issue Detail still holds the
+ * selected child. Defined as a constant so the spec, the harness,
+ * and any future failure log all reference the same string.
+ */
+export const FIXTURE_CHILD_NO_MATCH_TOKEN = "xyz-no-match-needle-7c2";
+
+/**
+ * Strongly-typed child Issues bag exposed by
+ * `createChildIssuesWorkspace()`. The desktop spec reads these from
+ * the typed `TauRPC__switch_workspace` response and uses the title
+ * / status fields to build the Child Issue accessible-name selector
+ * (`childIssueButtonSelector`). The bag is separate from the
+ * existing `BeadworkWorkspace.issue` shape so the empty-fixture
+ * contract used by the success / atomic-switch / restoration suites
+ * is unchanged.
+ */
+export interface ChildIssuesFixture {
+  child1ClosedOlderId: string;
+  child1ClosedOlderTitle: string;
+  child1StatusLabel: "Closed";
+  child2InProgressNewerId: string;
+  child2InProgressNewerTitle: string;
+  child2StatusLabel: "In Progress";
+  child3OpenOlderId: string;
+  child3OpenOlderTitle: string;
+  child3StatusLabel: "Open";
+  lonelyDescriptionToken: string;
+  lonelyId: string;
+  lonelyTitle: string;
+  noMatchToken: string;
+  parentClosedAt: string;
+  parentId: string;
+  parentTitle: string;
+}
+
+/**
+ * A dedicated, deterministic Beadwork workspace for the Child Issues
+ * desktop acceptance scenario. Contains:
+ *
+ *   1. one closed parent (`bsm-e2e-child-parent`) at P2,
+ *   2. one older P1 child later closed (`bsm-e2e-child-parent-1`),
+ *   3. one newer P1 child moved to `in_progress`
+ *      (`bsm-e2e-child-parent-2`),
+ *   4. one older P3 child still open (`bsm-e2e-child-parent-3`),
+ *   5. one open root Issue with no children and a unique search
+ *      token (`bsm-e2e-child-lonely`).
+ *
+ * The expected Child Issues order under the production comparator
+ * (priority ascending, then `created` ascending) is:
+ *
+ *   1. `bsm-e2e-child-parent-1` (Closed, older P1)
+ *   2. `bsm-e2e-child-parent-2` (In Progress, newer P1)
+ *   3. `bsm-e2e-child-parent-3` (Open, older P3)
+ *
+ * The visible ID/status/title order inside each Child Issue button is
+ * `id → status badge → title` and the accessible name is
+ * `<id>: <title>. <status>`. The desktop spec asserts both without
+ * reaching for a `data-issue-id` hook.
+ */
+export const createChildIssuesWorkspace = (): BeadworkWorkspace & {
+  hierarchy: ChildIssuesFixture;
+} => {
+  const workspacePath = mkdtempSync(
+    path.join(tmpdir(), "beadsmith-e2e-child-issues-")
+  );
+  console.log(
+    `[e2e:fixture] creating Child Issues Beadwork workspace at ${workspacePath}`
+  );
+  initGitBeadworkRepo(workspacePath);
+
+  const parentId = createTaskIssue({
+    clock: FIXTURE_CHILD_PARENT_CREATED,
+    explicitId: FIXTURE_CHILD_PARENT_ID,
+    priority: FIXTURE_CHILD_PARENT_PRIORITY,
+    title: FIXTURE_CHILD_PARENT_TITLE,
+    workspacePath,
+  });
+  const child1Id = createTaskIssue({
+    clock: FIXTURE_CHILD_PARENT_1_CREATED,
+    explicitId: FIXTURE_CHILD_PARENT_1_ID,
+    parent: FIXTURE_CHILD_PARENT_ID,
+    priority: FIXTURE_CHILD_PARENT_1_PRIORITY,
+    title: FIXTURE_CHILD_PARENT_1_TITLE,
+    workspacePath,
+  });
+  const child2Id = createTaskIssue({
+    clock: FIXTURE_CHILD_PARENT_2_CREATED,
+    explicitId: FIXTURE_CHILD_PARENT_2_ID,
+    parent: FIXTURE_CHILD_PARENT_ID,
+    priority: FIXTURE_CHILD_PARENT_2_PRIORITY,
+    title: FIXTURE_CHILD_PARENT_2_TITLE,
+    workspacePath,
+  });
+  const child3Id = createTaskIssue({
+    clock: FIXTURE_CHILD_PARENT_3_CREATED,
+    explicitId: FIXTURE_CHILD_PARENT_3_ID,
+    parent: FIXTURE_CHILD_PARENT_ID,
+    priority: FIXTURE_CHILD_PARENT_3_PRIORITY,
+    title: FIXTURE_CHILD_PARENT_3_TITLE,
+    workspacePath,
+  });
+  const lonelyId = createTaskIssue({
+    clock: FIXTURE_CHILD_LONELY_CREATED,
+    description: FIXTURE_CHILD_LONELY_DESCRIPTION,
+    explicitId: FIXTURE_CHILD_LONELY_ID,
+    priority: FIXTURE_CHILD_LONELY_PRIORITY,
+    title: FIXTURE_CHILD_LONELY_TITLE,
+    workspacePath,
+  });
+
+  console.log(
+    `[e2e:fixture] child issues workspace created: parent=${parentId}, child1=${child1Id}, child2=${child2Id}, child3=${child3Id}, lonely=${lonelyId}`
+  );
+
+  runBw(["update", child2Id, "--status", "in_progress"], workspacePath, {
+    BW_CLOCK: FIXTURE_CHILD_PARENT_2_IN_PROGRESS_AT,
+  });
+  runBw(
+    ["close", child1Id, "--reason", FIXTURE_CHILD_PARENT_1_CLOSE_REASON],
+    workspacePath,
+    { BW_CLOCK: FIXTURE_CHILD_PARENT_1_CLOSED_AT }
+  );
+  runBw(
+    ["close", parentId, "--reason", FIXTURE_CHILD_PARENT_CLOSE_REASON],
+    workspacePath,
+    { BW_CLOCK: FIXTURE_CHILD_PARENT_CLOSED_AT }
+  );
+
+  console.log(
+    `[e2e:fixture] child issues workspace ready at ${workspacePath}: parent=${parentId} (closed at ${FIXTURE_CHILD_PARENT_CLOSED_AT}), child1=${child1Id} (closed at ${FIXTURE_CHILD_PARENT_1_CLOSED_AT}), child2=${child2Id} (in_progress at ${FIXTURE_CHILD_PARENT_2_IN_PROGRESS_AT}), child3=${child3Id} (open), lonely=${lonelyId}`
+  );
+
+  return {
+    hierarchy: {
+      child1ClosedOlderId: child1Id,
+      child1ClosedOlderTitle: FIXTURE_CHILD_PARENT_1_TITLE,
+      child1StatusLabel: "Closed",
+      child2InProgressNewerId: child2Id,
+      child2InProgressNewerTitle: FIXTURE_CHILD_PARENT_2_TITLE,
+      child2StatusLabel: "In Progress",
+      child3OpenOlderId: child3Id,
+      child3OpenOlderTitle: FIXTURE_CHILD_PARENT_3_TITLE,
+      child3StatusLabel: "Open",
+      lonelyDescriptionToken: FIXTURE_CHILD_LONELY_DESCRIPTION,
+      lonelyId,
+      lonelyTitle: FIXTURE_CHILD_LONELY_TITLE,
+      noMatchToken: FIXTURE_CHILD_NO_MATCH_TOKEN,
+      parentClosedAt: FIXTURE_CHILD_PARENT_CLOSED_AT,
+      parentId,
+      parentTitle: FIXTURE_CHILD_PARENT_TITLE,
+    },
+    path: workspacePath,
+  };
 };
 
 /**

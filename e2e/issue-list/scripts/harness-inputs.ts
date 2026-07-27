@@ -18,11 +18,16 @@ type ValidatedHarnessInputs =
       readonly scenario: "empty" | "issues";
     })
   | (HarnessInputs & {
-      readonly scenario: "restoration";
+      readonly scenario: "child-issues" | "restoration";
     });
 
 export type Phase = "1" | "2";
-export type Scenario = "empty" | "issues" | "atomic-switch" | "restoration";
+export type Scenario =
+  | "child-issues"
+  | "empty"
+  | "issues"
+  | "atomic-switch"
+  | "restoration";
 
 const formatReceived = (value: string | undefined): string =>
   JSON.stringify(value ?? "<missing>");
@@ -31,12 +36,13 @@ const phaseError = (value: string | undefined): string =>
   `BEADSMITH_E2E_PHASE must be one of 1|2; received ${formatReceived(value)}`;
 
 const scenarioError = (value: string | undefined): string =>
-  `BEADSMITH_E2E_SCENARIO must be one of empty|issues|atomic-switch|restoration; received ${formatReceived(value)}`;
+  `BEADSMITH_E2E_SCENARIO must be one of child-issues|empty|issues|atomic-switch|restoration; received ${formatReceived(value)}`;
 
 export const isPhase = (value: string | undefined): value is Phase =>
   value === "1" || value === "2";
 
 export const isScenario = (value: string | undefined): value is Scenario =>
+  value === "child-issues" ||
   value === "empty" ||
   value === "issues" ||
   value === "atomic-switch" ||
@@ -81,7 +87,7 @@ export const parseHarnessEnvironment = (
   }
 
   const requiredInputs: readonly (readonly [string, string | undefined])[] =
-    rawScenario === "restoration"
+    rawScenario === "restoration" || rawScenario === "child-issues"
       ? [
           ["BEADSMITH_E2E_WORKSPACE_A", env.BEADSMITH_E2E_WORKSPACE_A],
           [
@@ -139,7 +145,7 @@ export const parseHarnessEnvironment = (
   };
   const scenario = parseScenario(rawScenario);
 
-  if (scenario === "restoration") {
+  if (scenario === "child-issues" || scenario === "restoration") {
     return {
       fixtureA: commonInputs.fixtureA,
       phase: commonInputs.phase,

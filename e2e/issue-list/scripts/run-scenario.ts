@@ -17,6 +17,7 @@
  *   - `issues`         one binary, populated A + true-empty B fixtures
  *   - `empty`          one binary, true-empty B fixture
  *   - `atomic-switch`  one binary, populated A + populated B fixtures, delayed wrappers
+ *   - `child-issues`   one binary, dedicated closed-parent fixture A only
  *   - `restoration`    two binaries against one shared scenario-owned store,
  *                      same fixture A reused; phase 1 selects A, phase 2
  *                      asserts the next binary restored A from persistence
@@ -33,6 +34,7 @@ import { tmpdir } from "node:os";
 import path from "node:path";
 
 import {
+  createChildIssuesWorkspace,
   createEmptyWorkspace,
   createIssueListWorkspace,
   createSecondIssueListWorkspace,
@@ -66,6 +68,10 @@ const SCENARIO_PLANS: Record<Scenario, ScenarioPlan> = {
     phases: ["1"],
     sharesStoreAcrossPhases: false,
   },
+  "child-issues": {
+    phases: ["1"],
+    sharesStoreAcrossPhases: false,
+  },
   empty: {
     phases: ["1"],
     sharesStoreAcrossPhases: false,
@@ -91,7 +97,7 @@ const parseArgs = (argv: readonly string[]): ParsedArgs => {
   const [scenarioArg, ...rest] = argv;
   if (!isScenario(scenarioArg)) {
     console.error(
-      "Usage: run-scenario.ts <issues|empty|atomic-switch|restoration> [--phase 1|2]"
+      "Usage: run-scenario.ts <child-issues|empty|issues|atomic-switch|restoration> [--phase 1|2]"
     );
     process.exit(1);
   }
@@ -221,15 +227,23 @@ const provisionResources = (phases: readonly Phase[]): ScenarioResources => {
 
   // The two populated fixtures are deterministic throwaway repos seeded
   // via `bw`; only create what each scenario needs.
-  const workspaceA = createIssueListWorkspace();
+  const workspaceA =
+    scenario === "child-issues"
+      ? createChildIssuesWorkspace()
+      : createIssueListWorkspace();
   const workspaceBEmpty = createEmptyWorkspace();
   const workspaceBSecond =
     scenario === "atomic-switch" ? createSecondIssueListWorkspace() : undefined;
   // `issues` and `empty` use B (true-empty) directly; `atomic-switch`
   // does not exercise the true-empty fixture but the harness still
   // publishes BEADSMITH_E2E_WORKSPACE_B as the empty fixture path so the
-  // scenario-level input validator passes. `restoration` only needs A.
-  const workspaceB = scenario === "restoration" ? undefined : workspaceBEmpty;
+  // scenario-level input validator passes. `restoration` and
+  // `child-issues` only provision A; the one-Workspace shape mirrors
+  // the documented scenario contract.
+  const workspaceB =
+    scenario === "restoration" || scenario === "child-issues"
+      ? undefined
+      : workspaceBEmpty;
 
   let commandWrapperDirectory: string | undefined;
   if (plan.commandDelayMs !== undefined) {
