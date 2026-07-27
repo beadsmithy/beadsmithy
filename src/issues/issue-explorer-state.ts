@@ -145,9 +145,19 @@ export const deriveIssueExplorerState = ({
         })
       : null;
 
+  // The selected Issue is resolved from the full `allIssues` collection,
+  // not from the active view's filtered `visibleIssues`. Once an Issue
+  // is selected, it remains in Issue Detail as long as it is present in
+  // `allIssues` — independent of the active view or the search query.
+  // The clearing effect in `IssueExplorer` drops the `selectedIssueId`
+  // when the ID is no longer in `allIssues`. Visibility within the
+  // Issue List is a separate concern: the row's `aria-current` indicator
+  // is still driven by the visible list, but the existence of Issue
+  // Detail is not.
   const selectedIssue: Issue | null =
-    issueState.status === "success"
-      ? (visibleIssues.find((issue) => issue.id === selectedIssueId) ?? null)
+    issueState.status === "success" && selectedIssueId !== null
+      ? (issueState.allIssues.find((issue) => issue.id === selectedIssueId) ??
+        null)
       : null;
 
   return {

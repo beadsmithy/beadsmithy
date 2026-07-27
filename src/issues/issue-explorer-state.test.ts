@@ -294,26 +294,124 @@ describe("deriveIssueExplorerState", () => {
     expect(ids(blockedDerived.visibleIssues)).toEqual(["bsm-blocked"]);
   });
 
-  it("selects an issue only when it is present in the visible collection", () => {
-    const first = buildIssue({ id: "bsm-a" });
-    const second = buildIssue({ id: "bsm-b" });
-    const state = successState({ allIssues: [first, second] });
+  it("selects an issue from allIssues when it is not in the active view's base collection", () => {
+    const openIssue = buildIssue({
+      id: "bsm-open",
+      status: "open",
+      title: "Open issue",
+    });
+    const closedIssue = buildIssue({
+      id: "bsm-closed",
+      status: "closed",
+      title: "Closed issue",
+    });
+    const state = successState({ allIssues: [openIssue, closedIssue] });
+
+    const closedViewDerived = deriveIssueExplorerState({
+      activeIssueListViewId: "closed",
+      issueState: state,
+      searchQuery: "",
+      selectedIssueId: "bsm-open",
+    });
+
+    expect(closedViewDerived.selectedIssue).toBe(openIssue);
+    expect(ids(closedViewDerived.visibleIssues)).toEqual(["bsm-closed"]);
+  });
+
+  it("selects an issue from allIssues when a search query hides it from the visible list", () => {
+    const selected = buildIssue({
+      id: "bsm-search-selected",
+      title: "Keyboard foundation",
+    });
+    const other = buildIssue({
+      id: "bsm-search-other",
+      title: "Mouse foundation",
+    });
+    const state = successState({ allIssues: [selected, other] });
+
+    const derived = deriveIssueExplorerState({
+      issueState: state,
+      searchQuery: "keyboard",
+      selectedIssueId: "bsm-search-other",
+    });
+
+    expect(derived.selectedIssue).toBe(other);
+    expect(ids(derived.visibleIssues)).toEqual(["bsm-search-selected"]);
+  });
+
+  it("returns null selected issue when selectedIssueId is null", () => {
+    const issue = buildIssue({ id: "bsm-a" });
+    const state = successState({ allIssues: [issue] });
 
     const derived = deriveIssueExplorerState({
       issueState: state,
       searchQuery: "",
-      selectedIssueId: "bsm-a",
+      selectedIssueId: null,
     });
 
-    expect(derived.selectedIssue).toBe(first);
+    expect(derived.selectedIssue).toBeNull();
+  });
 
-    const missing = deriveIssueExplorerState({
+  it("returns null selected issue when selectedIssueId does not match any allIssues entry", () => {
+    const issue = buildIssue({ id: "bsm-a" });
+    const state = successState({ allIssues: [issue] });
+
+    const derived = deriveIssueExplorerState({
       issueState: state,
       searchQuery: "",
       selectedIssueId: "bsm-missing",
     });
 
-    expect(missing.selectedIssue).toBeNull();
+    expect(derived.selectedIssue).toBeNull();
+  });
+
+  it("keeps visibleIssues, baseVisibleIssues, and all other derived fields unchanged when selection is decoupled from the visible list", () => {
+    const openIssue = buildIssue({
+      id: "bsm-open",
+      status: "open",
+      title: "Open issue",
+    });
+    const closedIssue = buildIssue({
+      id: "bsm-closed",
+      status: "closed",
+      title: "Closed issue",
+    });
+    const state = successState({ allIssues: [openIssue, closedIssue] });
+
+    const withoutSelection = deriveIssueExplorerState({
+      activeIssueListViewId: "closed",
+      issueState: state,
+      searchQuery: "",
+      selectedIssueId: null,
+    });
+
+    const withHiddenSelection = deriveIssueExplorerState({
+      activeIssueListViewId: "closed",
+      issueState: state,
+      searchQuery: "",
+      selectedIssueId: "bsm-open",
+    });
+
+    expect(ids(withHiddenSelection.baseVisibleIssues)).toEqual(
+      ids(withoutSelection.baseVisibleIssues)
+    );
+    expect(ids(withHiddenSelection.visibleIssues)).toEqual(
+      ids(withoutSelection.visibleIssues)
+    );
+    expect(withHiddenSelection.activeViewId).toBe(
+      withoutSelection.activeViewId
+    );
+    expect(withHiddenSelection.activeViewLabel).toBe(
+      withoutSelection.activeViewLabel
+    );
+    expect(withHiddenSelection.emptyReason).toBe(withoutSelection.emptyReason);
+    expect(withHiddenSelection.hasSearchQuery).toBe(
+      withoutSelection.hasSearchQuery
+    );
+    expect(withHiddenSelection.isSearchDisabled).toBe(
+      withoutSelection.isSearchDisabled
+    );
+    expect(withHiddenSelection.selectedIssue).toBe(openIssue);
   });
 
   it("returns null selected issue while loading or after a failure", () => {
