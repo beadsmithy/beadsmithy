@@ -18,6 +18,8 @@ echo ""
 
     echo "📦 Updating Gemini..."
     timeout 60s npm install -g @google/gemini-cli@latest || echo "Gemini update failed or timed out"
+
+    npm i -g command-code@latest || echo "CommandCode update failed or timed out"
 ) &
 
 (
@@ -28,7 +30,7 @@ echo ""
 # --- curl-based installs (parallel, independent) ---
 (
     echo "📦 Updating Kimi Code..."
-    curl -L code.kimi.com/install.sh | bash
+    curl -fsSL https://code.kimi.com/kimi-code/install.sh | bash
 ) &
 
 (
@@ -64,4 +66,5 @@ ln -sf "$(npm config get prefix)/bin/pi" /usr/local/bin/pi 2>/dev/null
 echo "pi: $(pi --version 2>/dev/null)" || echo "pi: not found"
 ln -sf "$(npm config get prefix)/bin/paseo" /usr/local/bin/paseo 2>/dev/null
 echo "paseo: $(paseo --version 2>/dev/null)" || echo "paseo: not found"
+echo "command code: $(cmd --version 2>/dev/null)" || echo "command code: not found"
 ~/.local/bin/gh --version 2>/dev/null | head -1 || gh --version 2>/dev/null | head -1 || echo "gh: not found"
