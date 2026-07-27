@@ -1,0 +1,40 @@
+src/issues/IssueExplorer.tsx
+  s_47d55172fb6d21::t_61e61b5e1c5741 420,427
+  s_47d55172fb6d21::t_e016b9ccc1f117 530-534
+  s_47d55172fb6d21::t_285348f22550b6 647-651
+  s_47d55172fb6d21::t_82f5a63925b1c0 360,364,370-375,377-384,392,396,408
+  s_47d55172fb6d21::t_563b854aadfc15 586,593,604
+  s_47d55172fb6d21::t_24877ca2417a7d 677-682,684,686
+  s_47d55172fb6d21::t_766b2750422f47 742
+  s_47d55172fb6d21::t_bfc96d1c661ea0 369
+src/issues/issue-explorer-state.ts
+  s_47d55172fb6d21::t_8486cd7b6f5b8b 148-156,158-160
+src/issues/IssueExplorer.test.tsx
+  s_47d55172fb6d21::t_1ca90fd5d51151 1567-1569
+  s_47d55172fb6d21::t_c525707e4b14ff 2275
+  s_47d55172fb6d21::t_3c297f423060eb 1387-1393
+  s_47d55172fb6d21::t_0f98863c71ba54 532,554-565
+  s_47d55172fb6d21::t_5a2fba734c1f0a 2111-2114
+  s_47d55172fb6d21::t_de518b0fb4dc0a 1237,1394-1566,1570-1918,2108,2237,2265-2266,2277
+  s_47d55172fb6d21::t_ee99cdfeffb4c8 1238-1257
+  s_47d55172fb6d21::t_fe5e4d0fbfb088 1258-1259,2080,2103-2107,2109-2110,2267,2276
+src/issues/issue-explorer-state.test.ts
+  s_47d55172fb6d21::t_7cd0163ad7a1a4 297-344,349,352-357,359,365-413
+  s_47d55172fb6d21::t_a7693bc447e081 414
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.16",
+  "base_commit_sha": "526e61d2ca9159ed1e7025ea330b27da5983da3b",
+  "prompts": {},
+  "sessions": {
+    "s_47d55172fb6d21": {
+      "agent_id": {
+        "tool": "pi",
+        "id": "019fa54b-9004-766e-bc16-31bc367f3d73",
+        "model": "MiniMax-M3"
+      },
+      "human_author": null
+    }
+  }
+}
