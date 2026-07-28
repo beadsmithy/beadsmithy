@@ -1,5 +1,5 @@
 {
-  "assignee": "",
+  "assignee": "Tomas Thor Jonsson",
   "blocked_by": [],
   "blocks": [],
   "created": "2026-07-28T07:09:46Z",
@@ -7,8 +7,8 @@
   "id": "bsm-ran",
   "labels": [],
   "priority": 2,
-  "status": "open",
+  "status": "in_progress",
   "title": "Use status icons for child issues in issue detail",
   "type": "task",
-  "updated_at": "2026-07-28T07:09:46Z"
+  "updated_at": "2026-07-28T07:09:51Z"
 }
