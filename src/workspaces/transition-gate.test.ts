@@ -1446,3 +1446,63 @@ describe("clearRefreshHealth", () => {
     expect(cleared.refreshHealth).toBeNull();
   });
 });
+
+describe("applyIssueExplorerHealthRefresh generation ordering", () => {
+  it("defers a Health event for a not-yet-admitted newer generation", () => {
+    // A Health event arrives for generation 2 but the renderer is still
+    // catching up to a confirmed identity at generation 1 (Pending
+    // workspace transition). The event must defer so the App-level slot
+    // can replay it after the matching transition lands.
+    const gate = initialGate({
+      acceptedGeneration: 2,
+      acceptedRefreshHealthRevision: 1,
+      confirmedWorkspaceGeneration: 1,
+      confirmedWorkspacePath: "/work/a",
+    });
+    const payload = refreshHealthPayload({
+      health: refreshHealthState({
+        refProbe: refreshFailure({ failureRevision: 5 }),
+      }),
+      refreshRevision: 4,
+      workspacePath: "/work/a",
+      workspaceSelectionGeneration: 2,
+    });
+    const result = applyIssueExplorerHealthRefresh(gate, payload);
+    expect(result.decision.kind).toBe("defer");
+    expect(result.next).toEqual(gate);
+  });
+
+  it("ignores a Health event for a generation newer than accepted (reordered)", () => {
+    // The acceptedGeneration floor catches reordered events that would
+    // otherwise bypass a more-recent commit.
+    const gate = initialGate({
+      acceptedGeneration: 3,
+      acceptedRefreshHealthRevision: 1,
+      confirmedWorkspaceGeneration: 1,
+      confirmedWorkspacePath: "/work/a",
+    });
+    const payload = refreshHealthPayload({
+      health: refreshHealthState({}),
+      refreshRevision: 2,
+      workspacePath: "/work/a",
+      workspaceSelectionGeneration: 2,
+    });
+    const result = applyIssueExplorerHealthRefresh(gate, payload);
+    expect(result.decision).toEqual({ kind: "ignore" });
+  });
+
+  it("ignores a Health event for a generation older than the confirmed identity", () => {
+    const gate = initialGate({
+      confirmedWorkspaceGeneration: 2,
+      confirmedWorkspacePath: "/work/a",
+    });
+    const payload = refreshHealthPayload({
+      health: refreshHealthState({}),
+      refreshRevision: 4,
+      workspacePath: "/work/a",
+      workspaceSelectionGeneration: 1,
+    });
+    const result = applyIssueExplorerHealthRefresh(gate, payload);
+    expect(result.decision).toEqual({ kind: "ignore" });
+  });
+});

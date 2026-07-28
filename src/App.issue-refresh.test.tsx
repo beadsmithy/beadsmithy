@@ -734,4 +734,95 @@ describe("App issue explorer refresh", () => {
     // The original banner remains (the stale event did not replace it).
     expect(screen.getByTestId("refresh-failure-banner")).toBeInTheDocument();
   });
+
+  it("retains both Snapshot and Health variants deferred for the same not-yet-admitted identity", async () => {
+    // When the renderer has no confirmed identity (e.g. before the
+    // startup snapshot commits), both Snapshot and Health events for
+    // the same not-yet-admitted identity must be retained in the
+    // deferred buffer. The previous single-slot buffer silently
+    // dropped one variant when both were pending for the same
+    // identity.
+    const { listeners, implementation } = createBothListenersMock();
+    listen.mockImplementation(implementation);
+
+    // First startup load never resolves so the gate has no confirmed
+    // identity; both refresh events will defer.
+    let resolveStartup: ((value: IssueExplorerLoadState) => void) | undefined;
+    loadIssueExplorerStateFromTauRpc.mockImplementation(
+      () =>
+        new Promise<IssueExplorerLoadState>((resolve) => {
+          resolveStartup = resolve;
+        })
+    );
+    workspaceState.mockResolvedValue(
+      workspace({
+        currentWorkspace: { availability: "available", path: "/work/a" },
+        generation: 2,
+      })
+    );
+
+    render(<App />);
+    await waitFor(() => {
+      expect(listeners.refresh).toBeDefined();
+    });
+
+    // Deferred Snapshot for generation 2.
+    act(() => {
+      listeners.refresh?.({
+        payload: {
+          eventType: "snapshot",
+          issueData: {
+            allIssues: [buildIssue({ id: "x", title: "Deferred" })],
+            blockedIssues: [],
+            readyIssues: [],
+            workspaceGeneration: 2,
+            workspacePath: "/work/a",
+          },
+          observedRefSha: "abc",
+          refreshRevision: 10,
+          workspacePath: "/work/a",
+          workspaceSelectionGeneration: 2,
+        },
+      });
+    });
+
+    // Deferred Health for the same generation.
+    act(() => {
+      listeners.refresh?.({
+        payload: {
+          eventType: "health",
+          health: {
+            refProbe: {
+              errorKind: "refProbe",
+              failureRevision: 11,
+              message: "failing",
+              transient: true,
+            },
+            loader: null,
+          },
+          refreshRevision: 11,
+          workspacePath: "/work/a",
+          workspaceSelectionGeneration: 2,
+        },
+      });
+    });
+
+    // Now resolve the startup snapshot at generation 2 — this admits
+    // the confirmed identity. Both deferred events must replay.
+    resolveStartup?.(
+      successState({
+        allIssues: [buildIssue({ id: "first", title: "First" })],
+        workspaceGeneration: 2,
+        workspacePath: "/work/a",
+      })
+    );
+
+    expect(await screen.findByText("Deferred")).toBeInTheDocument();
+    // The Health event must also have been replayed and the banner
+    // must show the structural copy for the refProbe failure.
+    expect(await screen.findByTestId("refresh-failure-banner")).toBeInTheDocument();
+    expect(
+      screen.getByTestId("refresh-failure-banner").textContent
+    ).toContain("Automatic refresh is failing while checking Beadwork changes.");
+  });
 });

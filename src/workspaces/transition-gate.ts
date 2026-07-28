@@ -546,6 +546,12 @@ export interface IssueExplorerHealthRefreshResult {
  * Health (both slots null) clears the gate's `refreshHealth` so the
  * banner disappears when the backend reports recovery.
  *
+ * Like the Snapshot variant, a Health event for a not-yet-admitted
+ * identity (the renderer is still catching up to the matching
+ * `workspace-transition`) defers so the App-level buffer can replay
+ * it after the matching transition lands. A stale Health event from a
+ * previous identity or with an older revision is ignored.
+ *
  * A Health event never changes `IssueExplorerLoadState` or
  * `workspaceKey`. The Issue Explorer remount key, active view, search,
  * and selected Issue remain stable because the underlying identity is
@@ -555,14 +561,14 @@ export const applyIssueExplorerHealthRefresh = (
   current: WorkspaceTransitionGateState,
   payload: IssueExplorerRefreshHealthEvent
 ): IssueExplorerHealthRefreshResult => {
-  // 1. Outer envelope must match the gate's confirmed identity.
+  // 1. Without a confirmed identity the gate has nothing to admit
+  //    against. Defer any valid (envelope-consistent) event so the
+  //    App-level slot can replay it after the renderer admits a
+  //    matching transition or startup snapshot.
   if (
     current.confirmedWorkspacePath === null ||
     current.confirmedWorkspaceGeneration === null
   ) {
-    // No confirmed identity yet; defer so the App-level slot can
-    // replay it once the startup commit (or a matching transition)
-    // confirms the identity.
     return {
       decision: { kind: "defer", payload },
       next: current,
@@ -571,11 +577,39 @@ export const applyIssueExplorerHealthRefresh = (
   if (payload.workspacePath !== current.confirmedWorkspacePath) {
     return { decision: { kind: "ignore" }, next: current };
   }
-  if (payload.workspaceSelectionGeneration !== current.confirmedWorkspaceGeneration) {
+  // Generation comparison drives the rest:
+  //
+  //    - generation > confirmed: a future event for a not-yet-admitted
+  //      selection. Defer (subject to the acceptedGeneration floor so
+  //      a re-ordered event cannot bypass a more-recent commit). The
+  //      floor treats "no confirmed generation" as older than any
+  //      valid event, so a startup-arriving Health event for the first
+  //      snapshot is also deferred until the startup commit lands.
+  //    - generation < confirmed: a stale event from a prior selection
+  //      — ignore.
+  //    - generation == confirmed: the path and revision decide.
+  if (
+    payload.workspaceSelectionGeneration >
+    current.confirmedWorkspaceGeneration
+  ) {
+    if (
+      payload.workspaceSelectionGeneration >= current.acceptedGeneration
+    ) {
+      return {
+        decision: { kind: "defer", payload },
+        next: current,
+      };
+    }
+    return { decision: { kind: "ignore" }, next: current };
+  }
+  if (
+    payload.workspaceSelectionGeneration <
+    current.confirmedWorkspaceGeneration
+  ) {
     return { decision: { kind: "ignore" }, next: current };
   }
   // 2. Revision must be strictly newer than the highest accepted
-  // health revision (independent of the Snapshot revision marker).
+  //    health revision (independent of the Snapshot revision marker).
   if (
     current.acceptedRefreshHealthRevision !== null &&
     payload.refreshRevision <= current.acceptedRefreshHealthRevision
