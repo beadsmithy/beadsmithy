@@ -1,0 +1,26 @@
+src/issues/IssueExplorer.test.tsx
+  s_7ab0d655ac0c65::t_94ce19cdbe0fa7 1135
+  s_7ab0d655ac0c65::t_ac6bfc471dcab7 1407-1412,1416
+  s_7ab0d655ac0c65::t_3461c473134ad6 1413-1415
+  s_7ab0d655ac0c65::t_93876d5364a575 1259-1261,1269-1271
+  s_7ab0d655ac0c65::t_4eb7384b759ca7 1227-1231,1239-1241,1255-1258,1262-1268,1272-1277
+  s_7ab0d655ac0c65::t_1e2b7ba962d3b7 1278
+src/issues/IssueExplorer.tsx
+  s_7ab0d655ac0c65::t_8009f001e0f500 371,395-398
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.16",
+  "base_commit_sha": "6c49c99ad1fbb5bc2fe33ef0668d8875403bc460",
+  "prompts": {},
+  "sessions": {
+    "s_7ab0d655ac0c65": {
+      "agent_id": {
+        "tool": "pi",
+        "id": "019fa795-1b58-754f-a1fa-9b9e73ae7b50",
+        "model": "MiniMax-M3"
+      },
+      "human_author": null
+    }
+  }
+}
