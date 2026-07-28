@@ -58,7 +58,7 @@ use crate::rpc::{
     build_refresh_event, current_workspace_binding, emit_refresh_event,
     LoadIssueExplorerDataResponse, WorkspaceRuntime,
 };
-use crate::workspace::{load_issue_explorer_data, IssueExplorerData};
+use crate::workspace::IssueExplorerData;
 
 pub use health::{
     HealthApplyOutcome, RefreshFailure, RefreshFailureKind, RefreshHealth,

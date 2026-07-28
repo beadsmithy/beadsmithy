@@ -332,7 +332,7 @@ impl RefreshHealthState {
             }
             RefreshHealthBinding::SuspendedPending {
                 retained_workspace_path,
-                retained_workspace_selection_generation,
+                retained_workspace_selection_generation: _,
             } => {
                 if retained_workspace_path == &workspace_path {
                     // Rebinding from Pending to Active under the same
@@ -354,7 +354,7 @@ impl RefreshHealthState {
             }
             RefreshHealthBinding::IdleUnavailable {
                 retained_workspace_path,
-                retained_workspace_selection_generation,
+                retained_workspace_selection_generation: _,
             } => {
                 if retained_workspace_path == &workspace_path {
                     // Rebinding from Unavailable to Active under the
