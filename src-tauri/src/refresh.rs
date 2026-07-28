@@ -683,9 +683,10 @@ async fn handle_completion(
         completion.generation(),
     );
     if !active_matches || !still_matches {
-        let mut state = coordinator.lock().expect("coordinator lock poisoned");
-        state.apply_load_failure();
-        let _ = state.take_dirty_target();
+        // Stale completion: ignore it completely. It cannot clear
+        // active state, consume dirty state, update SHA memory or
+        // snapshot, or emit. A blocking A worker that finished after
+        // B became Current has no publication or mutation rights.
         return;
     }
 
@@ -866,10 +867,11 @@ fn spawn_load(
     ops: Arc<dyn RefreshOps>,
 ) {
     tokio::spawn(async move {
+        let observed_sha = binding.observed_sha.clone();
         let outcome = run_load(&runtime, &binding, ops).await;
         let _ = load_done_tx.send(LoadCompletion {
             binding,
-            observed_sha: String::new(),
+            observed_sha,
             outcome,
         });
     });

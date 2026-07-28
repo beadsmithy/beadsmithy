@@ -533,6 +533,51 @@ fn scheduler_follow_up_load_targets_current_tip_not_dirty_sha() {
 }
 
 #[test]
+fn apply_load_failure_does_not_clear_dirty_target() {
+    // bsm-wj1.2 review invariant: apply_load_failure clears the
+    // active-load flag and the active SHA so the next probe can
+    // retry, but it MUST leave the dirty target untouched so a
+    // burst of probes that fired during the failed load is not
+    // silently dropped.
+    let mut state = CoordinatorState::unseeded();
+    let binding = binding_for("/work/a", 1);
+    state.apply_probe(&binding, "v1", None).expect("probe");
+    state.apply_probe(&binding, "v2", None);
+    assert_eq!(state.dirty_target_sha.as_deref(), Some("v2"));
+
+    state.apply_load_failure();
+
+    assert!(!state.has_active_load);
+    assert!(state.active_load_sha.is_none());
+    assert_eq!(
+        state.dirty_target_sha.as_deref(),
+        Some("v2"),
+        "apply_load_failure must preserve the dirty target"
+    );
+}
+
+#[test]
+fn load_completion_carries_observed_sha_for_event_publication() {
+    // bsm-wj1.2 review: the LoadCompletion's observed_sha must
+    // mirror the binding's observed_sha so build_event_for_completion
+    // can publish it on the IssueExplorerRefreshEvent and
+    // seed_refresh_sha can persist it under the same lock. An empty
+    // observed_sha would silently seed the per-workspace SHA map
+    // with "" and short-circuit every subsequent probe.
+    let binding = LoadBinding {
+        binding: binding_for("/work/a", 1),
+        observed_sha: "0123456789abcdef".to_string(),
+        refresh_revision: 1,
+    };
+    let completion = LoadCompletion {
+        binding: binding.clone(),
+        observed_sha: binding.observed_sha.clone(),
+        outcome: LoadOutcome::Failure("anything".to_string()),
+    };
+    assert_eq!(completion.observed_sha, "0123456789abcdef");
+}
+
+#[test]
 fn refresh_event_payload_uses_camel_case_with_full_issue_data() {
     let issue = crate::rpc::Issue {
         id: "bsm-test".to_string(),

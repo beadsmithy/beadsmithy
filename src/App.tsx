@@ -490,7 +490,8 @@ export default function App() {
             inert={appDestination === "settings" ? true : undefined}
           >
             {workspaceState !== null &&
-            workspaceState.currentWorkspace === null ? (
+            workspaceState.currentWorkspace === null &&
+            workspaceState.pendingWorkspace === null ? (
               <main
                 aria-label="Choose a workspace"
                 className="flex flex-1 items-center justify-center bg-background p-8 text-center"
