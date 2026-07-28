@@ -1,0 +1,14 @@
+{
+  "assignee": "",
+  "blocked_by": [],
+  "blocks": [],
+  "created": "2026-07-28T07:09:46Z",
+  "description": "Update the issue detail view's child issue list to use the same status icons and status-to-icon logic as the main issues list. Remove the current child issue status labels while preserving status meaning and accessibility.",
+  "id": "bsm-ran",
+  "labels": [],
+  "priority": 2,
+  "status": "open",
+  "title": "Use status icons for child issues in issue detail",
+  "type": "task",
+  "updated_at": "2026-07-28T07:09:46Z"
+}
