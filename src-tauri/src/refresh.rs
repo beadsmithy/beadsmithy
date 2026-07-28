@@ -614,6 +614,11 @@ async fn run_refresh_loop(
 /// probe failure, one validity check is run for the same binding so a
 /// missing or replaced Beadwork initialization can be surfaced
 /// immediately as a structural loader failure.
+///
+/// The scheduler skips probing when the health reducer is in
+/// `IdleUnavailable`. Per the implementation plan, an unavailable or
+/// deleted workspace must stop probing and loading so the scheduler
+/// does not waste cycles retrying a path that will keep failing.
 async fn handle_probe(
     runtime: &Arc<Mutex<Option<WorkspaceRuntime>>>,
     coordinator: &Arc<Mutex<CoordinatorState>>,
@@ -621,6 +626,9 @@ async fn handle_probe(
     load_done_tx: &tokio::sync::mpsc::UnboundedSender<LoadCompletion>,
     ops: Arc<dyn RefreshOps>,
 ) {
+    if scheduler_idle(runtime, health) {
+        return;
+    }
     let Some((path, generation)) = runtime_binding(runtime) else {
         return;
     };
@@ -800,6 +808,13 @@ fn apply_load_classification(
 /// admitted transient command / invalid-output probe failure, run one
 /// refresh-only `bw config list` validity check so a Workspace that
 /// lost its Beadwork initialization can be surfaced immediately.
+///
+/// `Command::current_dir(...).output()` can report `NotFound` for either
+/// a missing executable or a missing working directory. When the spawn
+/// error is ambiguous, recheck the bound path's readability before
+/// classifying: an unreadable path means the workspace was deleted or
+/// unmounted while probes were running, so the reducer enters
+/// `IdleUnavailable` instead of incrementing the transient counter.
 async fn classify_and_apply_probe_failure(
     runtime: &Arc<Mutex<Option<WorkspaceRuntime>>>,
     coordinator: &Arc<Mutex<CoordinatorState>>,
@@ -816,6 +831,22 @@ async fn classify_and_apply_probe_failure(
         path.display(),
         error,
     );
+    // Workspace deleted during operation: enter IdleUnavailable so the
+    // renderer clears the banner and the scheduler stops probing.
+    if matches!(error, ProbeError::Spawn(_)) && !path.is_dir() {
+        let outcome = {
+            let mut coordinator_guard =
+                coordinator.lock().expect("coordinator lock poisoned");
+            let mut health_state = health.lock().expect("health lock poisoned");
+            health_state.enter_idle_unavailable(false)
+        };
+        if outcome {
+            publish_health(runtime, health, coordinator);
+        }
+        let _ = generation;
+        let _ = load_done_tx;
+        return;
+    }
     let classification = classify_probe_error(&error);
     let probe_outcome = apply_probe_classification(health, coordinator, classification);
     if matches!(
@@ -890,11 +921,19 @@ async fn handle_lifecycle(
                 // A Pending transition: suspend the health reducer.
                 health_state.suspend_for_pending();
             }
+            None if pending_present => {
+                // Pending hides the binding even though the prior
+                // active workspace still exists; suspend so the
+                // health state survives the in-flight switch.
+                health_state.suspend_for_pending();
+            }
             None => {
+                // No Current Workspace and no Pending transition.
+                // The path may already be unavailable. Treat as
+                // unavailable and emit one final empty Health event
+                // when the renderer could currently have a banner;
+                // otherwise enter the no-Current idle state directly.
                 if let Some(path) = prior_active_path.as_ref() {
-                    // The Current Workspace was removed; the path may
-                    // already be unavailable. Treat as unavailable and
-                    // emit one final empty Health event.
                     let available = path.is_dir();
                     health_state.enter_idle_unavailable(available);
                 } else {
@@ -1077,7 +1116,7 @@ async fn handle_completion(
             dirty_observed.is_some()
         };
         if needs_dirty_followup {
-            handle_dirty_follow_up(runtime, coordinator, load_done_tx, ops).await;
+            handle_dirty_follow_up(runtime, coordinator, health, load_done_tx, ops).await;
         }
         maybe_publish_health(runtime, coordinator, health, health_outcome);
         return;
@@ -1136,7 +1175,7 @@ async fn handle_completion(
     maybe_publish_health(runtime, coordinator, health, health_outcome);
 
     if dirty_observed.is_some() {
-        handle_dirty_follow_up(runtime, coordinator, load_done_tx, ops).await;
+        handle_dirty_follow_up(runtime, coordinator, health, load_done_tx, ops).await;
     }
 }
 
@@ -1334,9 +1373,13 @@ async fn run_validity_retry_tick(
 async fn handle_dirty_follow_up(
     runtime: &Arc<Mutex<Option<WorkspaceRuntime>>>,
     coordinator: &Arc<Mutex<CoordinatorState>>,
+    health: &Arc<Mutex<RefreshHealthState>>,
     load_done_tx: &tokio::sync::mpsc::UnboundedSender<LoadCompletion>,
     ops: Arc<dyn RefreshOps>,
 ) {
+    if scheduler_idle(runtime, health) {
+        return;
+    }
     let Some((path, generation)) = runtime_binding(runtime) else {
         return;
     };
@@ -1430,6 +1473,29 @@ fn runtime_binding(runtime: &Arc<Mutex<Option<WorkspaceRuntime>>>) -> Option<(Pa
     let guard = runtime.lock().expect("runtime lock poisoned");
     let runtime = guard.as_ref()?;
     current_workspace_binding(runtime)
+}
+
+/// True when the scheduler should remain idle: no runtime binding, no
+/// health binding, or the health reducer is in `IdleUnavailable`.
+///
+/// The `IdleUnavailable` short-circuit mirrors the plan's
+/// "Unavailable/deleted Current: ... stop probing/loading" rule. After
+/// `enter_idle_unavailable` fires, the workspace path is no longer
+/// readable and the scheduler must not retry probe/load attempts
+/// against it. The runtime binding can still report the stale path
+/// because the `WorkspaceService` only clears `state.current_workspace`
+/// when a new transition commits; a delete-mid-flight leaves the
+/// binding state intact until the renderer (or the next lifecycle
+/// event) confirms a new identity.
+fn scheduler_idle(
+    runtime: &Arc<Mutex<Option<WorkspaceRuntime>>>,
+    health: &Arc<Mutex<RefreshHealthState>>,
+) -> bool {
+    if runtime_binding(runtime).is_none() {
+        return true;
+    }
+    let health_state = health.lock().expect("health lock poisoned");
+    matches!(health_state.binding(), RefreshHealthBinding::IdleUnavailable { .. })
 }
 
 /// Read the most recently published SHA for `path` from the runtime's
