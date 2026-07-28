@@ -21,11 +21,15 @@
     {
       "text": "First commit: backend refresh-health reducer + tagged-union event + frontend admission + banner. 30 reducer tests, 8 banner tests, 8 health admission tests, 3 App integration tests. Backend 170 + frontend 336 tests pass.",
       "timestamp": "2026-07-28T21:50:25Z"
+    },
+    {
+      "text": "Post-review fixup commit: structural loader failures are non-transient (banner priority fix), classifier enums are exhaustive, handle_probe now retries validity check on later active ticks while a structural loader slot is active (plan rule for repair-without-ref-change), and App.tsx hoists the inline RefreshHealth type expression. All 170 backend + 336 frontend tests pass.",
+      "timestamp": "2026-07-28T22:00:01Z"
     }
   ],
   "priority": 2,
   "status": "in_progress",
   "title": "Preserve the Issue List through automatic refresh failures",
   "type": "task",
-  "updated_at": "2026-07-28T21:50:25Z"
+  "updated_at": "2026-07-28T22:00:01Z"
 }
