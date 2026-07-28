@@ -1,0 +1,26 @@
+src-tauri/src/refresh.rs
+  s_d8e310d7cefb8b::t_db12ba1b960574 617-621,631
+  s_d8e310d7cefb8b::t_05d5521844c85f 1119
+  s_d8e310d7cefb8b::t_c172e938d0b02d 1478-1500
+  s_d8e310d7cefb8b::t_ee3cd6cf7a62db 1376,1380-1382
+  s_d8e310d7cefb8b::t_a76b216b3deca9 924-929,931-935
+  s_d8e310d7cefb8b::t_670ebe56a9ded8 1178
+  s_d8e310d7cefb8b::t_6ba5ed7fc5fcdb 811-817,834-849
+  s_d8e310d7cefb8b::t_efbde799fd26b5 629-630
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.16",
+  "base_commit_sha": "ff7f9c9d16ce07ae9a1219b4d2b53af07cb8a75f",
+  "prompts": {},
+  "sessions": {
+    "s_d8e310d7cefb8b": {
+      "agent_id": {
+        "tool": "pi",
+        "id": "019faa9c-3fad-761d-b918-cc4c07942193",
+        "model": "MiniMax-M3"
+      },
+      "human_author": "Tomas Thor Jonsson <benregn@gmail.com>"
+    }
+  }
+}
