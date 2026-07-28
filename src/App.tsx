@@ -100,22 +100,41 @@ const applyTransitionDecision = (
  * Issue Explorer snapshot is replaced with the new one in place: the
  * outer remount key, active view, search query, and selected Issue are
  * left untouched because the underlying Workspace identity is unchanged.
- * A rejected event is silently dropped.
+ * A deferred payload is buffered into the single-slot
+ * `deferredRefreshRef` so it can be replayed after the matching
+ * `workspace-transition` admits the new selection. A rejected event is
+ * silently dropped.
  */
 const applyRefreshDecision = (
   payload: IssueExplorerRefreshPayload,
   gateRef: { current: WorkspaceTransitionGateState },
+  deferredRefreshRef: { current: IssueExplorerRefreshPayload | null },
   setIssueState: (state: IssueExplorerLoadState) => void
 ): void => {
   const { decision, next } = applyIssueExplorerRefresh(
     gateRef.current,
     payload
   );
-  if (decision.kind === "ignore") {
-    return;
+  switch (decision.kind) {
+    case "ignore":
+      return;
+    case "defer":
+      // Keep only the newest payload per identity; a newer generation
+      // replaces the slot because the gate will admit it after the
+      // matching transition lands.
+      if (
+        deferredRefreshRef.current === null ||
+        deferredRefreshRef.current.workspaceSelectionGeneration <=
+          payload.workspaceSelectionGeneration
+      ) {
+        deferredRefreshRef.current = payload;
+      }
+      return;
+    case "commitRefreshSnapshot":
+      gateRef.current = next;
+      setIssueState({ ...decision.snapshot, status: "success" });
+      return;
   }
-  gateRef.current = next;
-  setIssueState({ ...decision.snapshot, status: "success" });
 };
 
 export default function App() {
@@ -138,6 +157,16 @@ export default function App() {
   const transitionGateRef = useRef<WorkspaceTransitionGateState>(
     INITIAL_WORKSPACE_TRANSITION_GATE_STATE
   );
+  /**
+   * Single-slot buffer for one `beadwork://issue-explorer-state-changed`
+   * event whose selection generation is newer than the gate's confirmed
+   * generation. The slot is replayed after every admitted Workspace
+   * transition or successful startup snapshot. `bsm-wj1.2` closed the
+   * backend event-ordering race by keeping only the newest payload per
+   * identity; a newer generation replaces the slot, an older generation
+   * is dropped.
+   */
+  const deferredRefreshRef = useRef<IssueExplorerRefreshPayload | null>(null);
   const [dismissedSwitchErrorGeneration, setDismissedSwitchErrorGeneration] =
     useState<number | null>(null);
 
@@ -145,7 +174,34 @@ export default function App() {
     setActiveIssueListViewId(viewId);
     setAppDestination("issueExplorer");
   }, []);
-  const sidebarDisabled = issueState.status !== "success";
+
+  const applyDeferredRefresh = useCallback((): boolean => {
+    const deferred = deferredRefreshRef.current;
+    if (deferred === null) {
+      return false;
+    }
+    deferredRefreshRef.current = null;
+    const { decision, next } = applyIssueExplorerRefresh(
+      transitionGateRef.current,
+      deferred
+    );
+    if (decision.kind === "commitRefreshSnapshot") {
+      transitionGateRef.current = next;
+      setIssueState({ ...decision.snapshot, status: "success" });
+      return true;
+    }
+    // The deferred payload no longer matches the gate (e.g. its
+    // generation is now older than the confirmed generation after a
+    // commit, or the user has cleared the confirmed identity). Drop
+    // it; an equal-or-newer incompatible identity wins.
+    if (decision.kind === "ignore") {
+      return false;
+    }
+    // `defer` means the gate has not yet admitted the matching
+    // transition; put the payload back into the slot.
+    deferredRefreshRef.current = decision.payload;
+    return false;
+  }, []);
 
   const applyTransition = useCallback(
     (
@@ -165,10 +221,26 @@ export default function App() {
 
       setWorkspaceState(transition.state);
       applyTransitionDecision(decision, setIssueState, setWorkspaceKey);
+      applyDeferredRefresh();
       return decision;
     },
-    []
+    [applyDeferredRefresh]
   );
+
+  // `presentedIssueState` masks the successful Issue Explorer
+  // snapshot with the established loading presentation while a
+  // Workspace switch is Pending, so the renderer's view of the new
+  // selection reflects the in-flight commit rather than A's prior
+  // Issue List. The successful `issueState` and `workspaceKey` are
+  // preserved through Pending so a Cancel reveals A's search and
+  // Issue Detail exactly as they were before the switch attempt.
+  // Pending also wins over the no-Current chooser so a no-Current
+  // → B selection shows loading instead of the chooser.
+  const presentedIssueState: IssueExplorerLoadState =
+    workspaceState?.pendingWorkspace == null
+      ? issueState
+      : ISSUE_EXPLORER_LOADING_STATE;
+  const sidebarDisabled = presentedIssueState.status !== "success";
 
   const refreshWorkspaceState = useCallback(async () => {
     try {
@@ -206,7 +278,12 @@ export default function App() {
       const refreshListener = await listen<IssueExplorerRefreshPayload>(
         ISSUE_EXPLORER_REFRESH_EVENT,
         (event) => {
-          applyRefreshDecision(event.payload, transitionGateRef, setIssueState);
+          applyRefreshDecision(
+            event.payload,
+            transitionGateRef,
+            deferredRefreshRef,
+            setIssueState
+          );
         }
       );
       if (disposed) {
@@ -233,6 +310,7 @@ export default function App() {
           }
           setIssueState(decision.snapshot);
           setWorkspaceKey(decision.remountKey);
+          applyDeferredRefresh();
         } catch {
           const { decision, next } = applyStartupIssueLoad(
             transitionGateRef.current,
@@ -394,7 +472,7 @@ export default function App() {
           collapsed={sidebarCollapsed}
           disabled={sidebarDisabled}
           dismissedSwitchErrorGeneration={dismissedSwitchErrorGeneration}
-          issueState={issueState}
+          issueState={presentedIssueState}
           onCollapseToggle={setSidebarCollapsed}
           onIssueListViewSelect={handleIssueListViewSelect}
           onSettingsClick={() => setAppDestination("settings")}
@@ -436,7 +514,7 @@ export default function App() {
             ) : (
               <IssueExplorer
                 activeIssueListViewId={activeIssueListViewId}
-                issueState={issueState}
+                issueState={presentedIssueState}
                 markdownFontSizePx={settings.state.appliedFontSizePx}
                 onIssueListViewChange={setActiveIssueListViewId}
               />

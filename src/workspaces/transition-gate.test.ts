@@ -752,10 +752,18 @@ const refreshPayload = (overrides: {
 });
 
 describe("applyIssueExplorerRefresh", () => {
-  it("ignores a refresh when the gate has no confirmed snapshot identity", () => {
+  it("defers a refresh when the gate has no confirmed snapshot identity", () => {
+    // bsm-wj1.2 changes the original ignore-on-no-identity behavior:
+    // the design treats "no confirmed generation" as older than any
+    // valid event, so a valid envelope is deferred to the App-level
+    // single-slot buffer and replayed after the renderer admits its
+    // first snapshot identity.
     const gate = initialGate();
     const result = applyIssueExplorerRefresh(gate, refreshPayload({}));
-    expect(result.decision).toEqual({ kind: "ignore" });
+    expect(result.decision.kind).toBe("defer");
+    if (result.decision.kind !== "defer") {
+      throw new Error("expected defer decision");
+    }
     expect(result.next).toEqual(gate);
   });
 
@@ -1082,5 +1090,152 @@ describe("applyIssueExplorerRefresh", () => {
       snapshot: refreshSnapshot("/work/a", 3),
     });
     expect(refresh.next.acceptedRefreshRevision).toBe(5);
+  });
+
+  // =====================================================================
+  // bsm-wj1.2: defer decisions for future selection refresh events.
+  // =====================================================================
+  //
+  // A refresh event whose selection generation is newer than the
+  // gate's confirmed generation (because the matching
+  // `workspace-transition` has not yet been admitted) must be deferred
+  // so the App-level single-slot buffer can replay it after the
+  // transition lands. Events for an older generation continue to be
+  // ignored; the deferred slot only carries one payload at a time and
+  // replaces itself only with a newer generation.
+
+  it("defers a refresh for a future selection generation", () => {
+    const gate = initialGate({
+      committedGeneration: 2,
+      confirmedWorkspaceGeneration: 2,
+      confirmedWorkspacePath: "/work/a",
+    });
+    const result = applyIssueExplorerRefresh(gate, {
+      ...refreshPayload({
+        refreshRevision: 7,
+        workspacePath: "/work/b",
+        workspaceSelectionGeneration: 3,
+      }),
+      issueData: refreshSnapshot("/work/b", 3),
+    });
+    expect(result.decision.kind).toBe("defer");
+    if (result.decision.kind !== "defer") {
+      throw new Error("expected defer decision");
+    }
+    expect(result.decision.payload.workspaceSelectionGeneration).toBe(3);
+    expect(result.next).toEqual(gate);
+  });
+
+  it("ignores a refresh for a generation older than confirmed", () => {
+    // bsm-wj1.2 keeps the pre-existing ignore behavior for older
+    // generations. The defer branch only covers events for a future
+    // (newer-than-confirmed) selection.
+    const gate = initialGate({
+      committedGeneration: 3,
+      confirmedWorkspaceGeneration: 3,
+      confirmedWorkspacePath: "/work/a",
+    });
+    const result = applyIssueExplorerRefresh(gate, {
+      ...refreshPayload({
+        refreshRevision: 5,
+        workspaceSelectionGeneration: 2,
+      }),
+      issueData: refreshSnapshot("/work/a", 2),
+    });
+    expect(result.decision).toEqual({ kind: "ignore" });
+    expect(result.next).toEqual(gate);
+  });
+
+  it("admits the deferred refresh once the matching transition commits", () => {
+    // App-level replay path: the renderer kept a deferred (B, 3)
+    // payload in its single-slot buffer; after the matching commit
+    // transition lands, re-running the gate with the same payload
+    // commits the snapshot.
+    const gate = initialGate({
+      committedGeneration: 2,
+      confirmedWorkspaceGeneration: 2,
+      confirmedWorkspacePath: "/work/a",
+    });
+    const pendingB = applyWorkspaceTransition(
+      gate,
+      {
+        issueData: null,
+        state: workspaceState({
+          currentWorkspace: workspace("/work/a"),
+          generation: 3,
+          pendingWorkspace: workspace("/work/b"),
+        }),
+      },
+      null
+    );
+    expect(pendingB.decision.kind).toBe("acceptStateRetainSnapshot");
+
+    // Refresh for B arrives before the commit transition: defer.
+    const deferredPayload = {
+      ...refreshPayload({
+        refreshRevision: 9,
+        workspaceSelectionGeneration: 3,
+        workspacePath: "/work/b",
+      }),
+      issueData: refreshSnapshot("/work/b", 3),
+    };
+    const deferred = applyIssueExplorerRefresh(
+      pendingB.next,
+      deferredPayload
+    );
+    expect(deferred.decision.kind).toBe("defer");
+
+    // B commits: the gate now admits the deferred payload as a
+    // commitSnapshot decision once its identity is rebinding. The
+    // refresh gate is replayed AFTER the commit transition.
+    const committed = applyWorkspaceTransition(
+      pendingB.next,
+      {
+        issueData: refreshSnapshot("/work/b", 3),
+        state: workspaceState({
+          currentWorkspace: workspace("/work/b"),
+          generation: 3,
+        }),
+      },
+      3
+    );
+    expect(committed.decision.kind).toBe("commitSnapshot");
+
+    const replayed = applyIssueExplorerRefresh(committed.next, deferredPayload);
+    expect(replayed.decision).toEqual({
+      kind: "commitRefreshSnapshot",
+      snapshot: refreshSnapshot("/work/b", 3),
+    });
+    expect(replayed.next.acceptedRefreshRevision).toBe(9);
+  });
+
+  it("drops the deferred refresh when its identity is older than the new confirmed identity", () => {
+    // After the gate commits to B, a deferred payload for A is
+    // obsolete; replaying it must drop the slot silently.
+    const gate = initialGate({
+      committedGeneration: 2,
+      confirmedWorkspaceGeneration: 2,
+      confirmedWorkspacePath: "/work/a",
+    });
+    const committedB = applyWorkspaceTransition(
+      gate,
+      {
+        issueData: refreshSnapshot("/work/b", 3),
+        state: workspaceState({
+          currentWorkspace: workspace("/work/b"),
+          generation: 3,
+        }),
+      },
+      null
+    );
+    const stale = applyIssueExplorerRefresh(committedB.next, {
+      ...refreshPayload({
+        refreshRevision: 4,
+        workspaceSelectionGeneration: 2,
+      }),
+      issueData: refreshSnapshot("/work/a", 2),
+    });
+    expect(stale.decision).toEqual({ kind: "ignore" });
+    expect(stale.next).toEqual(committedB.next);
   });
 });

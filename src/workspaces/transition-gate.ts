@@ -444,19 +444,32 @@ export interface IssueExplorerRefreshPayload {
  * - `ignore`: the refresh did not match the snapshot identity the
  *   renderer is currently showing, the revision was not newer than the
  *   already-accepted one, or the gate has no confirmed snapshot to
- *   admit against.
+ *   admit against. Malformed envelopes whose outer and nested
+ *   path/generation disagree are also dropped.
  * - `commitRefreshSnapshot`: the refresh supersedes the renderer's
  *   current Issue Explorer snapshot. The caller must replace the
  *   `IssueExplorerLoadState` with the new success snapshot; the
  *   outer Issue Explorer remount key, active view, search, and
  *   selected Issue remain unchanged because the underlying identity
  *   is the same.
+ * - `defer`: the refresh's selection generation is newer than the
+ *   gate's confirmed generation but no matching `workspace-transition`
+ *   has been admitted yet. The caller stores the payload in the
+ *   App-level single-slot buffer and replays it the next time the gate
+ *   admits a matching transition or a successful startup snapshot.
+ *   `bsm-wj1.2` introduced this branch to close the backend event-
+ *   ordering race without adding a map, queue, or Pending-specific
+ *   classifier.
  */
 export type IssueExplorerRefreshDecision =
   | { readonly kind: "ignore" }
   | {
       readonly kind: "commitRefreshSnapshot";
       readonly snapshot: LoadIssueExplorerDataResponse;
+    }
+  | {
+      readonly kind: "defer";
+      readonly payload: IssueExplorerRefreshPayload;
     };
 
 /**
@@ -472,60 +485,108 @@ export interface IssueExplorerRefreshResult {
  * Admit one Issue Explorer refresh payload against the current gate
  * state.
  *
- * A refresh event is admitted only when:
+ * The decision is one of three exhaustive kinds:
  *
- * 1. the gate has a confirmed rendered snapshot identity (path +
- *    generation);
- * 2. the event's `workspacePath` matches the confirmed path;
- * 3. the event's `workspaceSelectionGeneration` matches the confirmed
- *    generation (so a refresh for a previous selection cannot land
- *    during a Pending transition);
- * 4. the nested `issueData.workspacePath` and `issueData.workspaceGeneration`
- *    match the same identity (an inconsistent envelope is rejected
- *    rather than trusted);
- * 5. `refreshRevision` is strictly greater than the highest revision
- *    the renderer has already accepted for that identity.
+ * - `commitRefreshSnapshot`: the refresh matches the confirmed
+ *   rendered snapshot identity (path + generation), its outer and
+ *   nested envelopes agree on that identity, and its revision is
+ *   strictly newer than the highest revision the renderer has already
+ *   admitted for that identity. The new snapshot is published and the
+ *   renderer's revision marker advances. The Issue Explorer remount
+ *   key, active view, search, and selected Issue remain stable
+ *   because the underlying identity is unchanged.
+ * - `defer`: the payload's outer/nested identity matches the
+ *   gate-confirmed identity, the generation is not older than
+ *   `acceptedGeneration`, and the generation is newer than the
+ *   confirmed generation. The event has not been admitted (the
+ *   confirmed snapshot has not yet caught up to the new generation),
+ *   but the App-level deferred-payload slot should keep it so it can
+ *   be replayed the next time the gate admits a matching transition
+ *   or a successful startup snapshot. The revision marker does not
+ *   advance because the snapshot has not been published.
+ * - `ignore`: every other case (no confirmed identity, mismatched
+ *   path, mismatched generation, mismatched outer/nested envelope,
+ *   older or equal revision, or a generation older than the confirmed
+ *   one).
  *
- * On admission the gate advances only the refresh marker. The Issue
- * Explorer remount key, active view, search, and selected Issue remain
- * stable because the underlying identity is unchanged. Equal/older
- * revisions and mismatched identities return `ignore` without
- * mutating the gate.
+ * `bsm-wj1.2` extended the previous two-decision gate with `defer` so
+ * a refresh event for a brand-new selection that races the matching
+ * `workspace-transition` can be replayed instead of dropped. The
+ * renderer carries a single deferred payload across the matching
+ * Pending → commit transition.
  */
 export const applyIssueExplorerRefresh = (
   current: WorkspaceTransitionGateState,
   payload: IssueExplorerRefreshPayload
 ): IssueExplorerRefreshResult => {
+  // 1. Outer and nested envelope must agree on path + generation. A
+  //    mismatch is an integrity violation (the nested envelope is the
+  //    canonical source of truth that pairs the snapshot with the
+  //    selection generation atomically); it cannot be repaired by
+  //    deferring.
   if (
-    current.confirmedWorkspacePath === null ||
-    current.confirmedWorkspaceGeneration === null
+    payload.issueData.workspacePath !== payload.workspacePath ||
+    payload.issueData.workspaceGeneration !==
+      payload.workspaceSelectionGeneration
   ) {
     return { decision: { kind: "ignore" }, next: current };
   }
 
-  if (payload.workspacePath !== current.confirmedWorkspacePath) {
+  // 2. Without a confirmed identity the gate has nothing to admit
+  //    against. Defer any valid (envelope-consistent) event so the
+  //    App-level slot can replay it after the renderer admits a
+  //    matching transition or startup snapshot.
+  if (
+    current.confirmedWorkspacePath === null ||
+    current.confirmedWorkspaceGeneration === null
+  ) {
+    return {
+      decision: { kind: "defer", payload },
+      next: current,
+    };
+  }
+
+  // 3. Generation comparison drives the rest:
+  //
+  //    - generation > confirmed: a future event for a not-yet-admitted
+  //      selection. Defer (subject to the acceptedGeneration floor so a
+  //      re-ordered event cannot bypass a more-recent commit). The
+  //      floor treats "no confirmed generation" as older than any
+  //      valid event, so a startup-arriving refresh for the first
+  //      snapshot is also deferred until the startup commit lands.
+  //    - generation < confirmed: a stale event from a prior selection
+  //      — ignore.
+  //    - generation == confirmed: the path and revision decide.
+  if (
+    payload.workspaceSelectionGeneration >
+    current.confirmedWorkspaceGeneration
+  ) {
+    if (payload.workspaceSelectionGeneration >= current.acceptedGeneration) {
+      return {
+        decision: { kind: "defer", payload },
+        next: current,
+      };
+    }
     return { decision: { kind: "ignore" }, next: current };
   }
 
   if (
-    payload.workspaceSelectionGeneration !==
+    payload.workspaceSelectionGeneration <
     current.confirmedWorkspaceGeneration
   ) {
     return { decision: { kind: "ignore" }, next: current };
   }
 
-  if (
-    payload.issueData.workspacePath !== current.confirmedWorkspacePath ||
-    payload.issueData.workspaceGeneration !==
-      current.confirmedWorkspaceGeneration
-  ) {
+  // Generation matches confirmed. The path must match too — a same-
+  // generation event for a different workspace is incoherent and is
+  // dropped.
+  if (payload.workspacePath !== current.confirmedWorkspacePath) {
     return { decision: { kind: "ignore" }, next: current };
   }
 
-  const previousRevision = current.acceptedRefreshRevision;
   if (
-    previousRevision !== null &&
-    payload.refreshRevision <= previousRevision
+    current.acceptedRefreshRevision !== null &&
+    payload.refreshRevision <= current.acceptedRefreshRevision
   ) {
     return { decision: { kind: "ignore" }, next: current };
   }

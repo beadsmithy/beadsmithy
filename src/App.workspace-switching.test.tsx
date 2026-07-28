@@ -235,9 +235,11 @@ describe("App workspace switching", () => {
       });
     });
 
-    // A's snapshot remains visible while B is Pending.
-    expect(screen.getByText("A issue")).toBeInTheDocument();
+    // While B is Pending, the renderer's `presentedIssueState` masks
+    // A's snapshot with the established loading presentation. The
+    // underlying `issueState` is preserved so Cancel reveals A again.
     expect(screen.getByText("Loading b…")).toBeInTheDocument();
+    expect(screen.queryByText("A issue")).toBeNull();
 
     // Now the commit fires. The committed-success guard marks generation 2
     // as terminal.

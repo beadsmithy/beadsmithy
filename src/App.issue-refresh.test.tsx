@@ -488,7 +488,11 @@ describe("App issue explorer refresh", () => {
     // Pending transition is in flight. The gate intentionally does
     // NOT rebind during Pending (an already-emitted gen-1 refresh for
     // A might arrive after this transition event), so the refresh event
-    // carries the prior generation and is admitted as-is.
+    // carries the prior generation and is admitted as-is. While Pending
+    // the renderer's `presentedIssueState` masks the underlying
+    // success snapshot with the established loading presentation, so
+    // the renderer shows "Loading b…" rather than "Brand new" here;
+    // Cancel reveals the admitted refresh.
     act(() => {
       listeners.refresh?.({
         payload: refreshPayload({
@@ -502,6 +506,31 @@ describe("App issue explorer refresh", () => {
           refreshRevision: 4,
           workspaceSelectionGeneration: 1,
         }),
+      });
+    });
+
+    // While Pending: established loading presentation for the
+    // in-flight switch masks the admitted A refresh. The underlying
+    // `issueState` carries A's admitted refresh, but the rendered DOM
+    // shows the loading presentation rather than A's Issue List.
+    expect(screen.getByText("Loading b…")).toBeInTheDocument();
+    expect(screen.queryByText("Brand new")).toBeNull();
+    expect(screen.queryByText("A issue")).toBeNull();
+
+    // Cancel drops Pending; A's admitted refresh surfaces.
+    act(() => {
+      listeners.transition?.({
+        payload: {
+          issueData: null,
+          state: workspace({
+            catalog: [
+              { availability: "available", path: "/work/a" },
+              { availability: "available", path: "/work/b" },
+            ],
+            currentWorkspace: { availability: "available", path: "/work/a" },
+            generation: 2,
+          }),
+        },
       });
     });
 

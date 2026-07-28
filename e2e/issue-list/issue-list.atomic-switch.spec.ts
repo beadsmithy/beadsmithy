@@ -29,6 +29,9 @@
 import { browser, expect } from "@wdio/globals";
 
 import {
+  applyExternalMutation,
+  FIXTURE_EXTERNAL_BLOCKED_TARGET_TITLE,
+  FIXTURE_EXTERNAL_READY_BLOCKER_TITLE,
   FIXTURE_ISSUE_TITLE,
   FIXTURE_SECOND_ISSUE_TITLE,
   FIXTURE_SECOND_SEARCH_QUERY,
@@ -375,5 +378,77 @@ describe("Atomic workspace switch (WebDriver e2e): two disposable Beadwork repos
     await expectIssueVisible(FIXTURE_SHARED_TITLE_B);
     await expectIssueNotVisible(FIXTURE_ISSUE_TITLE);
     await expectIssueNotVisible(FIXTURE_SHARED_TITLE_A);
+  });
+
+  it("ignores an in-flight A refresh that completes after B becomes Current", async () => {
+    // bsm-wj1.2 acceptance: a stale refresh event for A (either from
+    // a probe that fired during the switch or a loader completion
+    // that landed after B committed) must not overwrite B's Issue
+    // Explorer snapshot. We stage the race by:
+    //
+    //   1. switching back to A so the seeded A-only fixture is
+    //      Current;
+    //   2. applying an external `bw` mutation to A so the
+    //      `refs/heads/beadwork` ref moves while B is Pending;
+    //   3. starting a typed switch to B without awaiting its worker;
+    //   4. letting B commit through the normal validate/load/commit
+    //      path; and
+    //   5. deterministically waiting beyond the scenario-owned
+    //      `bw` / `git` wrapper delay so any in-flight A refresh
+    //      has time to land in the renderer.
+    //
+    // We then assert that B's snapshot is the only thing rendered:
+    // the A-only mutation titles never appear, the prior A Issue is
+    // gone, and the typed-failure path (which previously carried A's
+    // snapshot during Pending) does not regress after B commits.
+    await selectIssueListView("All", "all");
+    const backToAResult = await invokeTypedWorkspaceSwitch(workspaceA);
+    if ("failure" in backToAResult) {
+      throw new Error(backToAResult.failure);
+    }
+    await expectCurrentWorkspace(workspaceA);
+    await expectIssueVisible(FIXTURE_ISSUE_TITLE);
+
+    // Mutate A so the ref moves during the switch window. The
+    // coordinator's 2-second probe picks up the move and starts an
+    // automatic refresh that overlaps with the switch to B.
+    applyExternalMutation(workspaceA);
+
+    // Start the typed switch to B without awaiting its worker so the
+    // wrappers delay the validate/load/commit sequence.
+    await startTypedWorkspaceSwitch(workspaceB);
+
+    // Wait for B to commit through the normal validate/load/commit
+    // path. The renderer's Loading presentation masks A's snapshot
+    // during Pending, and the committed B snapshot replaces A's on
+    // commit.
+    await expectCurrentWorkspace(workspaceB);
+    await expectIssueVisible(FIXTURE_SECOND_ISSUE_TITLE);
+
+    // Deterministic wait beyond the wrapper-introduced
+    // `BEADSMITH_E2E_COMMAND_DELAY_MS` so the in-flight A refresh
+    // has time to land in the renderer if the gate had a bug.
+    const wrapperDelayMs = readWrapperDelayMs();
+    const switchStartedAt = Date.now();
+    await browser.waitUntil(
+      () => Date.now() - switchStartedAt >= wrapperDelayMs + 250,
+      {
+        timeout: wrapperDelayMs + 5000,
+        timeoutMsg: `Expected ${wrapperDelayMs}ms beyond B commit for in-flight A refresh to settle`,
+      }
+    );
+
+    // B is still rendered. The two A-only mutation titles (created
+    // by the external mutation we applied during the switch window)
+    // never appear in B. The original A-only Issue is gone, and B's
+    // unique Issue is rendered.
+    await selectIssueListView("All", "all");
+    await expectIssueNotVisible(FIXTURE_EXTERNAL_READY_BLOCKER_TITLE);
+    await expectIssueNotVisible(FIXTURE_EXTERNAL_BLOCKED_TARGET_TITLE);
+    await expectIssueNotVisible(FIXTURE_ISSUE_TITLE);
+    await expectIssueNotVisible(FIXTURE_SHARED_TITLE_A);
+    await expectIssueVisible(FIXTURE_SECOND_ISSUE_TITLE);
+    await expectIssueVisible(FIXTURE_SHARED_TITLE_B);
+    await expectCurrentWorkspace(workspaceB);
   });
 });
