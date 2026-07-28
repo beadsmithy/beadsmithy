@@ -1,0 +1,92 @@
+src/workspaces/transition-gate.ts
+  s_d8e310d7cefb8b::t_cafb234bd663d5 26
+  s_d8e310d7cefb8b::t_46762d71ff6dec 432,436
+  s_d8e310d7cefb8b::t_add0fe0bb3e185 668-671,693-696
+  s_d8e310d7cefb8b::t_333c39317cbba1 510,536-556,558-566,568-595,599,607
+  s_d8e310d7cefb8b::t_fd0cb779ba6140 486-488,498
+  s_d8e310d7cefb8b::t_44189250a20223 511-535,557,567,596-598,600-606
+  s_d8e310d7cefb8b::t_a7be34446ae17e 379-381,391
+  s_d8e310d7cefb8b::t_dc7a0eb7c5206b 24-25,27-28,60-72,81-82,96,100
+src-tauri/src/issues/adapter.rs
+  s_d8e310d7cefb8b::t_203ca07dfec2ed 41-48,185-188
+src-tauri/src/rpc.rs
+  s_d8e310d7cefb8b::t_0a655e7127e318 742,752-789
+  s_d8e310d7cefb8b::t_9e98eddf9afbd7 790-792
+  s_d8e310d7cefb8b::t_6c8a419c81a846 793-795
+src/App.tsx
+  s_d8e310d7cefb8b::t_33b400453439bb 24-28,32,36
+  s_d8e310d7cefb8b::t_4b0f617bb2f578 113-118,121,123-130,132-163,165,173,175,178,180,185-190
+  s_d8e310d7cefb8b::t_753f51d8292ce2 301,308-317,323
+  s_d8e310d7cefb8b::t_ad79fc6048aca3 618
+  s_d8e310d7cefb8b::t_1cb789c099b369 209-212,224-227,229,233-244,256-275,279,281,289
+  s_d8e310d7cefb8b::t_0c652c708fd481 374,381-382
+  s_d8e310d7cefb8b::t_4c1aa37b73f20d 191
+src-tauri/src/refresh/tests.rs
+  s_d8e310d7cefb8b::t_80c727a8fbfead 685-690
+  s_d8e310d7cefb8b::t_ad633226801d7d 575-578,584,612,622,633-668
+  s_d8e310d7cefb8b::t_543bf50cd66b8f 669-684,691-758
+src-tauri/src/refresh.rs
+  s_d8e310d7cefb8b::t_b04f0584dfe947 1454-1455
+  s_d8e310d7cefb8b::t_d89bfcf0b460fe 609-616,620,630-637,639-640,652-661,790-791,796-810,819-820,824-825
+  s_d8e310d7cefb8b::t_e403dbd9952a42 345-347,351
+  s_d8e310d7cefb8b::t_fd41c3a520658c 56,63-68,177-188,190-191,193-211
+  s_d8e310d7cefb8b::t_fe42980777839a 131-133
+  s_d8e310d7cefb8b::t_b1f83205a1c5ea 947-948
+  s_d8e310d7cefb8b::t_c84186b3ebfa55 73-85,88-93,105-107,120-124
+  s_d8e310d7cefb8b::t_931cd1003b6204 1049-1050
+  s_d8e310d7cefb8b::t_ce6cafc9335e13 831-840,844,848,853,855-860,865,949,961-971
+  s_d8e310d7cefb8b::t_429847bb36dbfe 672-789,792-795,812-818,821-823,826
+  s_d8e310d7cefb8b::t_4ba90301fa7502 275,278,281,290-297
+  s_d8e310d7cefb8b::t_23d992cc615ced 109-117
+  s_d8e310d7cefb8b::t_0e1aca2aec1c32 264-274,276-277,279-280,282-289,298-299
+  s_d8e310d7cefb8b::t_caa180fe720cee 874-903
+  s_d8e310d7cefb8b::t_98097bf8235ee3 348
+  s_d8e310d7cefb8b::t_688e0bd835eb08 125,827,1148-1271
+  s_d8e310d7cefb8b::t_149077a3bf023d 573,583,586,595
+  s_d8e310d7cefb8b::t_bedfe6a7246480 998-1004,1008,1037-1048,1051-1054,1075,1129
+  s_d8e310d7cefb8b::t_aa0e70fa20dc89 811
+  s_d8e310d7cefb8b::t_74ba9fa93ab535 828
+  s_d8e310d7cefb8b::t_6866702011fd8d 1130
+src/issues/RefreshFailureBanner.tsx
+  s_d8e310d7cefb8b::t_b2bce45b2b9420 1-113
+src/refresh-health.ts
+  s_d8e310d7cefb8b::t_9689520a640179 1-164
+src/issues/RefreshFailureBanner.test.tsx
+  s_d8e310d7cefb8b::t_7d6141cfdf722f 1-120
+src-tauri/src/refresh/health.rs
+  s_d8e310d7cefb8b::t_4c4c3ee3c163da 1-231,240-469,471-475,478-484,486-492,494-498,502-504,506-512,514-524,526-533,535-542,544-551,553-560,562-567,569-578,580-588,590-599,601-615,617-634,636-648,652-666,668-672,674-682,684-688,690-703,705,711-716,718,720-741
+  s_d8e310d7cefb8b::t_3e2a8fbe20ecc4 232-239,470,485,493,505,513,525,534,543,552,561,568,579,589,600,616,635,649-651,667,673,683,689,704,706-710,717,719
+  s_d8e310d7cefb8b::t_47763b6879258a 476-477,499-501
+src-tauri/src/refresh/health/tests.rs
+  s_d8e310d7cefb8b::t_54e756bd0b0f17 1-540
+src/issues/IssueExplorer.tsx
+  s_d8e310d7cefb8b::t_14e83b4c1c7e6d 658,665,755-761,768
+  s_d8e310d7cefb8b::t_d860f3999ea00c 21-24,35-38
+src/workspaces/transition-gate.test.ts
+  s_d8e310d7cefb8b::t_7ec67b5ce5b468 580,585
+  s_d8e310d7cefb8b::t_b2cb751e77fbf7 11-14,16,20
+  s_d8e310d7cefb8b::t_27ce6eb5a7629d 1252-1448
+  s_d8e310d7cefb8b::t_6f9ddbf2391dd5 721,726
+src/App.issue-refresh.test.tsx
+  s_d8e310d7cefb8b::t_648d55793425b3 11
+  s_d8e310d7cefb8b::t_d604965be2fc14 68
+  s_d8e310d7cefb8b::t_3ca9e31fec9ab1 541-736
+src-tauri/src/issues/mod.rs
+  s_d8e310d7cefb8b::t_30d21802fcffbc 23-31
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.16",
+  "base_commit_sha": "85c513bf102fd129f5070a24ab14edaf5f158f93",
+  "prompts": {},
+  "sessions": {
+    "s_d8e310d7cefb8b": {
+      "agent_id": {
+        "tool": "pi",
+        "id": "019faa9c-3fad-761d-b918-cc4c07942193",
+        "model": "MiniMax-M3"
+      },
+      "human_author": "Tomas Thor Jonsson <benregn@gmail.com>"
+    }
+  }
+}
