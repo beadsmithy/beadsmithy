@@ -839,8 +839,8 @@ describe("App workspace recovery", () => {
         },
       });
     });
-    expect(screen.getByText("A issue")).toBeInTheDocument();
     expect(screen.getByText("Loading b…")).toBeInTheDocument();
+    expect(screen.queryByText("A issue")).toBeNull();
 
     // Cancel responds with the just-committed B state and B's snapshot.
     // The success RPC has NOT resolved; the assertion that follows must

@@ -235,9 +235,11 @@ describe("App workspace switching", () => {
       });
     });
 
-    // A's snapshot remains visible while B is Pending.
-    expect(screen.getByText("A issue")).toBeInTheDocument();
+    // While B is Pending, the renderer's `presentedIssueState` masks
+    // A's snapshot with the established loading presentation. The
+    // underlying `issueState` is preserved so Cancel reveals A again.
     expect(screen.getByText("Loading b…")).toBeInTheDocument();
+    expect(screen.queryByText("A issue")).toBeNull();
 
     // Now the commit fires. The committed-success guard marks generation 2
     // as terminal.
@@ -263,6 +265,52 @@ describe("App workspace switching", () => {
 
     expect(await screen.findByText("B issue")).toBeInTheDocument();
     expect(screen.queryByText(/^Loading b…$/u)).toBeNull();
+  });
+
+  it("shows loading instead of the chooser while a selection is Pending from no Current Workspace", async () => {
+    // bsm-wj1.2: when no workspace is Current but a Pending
+    // transition is in flight (no-Current -> B), the renderer
+    // must show the established loading presentation rather than
+    // the empty-state chooser. Otherwise the user sees the
+    // chooser flash for the duration of the switch worker.
+    const { listeners, implementation } = createBothListenersMock();
+    listen.mockImplementation(implementation);
+
+    loadIssueExplorerStateFromTauRpc.mockResolvedValue(
+      successState({ allIssues: [] })
+    );
+    workspaceState.mockResolvedValue(
+      workspace({
+        catalog: [{ availability: "available", path: "/work/b" }],
+        currentWorkspace: null,
+        generation: 1,
+      })
+    );
+
+    render(<App />);
+    await waitFor(() => {
+      expect(listeners.transition).toBeDefined();
+    });
+
+    // Pending transition arrives with no Current Workspace.
+    act(() => {
+      listeners.transition?.({
+        payload: {
+          issueData: null,
+          state: workspace({
+            catalog: [{ availability: "available", path: "/work/b" }],
+            currentWorkspace: null,
+            generation: 2,
+            pendingWorkspace: { availability: "available", path: "/work/b" },
+          }),
+        },
+      });
+    });
+
+    // The chooser must NOT be visible while Pending. The
+    // established loading presentation is shown instead.
+    expect(screen.queryByText("Choose a workspace")).toBeNull();
+    expect(screen.getByText("Loading b…")).toBeInTheDocument();
   });
   it("produces no mixed workspace state or Issue Explorer snapshot when the success RPC completes before its own Pending transition event", async () => {
     // This test directly asserts the reviewer-flagged invariant: even when

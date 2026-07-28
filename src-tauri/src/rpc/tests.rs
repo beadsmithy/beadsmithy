@@ -53,6 +53,13 @@ impl FakeRunner {
         }
     }
 
+    fn with_outputs_vec(outputs: VecDeque<Result<CommandOutput, io::ErrorKind>>) -> Self {
+        Self {
+            outputs: Mutex::new(outputs),
+            recorded: Mutex::new(Vec::new()),
+        }
+    }
+
     fn recorded(&self) -> Vec<Invocation> {
         self.recorded.lock().unwrap().clone()
     }
@@ -648,5 +655,60 @@ fn cancel_response_omits_snapshot_when_locally_unavailable() {
     assert!(
         response.is_none(),
         "absent runtime snapshot must not be invented"
+    );
+}
+
+// =============================================================================
+// Per-workspace SHA map tests.
+// =============================================================================
+//
+// `bsm-wj1.2` introduced `WorkspaceRuntime::refresh_sha_by_workspace` so a
+// revisited Workspace with an unchanged local Beadwork ref does not
+// trigger a duplicate full loader. The seeding decision lives in
+// [`compute_seed_sha`] (a pure function pinned below), so the invariants
+// can be exercised without spinning up a real Tauri AppHandle or driving
+// the full `switch_workspace` RPC seam.
+
+#[test]
+fn matching_before_and_after_probes_seed_the_sha_map() {
+    let seeded = compute_seed_sha(Some("abc123"), Some("abc123"));
+    assert_eq!(seeded.as_deref(), Some("abc123"));
+}
+
+#[test]
+fn mismatched_probes_leave_the_sha_map_unseeded() {
+    let seeded = compute_seed_sha(Some("before_sha"), Some("after_sha"));
+    assert!(
+        seeded.is_none(),
+        "mismatched probes must not seed the SHA map"
+    );
+}
+
+#[test]
+fn failed_before_probe_leaves_the_sha_map_unseeded() {
+    let seeded = compute_seed_sha(None, Some("after_sha"));
+    assert!(
+        seeded.is_none(),
+        "failed before probe must not seed the SHA map"
+    );
+}
+
+#[test]
+fn failed_after_probe_leaves_the_sha_map_unseeded() {
+    let seeded = compute_seed_sha(Some("before_sha"), None);
+    assert!(
+        seeded.is_none(),
+        "failed after probe must not seed the SHA map"
+    );
+}
+
+#[test]
+fn empty_before_or_after_probe_leaves_the_sha_map_unseeded() {
+    // An empty stdout is invalid for a probe and must not seed the SHA
+    // map even when both probes happen to return the same empty value.
+    let seeded = compute_seed_sha(Some(""), Some(""));
+    assert!(
+        seeded.is_none(),
+        "empty probe stdout must not seed the SHA map"
     );
 }

@@ -4,11 +4,13 @@
 //! access to the pure Rust `issues` adapter and maps adapter results/errors into
 //! serializable, user-displayable payloads.
 
+use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 use std::sync::{Arc, Mutex};
 
 use serde::Serialize;
 use tauri::Emitter;
+use tokio::sync::Notify;
 
 #[cfg(test)]
 use crate::issues::CommandRunner;
@@ -47,6 +49,14 @@ pub(crate) struct WorkspaceRuntime {
     app: tauri::AppHandle<tauri::Wry>,
     pub(crate) service: WorkspaceService<TauriWorkspaceStore<tauri::Wry>>,
     pub(crate) snapshot: Option<IssueExplorerData>,
+    /// Per-workspace last-seen Beadwork ref SHA, keyed by the canonical
+    /// `Workspace.path` the [`WorkspaceService`] persisted. Only ever
+    /// updated for admitted completions (a stable user switch commit, or
+    /// a matching automatic refresh that emits and still matches the
+    /// live binding). Evicted on removal; cleared on reset. In-memory
+    /// only: persistence would let a saved cache look authoritative
+    /// after restart, contradicting the refresh ownership boundary.
+    pub(crate) refresh_sha_by_workspace: HashMap<PathBuf, String>,
 }
 
 fn emit_transition(
@@ -230,6 +240,13 @@ pub trait BeadsmithApi {
 pub struct BeadsmithApiImpl {
     workspace: Arc<Mutex<Option<WorkspaceRuntime>>>,
     settings: Arc<Mutex<Option<SettingsService<TauriAppSettingsStore<tauri::Wry>>>>>,
+    /// Shared lifecycle `Notify` the refresh coordinator awaits in its
+    /// select! loop. The RPC layer calls `notify_one()` after every
+    /// Workspace transition so the scheduler can rebind and probe the
+    /// new selection immediately rather than waiting for the next
+    /// two-second tick. The handle carries no payload: the scheduler
+    /// always rereads authoritative runtime state under the lock.
+    refresh_lifecycle: Arc<Notify>,
 }
 
 impl BeadsmithApiImpl {
@@ -237,10 +254,32 @@ impl BeadsmithApiImpl {
     pub fn initialize_workspace(&self, app: tauri::AppHandle<tauri::Wry>) {
         let store = TauriWorkspaceStore::new(app.clone());
         let mut service = WorkspaceService::from_store(store);
-        let snapshot = service
+        let (snapshot, refresh_sha) = match service
             .restore_current(&ProcessRunner::new())
             .ok()
-            .flatten();
+            .flatten()
+        {
+            Some(data) => {
+                let path = service
+                    .state()
+                    .current_workspace
+                    .as_ref()
+                    .map(|workspace| PathBuf::from(&workspace.path));
+                let mut map = HashMap::new();
+                if let Some(path) = path {
+                    // Probe before/after to seed the per-workspace SHA
+                    // map at startup when the ref is reachable. A
+                    // failure here is non-fatal: the coordinator treats
+                    // the absence as unseeded and reconciles on the
+                    // first tick.
+                    if let Some(sha) = probe_for_seed(&path) {
+                        map.insert(path, sha);
+                    }
+                }
+                (Some(data), map)
+            }
+            None => (None, HashMap::new()),
+        };
         *self
             .workspace
             .lock()
@@ -248,6 +287,7 @@ impl BeadsmithApiImpl {
             app,
             service,
             snapshot,
+            refresh_sha_by_workspace: refresh_sha,
         });
     }
 
@@ -259,7 +299,10 @@ impl BeadsmithApiImpl {
     pub fn start_refresh(&self) {
         // Fire-and-forget task; its lifetime matches the runtime's.
         // Dropping the `JoinHandle` does not abort the task.
-        drop(start_refresh_task(self.workspace.clone()));
+        drop(start_refresh_task(
+            self.workspace.clone(),
+            self.refresh_lifecycle.clone(),
+        ));
     }
 
     fn with_runtime<T>(&self, operation: impl FnOnce(&mut WorkspaceRuntime) -> T) -> T {
@@ -325,6 +368,7 @@ impl BeadsmithApiImpl {
         });
         if let Some((app, state)) = transition {
             emit_transition(&app, state, None);
+            self.refresh_lifecycle.notify_one();
         }
         error
     }
@@ -400,6 +444,7 @@ impl BeadsmithApi for BeadsmithApiImpl {
             )
         });
         emit_transition(&app, pending_state, None);
+        self.refresh_lifecycle.notify_one();
 
         // Phase 2: validate outside the runtime mutex.
         let validated = match validate_workspace_outside_lock(candidate).await {
@@ -407,7 +452,13 @@ impl BeadsmithApi for BeadsmithApiImpl {
             Err(error) => return Err(self.fail_switch_request(&request, None, error)),
         };
 
-        // Phase 3: persist the validated catalog entry before loading. This is
+        // Phase 3: probe the ref BEFORE the load so the coordinator can
+        // seed the per-workspace SHA map from a stable before/after pair.
+        // Probe failure is non-fatal: the SHA map stays unseeded and the
+        // scheduler reconciles on the next probe.
+        let before_probe = probe_ref_for_seed(PathBuf::from(&validated.path)).await;
+
+        // Phase 4: persist the validated catalog entry before loading. This is
         // the first durable transaction boundary and intentionally does not
         // promote MRU or replace Current.
         if let Err(error) = self.with_runtime(|runtime| {
@@ -418,7 +469,7 @@ impl BeadsmithApi for BeadsmithApiImpl {
             return Err(self.fail_switch_request(&request, Some(&validated), error));
         }
 
-        // Phase 4: load all Issue Explorer views outside the runtime mutex.
+        // Phase 5: load all Issue Explorer views outside the runtime mutex.
         let data = match load_issue_explorer_data_outside_lock(validated.clone()).await {
             Ok(data) => data,
             Err(error) => {
@@ -426,9 +477,15 @@ impl BeadsmithApi for BeadsmithApiImpl {
             }
         };
 
-        // Phase 5: the final save publishes Current and MRU together. The
-        // snapshot assignment happens in this same critical section, never
-        // during Pending or failure.
+        // Phase 6: probe the ref AFTER the load. Seed the SHA map only
+        // when both probes succeeded with the same SHA so a ref change
+        // during the load cannot leave a stale seed behind.
+        let after_probe = probe_ref_for_seed(PathBuf::from(&validated.path)).await;
+        let seed_sha = compute_seed_sha(before_probe.as_deref(), after_probe.as_deref());
+
+        // Phase 7: the final save publishes Current and MRU together. The
+        // snapshot assignment and SHA seed happen in this same critical
+        // section, never during Pending or failure.
         let result = self.with_runtime(|runtime| {
             let mut committed_state = None;
             finish_switch_success(
@@ -442,6 +499,11 @@ impl BeadsmithApi for BeadsmithApiImpl {
                     committed_state = Some(state);
                 },
             )?;
+            if let Some(sha) = seed_sha.as_ref() {
+                runtime
+                    .refresh_sha_by_workspace
+                    .insert(PathBuf::from(&validated.path), sha.clone());
+            }
             let state =
                 committed_state.expect("a successful switch must emit its commit transition");
             let issue_data =
@@ -459,6 +521,7 @@ impl BeadsmithApi for BeadsmithApiImpl {
             issue_data: issue_data.clone(),
         };
         emit_transition(&app, state, Some(issue_data));
+        self.refresh_lifecycle.notify_one();
         Ok(response)
     }
 
@@ -474,11 +537,17 @@ impl BeadsmithApi for BeadsmithApiImpl {
             if removed_current {
                 runtime.snapshot = None;
             }
+            // Evict the per-workspace SHA entry; the catalog retain below
+            // keeps the eviction consistent with the catalog truth.
+            runtime
+                .refresh_sha_by_workspace
+                .retain(|key, _| key.display().to_string() != path);
             let state = runtime.service.state().clone();
             let app = runtime.app.clone();
             Ok((state, app))
         })?;
         emit_transition(&app, state.clone(), None);
+        self.refresh_lifecycle.notify_one();
         Ok(state)
     }
 
@@ -489,7 +558,7 @@ impl BeadsmithApi for BeadsmithApiImpl {
         // transition event; an earlier implementation returned just the
         // state without `issue_data`, leaving the Issue Explorer stuck on
         // the prior identity even though backend memory had moved on.
-        let (state, app, issue_data) =
+        let (state, app, issue_data, restored_path) =
             self.with_runtime(|runtime| {
                 let store = TauriWorkspaceStore::new(runtime.app.clone());
                 let mut service = WorkspaceService::from_store(store);
@@ -501,18 +570,33 @@ impl BeadsmithApi for BeadsmithApiImpl {
                 runtime.snapshot = snapshot.clone();
                 let state = runtime.service.state().clone();
                 let app = runtime.app.clone();
+                let restored_path = state
+                    .current_workspace
+                    .as_ref()
+                    .map(|workspace| PathBuf::from(&workspace.path));
                 let issue_data = snapshot.as_ref().zip(state.current_workspace.as_ref()).map(
                     |(data, workspace)| {
                         workspace_data_response(data, workspace.path.as_str(), state.generation)
                     },
                 );
-                (state, app, issue_data)
+                (state, app, issue_data, restored_path)
             });
+        // Seed the per-workspace SHA map for the restored Current so
+        // the coordinator treats the revisit as already-admitted and
+        // does not run a duplicate full loader.
+        if let Some(path) = restored_path.as_ref() {
+            if let Some(sha) = probe_for_seed(path) {
+                self.with_runtime(|runtime| {
+                    runtime.refresh_sha_by_workspace.insert(path.clone(), sha);
+                });
+            }
+        }
         if let Some(issue_data) = issue_data.as_ref() {
             emit_transition(&app, state.clone(), Some(issue_data.clone()));
         } else {
             emit_transition(&app, state.clone(), None);
         }
+        self.refresh_lifecycle.notify_one();
         WorkspaceRetryMemoryResponse { state, issue_data }
     }
 
@@ -520,11 +604,15 @@ impl BeadsmithApi for BeadsmithApiImpl {
         let (state, app) = self.with_runtime(|runtime| {
             runtime.service.reset_memory()?;
             runtime.snapshot = None;
+            // Drop every per-workspace SHA entry so the coordinator
+            // becomes idle until the next selection seeds one again.
+            runtime.refresh_sha_by_workspace.clear();
             let state = runtime.service.state().clone();
             let app = runtime.app.clone();
             Ok((state, app))
         })?;
         emit_transition(&app, state.clone(), None);
+        self.refresh_lifecycle.notify_one();
         Ok(state)
     }
 
@@ -552,6 +640,10 @@ impl BeadsmithApi for BeadsmithApiImpl {
         } else {
             emit_transition(&app, state.clone(), None);
         }
+        // Notify so a Cancel that bumped the generation rebinds the
+        // coordinator under the new (path, generation) tuple instead of
+        // carrying stale A work forward.
+        self.refresh_lifecycle.notify_one();
         WorkspaceCancelResponse { state, issue_data }
     }
 
@@ -697,6 +789,39 @@ async fn validate_workspace_outside_lock(candidate: PathBuf) -> Result<Workspace
                 true,
             ))
         })
+}
+
+/// Probe the local Beadwork ref on the blocking pool. Used for both
+/// startup seeding and the user-switch before/after probes. Returns
+/// `None` on any probe failure so the caller can leave the SHA map
+/// unseeded without surfacing a switch-blocking error.
+async fn probe_ref_for_seed(path: PathBuf) -> Option<String> {
+    tokio::task::spawn_blocking(move || {
+        crate::refresh::probe_beadwork_ref(&ProcessRunner::new(), &path)
+            .ok()
+    })
+    .await
+    .unwrap_or(None)
+}
+
+/// Synchronous probe variant used by [`BeadsmithApiImpl::initialize_workspace`].
+/// Mirrors [`probe_ref_for_seed`] but runs inline so the startup
+/// restore-current path can seed the SHA map before the runtime mutex
+/// is exposed to the scheduler.
+fn probe_for_seed(path: &Path) -> Option<String> {
+    crate::refresh::probe_beadwork_ref(&ProcessRunner::new(), path).ok()
+}
+
+/// Compute the per-workspace SHA to seed after a user switch commits.
+/// Pure function extracted from the switch orchestration so it can be
+/// unit-tested at the order-statistics seam. Returns `Some(sha)` only
+/// when both probes returned the same non-empty value; any other shape
+/// leaves the entry unseeded.
+pub(crate) fn compute_seed_sha(before: Option<&str>, after: Option<&str>) -> Option<String> {
+    match (before, after) {
+        (Some(b), Some(a)) if !b.is_empty() && b == a => Some(a.to_string()),
+        _ => None,
+    }
 }
 
 /// Load the complete Issue Explorer snapshot on Tokio's blocking pool. No

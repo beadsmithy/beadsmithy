@@ -12,7 +12,7 @@
 //! - A non-overlapping full Beadwork loader fills in behind every observed
 //!   SHA change. While a load is in flight, intermediate SHAs are coalesced
 //!   into the newest dirty target and exactly one follow-up load is
-//!   scheduled when the current load completes.
+//!   scheduled when the current load completes if the data is still stale.
 //! - The success event carries the full `LoadIssueExplorerDataResponse`, the
 //!   observed ref SHA, the workspace-selection generation that owned the
 //!   load, the workspace path, and a monotonic refresh revision. The
@@ -28,19 +28,28 @@
 //! This module deliberately does not own Workspace selection, persistence,
 //! or rendering. Its async task is started once at Tauri setup and routed
 //! through the existing `WorkspaceRuntime` for Current-path/generation
-//! verification and snapshot publication.
+//! verification and snapshot publication. The single lifecycle `Notify`
+//! the RPC layer calls after every Workspace transition is the only wake
+//! source the coordinator uses to react to a binding change; both probes
+//! and load completions carry their captured binding so a stale A worker
+//! that completes after B has become Current cannot mutate or publish
+//! over B's snapshot.
 //!
-//! Later epic tasks (`bsm-wj1.2` per-Workspace revisit cache and switch
-//! lifecycle, `bsm-wj1.3` failure classification, `bsm-wj1.4` time/focus
-//! triggers) all route into this coordinator rather than create parallel
-//! loaders.
+//! Later epic tasks (`bsm-wj1.3` failure classification, `bsm-wj1.4`
+//! time/focus triggers) all route through the same single-flight seam and
+//! the same binding-aware completion admission.
+//!
+//! [`bsm-wj1.2`]: bind the refresh coordinator lifecycle to the existing
+//! backend Current Workspace state.
 
+use std::collections::HashSet;
 use std::io;
 use std::path::{Path, PathBuf};
 use std::sync::{Arc, Mutex};
 use std::time::Duration;
 
 use serde::Serialize;
+use tokio::sync::Notify;
 use tokio::task::JoinHandle;
 use tokio::time::{interval_at, Instant, MissedTickBehavior};
 
@@ -55,14 +64,15 @@ use crate::workspace::{load_issue_explorer_data, IssueExplorerData};
 /// implementation wraps [`ProcessRunner`]; tests inject a fake so the
 /// scheduler's wiring can be exercised without spawning `git` or `bw`.
 ///
-/// The trait exposes `probe_op` returning a `Box<dyn Fn>` so each
-/// call can hand a fresh closure to `tokio::task::spawn_blocking`
+/// The trait exposes `probe_op` and `load_op` returning `Box<dyn Fn>` so
+/// each call can hand a fresh closure to `tokio::task::spawn_blocking`
 /// (which requires `Send + 'static` and cannot share `&dyn RefreshOps`
 /// across the move). Implementors that hold `Arc<Self>` can return
 /// `Arc::clone(self).probe(...)`-shaped closures; the default below
 /// works for static implementations.
 pub(crate) trait RefreshOps: Send + Sync + 'static {
     fn probe_op(&self) -> Box<dyn Fn(&Path) -> Result<String, ProbeError> + Send + 'static>;
+    fn load_op(&self) -> Box<dyn Fn(&Path) -> Result<IssueExplorerData, String> + Send + 'static>;
 }
 
 /// Production [`RefreshOps`] that shells out to `git rev-parse` and
@@ -72,6 +82,13 @@ struct ProcessOps;
 impl RefreshOps for ProcessOps {
     fn probe_op(&self) -> Box<dyn Fn(&Path) -> Result<String, ProbeError> + Send + 'static> {
         Box::new(|p| probe_beadwork_ref(&ProcessRunner::new(), p))
+    }
+
+    fn load_op(&self) -> Box<dyn Fn(&Path) -> Result<IssueExplorerData, String> + Send + 'static> {
+        Box::new(|p| {
+            load_issue_explorer_data(&ProcessRunner::new(), p)
+                .map_err(|error| error.to_string())
+        })
     }
 }
 
@@ -100,14 +117,16 @@ pub const ISSUE_EXPLORER_REFRESH_EVENT: &str = "beadwork://issue-explorer-state-
 pub const PROBE_INTERVAL: Duration = Duration::from_secs(2);
 
 /// Outcome of a refresh-load completion that decides whether the
-/// coordinator advances `last_published_sha`.
+/// coordinator advances its admission markers and seeds the per-workspace
+/// SHA map.
 ///
 /// `Published`: the snapshot was admitted for the bound Current Workspace and
-/// the renderer was notified. The coordinator's SHA advances.
-/// `Discarded`: the completion's binding no longer matches the current
-/// runtime (e.g. the user switched workspaces while the load was running).
-/// The backend snapshot is untouched, the published SHA is unchanged, and
-/// the coordinator logs the discard.
+/// the renderer was notified. The coordinator's revision advances and the
+/// SHA map entry for the binding is seeded.
+/// `Discarded`: the completion's binding no longer matches the active
+/// coordinator binding or the live non-Pending Current binding. The
+/// backend snapshot is untouched, the SHA map is untouched, and the
+/// coordinator logs the discard.
 /// `EmitFailed`: the snapshot was admitted but the Tauri event could not be
 /// emitted. The backend snapshot is updated so later `load_issue_explorer_data`
 /// reads stay fresh, but the SHA is intentionally left retryable so a later
@@ -186,24 +205,52 @@ pub fn probe_beadwork_ref(
     Ok(trimmed.to_string())
 }
 
-/// Immutable binding captured for one in-flight load.
+/// The binding that owns a refresh coordinator's current focus: the
+/// canonical workspace path plus the backend `WorkspaceState.generation`
+/// that the snapshot was admitted under. The path is the
+/// `Workspace.path` the [`WorkspaceService`] persisted (a normalized Git
+/// root); the generation is the bumped-on-each-selection counter the
+/// same service owns.
 ///
-/// Each started load carries its `(workspace_path, selection_generation,
-/// observed_sha, refresh_revision)` tuple. Publication rechecks the
-/// `(workspace_path, selection_generation)` pair against the live runtime
-/// so a stale completion cannot overwrite a newer workspace's snapshot.
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub struct LoadBinding {
+/// `bsm-wj1.2` deliberately uses `(path, generation)` as the only
+/// refresh identity. There is no separate lifecycle epoch: the existing
+/// workspace service already changes `generation` for selection, real
+/// cancellation, removal, and reset, so the same counter is reused for
+/// refresh admission and an old A worker that completes after B has
+/// become Current is silently rejected because its `generation` no
+/// longer matches.
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+pub struct RefreshBinding {
     pub workspace_path: PathBuf,
     pub workspace_selection_generation: u32,
+}
+
+impl RefreshBinding {
+    pub fn new(workspace_path: PathBuf, workspace_selection_generation: u32) -> Self {
+        Self {
+            workspace_path,
+            workspace_selection_generation,
+        }
+    }
+}
+
+/// Immutable binding captured for one in-flight load.
+///
+/// Each started load carries its `(binding, observed_sha, refresh_revision)`
+/// tuple. Publication rechecks the binding against both the coordinator's
+/// active binding AND the live non-Pending Current binding so a stale
+/// completion cannot overwrite a newer workspace's snapshot.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct LoadBinding {
+    pub binding: RefreshBinding,
     pub observed_sha: String,
     pub refresh_revision: u64,
 }
 
 /// Outcome of a single load attempt, before backend publication.
 ///
-/// Failures here mean the coordinator leaves `last_published_sha` unchanged
-/// so the next probe retries.
+/// Failures here mean the coordinator leaves its admission markers
+/// unchanged so the next probe retries.
 #[derive(Debug, Clone)]
 pub enum LoadOutcome {
     Success(LoadBinding, IssueExplorerData),
@@ -216,9 +263,15 @@ pub enum LoadOutcome {
 /// The state is plain data so the decision logic is testable without
 /// spinning up a Tokio runtime or a Tauri app handle. The async
 /// scheduler (`start_refresh_task` / `run_refresh_loop`) wraps this
-/// with `interval_at` and an mpsc load-completion channel.
+/// with `interval_at`, an mpsc load-completion channel, and a shared
+/// lifecycle `Notify`.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct CoordinatorState {
+    /// Current focus `(path, generation)`. `None` until the first probe
+    /// binds the coordinator or when the lifecycle reports no Current
+    /// Workspace. Drives both the ticker's rebind check and the
+    /// completion's stale-binding rejection.
+    pub active_binding: Option<RefreshBinding>,
     /// Highest revision already published for the current selection, or
     /// `None` for an unseeded coordinator. Independent of
     /// `WorkspaceState::generation`: the workspace selection may stay at
@@ -228,9 +281,6 @@ pub struct CoordinatorState {
     /// Highest revision handed to any in-flight or queued load. Monotonic
     /// across the coordinator's lifetime.
     pub next_revision: u64,
-    /// Most recently successfully-published SHA, if any. A probe that
-    /// returns this value is a no-op.
-    pub last_published_sha: Option<String>,
     /// SHA observed for the load that is currently in flight, or `None`
     /// when no load is running. Repeated probes that match this SHA are
     /// coalesced; only a different SHA becomes a dirty target.
@@ -239,25 +289,51 @@ pub struct CoordinatorState {
     /// load completes, or `None` when no follow-up is queued.
     pub dirty_target_sha: Option<String>,
     /// True when at least one full Issue Explorer loader is currently
-    /// running. The scheduler may not start a parallel load.
+    /// running for the active binding. The scheduler may not start a
+    /// parallel load.
     pub has_active_load: bool,
 }
 
 impl CoordinatorState {
     /// Unseeded coordinator. The next probe is treated as the first
     /// observed SHA for this selection and triggers one silent refresh;
-    /// the [ADR-0007 startup-race note](docs/adr/0007-refresh-issue-list-by-polling-beadwork-ref.md)
+    /// the [`ADR-0007 startup-race note`](docs/adr/0007-refresh-issue-list-by-polling-beadwork-ref.md)
     /// explains why this avoids the ref-moves-between-snapshot-and-first-poll
     /// race.
     pub fn unseeded() -> Self {
         Self {
+            active_binding: None,
             last_published_revision: None,
             next_revision: 1,
-            last_published_sha: None,
             active_load_sha: None,
             dirty_target_sha: None,
             has_active_load: false,
         }
+    }
+
+    /// Replace the active binding, clearing load-local state. Used by the
+    /// lifecycle handler when the backend's Current Workspace identity
+    /// changes (selection, retry bump, cancellation that bumped the
+    /// generation, removal of another entry). Idempotent on the same
+    /// binding so callers can invoke it unconditionally.
+    pub fn rebind_to(&mut self, binding: RefreshBinding) {
+        if self.active_binding.as_ref() != Some(&binding) {
+            self.active_binding = Some(binding);
+            self.has_active_load = false;
+            self.active_load_sha = None;
+            self.dirty_target_sha = None;
+        }
+    }
+
+    /// Drop the active binding entirely. Used by the lifecycle handler
+    /// when no Current Workspace exists (reset, removal of the Current
+    /// Workspace, restore-current failure) or when Pending hides the
+    /// binding.
+    pub fn deactivate(&mut self) {
+        self.active_binding = None;
+        self.has_active_load = false;
+        self.active_load_sha = None;
+        self.dirty_target_sha = None;
     }
 
     /// Apply one probe result. Returns `Some(LoadDecision::StartLoad)`
@@ -265,11 +341,25 @@ impl CoordinatorState {
     /// the last published value (or the in-flight load's SHA) and no work
     /// is needed.
     ///
+    /// When the active binding differs from the probe's binding, the
+    /// coordinator rebinds before deciding. That makes the probe handler
+    /// safe to call from any context; the lifecycle handler also uses
+    /// the explicit [`Self::rebind_to`] for clarity.
+    ///
     /// When a load is already active, an observed SHA that differs from
     /// the active load's SHA becomes (or replaces) the dirty target;
     /// only the latest dirty SHA survives, so the dirty follow-up does
     /// the right thing for a burst of ref moves.
-    pub fn apply_probe(&mut self, observed_sha: &str) -> Option<LoadDecision> {
+    pub fn apply_probe(
+        &mut self,
+        binding: &RefreshBinding,
+        observed_sha: &str,
+        last_published_sha: Option<&str>,
+    ) -> Option<LoadDecision> {
+        if self.active_binding.as_ref() != Some(binding) {
+            self.rebind_to(binding.clone());
+        }
+
         if self.has_active_load {
             let active_matches = self
                 .active_load_sha
@@ -281,10 +371,7 @@ impl CoordinatorState {
             return None;
         }
 
-        let unchanged = self
-            .last_published_sha
-            .as_deref()
-            .is_some_and(|published| published == observed_sha);
+        let unchanged = last_published_sha.is_some_and(|published| published == observed_sha);
         if unchanged {
             self.dirty_target_sha = None;
             return None;
@@ -296,26 +383,24 @@ impl CoordinatorState {
         self.active_load_sha = Some(observed_sha.to_string());
         self.dirty_target_sha = None;
 
-        let binding = LoadBinding {
-            workspace_path: PathBuf::new(),
-            workspace_selection_generation: 0,
+        let load_binding = LoadBinding {
+            binding: binding.clone(),
             observed_sha: observed_sha.to_string(),
             refresh_revision: revision,
         };
-        Some(LoadDecision::StartLoad(binding))
+        Some(LoadDecision::StartLoad(load_binding))
     }
 
     /// Handle a successful load completion whose binding still matches the
     /// bound Current Workspace.
     pub fn apply_load_success(&mut self, binding: &LoadBinding) {
-        self.last_published_sha = Some(binding.observed_sha.clone());
         self.last_published_revision = Some(binding.refresh_revision);
         self.has_active_load = false;
         self.active_load_sha = None;
     }
 
-    /// Handle a load failure. The SHA is intentionally left untouched so
-    /// the next probe can retry.
+    /// Handle a load failure. The active state is reset so the next probe
+    /// can retry.
     pub fn apply_load_failure(&mut self) {
         self.has_active_load = false;
         self.active_load_sha = None;
@@ -342,6 +427,8 @@ pub enum LoadDecision {
 ///   to register its listener before any event can fire;
 /// - uses `MissedTickBehavior::Skip` so a blocked load cannot trigger a
 ///   flood of catch-up probes;
+/// - selects over the lifecycle `Notify` (wakes on every Workspace
+///   transition), the load-completion channel, and the two-second ticker;
 /// - continues probing while a load is in flight, coalescing intermediate
 ///   SHAs into the newest dirty target;
 /// - performs at most one follow-up load after each completion for the
@@ -351,9 +438,12 @@ pub enum LoadDecision {
 ///   (probes and loads run on `spawn_blocking`).
 ///
 /// Returns the [`JoinHandle`] so the caller can abort it during teardown.
-pub(crate) fn start_refresh_task(runtime: Arc<Mutex<Option<WorkspaceRuntime>>>) -> JoinHandle<()> {
+pub(crate) fn start_refresh_task(
+    runtime: Arc<Mutex<Option<WorkspaceRuntime>>>,
+    lifecycle: Arc<Notify>,
+) -> JoinHandle<()> {
     tokio::spawn(async move {
-        run_refresh_loop(runtime, Arc::new(ProcessOps)).await;
+        run_refresh_loop(runtime, lifecycle, Arc::new(ProcessOps)).await;
     })
 }
 
@@ -372,11 +462,19 @@ impl LoadCompletion {
     }
 
     fn workspace_path(&self) -> &Path {
-        &self.binding.workspace_path
+        &self.binding.binding.workspace_path
+    }
+
+    fn generation(&self) -> u32 {
+        self.binding.binding.workspace_selection_generation
     }
 }
 
-async fn run_refresh_loop(runtime: Arc<Mutex<Option<WorkspaceRuntime>>>, ops: Arc<dyn RefreshOps>) {
+async fn run_refresh_loop(
+    runtime: Arc<Mutex<Option<WorkspaceRuntime>>>,
+    lifecycle: Arc<Notify>,
+    ops: Arc<dyn RefreshOps>,
+) {
     let coordinator = Arc::new(Mutex::new(CoordinatorState::unseeded()));
     let (load_done_tx, mut load_done_rx) = tokio::sync::mpsc::unbounded_channel::<LoadCompletion>();
 
@@ -384,9 +482,13 @@ async fn run_refresh_loop(runtime: Arc<Mutex<Option<WorkspaceRuntime>>>, ops: Ar
     ticker.set_missed_tick_behavior(MissedTickBehavior::Skip);
 
     loop {
+        let notified = lifecycle.notified();
         tokio::select! {
             _ = ticker.tick() => {
-                handle_tick(&runtime, &coordinator, &load_done_tx, ops.clone()).await;
+                handle_probe(&runtime, &coordinator, &load_done_tx, ops.clone()).await;
+            }
+            _ = notified => {
+                handle_lifecycle(&runtime, &coordinator, &load_done_tx, ops.clone()).await;
             }
             maybe_completion = load_done_rx.recv() => {
                 let Some(completion) = maybe_completion else {
@@ -405,11 +507,10 @@ async fn run_refresh_loop(runtime: Arc<Mutex<Option<WorkspaceRuntime>>>, ops: Ar
     }
 }
 
-/// One probe-tick step: snapshot the runtime binding, probe the ref,
-/// and let the coordinator decide whether to start a load. Probes
-/// during an in-flight load only update the dirty target; the load
-/// completion handler picks them up.
-async fn handle_tick(
+/// Probe the ref for the live binding and let the coordinator decide
+/// whether to start a load. Probes during an in-flight load only update
+/// the dirty target; the load completion handler picks them up.
+async fn handle_probe(
     runtime: &Arc<Mutex<Option<WorkspaceRuntime>>>,
     coordinator: &Arc<Mutex<CoordinatorState>>,
     load_done_tx: &tokio::sync::mpsc::UnboundedSender<LoadCompletion>,
@@ -418,7 +519,6 @@ async fn handle_tick(
     let Some((path, generation)) = runtime_binding(runtime) else {
         return;
     };
-
     let observed = match probe_off_lock(&path, ops.as_ref()).await {
         Ok(sha) => sha,
         Err(error) => {
@@ -432,28 +532,133 @@ async fn handle_tick(
         }
     };
 
+    let binding = RefreshBinding::new(path.clone(), generation);
+    let last_published = read_last_published_sha(runtime, &path);
     let decision = {
         let mut state = coordinator.lock().expect("coordinator lock poisoned");
-        state.apply_probe(&observed)
+        state.apply_probe(&binding, &observed, last_published.as_deref())
     };
-    let Some(LoadDecision::StartLoad(mut load_binding)) = decision else {
+    let Some(LoadDecision::StartLoad(load_binding)) = decision else {
         return;
     };
-    load_binding.workspace_path = path;
-    load_binding.workspace_selection_generation = generation;
     spawn_load(
         runtime.clone(),
         load_done_tx.clone(),
         load_binding,
-        observed,
+        ops.clone(),
     );
+}
+
+/// Handle one lifecycle wake. The shared `Notify` carries no paths, so
+/// the handler always rereads authoritative runtime state under the lock.
+async fn handle_lifecycle(
+    runtime: &Arc<Mutex<Option<WorkspaceRuntime>>>,
+    coordinator: &Arc<Mutex<CoordinatorState>>,
+    load_done_tx: &tokio::sync::mpsc::UnboundedSender<LoadCompletion>,
+    ops: Arc<dyn RefreshOps>,
+) {
+    let (new_binding, catalog_paths) = {
+        let guard = runtime.lock().expect("runtime lock poisoned");
+        let Some(runtime_ref) = guard.as_ref() else {
+            return;
+        };
+        let new_binding = current_workspace_binding(runtime_ref);
+        let catalog_paths: HashSet<PathBuf> = runtime_ref
+            .service
+            .state()
+            .catalog
+            .iter()
+            .map(|workspace| PathBuf::from(&workspace.path))
+            .collect();
+        (new_binding, catalog_paths)
+    };
+
+    enum LifecycleAction {
+        Deactivate,
+        Probe(RefreshBinding),
+        Noop,
+    }
+
+    let action = {
+        let mut state = coordinator.lock().expect("coordinator lock poisoned");
+        match new_binding {
+            None => {
+                if state.active_binding.is_some() {
+                    state.deactivate();
+                    LifecycleAction::Deactivate
+                } else {
+                    LifecycleAction::Noop
+                }
+            }
+            Some((path, generation)) => {
+                let binding = RefreshBinding::new(path.clone(), generation);
+                if state.active_binding.as_ref() != Some(&binding) {
+                    state.rebind_to(binding.clone());
+                    LifecycleAction::Probe(binding)
+                } else {
+                    let has_sha = {
+                        let guard = runtime.lock().expect("runtime lock poisoned");
+                        guard.as_ref().is_some_and(|runtime_ref| {
+                            runtime_ref.refresh_sha_by_workspace.contains_key(&path)
+                        })
+                    };
+                    if has_sha {
+                        LifecycleAction::Noop
+                    } else {
+                        LifecycleAction::Probe(binding)
+                    }
+                }
+            }
+        }
+    };
+
+    // Evict SHA entries absent from the catalog so a removed workspace
+    // does not leave a stale per-workspace SHA behind.
+    {
+        let mut guard = runtime.lock().expect("runtime lock poisoned");
+        if let Some(runtime_ref) = guard.as_mut() {
+            runtime_ref
+                .refresh_sha_by_workspace
+                .retain(|key, _| catalog_paths.contains(key));
+        }
+    }
+
+    if let LifecycleAction::Probe(binding) = action {
+        let observed = match probe_off_lock(&binding.workspace_path, ops.as_ref()).await {
+            Ok(sha) => sha,
+            Err(error) => {
+                log::warn!(
+                    target: "beadsmith::refresh",
+                    "lifecycle probe failed for {}: {:?}",
+                    binding.workspace_path.display(),
+                    error,
+                );
+                return;
+            }
+        };
+        let last_published = read_last_published_sha(runtime, &binding.workspace_path);
+        let decision = {
+            let mut state = coordinator.lock().expect("coordinator lock poisoned");
+            state.apply_probe(&binding, &observed, last_published.as_deref())
+        };
+        let Some(LoadDecision::StartLoad(load_binding)) = decision else {
+            return;
+        };
+        spawn_load(
+            runtime.clone(),
+            load_done_tx.clone(),
+            load_binding,
+            ops.clone(),
+        );
+    }
 }
 
 /// One load-completion step: build and emit the event (under the
 /// runtime lock for the build, outside the lock for the emit), advance
-/// the coordinator's published SHA only when the binding is still
-/// current, and trigger at most one follow-up load for the current
-/// ref tip if the previous load's lifetime observed a different SHA.
+/// the coordinator's revision and seed the SHA map only when both the
+/// coordinator's active binding AND the live non-Pending Current binding
+/// still match, and trigger at most one follow-up load if the previous
+/// load's lifetime observed a different SHA.
 async fn handle_completion(
     runtime: &Arc<Mutex<Option<WorkspaceRuntime>>>,
     coordinator: &Arc<Mutex<CoordinatorState>>,
@@ -461,12 +666,32 @@ async fn handle_completion(
     ops: Arc<dyn RefreshOps>,
     completion: LoadCompletion,
 ) {
+    // A completion is admitted only when its binding matches both the
+    // coordinator's active binding and the live non-Pending Current
+    // binding. Otherwise ignore completely: it cannot clear active
+    // state, consume dirty state, update SHA memory/snapshot, or emit.
+    let active_matches = {
+        let state = coordinator.lock().expect("coordinator lock poisoned");
+        state
+            .active_binding
+            .as_ref()
+            .is_some_and(|active| active == &completion.binding.binding)
+    };
+    let still_matches = runtime_workspace_matches(
+        runtime,
+        completion.workspace_path(),
+        completion.generation(),
+    );
+    if !active_matches || !still_matches {
+        // Stale completion: ignore it completely. It cannot clear
+        // active state, consume dirty state, update SHA memory or
+        // snapshot, or emit. A blocking A worker that finished after
+        // B became Current has no publication or mutation rights.
+        return;
+    }
+
     let build = build_event_for_completion(runtime, &completion).await;
 
-    // Always do dirty follow-up work, regardless of whether the load
-    // built an event. The dirty target is set by probes that ran
-    // during the load's lifetime and is independent of whether the
-    // load itself succeeded.
     let dirty_observed = {
         let mut state = coordinator.lock().expect("coordinator lock poisoned");
         state.take_dirty_target()
@@ -491,47 +716,51 @@ async fn handle_completion(
     let published =
         emit_refresh_event(&app, event, completion.revision(), &completion.observed_sha);
 
-    // Revalidate the binding under the lock AFTER the emit. The lock
-    // is released between `build_refresh_event` and `emit_refresh_event`,
+    // Revalidate the live binding under the lock AFTER the emit. The
+    // lock is released between `build_refresh_event` and `emit_refresh_event`,
     // so a concurrent switch may have advanced the selection generation
     // or installed a Pending transition that makes the emitted event
-    // stale for the renderer. In that case leave `last_published_sha`
-    // unchanged so the dirty follow-up (or the next probe) re-emits a
-    // current-tip load for the renderer.
-    let still_matches = {
-        let mut guard = runtime.lock().expect("runtime lock poisoned");
-        match guard.as_mut() {
-            Some(runtime_ref) => {
-                runtime_ref.service.state().pending_workspace.is_none()
-                    && runtime_ref
-                        .service
-                        .state()
-                        .current_workspace
-                        .as_ref()
-                        .is_some_and(|current| {
-                            current.path == completion.workspace_path().display().to_string()
-                        })
-                    && runtime_ref.service.state().generation
-                        == completion.binding.workspace_selection_generation
-            }
-            None => false,
-        }
+    // stale for the renderer. In that case leave the SHA map untouched
+    // so the dirty follow-up (or the next probe) re-emits a current-tip
+    // load for the renderer.
+    let still_matches_after_emit = runtime_workspace_matches(
+        runtime,
+        completion.workspace_path(),
+        completion.generation(),
+    );
+    let active_matches_after_emit = {
+        let state = coordinator.lock().expect("coordinator lock poisoned");
+        state
+            .active_binding
+            .as_ref()
+            .is_some_and(|active| active == &completion.binding.binding)
     };
 
     {
         let mut state = coordinator.lock().expect("coordinator lock poisoned");
-        match (published, still_matches) {
-            (PublishOutcome::Published, true) => {
+        match (published, still_matches_after_emit, active_matches_after_emit) {
+            (PublishOutcome::Published, true, true) => {
                 state.apply_load_success(&completion.binding);
             }
             _ => {
-                // Either the emit failed or the binding drifted
-                // between build and emit. Leave `last_published_sha`
-                // unchanged so a future probe can re-emit a
-                // current-tip load for the renderer.
+                // Either the emit failed or the binding drifted between
+                // build and emit (or after emit). Leave the SHA map
+                // untouched so a future probe can re-emit a current-tip
+                // load for the renderer.
                 state.apply_load_failure();
             }
         }
+    }
+
+    if published == PublishOutcome::Published
+        && still_matches_after_emit
+        && active_matches_after_emit
+    {
+        seed_refresh_sha(
+            runtime,
+            completion.workspace_path(),
+            &completion.observed_sha,
+        );
     }
 
     if dirty_observed.is_some() {
@@ -539,6 +768,17 @@ async fn handle_completion(
     }
 }
 
+/// Seed the per-workspace SHA map under the runtime lock. Only ever
+/// called after a load completion whose binding still matches the live
+/// non-Pending Current binding AND the coordinator's active binding.
+fn seed_refresh_sha(runtime: &Arc<Mutex<Option<WorkspaceRuntime>>>, path: &Path, sha: &str) {
+    let mut guard = runtime.lock().expect("runtime lock poisoned");
+    if let Some(runtime_ref) = guard.as_mut() {
+        runtime_ref
+            .refresh_sha_by_workspace
+            .insert(path.to_path_buf(), sha.to_string());
+    }
+}
 
 /// Post-completion dirty handling: if the previous load's lifetime
 /// observed a different SHA, probe the current ref tip and start at
@@ -566,30 +806,20 @@ async fn handle_dirty_follow_up(
             return;
         }
     };
-    let needs_followup = {
-        let state = coordinator.lock().expect("coordinator lock poisoned");
-        state
-            .last_published_sha
-            .as_deref()
-            .is_none_or(|published| published != observed.as_str())
-    };
-    if !needs_followup {
-        return;
-    }
+    let last_published = read_last_published_sha(runtime, &path);
+    let binding = RefreshBinding::new(path.clone(), generation);
     let decision = {
         let mut state = coordinator.lock().expect("coordinator lock poisoned");
-        state.apply_probe(&observed)
+        state.apply_probe(&binding, &observed, last_published.as_deref())
     };
-    let Some(LoadDecision::StartLoad(mut followup_binding)) = decision else {
+    let Some(LoadDecision::StartLoad(followup_binding)) = decision else {
         return;
     };
-    followup_binding.workspace_path = path;
-    followup_binding.workspace_selection_generation = generation;
     spawn_load(
         runtime.clone(),
         load_done_tx.clone(),
         followup_binding,
-        observed,
+        ops.clone(),
     );
 }
 
@@ -609,7 +839,7 @@ async fn build_event_for_completion(
             build_refresh_event(
                 runtime_ref,
                 completion.workspace_path(),
-                completion.binding.workspace_selection_generation,
+                completion.generation(),
                 &completion.observed_sha,
                 completion.revision(),
                 data,
@@ -634,10 +864,11 @@ fn spawn_load(
     runtime: Arc<Mutex<Option<WorkspaceRuntime>>>,
     load_done_tx: tokio::sync::mpsc::UnboundedSender<LoadCompletion>,
     binding: LoadBinding,
-    observed_sha: String,
+    ops: Arc<dyn RefreshOps>,
 ) {
     tokio::spawn(async move {
-        let outcome = run_load(&runtime, &binding).await;
+        let observed_sha = binding.observed_sha.clone();
+        let outcome = run_load(&runtime, &binding, ops).await;
         let _ = load_done_tx.send(LoadCompletion {
             binding,
             observed_sha,
@@ -655,6 +886,36 @@ fn runtime_binding(runtime: &Arc<Mutex<Option<WorkspaceRuntime>>>) -> Option<(Pa
     current_workspace_binding(runtime)
 }
 
+/// Read the most recently published SHA for `path` from the runtime's
+/// per-workspace SHA map. Returns `None` when the runtime has not been
+/// initialized, the entry has not been seeded, or the entry was evicted.
+fn read_last_published_sha(runtime: &Arc<Mutex<Option<WorkspaceRuntime>>>, path: &Path) -> Option<String> {
+    let guard = runtime.lock().expect("runtime lock poisoned");
+    let runtime_ref = guard.as_ref()?;
+    runtime_ref.refresh_sha_by_workspace.get(path).cloned()
+}
+
+/// True when the runtime's live non-Pending Current Workspace identity
+/// equals `(path, generation)`. Used by the load-completion admission
+/// gate to revalidate the binding under the lock.
+fn runtime_workspace_matches(
+    runtime: &Arc<Mutex<Option<WorkspaceRuntime>>>,
+    path: &Path,
+    generation: u32,
+) -> bool {
+    let guard = runtime.lock().expect("runtime lock poisoned");
+    let Some(runtime_ref) = guard.as_ref() else {
+        return false;
+    };
+    let state = runtime_ref.service.state();
+    state.pending_workspace.is_none()
+        && state
+            .current_workspace
+            .as_ref()
+            .is_some_and(|current| Path::new(&current.path) == path)
+        && state.generation == generation
+}
+
 async fn probe_off_lock(path: &Path, ops: &dyn RefreshOps) -> Result<String, ProbeError> {
     let path = path.to_path_buf();
     let ops = ops.probe_op();
@@ -666,11 +927,13 @@ async fn probe_off_lock(path: &Path, ops: &dyn RefreshOps) -> Result<String, Pro
 async fn run_load(
     runtime: &Arc<Mutex<Option<WorkspaceRuntime>>>,
     binding: &LoadBinding,
+    ops: Arc<dyn RefreshOps>,
 ) -> LoadOutcome {
-    let path = binding.workspace_path.clone();
+    let path = binding.binding.workspace_path.clone();
     let binding_for_task = binding.clone();
     let coordinator_marker = runtime.clone();
-    let probe_outcome = tokio::task::spawn_blocking(move || {
+    let load_op = ops.load_op();
+    tokio::task::spawn_blocking(move || {
         // Re-verify the binding under the runtime lock before any work
         // starts so a Pending transition that arrived while this load
         // was queued can short-circuit.
@@ -684,22 +947,19 @@ async fn run_load(
                 .current_workspace
                 .as_ref()
                 .is_some_and(|current| current.path == path.display().to_string())
-                && state.generation == binding_for_task.workspace_selection_generation
+                && state.generation == binding_for_task.binding.workspace_selection_generation
                 && state.pending_workspace.is_none();
             if !matches {
                 return LoadOutcome::Stale;
             }
         }
-        match load_issue_explorer_data(&ProcessRunner::new(), &path) {
+        match load_op(&path) {
             Ok(data) => LoadOutcome::Success(binding_for_task, data),
-            Err(error) => {
-                LoadOutcome::Failure(format!("Could not load Issue Explorer data: {error}"))
-            }
+            Err(error) => LoadOutcome::Failure(error),
         }
     })
     .await
-    .expect("load task panicked");
-    probe_outcome
+    .expect("load task panicked")
 }
 
 #[cfg(test)]
