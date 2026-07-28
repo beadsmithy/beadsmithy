@@ -835,7 +835,7 @@ async fn classify_and_apply_probe_failure(
     // renderer clears the banner and the scheduler stops probing.
     if matches!(error, ProbeError::Spawn(_)) && !path.is_dir() {
         let should_publish = {
-            let mut coordinator_guard =
+            let _coordinator_guard =
                 coordinator.lock().expect("coordinator lock poisoned");
             let mut health_state = health.lock().expect("health lock poisoned");
             health_state.enter_idle_unavailable(false);
