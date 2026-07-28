@@ -83,9 +83,23 @@ const executeTyped = async <T>(
  * when a workspace's issues have loaded. Mirrors the generated
  * `LoadIssueExplorerDataResponse` in `src/rpc/bindings.ts` -- the
  * subset kept here matches every field the Issue List specs assert on.
+ *
+ * The `id`, `parent`, `priority`, `created`, and `status` fields on
+ * `allIssues` are needed by the Child Issues desktop spec
+ * (`bsm-nd7.4`) to prove the structured Issue data crossed the real
+ * Rust/TauRPC boundary before the DOM assertions. They are marked
+ * optional so the empty-fixture and atomic-switch flow tests, which
+ * never read them, keep type-checking unchanged.
  */
 export interface LoadIssueExplorerDataResponse {
-  allIssues: { status?: string; title: string }[];
+  allIssues: {
+    created?: string;
+    id?: string;
+    parent?: string;
+    priority?: number;
+    status?: string;
+    title: string;
+  }[];
   blockedIssues: { title: string }[];
   readyIssues: { title: string }[];
   workspacePath: string;
@@ -199,6 +213,32 @@ export const startTypedWorkspaceSwitch = async (
  */
 export const issueRowSelector = (title: string): string =>
   `article[aria-label*="${title}"]`;
+
+/**
+ * Build a CSS selector that matches a Child Issue button inside the
+ * named Child Issues list. The button's accessible name is bound by
+ * `bsm-nd7.3` to `<id>: <title>. <status>`, so the selector is the
+ * single, semantic seam used by the Child Issues desktop spec.
+ *
+ * The selector is scoped to `ul[aria-label="Child Issues"]` so a
+ * child button and an Issue List row with the same accessible name
+ * can never collide. Pure string formatter -- safe to unit-test
+ * without WebdriverIO.
+ */
+export const childIssueButtonSelector = (
+  id: string,
+  title: string,
+  status: string
+): string =>
+  `ul[aria-label="Child Issues"] button[aria-label="${id}: ${title}. ${status}"]`;
+
+/**
+ * Build a CSS selector that matches the Child Issues `<ul>` so a
+ * spec can wait for the section to mount or assert its presence.
+ * Pure string formatter -- safe to unit-test without WebdriverIO.
+ */
+export const childIssuesListSelector = (): string =>
+  'ul[aria-label="Child Issues"]';
 
 /**
  * Selector constant for the local Issue Search input. Issue Explorer

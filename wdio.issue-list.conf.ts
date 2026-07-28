@@ -7,11 +7,18 @@
  * src-tauri/src/lib.rs). The app starts with an isolated empty catalog;
  * specs select disposable repositories through `switch_workspace`.
  *
- * Do not run this file directly: use `pnpm e2e:issue-list:success` /
- * `pnpm e2e:issue-list:empty`, which create the disposable Beadwork
- * repositories and isolated backend store used by the specs (see
+ * Do not run this file directly: use one of the `pnpm e2e:issue-list:*`
+ * commands, which create the disposable Beadwork repositories and isolated
+ * backend store used by the specs (see
  * e2e/issue-list/scripts/run-scenario.ts and
  * docs/agents/webdriver-e2e.md).
+ *
+ * Supported scenarios:
+ *   - `issues`        — populated A + true-empty B fixtures
+ *   - `empty`         — true-empty B fixture only
+ *   - `atomic-switch` — populated A + populated B fixtures, delayed wrappers
+ *   - `child-issues`  — dedicated closed-parent fixture A only
+ *   - `restoration`   — two sequential binaries against one shared store
  */
 import { existsSync } from "node:fs";
 import path from "node:path";
@@ -87,7 +94,9 @@ export const config: WebdriverIO.Config = {
     console.log(`[e2e] using Beadsmith binary at ${APP_BINARY_PATH}`);
     console.log("[e2e] launching Beadsmith with an isolated empty catalog");
     console.log(`[e2e] workspace A: ${workspaceA}`);
-    console.log(`[e2e] workspace B: ${workspaceB}`);
+    if (workspaceB) {
+      console.log(`[e2e] workspace B: ${workspaceB}`);
+    }
     console.log(`[e2e] isolated store: ${storePath}`);
     console.log(
       `[e2e] using embedded WebDriver port: ${EMBEDDED_WEBDRIVER_PORT}`
@@ -117,6 +126,9 @@ export const config: WebdriverIO.Config = {
     }
     if (scenario === "atomic-switch") {
       return ["./e2e/issue-list/issue-list.atomic-switch.spec.ts"];
+    }
+    if (scenario === "child-issues") {
+      return ["./e2e/issue-list/issue-list.child-issues.spec.ts"];
     }
     if (scenario === "restoration") {
       return ["./e2e/issue-list/issue-list.restoration.spec.ts"];
