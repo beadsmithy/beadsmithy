@@ -21,17 +21,23 @@ import type {
   LoadIssueExplorerDataResponse,
   WorkspaceState,
 } from "./rpc/bindings";
+import {
+  isIssueExplorerRefreshEvent,
+  type IssueExplorerRefreshEvent,
+  type IssueExplorerRefreshHealthEvent,
+} from "./refresh-health";
 import { useAppSettings } from "./settings/app-settings";
 import { SettingsPage } from "./settings/SettingsPage";
 import {
+  applyIssueExplorerHealthRefresh,
   applyIssueExplorerRefresh,
   applyStartupIssueLoad,
   applyWorkspaceTransition,
+  clearRefreshHealth,
   INITIAL_WORKSPACE_REMOUNT_KEY,
   INITIAL_WORKSPACE_TRANSITION_GATE_STATE,
 } from "./workspaces/transition-gate";
 import type {
-  IssueExplorerRefreshPayload,
   WorkspaceTransitionDecision,
   WorkspaceTransitionGateState,
 } from "./workspaces/transition-gate";
@@ -104,38 +110,84 @@ const applyTransitionDecision = (
  * `deferredRefreshRef` so it can be replayed after the matching
  * `workspace-transition` admits the new selection. A rejected event is
  * silently dropped.
+ *
+ * The tagged-union event carries either a Snapshot variant (replaces
+ * the issue state) or a Health variant (replaces the refresh health
+ * state and renders the banner). Both variants share the same identity
+ * triple; the gate tracks independent accepted revisions for each so
+ * delivery order does not affect correctness.
  */
 const applyRefreshDecision = (
-  payload: IssueExplorerRefreshPayload,
+  payload: IssueExplorerRefreshEvent,
   gateRef: { current: WorkspaceTransitionGateState },
-  deferredRefreshRef: { current: IssueExplorerRefreshPayload | null },
-  setIssueState: (state: IssueExplorerLoadState) => void
+  deferredRefreshRef: {
+    current: IssueExplorerRefreshEvent | null;
+  },
+  setIssueState: (state: IssueExplorerLoadState) => void,
+  setRefreshHealth: (health: {
+    readonly refProbe: import("./refresh-health").RefreshFailure | null;
+    readonly loader: import("./refresh-health").RefreshFailure | null;
+  } | null) => void
 ): void => {
-  const { decision, next } = applyIssueExplorerRefresh(
+  if (!isIssueExplorerRefreshEvent(payload)) {
+    return;
+  }
+  if (payload.eventType === "snapshot") {
+    const { decision, next } = applyIssueExplorerRefresh(
+      gateRef.current,
+      payload
+    );
+    switch (decision.kind) {
+      case "ignore":
+        return;
+      case "defer":
+        if (
+          deferredRefreshRef.current === null ||
+          isNewerGeneration(
+            deferredRefreshRef.current,
+            payload
+          )
+        ) {
+          deferredRefreshRef.current = payload;
+        }
+        return;
+      case "commitRefreshSnapshot":
+        gateRef.current = next;
+        setIssueState({ ...decision.snapshot, status: "success" });
+        return;
+    }
+    return;
+  }
+  // Health variant
+  const healthPayload: IssueExplorerRefreshHealthEvent = payload;
+  const { decision, next } = applyIssueExplorerHealthRefresh(
     gateRef.current,
-    payload
+    healthPayload
   );
   switch (decision.kind) {
     case "ignore":
       return;
     case "defer":
-      // Keep only the newest payload per identity; a newer generation
-      // replaces the slot because the gate will admit it after the
-      // matching transition lands.
       if (
         deferredRefreshRef.current === null ||
-        deferredRefreshRef.current.workspaceSelectionGeneration <=
-          payload.workspaceSelectionGeneration
+        isNewerGeneration(deferredRefreshRef.current, healthPayload)
       ) {
-        deferredRefreshRef.current = payload;
+        deferredRefreshRef.current = healthPayload;
       }
       return;
-    case "commitRefreshSnapshot":
+    case "commitRefreshHealth":
       gateRef.current = next;
-      setIssueState({ ...decision.snapshot, status: "success" });
+      setRefreshHealth(decision.health);
       return;
   }
 };
+
+const isNewerGeneration = (
+  existing: IssueExplorerRefreshEvent,
+  candidate: IssueExplorerRefreshEvent
+): boolean =>
+  existing.workspaceSelectionGeneration <=
+  candidate.workspaceSelectionGeneration;
 
 export default function App() {
   const [issueState, setIssueState] = useState<IssueExplorerLoadState>(
@@ -154,6 +206,10 @@ export default function App() {
     INITIAL_WORKSPACE_TRANSITION_GATE_STATE.confirmedWorkspacePath ??
       INITIAL_WORKSPACE_REMOUNT_KEY
   );
+  const [refreshHealth, setRefreshHealthState] = useState<{
+    readonly refProbe: import("./refresh-health").RefreshFailure | null;
+    readonly loader: import("./refresh-health").RefreshFailure | null;
+  } | null>(null);
   const transitionGateRef = useRef<WorkspaceTransitionGateState>(
     INITIAL_WORKSPACE_TRANSITION_GATE_STATE
   );
@@ -165,10 +221,26 @@ export default function App() {
    * backend event-ordering race by keeping only the newest payload per
    * identity; a newer generation replaces the slot, an older generation
    * is dropped.
+   *
+   * The buffer is a tagged union: it carries either a Snapshot or a
+   * Health variant. `bsm-wj1.3` extended the buffer to dispatch both
+   * variants through the appropriate gate decision.
    */
-  const deferredRefreshRef = useRef<IssueExplorerRefreshPayload | null>(null);
+  const deferredRefreshRef = useRef<IssueExplorerRefreshEvent | null>(null);
   const [dismissedSwitchErrorGeneration, setDismissedSwitchErrorGeneration] =
     useState<number | null>(null);
+
+  const setRefreshHealth = useCallback(
+    (
+      health: {
+        readonly refProbe: import("./refresh-health").RefreshFailure | null;
+        readonly loader: import("./refresh-health").RefreshFailure | null;
+      } | null
+    ) => {
+      setRefreshHealthState(health);
+    },
+    []
+  );
 
   const handleIssueListViewSelect = useCallback((viewId: IssueListViewId) => {
     setActiveIssueListViewId(viewId);
@@ -181,27 +253,40 @@ export default function App() {
       return false;
     }
     deferredRefreshRef.current = null;
-    const { decision, next } = applyIssueExplorerRefresh(
+    if (deferred.eventType === "snapshot") {
+      const { decision, next } = applyIssueExplorerRefresh(
+        transitionGateRef.current,
+        deferred
+      );
+      if (decision.kind === "commitRefreshSnapshot") {
+        transitionGateRef.current = next;
+        setIssueState({ ...decision.snapshot, status: "success" });
+        return true;
+      }
+      if (decision.kind === "ignore") {
+        return false;
+      }
+      // `defer`: gate has not yet admitted the matching transition;
+      // put the payload back into the slot.
+      deferredRefreshRef.current = decision.payload;
+      return false;
+    }
+    // Health variant
+    const { decision, next } = applyIssueExplorerHealthRefresh(
       transitionGateRef.current,
       deferred
     );
-    if (decision.kind === "commitRefreshSnapshot") {
+    if (decision.kind === "commitRefreshHealth") {
       transitionGateRef.current = next;
-      setIssueState({ ...decision.snapshot, status: "success" });
+      setRefreshHealth(decision.health);
       return true;
     }
-    // The deferred payload no longer matches the gate (e.g. its
-    // generation is now older than the confirmed generation after a
-    // commit, or the user has cleared the confirmed identity). Drop
-    // it; an equal-or-newer incompatible identity wins.
     if (decision.kind === "ignore") {
       return false;
     }
-    // `defer` means the gate has not yet admitted the matching
-    // transition; put the payload back into the slot.
     deferredRefreshRef.current = decision.payload;
     return false;
-  }, []);
+  }, [setRefreshHealth]);
 
   const applyTransition = useCallback(
     (
@@ -213,10 +298,21 @@ export default function App() {
         transition,
         expectedGeneration
       );
+      const isClearSnapshot = decision.kind === "clearSnapshot";
       transitionGateRef.current = next;
 
       if (decision.kind === "ignore") {
         return decision;
+      }
+
+      // A confirmed path change / chooser transition must clear the
+      // renderer's refresh health so the prior Workspace's banner
+      // cannot linger behind the chooser.
+      if (isClearSnapshot) {
+        transitionGateRef.current = clearRefreshHealth(
+          transitionGateRef.current
+        );
+        setRefreshHealth(null);
       }
 
       setWorkspaceState(transition.state);
@@ -224,7 +320,7 @@ export default function App() {
       applyDeferredRefresh();
       return decision;
     },
-    [applyDeferredRefresh]
+    [applyDeferredRefresh, setRefreshHealth]
   );
 
   // `presentedIssueState` masks the successful Issue Explorer
@@ -275,14 +371,15 @@ export default function App() {
         unlistenTransition = transitionListener;
       }
 
-      const refreshListener = await listen<IssueExplorerRefreshPayload>(
+      const refreshListener = await listen<IssueExplorerRefreshEvent>(
         ISSUE_EXPLORER_REFRESH_EVENT,
         (event) => {
           applyRefreshDecision(
             event.payload,
             transitionGateRef,
             deferredRefreshRef,
-            setIssueState
+            setIssueState,
+            setRefreshHealth
           );
         }
       );
@@ -518,6 +615,7 @@ export default function App() {
                 issueState={presentedIssueState}
                 markdownFontSizePx={settings.state.appliedFontSizePx}
                 onIssueListViewChange={setActiveIssueListViewId}
+                refreshHealth={refreshHealth}
               />
             )}
           </div>

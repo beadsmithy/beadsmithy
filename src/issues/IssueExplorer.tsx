@@ -18,6 +18,10 @@ import type { ExternalLinkOpener } from "../components/external-link-opener";
 import { openExternalLink as defaultOpenExternalLink } from "../components/external-link-opener";
 import { MarkdownContent } from "../components/MarkdownContent";
 import { useExternalLifecycle } from "../lib/use-external-lifecycle";
+import type {
+  RefreshFailure,
+  RefreshHealth,
+} from "../refresh-health";
 import type { Issue, IssueComment } from "../rpc/bindings";
 import {
   deriveIssueExplorerState,
@@ -28,6 +32,10 @@ import type { IssueListEmptyReason } from "./issue-explorer-state";
 import { getChildIssues } from "./issue-hierarchy";
 import type { IssueListViewId } from "./issue-list-view";
 import type { IssueExplorerLoadState } from "./issue-loader";
+import {
+  RefreshFailureBanner,
+  selectBannerFailure,
+} from "./RefreshFailureBanner";
 import { toIssueViewModel } from "./issue-view";
 import type { IssueTone } from "./issue-view";
 
@@ -647,12 +655,14 @@ export const IssueExplorer = ({
   markdownFontSizePx,
   onIssueListViewChange,
   openExternalLink = defaultOpenExternalLink,
+  refreshHealth,
 }: {
   activeIssueListViewId?: IssueListViewId;
   issueState: IssueExplorerLoadState;
   markdownFontSizePx?: number;
   onIssueListViewChange?: (viewId: IssueListViewId) => void;
   openExternalLink?: ExternalLinkOpener;
+  refreshHealth?: RefreshHealth | null;
 }) => {
   void onIssueListViewChange;
   const [searchQuery, setSearchQuery] = useState("");
@@ -742,12 +752,20 @@ export const IssueExplorer = ({
     childIssueSelectionRef.current = true;
   };
 
+  // Select the highest-priority failure slot for the banner copy.
+  // The banner is rendered above the search header and list scroll
+  // container as a non-scrolling sibling.
+  const bannerFailure: RefreshFailure | null = refreshHealth
+    ? selectBannerFailure(refreshHealth)
+    : null;
+
   return (
     <>
       <section
         className="flex w-[320px] shrink-0 flex-col border-r border-border-main bg-background"
         data-active-issue-list-view-id={activeViewId}
       >
+        <RefreshFailureBanner failure={bannerFailure} />
         <div className="flex h-14 items-center border-b border-border-main p-2">
           <div className="relative w-full">
             <label className="sr-only" htmlFor="issue-search">

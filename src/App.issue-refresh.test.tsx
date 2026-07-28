@@ -8,6 +8,7 @@ import type {
   LoadIssueExplorerDataResponse,
   WorkspaceState,
 } from "./rpc/bindings";
+import type { RefreshFailure } from "./refresh-health";
 import {
   buildIssue,
   createBothListenersMock,
@@ -64,6 +65,7 @@ const refreshPayload = (overrides: {
   issueData: LoadIssueExplorerDataResponse;
   workspaceSelectionGeneration?: number;
 }) => ({
+  eventType: "snapshot" as const,
   issueData: overrides.issueData,
   observedRefSha: overrides.observedRefSha ?? "abc123",
   refreshRevision: overrides.refreshRevision,
@@ -535,5 +537,201 @@ describe("App issue explorer refresh", () => {
     });
 
     expect(await screen.findByText("Brand new")).toBeInTheDocument();
+  });
+
+  it("renders the refresh-failure banner above the list when a Health event arrives", async () => {
+    // After a healthy snapshot has rendered, a Health event with a
+    // missing-bw failure must surface the canonical banner copy while
+    // retaining the rendered list below it. The banner is a non-scrolling
+    // sibling; search remains enabled and the chooser does not appear.
+    const { listeners, implementation } = createBothListenersMock();
+    listen.mockImplementation(implementation);
+
+    const initialIssue = buildIssue({ id: "shared", title: "Original" });
+    loadIssueExplorerStateFromTauRpc.mockResolvedValue(
+      successState({
+        allIssues: [initialIssue],
+        workspaceGeneration: 1,
+        workspacePath: "/work/a",
+      })
+    );
+    workspaceState.mockResolvedValue(
+      workspace({
+        currentWorkspace: { availability: "available", path: "/work/a" },
+        generation: 1,
+      })
+    );
+
+    render(<App />);
+    await waitFor(() => {
+      expect(listeners.refresh).toBeDefined();
+    });
+    expect(await screen.findByText("Original")).toBeInTheDocument();
+
+    const healthFailure: RefreshFailure = {
+      errorKind: "missingBw",
+      failureRevision: 1,
+      message: "bw missing",
+      transient: false,
+    };
+    act(() => {
+      listeners.refresh?.({
+        payload: {
+          eventType: "health",
+          health: { refProbe: null, loader: healthFailure },
+          refreshRevision: 5,
+          workspacePath: "/work/a",
+          workspaceSelectionGeneration: 1,
+        },
+      });
+    });
+
+    const banner = await screen.findByTestId("refresh-failure-banner");
+    expect(banner).toBeInTheDocument();
+    expect(banner).toHaveAttribute("role", "alert");
+    expect(banner.textContent).toContain(
+      "Automatic refresh needs bw on PATH to read Beadwork data."
+    );
+    // The Issue List is preserved under the banner.
+    expect(screen.getByText("Original")).toBeInTheDocument();
+    // Search remains enabled.
+    expect(screen.getByPlaceholderText("Search issues...")).not.toBeDisabled();
+    // No chooser replaces the rendered list.
+    expect(
+      screen.queryByRole("heading", { name: "Choose a workspace" })
+    ).toBeNull();
+  });
+
+  it("clears the banner when a Health event with empty slots arrives", async () => {
+    const { listeners, implementation } = createBothListenersMock();
+    listen.mockImplementation(implementation);
+
+    const initialIssue = buildIssue({ id: "shared", title: "Original" });
+    loadIssueExplorerStateFromTauRpc.mockResolvedValue(
+      successState({
+        allIssues: [initialIssue],
+        workspaceGeneration: 1,
+        workspacePath: "/work/a",
+      })
+    );
+    workspaceState.mockResolvedValue(
+      workspace({
+        currentWorkspace: { availability: "available", path: "/work/a" },
+        generation: 1,
+      })
+    );
+
+    render(<App />);
+    await waitFor(() => {
+      expect(listeners.refresh).toBeDefined();
+    });
+    expect(await screen.findByText("Original")).toBeInTheDocument();
+
+    const bannerFailure: RefreshFailure = {
+      errorKind: "refProbe",
+      failureRevision: 5,
+      message: "failing",
+      transient: true,
+    };
+    act(() => {
+      listeners.refresh?.({
+        payload: {
+          eventType: "health",
+          health: { refProbe: bannerFailure, loader: null },
+          refreshRevision: 3,
+          workspacePath: "/work/a",
+          workspaceSelectionGeneration: 1,
+        },
+      });
+    });
+    expect(await screen.findByTestId("refresh-failure-banner")).toBeInTheDocument();
+
+    act(() => {
+      listeners.refresh?.({
+        payload: {
+          eventType: "health",
+          health: { refProbe: null, loader: null },
+          refreshRevision: 4,
+          workspacePath: "/work/a",
+          workspaceSelectionGeneration: 1,
+        },
+      });
+    });
+    await waitFor(() => {
+      expect(screen.queryByTestId("refresh-failure-banner")).toBeNull();
+    });
+    // The Issue List is preserved through recovery.
+    expect(screen.getByText("Original")).toBeInTheDocument();
+  });
+
+  it("ignores a Health event whose generation is older than the confirmed identity", async () => {
+    const { listeners, implementation } = createBothListenersMock();
+    listen.mockImplementation(implementation);
+
+    const initialIssue = buildIssue({ id: "shared", title: "Original" });
+    loadIssueExplorerStateFromTauRpc.mockResolvedValue(
+      successState({
+        allIssues: [initialIssue],
+        workspaceGeneration: 2,
+        workspacePath: "/work/a",
+      })
+    );
+    workspaceState.mockResolvedValue(
+      workspace({
+        currentWorkspace: { availability: "available", path: "/work/a" },
+        generation: 2,
+      })
+    );
+
+    render(<App />);
+    await waitFor(() => {
+      expect(listeners.refresh).toBeDefined();
+    });
+    expect(await screen.findByText("Original")).toBeInTheDocument();
+
+    // First, admit a Health event at the confirmed generation.
+    act(() => {
+      listeners.refresh?.({
+        payload: {
+          eventType: "health",
+          health: {
+            refProbe: {
+              errorKind: "refProbe",
+              failureRevision: 5,
+              message: "failing",
+              transient: true,
+            },
+            loader: null,
+          },
+          refreshRevision: 5,
+          workspacePath: "/work/a",
+          workspaceSelectionGeneration: 2,
+        },
+      });
+    });
+    expect(await screen.findByTestId("refresh-failure-banner")).toBeInTheDocument();
+
+    // A stale Health event for a previous generation is ignored.
+    act(() => {
+      listeners.refresh?.({
+        payload: {
+          eventType: "health",
+          health: {
+            refProbe: {
+              errorKind: "refProbe",
+              failureRevision: 9,
+              message: "old",
+              transient: true,
+            },
+            loader: null,
+          },
+          refreshRevision: 9,
+          workspacePath: "/work/a",
+          workspaceSelectionGeneration: 1,
+        },
+      });
+    });
+    // The original banner remains (the stale event did not replace it).
+    expect(screen.getByTestId("refresh-failure-banner")).toBeInTheDocument();
   });
 });

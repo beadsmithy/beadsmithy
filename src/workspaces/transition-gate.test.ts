@@ -8,10 +8,16 @@ import type {
   WorkspaceError,
   WorkspaceState,
 } from "../rpc/bindings";
+import type {
+  IssueExplorerRefreshHealthEvent,
+  RefreshHealth,
+} from "../refresh-health";
 import {
+  applyIssueExplorerHealthRefresh,
   applyIssueExplorerRefresh,
   applyStartupIssueLoad,
   applyWorkspaceTransition,
+  clearRefreshHealth,
   CLEARED_WORKSPACE_REMOUNT_KEY,
   INITIAL_WORKSPACE_REMOUNT_KEY,
   INITIAL_WORKSPACE_TRANSITION_GATE_STATE,
@@ -571,10 +577,12 @@ describe("applyWorkspaceTransition", () => {
     });
     expect(duplicate.next).toEqual({
       acceptedGeneration: 5,
+      acceptedRefreshHealthRevision: null,
       acceptedRefreshRevision: null,
       committedGeneration: 3,
       confirmedWorkspaceGeneration: null,
       confirmedWorkspacePath: null,
+      refreshHealth: null,
       terminalGeneration: -1,
     });
   });
@@ -710,10 +718,12 @@ describe("INITIAL_WORKSPACE_TRANSITION_GATE_STATE", () => {
   it("starts the admitted markers below the lowest possible backend generation", () => {
     expect(INITIAL_WORKSPACE_TRANSITION_GATE_STATE).toEqual({
       acceptedGeneration: 0,
+      acceptedRefreshHealthRevision: null,
       acceptedRefreshRevision: null,
       committedGeneration: -1,
       confirmedWorkspaceGeneration: null,
       confirmedWorkspacePath: null,
+      refreshHealth: null,
       terminalGeneration: -1,
     });
   });
@@ -1237,5 +1247,202 @@ describe("applyIssueExplorerRefresh", () => {
     });
     expect(stale.decision).toEqual({ kind: "ignore" });
     expect(stale.next).toEqual(committedB.next);
+  });
+});
+
+// =============================================================================
+// applyIssueExplorerHealthRefresh tests
+// =============================================================================
+//
+// The Health event variant replaces the renderer's complete refresh
+// health state in place. It is admitted only against a confirmed
+// rendered snapshot identity with a strictly newer health revision.
+//
+// Mirrors the `applyIssueExplorerRefresh` (Snapshot) tests but with a
+// separate revision marker. Both variants may interleave without
+// affecting each other's correctness.
+
+const refreshFailure = (overrides: {
+  readonly errorKind?:
+    | "refProbe"
+    | "loader"
+    | "missingGit"
+    | "missingBw"
+    | "notBeadworkWorkspace";
+  readonly failureRevision?: number;
+  readonly transient?: boolean;
+  readonly message?: string;
+}) => ({
+  errorKind: overrides.errorKind ?? ("refProbe" as const),
+  failureRevision: overrides.failureRevision ?? 1,
+  message: overrides.message ?? "refresh failing",
+  transient: overrides.transient ?? true,
+});
+
+const refreshHealthState = (
+  overrides: { readonly refProbe?: ReturnType<typeof refreshFailure> | null; readonly loader?: ReturnType<typeof refreshFailure> | null }
+): RefreshHealth => ({
+  loader: overrides.loader === undefined ? null : overrides.loader,
+  refProbe: overrides.refProbe === undefined ? null : overrides.refProbe,
+});
+
+const refreshHealthPayload = (overrides: {
+  readonly workspacePath: string;
+  readonly workspaceSelectionGeneration: number;
+  readonly refreshRevision: number;
+  readonly health: RefreshHealth;
+}): IssueExplorerRefreshHealthEvent => ({
+  eventType: "health",
+  health: overrides.health,
+  refreshRevision: overrides.refreshRevision,
+  workspacePath: overrides.workspacePath,
+  workspaceSelectionGeneration: overrides.workspaceSelectionGeneration,
+});
+
+describe("applyIssueExplorerHealthRefresh", () => {
+  it("defers a Health event that arrives before any confirmed snapshot identity", () => {
+    // Pre-confirmation buffering: a startup-arriving Health event must
+    // be retained in the App-level buffer so it can be replayed after
+    // the startup snapshot commits the identity.
+    const gate = initialGate();
+    const payload = refreshHealthPayload({
+      health: refreshHealthState({ refProbe: refreshFailure({}) }),
+      refreshRevision: 4,
+      workspacePath: "/work/a",
+      workspaceSelectionGeneration: 1,
+    });
+    const result = applyIssueExplorerHealthRefresh(gate, payload);
+    expect(result.decision.kind).toBe("defer");
+    expect(result.next).toEqual(gate);
+  });
+
+  it("admits a matching Health event against a confirmed identity and replaces the complete health", () => {
+    const gate = initialGate({
+      confirmedWorkspaceGeneration: 1,
+      confirmedWorkspacePath: "/work/a",
+    });
+    const payload = refreshHealthPayload({
+      health: refreshHealthState({
+        refProbe: refreshFailure({ errorKind: "refProbe", failureRevision: 5 }),
+      }),
+      refreshRevision: 3,
+      workspacePath: "/work/a",
+      workspaceSelectionGeneration: 1,
+    });
+    const result = applyIssueExplorerHealthRefresh(gate, payload);
+    expect(result.decision).toEqual({
+      health: payload.health,
+      kind: "commitRefreshHealth",
+    });
+    expect(result.next.acceptedRefreshHealthRevision).toBe(3);
+    expect(result.next.refreshHealth).toEqual(payload.health);
+  });
+
+  it("ignores a Health event with a mismatched path", () => {
+    const gate = initialGate({
+      confirmedWorkspaceGeneration: 1,
+      confirmedWorkspacePath: "/work/a",
+    });
+    const payload = refreshHealthPayload({
+      health: refreshHealthState({}),
+      refreshRevision: 3,
+      workspacePath: "/work/b",
+      workspaceSelectionGeneration: 1,
+    });
+    const result = applyIssueExplorerHealthRefresh(gate, payload);
+    expect(result.decision).toEqual({ kind: "ignore" });
+    expect(result.next).toEqual(gate);
+  });
+
+  it("ignores a Health event with a mismatched selection generation", () => {
+    const gate = initialGate({
+      confirmedWorkspaceGeneration: 2,
+      confirmedWorkspacePath: "/work/a",
+    });
+    const payload = refreshHealthPayload({
+      health: refreshHealthState({}),
+      refreshRevision: 3,
+      workspacePath: "/work/a",
+      workspaceSelectionGeneration: 1,
+    });
+    const result = applyIssueExplorerHealthRefresh(gate, payload);
+    expect(result.decision).toEqual({ kind: "ignore" });
+  });
+
+  it("ignores a Health event with an older revision than the one already admitted", () => {
+    const gate = initialGate({
+      acceptedRefreshHealthRevision: 10,
+      confirmedWorkspaceGeneration: 1,
+      confirmedWorkspacePath: "/work/a",
+    });
+    const payload = refreshHealthPayload({
+      health: refreshHealthState({}),
+      refreshRevision: 9,
+      workspacePath: "/work/a",
+      workspaceSelectionGeneration: 1,
+    });
+    const result = applyIssueExplorerHealthRefresh(gate, payload);
+    expect(result.decision).toEqual({ kind: "ignore" });
+  });
+
+  it("clears both slots when an empty Health event arrives", () => {
+    const gate = initialGate({
+      acceptedRefreshHealthRevision: 2,
+      confirmedWorkspaceGeneration: 1,
+      confirmedWorkspacePath: "/work/a",
+      refreshHealth: refreshHealthState({
+        refProbe: refreshFailure({}),
+      }),
+    });
+    const payload = refreshHealthPayload({
+      health: refreshHealthState({}),
+      refreshRevision: 3,
+      workspacePath: "/work/a",
+      workspaceSelectionGeneration: 1,
+    });
+    const result = applyIssueExplorerHealthRefresh(gate, payload);
+    expect(result.decision.kind).toBe("commitRefreshHealth");
+    expect(result.decision.kind === "commitRefreshHealth" &&
+      result.decision.health.refProbe).toBeNull();
+    expect(result.next.refreshHealth?.refProbe).toBeNull();
+  });
+
+  it("tracks the Snapshot and Health revision markers independently", () => {
+    const gate = initialGate({
+      acceptedRefreshHealthRevision: 2,
+      acceptedRefreshRevision: 7,
+      confirmedWorkspaceGeneration: 1,
+      confirmedWorkspacePath: "/work/a",
+    });
+    // A Health event with revision 5 (older than the admitted health
+    // revision 2 - oh wait, that's newer; let me use 1) is admitted
+    // while leaving the Snapshot marker untouched.
+    const healthPayload = refreshHealthPayload({
+      health: refreshHealthState({
+        refProbe: refreshFailure({ errorKind: "refProbe", failureRevision: 9 }),
+      }),
+      refreshRevision: 3,
+      workspacePath: "/work/a",
+      workspaceSelectionGeneration: 1,
+    });
+    const result = applyIssueExplorerHealthRefresh(gate, healthPayload);
+    expect(result.next.acceptedRefreshHealthRevision).toBe(3);
+    expect(result.next.acceptedRefreshRevision).toBe(7);
+  });
+});
+
+describe("clearRefreshHealth", () => {
+  it("resets both the accepted health revision and the health state", () => {
+    const gate = initialGate({
+      acceptedRefreshHealthRevision: 5,
+      confirmedWorkspaceGeneration: 1,
+      confirmedWorkspacePath: "/work/a",
+      refreshHealth: refreshHealthState({
+        refProbe: refreshFailure({}),
+      }),
+    });
+    const cleared = clearRefreshHealth(gate);
+    expect(cleared.acceptedRefreshHealthRevision).toBeNull();
+    expect(cleared.refreshHealth).toBeNull();
   });
 });

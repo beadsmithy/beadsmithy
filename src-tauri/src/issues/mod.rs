@@ -20,3 +20,12 @@ mod runner;
 pub use adapter::{list_all_issues, list_blocked_issues, list_ready_issues, Issue, IssueComment};
 pub use error::ListIssuesError;
 pub use runner::{CommandOutput, CommandRunner, ProcessRunner};
+
+/// Markers Beadwork writes to stderr when the cwd is not a usable Beadwork
+/// workspace. Shared with the refresh validity-check seam so the refresh
+/// module classifies `bw config list` failures the same way the issue
+/// adapter classifies `bw list/ready/blocked` failures.
+pub const NOT_BEADWORK_MARKERS: &[&str] = &[
+    "beadwork not initialized",
+    "not a git repository",
+];
