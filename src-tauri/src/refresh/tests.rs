@@ -683,10 +683,10 @@ fn refresh_event_health_payload_uses_camel_case_with_complete_state() {
 fn classify_probe_error_missing_git_is_structural() {
     let error = ProbeError::Spawn("git executable was not found on PATH".to_string());
     match classify_probe_error(&error) {
-        ProbeClassification::Structural(RefreshFailureKind::MissingGit, message) => {
+        ProbeClassification::MissingGit(message) => {
             assert!(message.contains("git"));
         }
-        other => panic!("expected Structural MissingGit, got {other:?}"),
+        other => panic!("expected MissingGit, got {other:?}"),
     }
 }
 
@@ -725,10 +725,10 @@ fn classify_probe_error_other_spawn_is_transient() {
 #[test]
 fn classify_load_error_missing_binary_is_structural() {
     let error = ListIssuesError::MissingBinary;
-    match classify_load_error(&error) {
-        LoadClassification::Structural(RefreshFailureKind::MissingBw, _) => {}
-        other => panic!("expected Structural MissingBw, got {other:?}"),
-    }
+    assert!(matches!(
+        classify_load_error(&error),
+        LoadClassification::MissingBw(_)
+    ));
 }
 
 #[test]
@@ -736,10 +736,10 @@ fn classify_load_error_not_beadwork_workspace_is_structural() {
     let error = ListIssuesError::NotBeadworkWorkspace {
         stderr: "beadwork not initialized".to_string(),
     };
-    match classify_load_error(&error) {
-        LoadClassification::Structural(RefreshFailureKind::NotBeadworkWorkspace, _) => {}
-        other => panic!("expected Structural NotBeadworkWorkspace, got {other:?}"),
-    }
+    assert!(matches!(
+        classify_load_error(&error),
+        LoadClassification::NotBeadworkWorkspace(_)
+    ));
 }
 
 #[test]

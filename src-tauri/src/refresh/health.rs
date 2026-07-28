@@ -540,6 +540,7 @@ impl RefreshHealthState {
         self.install_or_refresh_loader_failure_with_kind(
             RefreshFailureKind::MissingBw,
             message,
+            false,
             next_revision,
         )
     }
@@ -558,6 +559,7 @@ impl RefreshHealthState {
         self.install_or_refresh_loader_failure_with_kind(
             RefreshFailureKind::NotBeadworkWorkspace,
             message,
+            false,
             next_revision,
         )
     }
@@ -706,6 +708,7 @@ impl RefreshHealthState {
         self.install_or_refresh_loader_failure_with_kind(
             RefreshFailureKind::Loader,
             message,
+            true,
             next_revision,
         )
     }
@@ -714,13 +717,14 @@ impl RefreshHealthState {
         &mut self,
         kind: RefreshFailureKind,
         message: String,
+        transient: bool,
         next_revision: &mut u64,
     ) -> HealthApplyOutcome {
         let failure_revision = self.allocate_revision(next_revision);
         let next = RefreshFailure {
             error_kind: kind,
             message,
-            transient: true,
+            transient,
             failure_revision,
         };
         self.health.loader = Some(next);

@@ -659,6 +659,29 @@ async fn handle_probe(
         if matches!(outcome, HealthApplyOutcome::Recovered { .. }) {
             publish_health(runtime, health, coordinator);
         }
+        // While a structural loader slot is active, retry the validity
+        // check on later active ticks so repairing `bw` or the Workspace
+        // clears the structural banner even when the ref is unchanged.
+        // Per the plan: do not add permanent validity polling when no
+        // structural loader slot exists.
+        let structural_loader_active = {
+            let health_state = health.lock().expect("health lock poisoned");
+            matches!(
+                health_state.health().loader,
+                Some(RefreshFailure {
+                    error_kind: RefreshFailureKind::MissingBw,
+                    transient: false,
+                    ..
+                }) | Some(RefreshFailure {
+                    error_kind: RefreshFailureKind::NotBeadworkWorkspace,
+                    transient: false,
+                    ..
+                })
+            )
+        };
+        if structural_loader_active {
+            run_validity_retry_tick(runtime, coordinator, health, ops, &path, generation).await;
+        }
         return;
     };
     spawn_load(
@@ -682,7 +705,7 @@ async fn handle_probe(
 pub(crate) fn classify_probe_error(error: &ProbeError) -> ProbeClassification {
     match error {
         ProbeError::Spawn(message) if message.contains("executable was not found") => {
-            ProbeClassification::Structural(RefreshFailureKind::MissingGit, message.clone())
+            ProbeClassification::MissingGit(message.clone())
         }
         other => {
             let message = format!("{other:?}");
@@ -697,13 +720,10 @@ pub(crate) fn classify_probe_error(error: &ProbeError) -> ProbeClassification {
 pub(crate) fn classify_load_error(error: &ListIssuesError) -> LoadClassification {
     let message = format!("{error}");
     match error {
-        ListIssuesError::MissingBinary => {
-            LoadClassification::Structural(RefreshFailureKind::MissingBw, message)
+        ListIssuesError::MissingBinary => LoadClassification::MissingBw(message),
+        ListIssuesError::NotBeadworkWorkspace { .. } => {
+            LoadClassification::NotBeadworkWorkspace(message)
         }
-        ListIssuesError::NotBeadworkWorkspace { .. } => LoadClassification::Structural(
-            RefreshFailureKind::NotBeadworkWorkspace,
-            message,
-        ),
         _ => LoadClassification::Transient(message),
     }
 }
@@ -713,8 +733,9 @@ pub(crate) fn classify_load_error(error: &ListIssuesError) -> LoadClassification
 pub(crate) enum ProbeClassification {
     /// Transient probe failure (counter incremented; silent until threshold).
     Transient(String),
-    /// Structural probe failure (immediate banner).
-    Structural(RefreshFailureKind, String),
+    /// Structural probe failure: `git` executable is missing from PATH.
+    /// Immediate banner.
+    MissingGit(String),
 }
 
 /// Classifier output for a refresh load failure.
@@ -722,8 +743,12 @@ pub(crate) enum ProbeClassification {
 pub(crate) enum LoadClassification {
     /// Transient loader failure (counter incremented; silent until threshold).
     Transient(String),
-    /// Structural loader failure (immediate banner).
-    Structural(RefreshFailureKind, String),
+    /// Structural loader failure: `bw` executable is missing from PATH.
+    /// Immediate banner.
+    MissingBw(String),
+    /// Structural loader failure: the current directory is no longer a
+    /// Beadwork workspace. Immediate banner.
+    NotBeadworkWorkspace(String),
 }
 
 /// Apply a probe failure classification to the health reducer under
@@ -740,18 +765,8 @@ fn apply_probe_classification(
         ProbeClassification::Transient(message) => {
             health_state.apply_transient_probe_failure(message, &mut coordinator_guard.next_revision)
         }
-        ProbeClassification::Structural(RefreshFailureKind::MissingGit, message) => {
+        ProbeClassification::MissingGit(message) => {
             health_state.apply_missing_git_failure(message, &mut coordinator_guard.next_revision)
-        }
-        ProbeClassification::Structural(kind, message) => {
-            // Future structural probe kinds (none today) fall through
-            // to the transient path so they participate in the
-            // five-strike budget.
-            let _ = (kind, message);
-            health_state.apply_transient_probe_failure(
-                format!("{kind:?}"),
-                &mut coordinator_guard.next_revision,
-            )
         }
     }
 }
@@ -768,22 +783,14 @@ fn apply_load_classification(
         LoadClassification::Transient(message) => {
             health_state.apply_transient_loader_failure(message, &mut coordinator_guard.next_revision)
         }
-        LoadClassification::Structural(RefreshFailureKind::MissingBw, message) => {
+        LoadClassification::MissingBw(message) => {
             health_state.apply_missing_bw_failure(message, &mut coordinator_guard.next_revision)
         }
-        LoadClassification::Structural(RefreshFailureKind::NotBeadworkWorkspace, message) => {
-            health_state.apply_not_beadwork_workspace_failure(
+        LoadClassification::NotBeadworkWorkspace(message) => health_state
+            .apply_not_beadwork_workspace_failure(
                 message,
                 &mut coordinator_guard.next_revision,
-            )
-        }
-        LoadClassification::Structural(kind, message) => {
-            let _ = (kind, message);
-            health_state.apply_transient_loader_failure(
-                format!("{kind:?}"),
-                &mut coordinator_guard.next_revision,
-            )
-        }
+            ),
     }
 }
 
@@ -1267,6 +1274,56 @@ async fn check_bw_validity_off_lock(path: &Path, ops: &dyn RefreshOps) -> Result
     tokio::task::spawn_blocking(move || ops(path.as_path()))
         .await
         .expect("validity check task panicked")
+}
+
+/// Run the validity check on a later active tick to recover from a
+/// structural loader slot (MissingBw / NotBeadworkWorkspace). Invoked
+/// from `handle_probe` only when the structural loader slot is already
+/// active; transient / no-slot states skip the call so we don't add
+/// permanent validity polling when Git probes are healthy.
+async fn run_validity_retry_tick(
+    runtime: &Arc<Mutex<Option<WorkspaceRuntime>>>,
+    coordinator: &Arc<Mutex<CoordinatorState>>,
+    health: &Arc<Mutex<RefreshHealthState>>,
+    ops: Arc<dyn RefreshOps>,
+    path: &Path,
+    generation: u32,
+) {
+    let validity_result = check_bw_validity_off_lock(path, ops.as_ref()).await;
+    let outcome = {
+        let mut coordinator_guard =
+            coordinator.lock().expect("coordinator lock poisoned");
+        let mut health_state = health.lock().expect("health lock poisoned");
+        match validity_result {
+            Ok(()) => health_state
+                .apply_validity_check_success(&mut coordinator_guard.next_revision),
+            Err(ListIssuesError::MissingBinary) => health_state.apply_missing_bw_failure(
+                "bw missing from PATH".to_string(),
+                &mut coordinator_guard.next_revision,
+            ),
+            Err(ListIssuesError::NotBeadworkWorkspace { .. }) => health_state
+                .apply_not_beadwork_workspace_failure(
+                    "workspace is no longer a Beadwork workspace".to_string(),
+                    &mut coordinator_guard.next_revision,
+                ),
+            Err(other) => {
+                log::warn!(
+                    target: "beadsmith::refresh",
+                    "validity retry tick failed for {}: {}",
+                    path.display(),
+                    other,
+                );
+                HealthApplyOutcome::Idle
+            }
+        }
+    };
+    if matches!(
+        outcome,
+        HealthApplyOutcome::Visible { .. } | HealthApplyOutcome::Recovered { .. }
+    ) {
+        publish_health(runtime, health, coordinator);
+    }
+    let _ = generation;
 }
 
 /// Post-completion dirty handling: if the previous load's lifetime

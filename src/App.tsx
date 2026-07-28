@@ -25,6 +25,7 @@ import {
   isIssueExplorerRefreshEvent,
   type IssueExplorerRefreshEvent,
   type IssueExplorerRefreshHealthEvent,
+  type RefreshHealth,
 } from "./refresh-health";
 import { useAppSettings } from "./settings/app-settings";
 import { SettingsPage } from "./settings/SettingsPage";
@@ -124,10 +125,7 @@ const applyRefreshDecision = (
     current: IssueExplorerRefreshEvent | null;
   },
   setIssueState: (state: IssueExplorerLoadState) => void,
-  setRefreshHealth: (health: {
-    readonly refProbe: import("./refresh-health").RefreshFailure | null;
-    readonly loader: import("./refresh-health").RefreshFailure | null;
-  } | null) => void
+  setRefreshHealth: (health: RefreshHealth | null) => void
 ): void => {
   if (!isIssueExplorerRefreshEvent(payload)) {
     return;
@@ -206,10 +204,9 @@ export default function App() {
     INITIAL_WORKSPACE_TRANSITION_GATE_STATE.confirmedWorkspacePath ??
       INITIAL_WORKSPACE_REMOUNT_KEY
   );
-  const [refreshHealth, setRefreshHealthState] = useState<{
-    readonly refProbe: import("./refresh-health").RefreshFailure | null;
-    readonly loader: import("./refresh-health").RefreshFailure | null;
-  } | null>(null);
+  const [refreshHealth, setRefreshHealthState] = useState<RefreshHealth | null>(
+    null
+  );
   const transitionGateRef = useRef<WorkspaceTransitionGateState>(
     INITIAL_WORKSPACE_TRANSITION_GATE_STATE
   );
@@ -230,17 +227,9 @@ export default function App() {
   const [dismissedSwitchErrorGeneration, setDismissedSwitchErrorGeneration] =
     useState<number | null>(null);
 
-  const setRefreshHealth = useCallback(
-    (
-      health: {
-        readonly refProbe: import("./refresh-health").RefreshFailure | null;
-        readonly loader: import("./refresh-health").RefreshFailure | null;
-      } | null
-    ) => {
-      setRefreshHealthState(health);
-    },
-    []
-  );
+  const setRefreshHealth = useCallback((health: RefreshHealth | null) => {
+    setRefreshHealthState(health);
+  }, []);
 
   const handleIssueListViewSelect = useCallback((viewId: IssueListViewId) => {
     setActiveIssueListViewId(viewId);

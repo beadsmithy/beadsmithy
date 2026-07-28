@@ -217,6 +217,9 @@ fn missing_bw_failure_installs_immediately_in_loader_slot() {
     assert_eq!(state.loader_failures, 0);
     let loader = state.health().loader.as_ref().unwrap();
     assert_eq!(loader.error_kind, RefreshFailureKind::MissingBw);
+    // Structural failures must carry `transient: false` so the
+    // renderer's structural-over-transient banner priority works.
+    assert!(!loader.transient, "structural MissingBw must be non-transient");
 }
 
 #[test]
@@ -231,6 +234,12 @@ fn not_beadwork_workspace_failure_installs_immediately_in_loader_slot() {
     assert!(matches!(outcome, HealthApplyOutcome::Visible { .. }));
     let loader = state.health().loader.as_ref().unwrap();
     assert_eq!(loader.error_kind, RefreshFailureKind::NotBeadworkWorkspace);
+    // Structural failures must carry `transient: false` so the
+    // renderer's structural-over-transient banner priority works.
+    assert!(
+        !loader.transient,
+        "structural NotBeadworkWorkspace must be non-transient"
+    );
 }
 
 #[test]
