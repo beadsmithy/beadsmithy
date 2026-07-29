@@ -658,11 +658,15 @@ async fn handle_probe(
     };
     let Some(LoadDecision::StartLoad(load_binding)) = decision else {
         // A successful probe always clears the transient ref-probe
-        // counter and slot, even when no new load is scheduled.
+        // counter and slot, even when no new load is scheduled. The
+        // recovery transition must advance the shared coordinator
+        // allocator (`next_revision`) so the renderer admits the
+        // resulting Health event with a strictly-newer revision.
         let outcome = {
-            let mut next_revision = coordinator.lock().expect("coordinator lock poisoned").next_revision;
+            let mut coordinator_guard =
+                coordinator.lock().expect("coordinator lock poisoned");
             let mut health_state = health.lock().expect("health lock poisoned");
-            health_state.apply_probe_success(&mut next_revision)
+            health_state.apply_probe_success(&mut coordinator_guard.next_revision)
         };
         if matches!(outcome, HealthApplyOutcome::Recovered { .. }) {
             publish_health(runtime, health, coordinator);

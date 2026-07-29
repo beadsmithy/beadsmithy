@@ -437,7 +437,20 @@ fn enter_idle_no_current_clears_state() {
 fn enter_idle_unavailable_publishes_empty_health_when_active_binding_existed() {
     let mut state = new_state();
     rebind_active(&mut state);
+    let mut next_revision: u64 = 100;
+    let _ = state.apply_transient_probe_failure("probe".into(), &mut next_revision);
+    let _ = state.apply_transient_probe_failure("probe".into(), &mut next_revision);
+    let _ = state.apply_transient_probe_failure("probe".into(), &mut next_revision);
+    let _ = state.apply_transient_probe_failure("probe".into(), &mut next_revision);
+    let _ = state.apply_transient_probe_failure("probe".into(), &mut next_revision);
+    // Strike 5 installed a transient failure at some revision.
+    let prior_revision = state
+        .health_revision()
+        .expect("strike-five installs a visible failure with a revision");
     state.mark_published();
+    // The unavailable-workspace entry path must invalidate the prior
+    // revision so the empty-state envelope has a strictly-newer
+    // revision that the renderer admits.
     let had_identity = state.enter_idle_unavailable(false);
     assert!(had_identity);
     assert!(matches!(
@@ -446,6 +459,14 @@ fn enter_idle_unavailable_publishes_empty_health_when_active_binding_existed() {
     ));
     assert!(state.needs_publish());
     assert_eq!(state.health(), &RefreshHealth::default());
+    assert!(state.health_revision().is_none());
+    let prepared = state.prepare_publish(&mut next_revision);
+    let new_revision = prepared.expect("empty-state envelope is dirty");
+    assert!(
+        new_revision > prior_revision,
+        "new revision {new_revision} must be strictly newer than prior published revision {prior_revision}",
+    );
+    assert_eq!(next_revision, new_revision + 1);
 }
 
 #[test]

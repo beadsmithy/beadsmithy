@@ -450,8 +450,14 @@ impl RefreshHealthState {
         if !workspace_path_available {
             // Publish an empty Health event for the previously rendered
             // identity, then clear backend health so future probes are
-            // not scheduled.
+            // not scheduled. The renderer only admits a strictly-newer
+            // revision, so drop the published revision and let
+            // `prepare_publish` allocate a fresh one for the empty
+            // state — otherwise the recovery envelope would be
+            // discarded and a stale banner would linger behind the
+            // chooser.
             self.health = RefreshHealth::default();
+            self.health_revision = None;
             self.needs_publish = true;
         }
         self.ref_probe_failures = 0;
