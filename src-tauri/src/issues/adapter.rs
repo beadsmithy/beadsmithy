@@ -38,7 +38,14 @@ const BW_BLOCKED_ARGS: &[&str] = &["blocked", "--json"];
 /// stderr classification, not parsing of stdout TTY/markdown/prompt output
 /// (ADR-0003). `bw` emits the first when the cwd is a git repo Beadwork has not
 /// initialized, and the second when the cwd is not a git repo at all.
-const NOT_BEADWORK_MARKERS: &[&str] = &["beadwork not initialized", "not a git repository"];
+///
+/// Re-exported through [`crate::issues::NOT_BEADWORK_MARKERS`] so the
+/// refresh validity-check seam classifies `bw config list` failures the
+/// same way the issue adapter classifies `bw list/ready/blocked` failures.
+pub const NOT_BEADWORK_MARKERS_LOCAL: &[&str] = &[
+    "beadwork not initialized",
+    "not a git repository",
+];
 
 /// Adapter output: a normalized Beadwork issue loaded from the Issue List path.
 ///
@@ -175,7 +182,10 @@ fn map_spawn_error(err: io::Error) -> ListIssuesError {
 fn interpret_output(output: CommandOutput) -> Result<Vec<Issue>, ListIssuesError> {
     if output.status != 0 {
         let stderr = output.stderr.trim().to_string();
-        if NOT_BEADWORK_MARKERS.iter().any(|m| stderr.contains(m)) {
+        if NOT_BEADWORK_MARKERS_LOCAL
+            .iter()
+            .any(|m| stderr.contains(m))
+        {
             return Err(ListIssuesError::NotBeadworkWorkspace { stderr });
         }
         return Err(ListIssuesError::CommandFailed {

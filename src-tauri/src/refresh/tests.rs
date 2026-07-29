@@ -572,13 +572,16 @@ fn load_completion_carries_observed_sha_for_event_publication() {
     let completion = LoadCompletion {
         binding: binding.clone(),
         observed_sha: binding.observed_sha.clone(),
-        outcome: LoadOutcome::Failure("anything".to_string()),
+        outcome: LoadOutcome::Failure(ListIssuesError::CommandFailed {
+            status: 1,
+            stderr: "anything".to_string(),
+        }),
     };
     assert_eq!(completion.observed_sha, "0123456789abcdef");
 }
 
 #[test]
-fn refresh_event_payload_uses_camel_case_with_full_issue_data() {
+fn refresh_event_snapshot_payload_uses_camel_case_with_full_issue_data() {
     let issue = crate::rpc::Issue {
         id: "bsm-test".to_string(),
         title: "Probe".to_string(),
@@ -606,7 +609,7 @@ fn refresh_event_payload_uses_camel_case_with_full_issue_data() {
         ready_issues: vec![issue.clone()],
         blocked_issues: vec![issue],
     };
-    let event = IssueExplorerRefreshEvent {
+    let event = IssueExplorerRefreshEvent::Snapshot {
         issue_data: response,
         observed_ref_sha: "0123456789abcdef".to_string(),
         refresh_revision: 7,
@@ -616,6 +619,7 @@ fn refresh_event_payload_uses_camel_case_with_full_issue_data() {
 
     let json = serde_json::to_string(&event).expect("event must serialize");
 
+    assert!(json.contains("\"eventType\":\"snapshot\""));
     assert!(json.contains("\"issueData\""));
     assert!(json.contains("\"observedRefSha\":\"0123456789abcdef\""));
     assert!(json.contains("\"refreshRevision\":7"));
@@ -626,4 +630,130 @@ fn refresh_event_payload_uses_camel_case_with_full_issue_data() {
     assert!(json.contains("\"readyIssues\""));
     assert!(json.contains("\"blockedIssues\""));
     assert!(json.contains("\"bsm-test\""));
+}
+
+#[test]
+fn refresh_event_health_payload_uses_camel_case_with_complete_state() {
+    let health = RefreshHealth {
+        ref_probe: Some(RefreshFailure {
+            error_kind: RefreshFailureKind::RefProbe,
+            message: "boom".to_string(),
+            transient: true,
+            failure_revision: 2,
+        }),
+        loader: Some(RefreshFailure {
+            error_kind: RefreshFailureKind::MissingBw,
+            message: "bw missing".to_string(),
+            transient: false,
+            failure_revision: 1,
+        }),
+    };
+    let event = IssueExplorerRefreshEvent::Health {
+        health,
+        refresh_revision: 4,
+        workspace_path: "/work/refresh".to_string(),
+        workspace_selection_generation: 5,
+    };
+    let json = serde_json::to_string(&event).expect("event must serialize");
+    assert!(json.contains("\"eventType\":\"health\""));
+    assert!(json.contains("\"refProbe\""));
+    assert!(json.contains("\"loader\""));
+    assert!(json.contains("\"errorKind\":\"refProbe\""));
+    assert!(json.contains("\"errorKind\":\"missingBw\""));
+    assert!(json.contains("\"transient\":true"));
+    assert!(json.contains("\"transient\":false"));
+    assert!(json.contains("\"failureRevision\":2"));
+    assert!(json.contains("\"refreshRevision\":4"));
+    assert!(json.contains("\"workspacePath\":\"/work/refresh\""));
+    assert!(json.contains("\"workspaceSelectionGeneration\":5"));
+}
+
+// =============================================================================
+// Classifier tests.
+// =============================================================================
+//
+// The classifier is the boundary between the subprocess seam and the
+// health reducer. It must:
+// - classify missing `git` as structural `MissingGit`;
+// - classify every other probe error as transient (5-strike counter);
+// - classify missing `bw` and not-a-Beadwork-Workspace as structural;
+// - classify every other loader error as transient.
+
+#[test]
+fn classify_probe_error_missing_git_is_structural() {
+    let error = ProbeError::Spawn("git executable was not found on PATH".to_string());
+    match classify_probe_error(&error) {
+        ProbeClassification::MissingGit(message) => {
+            assert!(message.contains("git"));
+        }
+        other => panic!("expected MissingGit, got {other:?}"),
+    }
+}
+
+#[test]
+fn classify_probe_error_non_zero_status_is_transient() {
+    let error = ProbeError::CommandFailed {
+        status: 128,
+        stderr: "fatal: unknown revision".to_string(),
+    };
+    assert_eq!(
+        classify_probe_error(&error),
+        ProbeClassification::Transient(format!("{error:?}"))
+    );
+}
+
+#[test]
+fn classify_probe_error_invalid_output_is_transient() {
+    let error = ProbeError::InvalidOutput("git returned empty".to_string());
+    assert_eq!(
+        classify_probe_error(&error),
+        ProbeClassification::Transient(format!("{error:?}"))
+    );
+}
+
+#[test]
+fn classify_probe_error_other_spawn_is_transient() {
+    // A spawn error that does NOT mention the missing-executable
+    // marker is treated as transient so it can be retried.
+    let error = ProbeError::Spawn("could not run git: permission denied".to_string());
+    assert_eq!(
+        classify_probe_error(&error),
+        ProbeClassification::Transient(format!("{error:?}"))
+    );
+}
+
+#[test]
+fn classify_load_error_missing_binary_is_structural() {
+    let error = ListIssuesError::MissingBinary;
+    assert!(matches!(
+        classify_load_error(&error),
+        LoadClassification::MissingBw(_)
+    ));
+}
+
+#[test]
+fn classify_load_error_not_beadwork_workspace_is_structural() {
+    let error = ListIssuesError::NotBeadworkWorkspace {
+        stderr: "beadwork not initialized".to_string(),
+    };
+    assert!(matches!(
+        classify_load_error(&error),
+        LoadClassification::NotBeadworkWorkspace(_)
+    ));
+}
+
+#[test]
+fn classify_load_error_command_failed_is_transient() {
+    let error = ListIssuesError::CommandFailed {
+        status: 1,
+        stderr: "boom".to_string(),
+    };
+    assert!(matches!(
+        classify_load_error(&error),
+        LoadClassification::Transient(_)
+    ));
+}
+
+fn error_message(error: &ProbeError) -> String {
+    format!("{error:?}")
 }

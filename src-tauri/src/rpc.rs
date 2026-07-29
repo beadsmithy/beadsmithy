@@ -739,10 +739,54 @@ pub(crate) fn build_refresh_event(
     let path_string = current_path.expect("matches branch guarantees current_path");
     runtime.snapshot = Some(data.clone());
     let response = workspace_data_response(&data, path_string.as_str(), current_generation);
-    let event = IssueExplorerRefreshEvent {
+    let event = IssueExplorerRefreshEvent::Snapshot {
         issue_data: response,
         observed_ref_sha: observed_sha.to_string(),
         refresh_revision,
+        workspace_path: path_string,
+        workspace_selection_generation: current_generation,
+    };
+    Some((runtime.app.clone(), event))
+}
+
+/// Build a Health event payload under the [`WorkspaceRuntime`] lock
+/// without emitting it. Health events carry the complete two-slot
+/// [`RefreshHealth`] state plus the same workspace identity triple as
+/// Snapshot events. The renderer admits Health events only against a
+/// confirmed rendered snapshot identity, with a strictly newer health
+/// revision.
+///
+/// Returns `None` when the binding no longer matches the live Current
+/// Workspace or when a Pending transition arrived during the call.
+pub(crate) fn build_health_event(
+    runtime: &mut WorkspaceRuntime,
+    binding_path: &Path,
+    binding_generation: u32,
+    health: crate::refresh::RefreshHealth,
+    health_revision: u64,
+) -> Option<(tauri::AppHandle<tauri::Wry>, IssueExplorerRefreshEvent)> {
+    let state = runtime.service.state();
+    let current_path = state
+        .current_workspace
+        .as_ref()
+        .map(|workspace| workspace.path.clone());
+    let current_generation = state.generation;
+    let matches = current_path
+        .as_deref()
+        .is_some_and(|path| Path::new(path) == binding_path)
+        && current_generation == binding_generation;
+
+    if !matches {
+        return None;
+    }
+    if state.pending_workspace.is_some() {
+        return None;
+    }
+
+    let path_string = current_path.expect("matches branch guarantees current_path");
+    let event = IssueExplorerRefreshEvent::Health {
+        health,
+        refresh_revision: health_revision,
         workspace_path: path_string,
         workspace_selection_generation: current_generation,
     };

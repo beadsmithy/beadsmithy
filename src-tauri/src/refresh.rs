@@ -53,26 +53,44 @@ use tokio::sync::Notify;
 use tokio::task::JoinHandle;
 use tokio::time::{interval_at, Instant, MissedTickBehavior};
 
-use crate::issues::{CommandOutput, CommandRunner, ProcessRunner};
+use crate::issues::{CommandOutput, CommandRunner, ListIssuesError, ProcessRunner};
 use crate::rpc::{
     build_refresh_event, current_workspace_binding, emit_refresh_event,
     LoadIssueExplorerDataResponse, WorkspaceRuntime,
 };
-use crate::workspace::{load_issue_explorer_data, IssueExplorerData};
+use crate::workspace::IssueExplorerData;
+
+pub use health::{
+    HealthApplyOutcome, RefreshFailure, RefreshFailureKind, RefreshHealth,
+    RefreshHealthBinding, RefreshHealthRebind, RefreshHealthState,
+    TRANSIENT_FAILURE_THRESHOLD,
+};
 
 /// Subprocess seam for the refresh scheduler. The production
 /// implementation wraps [`ProcessRunner`]; tests inject a fake so the
 /// scheduler's wiring can be exercised without spawning `git` or `bw`.
 ///
-/// The trait exposes `probe_op` and `load_op` returning `Box<dyn Fn>` so
-/// each call can hand a fresh closure to `tokio::task::spawn_blocking`
-/// (which requires `Send + 'static` and cannot share `&dyn RefreshOps`
-/// across the move). Implementors that hold `Arc<Self>` can return
-/// `Arc::clone(self).probe(...)`-shaped closures; the default below
-/// works for static implementations.
+/// The trait exposes `probe_op`, `load_op`, and `validity_op` returning
+/// `Box<dyn Fn>` so each call can hand a fresh closure to
+/// `tokio::task::spawn_blocking` (which requires `Send + 'static` and
+/// cannot share `&dyn RefreshOps` across the move). Implementors that
+/// hold `Arc<Self>` can return `Arc::clone(self).probe(...)`-shaped
+/// closures; the default below works for static implementations.
+///
+/// `load_op` returns the typed [`ListIssuesError`] instead of a string so
+/// the scheduler can classify failures at the boundary without parsing
+/// free-form messages. `validity_op` runs `bw config list` for the
+/// workspace path and returns the same typed error, used after an
+/// admitted transient probe failure to detect a Workspace that lost its
+/// Beadwork initialization.
 pub(crate) trait RefreshOps: Send + Sync + 'static {
     fn probe_op(&self) -> Box<dyn Fn(&Path) -> Result<String, ProbeError> + Send + 'static>;
-    fn load_op(&self) -> Box<dyn Fn(&Path) -> Result<IssueExplorerData, String> + Send + 'static>;
+    fn load_op(
+        &self,
+    ) -> Box<dyn Fn(&Path) -> Result<IssueExplorerData, ListIssuesError> + Send + 'static>;
+    fn validity_op(
+        &self,
+    ) -> Box<dyn Fn(&Path) -> Result<(), ListIssuesError> + Send + 'static>;
 }
 
 /// Production [`RefreshOps`] that shells out to `git rev-parse` and
@@ -84,16 +102,34 @@ impl RefreshOps for ProcessOps {
         Box::new(|p| probe_beadwork_ref(&ProcessRunner::new(), p))
     }
 
-    fn load_op(&self) -> Box<dyn Fn(&Path) -> Result<IssueExplorerData, String> + Send + 'static> {
+    fn load_op(
+        &self,
+    ) -> Box<dyn Fn(&Path) -> Result<IssueExplorerData, ListIssuesError> + Send + 'static> {
         Box::new(|p| {
-            load_issue_explorer_data(&ProcessRunner::new(), p)
-                .map_err(|error| error.to_string())
+            let runner = ProcessRunner::new();
+            let all_issues = crate::issues::list_all_issues(&runner, p)?;
+            let ready_issues = crate::issues::list_ready_issues(&runner, p)?;
+            let blocked_issues = crate::issues::list_blocked_issues(&runner, p)?;
+            Ok(IssueExplorerData {
+                all_issues,
+                ready_issues,
+                blocked_issues,
+            })
         })
+    }
+
+    fn validity_op(
+        &self,
+    ) -> Box<dyn Fn(&Path) -> Result<(), ListIssuesError> + Send + 'static> {
+        Box::new(|p| check_bw_validity(&ProcessRunner::new(), p))
     }
 }
 
 /// Git program used for ref resolution.
 const GIT_PROGRAM: &str = "git";
+
+/// `bw` program used for the validity check.
+const BW_PROGRAM: &str = "bw";
 
 /// Arguments that resolve the local Beadwork ref tip to its commit SHA.
 ///
@@ -138,21 +174,41 @@ pub enum PublishOutcome {
     EmitFailed,
 }
 
-/// Successful refresh event payload, the canonical source of truth for
-/// the renderer-side envelope.
+/// Refresh event payload, the canonical source of truth for the
+/// renderer-side envelope.
 ///
-/// `issue_data` reuses the generated `LoadIssueExplorerDataResponse` (which
-/// now carries `workspace_generation`) so the refresh contract cannot drift
-/// from the typed RPC nested payload. The wrapper is camelCase to follow
-/// the existing `workspace-transition` convention.
+/// The event is a two-variant tagged union: `Snapshot` carries a new
+/// full `IssueExplorerData` snapshot, while `Health` carries the
+/// complete [`RefreshHealth`] state. Both share the
+/// `refreshRevision`/`workspacePath`/`workspaceSelectionGeneration`
+/// identity triple and the same process-lifetime monotonic revision
+/// allocator. The renderer admits events with matching identity and a
+/// strictly newer revision, and tracks separate accepted revisions for
+/// Snapshot and Health events so delivery order between a successful
+/// snapshot and a health change does not affect correctness.
+///
+/// camelCase fields follow the existing `workspace-transition`
+/// convention.
 #[derive(Debug, Clone, Serialize)]
-#[serde(rename_all = "camelCase")]
-pub struct IssueExplorerRefreshEvent {
-    pub issue_data: LoadIssueExplorerDataResponse,
-    pub observed_ref_sha: String,
-    pub refresh_revision: u64,
-    pub workspace_path: String,
-    pub workspace_selection_generation: u32,
+#[serde(
+    tag = "eventType",
+    rename_all = "camelCase",
+    rename_all_fields = "camelCase"
+)]
+pub enum IssueExplorerRefreshEvent {
+    Snapshot {
+        issue_data: LoadIssueExplorerDataResponse,
+        observed_ref_sha: String,
+        refresh_revision: u64,
+        workspace_path: String,
+        workspace_selection_generation: u32,
+    },
+    Health {
+        health: RefreshHealth,
+        refresh_revision: u64,
+        workspace_path: String,
+        workspace_selection_generation: u32,
+    },
 }
 
 /// Internal typed errors from the ref probe. Distinguishing spawn failure
@@ -205,6 +261,42 @@ pub fn probe_beadwork_ref(
     Ok(trimmed.to_string())
 }
 
+/// Outcome of a refresh-only Beadwork validity check.
+///
+/// The validity check runs `bw config list` for the bound workspace and
+/// classifies the result into the typed [`ListIssuesError`] shape so the
+/// scheduler can decide between structural `MissingBw` /
+/// `NotBeadworkWorkspace` (immediate banner), transient (silent), and
+/// success (potential recovery of a structural loader slot).
+pub fn check_bw_validity(
+    runner: &dyn CommandRunner,
+    workspace: &Path,
+) -> Result<(), ListIssuesError> {
+    use crate::issues::NOT_BEADWORK_MARKERS;
+    let output: CommandOutput = runner
+        .run(BW_PROGRAM, &["config", "list"], workspace)
+        .map_err(map_spawn_error_for_validity)?;
+    if output.status != 0 {
+        let stderr = output.stderr.trim().to_string();
+        if NOT_BEADWORK_MARKERS.iter().any(|marker| stderr.contains(marker)) {
+            return Err(ListIssuesError::NotBeadworkWorkspace { stderr });
+        }
+        return Err(ListIssuesError::CommandFailed {
+            status: output.status,
+            stderr,
+        });
+    }
+    Ok(())
+}
+
+fn map_spawn_error_for_validity(error: std::io::Error) -> ListIssuesError {
+    if error.kind() == std::io::ErrorKind::NotFound {
+        ListIssuesError::MissingBinary
+    } else {
+        ListIssuesError::Io(error)
+    }
+}
+
 /// The binding that owns a refresh coordinator's current focus: the
 /// canonical workspace path plus the backend `WorkspaceState.generation`
 /// that the snapshot was admitted under. The path is the
@@ -250,11 +342,13 @@ pub struct LoadBinding {
 /// Outcome of a single load attempt, before backend publication.
 ///
 /// Failures here mean the coordinator leaves its admission markers
-/// unchanged so the next probe retries.
-#[derive(Debug, Clone)]
+/// unchanged so the next probe retries. The failure variant carries
+/// the typed [`ListIssuesError`] so the scheduler can classify the
+/// failure into a banner-friendly [`RefreshFailureKind`] at the boundary.
+#[derive(Debug)]
 pub enum LoadOutcome {
     Success(LoadBinding, IssueExplorerData),
-    Failure(String),
+    Failure(ListIssuesError),
     Stale,
 }
 
@@ -476,6 +570,7 @@ async fn run_refresh_loop(
     ops: Arc<dyn RefreshOps>,
 ) {
     let coordinator = Arc::new(Mutex::new(CoordinatorState::unseeded()));
+    let health = Arc::new(Mutex::new(RefreshHealthState::new()));
     let (load_done_tx, mut load_done_rx) = tokio::sync::mpsc::unbounded_channel::<LoadCompletion>();
 
     let mut ticker = interval_at(Instant::now() + PROBE_INTERVAL, PROBE_INTERVAL);
@@ -485,10 +580,10 @@ async fn run_refresh_loop(
         let notified = lifecycle.notified();
         tokio::select! {
             _ = ticker.tick() => {
-                handle_probe(&runtime, &coordinator, &load_done_tx, ops.clone()).await;
+                handle_probe(&runtime, &coordinator, &health, &load_done_tx, ops.clone()).await;
             }
             _ = notified => {
-                handle_lifecycle(&runtime, &coordinator, &load_done_tx, ops.clone()).await;
+                handle_lifecycle(&runtime, &coordinator, &health, &load_done_tx, ops.clone()).await;
             }
             maybe_completion = load_done_rx.recv() => {
                 let Some(completion) = maybe_completion else {
@@ -497,6 +592,7 @@ async fn run_refresh_loop(
                 handle_completion(
                     &runtime,
                     &coordinator,
+                    &health,
                     &load_done_tx,
                     ops.clone(),
                     completion,
@@ -510,24 +606,46 @@ async fn run_refresh_loop(
 /// Probe the ref for the live binding and let the coordinator decide
 /// whether to start a load. Probes during an in-flight load only update
 /// the dirty target; the load completion handler picks them up.
+///
+/// Probe failures are classified at the boundary and fed into the
+/// refresh health reducer. Transient strikes 1–4 are silent; strike 5
+/// and immediate structural kinds (missing `git`) install a visible
+/// failure slot and mark the health dirty. After a non-zero / invalid
+/// probe failure, one validity check is run for the same binding so a
+/// missing or replaced Beadwork initialization can be surfaced
+/// immediately as a structural loader failure.
+///
+/// The scheduler skips probing when the health reducer is in
+/// `IdleUnavailable`. Per the implementation plan, an unavailable or
+/// deleted workspace must stop probing and loading so the scheduler
+/// does not waste cycles retrying a path that will keep failing.
 async fn handle_probe(
     runtime: &Arc<Mutex<Option<WorkspaceRuntime>>>,
     coordinator: &Arc<Mutex<CoordinatorState>>,
+    health: &Arc<Mutex<RefreshHealthState>>,
     load_done_tx: &tokio::sync::mpsc::UnboundedSender<LoadCompletion>,
     ops: Arc<dyn RefreshOps>,
 ) {
+    if scheduler_idle(runtime, health) {
+        return;
+    }
     let Some((path, generation)) = runtime_binding(runtime) else {
         return;
     };
     let observed = match probe_off_lock(&path, ops.as_ref()).await {
         Ok(sha) => sha,
         Err(error) => {
-            log::warn!(
-                target: "beadsmith::refresh",
-                "ref probe failed for {}: {:?}",
-                path.display(),
+            classify_and_apply_probe_failure(
+                runtime,
+                coordinator,
+                health,
+                load_done_tx,
+                ops.clone(),
+                &path,
+                generation,
                 error,
-            );
+            )
+            .await;
             return;
         }
     };
@@ -539,6 +657,43 @@ async fn handle_probe(
         state.apply_probe(&binding, &observed, last_published.as_deref())
     };
     let Some(LoadDecision::StartLoad(load_binding)) = decision else {
+        // A successful probe always clears the transient ref-probe
+        // counter and slot, even when no new load is scheduled. The
+        // recovery transition must advance the shared coordinator
+        // allocator (`next_revision`) so the renderer admits the
+        // resulting Health event with a strictly-newer revision.
+        let outcome = {
+            let mut coordinator_guard =
+                coordinator.lock().expect("coordinator lock poisoned");
+            let mut health_state = health.lock().expect("health lock poisoned");
+            health_state.apply_probe_success(&mut coordinator_guard.next_revision)
+        };
+        if matches!(outcome, HealthApplyOutcome::Recovered { .. }) {
+            publish_health(runtime, health, coordinator);
+        }
+        // While a structural loader slot is active, retry the validity
+        // check on later active ticks so repairing `bw` or the Workspace
+        // clears the structural banner even when the ref is unchanged.
+        // Per the plan: do not add permanent validity polling when no
+        // structural loader slot exists.
+        let structural_loader_active = {
+            let health_state = health.lock().expect("health lock poisoned");
+            matches!(
+                health_state.health().loader,
+                Some(RefreshFailure {
+                    error_kind: RefreshFailureKind::MissingBw,
+                    transient: false,
+                    ..
+                }) | Some(RefreshFailure {
+                    error_kind: RefreshFailureKind::NotBeadworkWorkspace,
+                    transient: false,
+                    ..
+                })
+            )
+        };
+        if structural_loader_active {
+            run_validity_retry_tick(runtime, coordinator, health, ops, &path, generation).await;
+        }
         return;
     };
     spawn_load(
@@ -549,28 +704,208 @@ async fn handle_probe(
     );
 }
 
+/// Classify a [`ProbeError`] into the [`RefreshFailureKind`] the health
+/// reducer should receive. Missing `git` (spawn `NotFound`) is
+/// structural; everything else is a transient ref-probe failure that
+/// increments the per-class counter.
+///
+/// This classifier is intentionally best-effort: `Command::output()`
+/// can report `NotFound` for either a missing executable or a missing
+/// working directory. The scheduler mitigates that ambiguity by
+/// re-checking the bound path's readability before classifying; this
+/// function only sees the typed error.
+pub(crate) fn classify_probe_error(error: &ProbeError) -> ProbeClassification {
+    match error {
+        ProbeError::Spawn(message) if message.contains("executable was not found") => {
+            ProbeClassification::MissingGit(message.clone())
+        }
+        other => {
+            let message = format!("{other:?}");
+            ProbeClassification::Transient(message)
+        }
+    }
+}
+
+/// Classify a [`ListIssuesError`] from a refresh load attempt. Missing
+/// `bw` and not-a-Beadwork-Workspace are structural (immediate banner);
+/// every other variant is transient (loader counter).
+pub(crate) fn classify_load_error(error: &ListIssuesError) -> LoadClassification {
+    let message = format!("{error}");
+    match error {
+        ListIssuesError::MissingBinary => LoadClassification::MissingBw(message),
+        ListIssuesError::NotBeadworkWorkspace { .. } => {
+            LoadClassification::NotBeadworkWorkspace(message)
+        }
+        _ => LoadClassification::Transient(message),
+    }
+}
+
+/// Classifier output for a probe failure.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub(crate) enum ProbeClassification {
+    /// Transient probe failure (counter incremented; silent until threshold).
+    Transient(String),
+    /// Structural probe failure: `git` executable is missing from PATH.
+    /// Immediate banner.
+    MissingGit(String),
+}
+
+/// Classifier output for a refresh load failure.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub(crate) enum LoadClassification {
+    /// Transient loader failure (counter incremented; silent until threshold).
+    Transient(String),
+    /// Structural loader failure: `bw` executable is missing from PATH.
+    /// Immediate banner.
+    MissingBw(String),
+    /// Structural loader failure: the current directory is no longer a
+    /// Beadwork workspace. Immediate banner.
+    NotBeadworkWorkspace(String),
+}
+
+/// Apply a probe failure classification to the health reducer under
+/// the coordinator and health mutexes. Returns the reducer's outcome so
+/// the caller can decide whether to publish a Health event.
+fn apply_probe_classification(
+    health: &Arc<Mutex<RefreshHealthState>>,
+    coordinator: &Arc<Mutex<CoordinatorState>>,
+    classification: ProbeClassification,
+) -> HealthApplyOutcome {
+    let mut coordinator_guard = coordinator.lock().expect("coordinator lock poisoned");
+    let mut health_state = health.lock().expect("health lock poisoned");
+    match classification {
+        ProbeClassification::Transient(message) => {
+            health_state.apply_transient_probe_failure(message, &mut coordinator_guard.next_revision)
+        }
+        ProbeClassification::MissingGit(message) => {
+            health_state.apply_missing_git_failure(message, &mut coordinator_guard.next_revision)
+        }
+    }
+}
+
+/// Apply a load failure classification to the health reducer.
+fn apply_load_classification(
+    health: &Arc<Mutex<RefreshHealthState>>,
+    coordinator: &Arc<Mutex<CoordinatorState>>,
+    classification: LoadClassification,
+) -> HealthApplyOutcome {
+    let mut coordinator_guard = coordinator.lock().expect("coordinator lock poisoned");
+    let mut health_state = health.lock().expect("health lock poisoned");
+    match classification {
+        LoadClassification::Transient(message) => {
+            health_state.apply_transient_loader_failure(message, &mut coordinator_guard.next_revision)
+        }
+        LoadClassification::MissingBw(message) => {
+            health_state.apply_missing_bw_failure(message, &mut coordinator_guard.next_revision)
+        }
+        LoadClassification::NotBeadworkWorkspace(message) => health_state
+            .apply_not_beadwork_workspace_failure(
+                message,
+                &mut coordinator_guard.next_revision,
+            ),
+    }
+}
+
+/// Classify a probe failure and feed it into the refresh health
+/// reducer. Missing `git` is structural (immediate banner); transient
+/// command / spawn failures increment the per-class counter. After an
+/// admitted transient command / invalid-output probe failure, run one
+/// refresh-only `bw config list` validity check so a Workspace that
+/// lost its Beadwork initialization can be surfaced immediately.
+///
+/// `Command::current_dir(...).output()` can report `NotFound` for either
+/// a missing executable or a missing working directory. When the spawn
+/// error is ambiguous, recheck the bound path's readability before
+/// classifying: an unreadable path means the workspace was deleted or
+/// unmounted while probes were running, so the reducer enters
+/// `IdleUnavailable` instead of incrementing the transient counter.
+async fn classify_and_apply_probe_failure(
+    runtime: &Arc<Mutex<Option<WorkspaceRuntime>>>,
+    coordinator: &Arc<Mutex<CoordinatorState>>,
+    health: &Arc<Mutex<RefreshHealthState>>,
+    load_done_tx: &tokio::sync::mpsc::UnboundedSender<LoadCompletion>,
+    ops: Arc<dyn RefreshOps>,
+    path: &Path,
+    generation: u32,
+    error: ProbeError,
+) {
+    log::warn!(
+        target: "beadsmith::refresh",
+        "ref probe failed for {}: {:?}",
+        path.display(),
+        error,
+    );
+    // Workspace deleted during operation: enter IdleUnavailable so the
+    // renderer clears the banner and the scheduler stops probing.
+    if matches!(error, ProbeError::Spawn(_)) && !path.is_dir() {
+        let should_publish = {
+            let _coordinator_guard =
+                coordinator.lock().expect("coordinator lock poisoned");
+            let mut health_state = health.lock().expect("health lock poisoned");
+            health_state.enter_idle_unavailable(false);
+            health_state.needs_publish()
+        };
+        if should_publish {
+            publish_health(runtime, health, coordinator);
+        }
+        let _ = generation;
+        let _ = load_done_tx;
+        return;
+    }
+    let classification = classify_probe_error(&error);
+    let probe_outcome = apply_probe_classification(health, coordinator, classification);
+    if matches!(
+        probe_outcome,
+        HealthApplyOutcome::Visible { .. } | HealthApplyOutcome::Recovered { .. }
+    ) {
+        publish_health(runtime, health, coordinator);
+    }
+    if matches!(probe_outcome, HealthApplyOutcome::Visible { .. }) {
+        if matches!(error, ProbeError::CommandFailed { .. } | ProbeError::InvalidOutput(_)) {
+            run_post_failure_validity_check(runtime, coordinator, health, ops, path, generation)
+                .await;
+        }
+    }
+    let _ = load_done_tx;
+}
+
 /// Handle one lifecycle wake. The shared `Notify` carries no paths, so
 /// the handler always rereads authoritative runtime state under the lock.
+///
+/// The lifecycle handler also rebinds the refresh health state. The
+/// health reducer's binding lifecycle rules are:
+/// - Pending transition: suspend (preserve counters and visible health).
+/// - Different Current path: clear counters and health.
+/// - Same path, new generation: preserve counters and health, mark the
+///   complete state dirty for republication.
+/// - No Current: enter idle, clear counters and health.
+/// - Unavailable/deleted Current: publish one empty Health event for
+///   the previously rendered identity, then enter idle.
 async fn handle_lifecycle(
     runtime: &Arc<Mutex<Option<WorkspaceRuntime>>>,
     coordinator: &Arc<Mutex<CoordinatorState>>,
+    health: &Arc<Mutex<RefreshHealthState>>,
     load_done_tx: &tokio::sync::mpsc::UnboundedSender<LoadCompletion>,
     ops: Arc<dyn RefreshOps>,
 ) {
-    let (new_binding, catalog_paths) = {
+    let (new_binding, catalog_paths, pending_present, prior_active_path) = {
         let guard = runtime.lock().expect("runtime lock poisoned");
         let Some(runtime_ref) = guard.as_ref() else {
             return;
         };
+        let state = runtime_ref.service.state();
         let new_binding = current_workspace_binding(runtime_ref);
-        let catalog_paths: HashSet<PathBuf> = runtime_ref
-            .service
-            .state()
+        let pending_present = state.pending_workspace.is_some();
+        let prior_active_path = state
+            .current_workspace
+            .as_ref()
+            .map(|workspace| PathBuf::from(&workspace.path));
+        let catalog_paths: HashSet<PathBuf> = state
             .catalog
             .iter()
             .map(|workspace| PathBuf::from(&workspace.path))
             .collect();
-        (new_binding, catalog_paths)
+        (new_binding, catalog_paths, pending_present, prior_active_path)
     };
 
     enum LifecycleAction {
@@ -578,6 +913,44 @@ async fn handle_lifecycle(
         Probe(RefreshBinding),
         Noop,
     }
+
+    // Rebind the health reducer to mirror the workspace selection before
+    // consuming the binding tuple in the action selector below.
+    {
+        let mut health_state = health.lock().expect("health lock poisoned");
+        match &new_binding {
+            Some((path, generation)) if !pending_present => {
+                health_state.rebind_to_active(path.clone(), *generation);
+            }
+            Some(_) => {
+                // A Pending transition: suspend the health reducer.
+                health_state.suspend_for_pending();
+            }
+            None if pending_present => {
+                // Pending hides the binding even though the prior
+                // active workspace still exists; suspend so the
+                // health state survives the in-flight switch.
+                health_state.suspend_for_pending();
+            }
+            None => {
+                // No Current Workspace and no Pending transition.
+                // The path may already be unavailable. Treat as
+                // unavailable and emit one final empty Health event
+                // when the renderer could currently have a banner;
+                // otherwise enter the no-Current idle state directly.
+                if let Some(path) = prior_active_path.as_ref() {
+                    let available = path.is_dir();
+                    health_state.enter_idle_unavailable(available);
+                } else {
+                    health_state.enter_idle_no_current();
+                }
+            }
+        }
+    }
+    let health_dirty_after_rebind = {
+        let health_state = health.lock().expect("health lock poisoned");
+        health_state.needs_publish()
+    };
 
     let action = {
         let mut state = coordinator.lock().expect("coordinator lock poisoned");
@@ -622,6 +995,9 @@ async fn handle_lifecycle(
                 .retain(|key, _| catalog_paths.contains(key));
         }
     }
+    if health_dirty_after_rebind {
+        publish_health(runtime, health, coordinator);
+    }
 
     if let LifecycleAction::Probe(binding) = action {
         let observed = match probe_off_lock(&binding.workspace_path, ops.as_ref()).await {
@@ -633,6 +1009,17 @@ async fn handle_lifecycle(
                     binding.workspace_path.display(),
                     error,
                 );
+                classify_and_apply_probe_failure(
+                    runtime,
+                    coordinator,
+                    health,
+                    load_done_tx,
+                    ops.clone(),
+                    &binding.workspace_path,
+                    binding.workspace_selection_generation,
+                    error,
+                )
+                .await;
                 return;
             }
         };
@@ -659,9 +1046,17 @@ async fn handle_lifecycle(
 /// coordinator's active binding AND the live non-Pending Current binding
 /// still match, and trigger at most one follow-up load if the previous
 /// load's lifetime observed a different SHA.
+///
+/// The completion outcome is also fed into the refresh health reducer:
+/// a successful load clears the loader slot and resets its counter; a
+/// loader failure increments the loader counter (visible at strike 5).
+/// Structural `MissingBinary` / `NotBeadworkWorkspace` errors install
+/// an immediate structural loader failure that bypasses the
+/// five-strike threshold.
 async fn handle_completion(
     runtime: &Arc<Mutex<Option<WorkspaceRuntime>>>,
     coordinator: &Arc<Mutex<CoordinatorState>>,
+    health: &Arc<Mutex<RefreshHealthState>>,
     load_done_tx: &tokio::sync::mpsc::UnboundedSender<LoadCompletion>,
     ops: Arc<dyn RefreshOps>,
     completion: LoadCompletion,
@@ -690,6 +1085,24 @@ async fn handle_completion(
         return;
     }
 
+    // Feed the outcome into the refresh health reducer before deciding
+    // what to publish. The reducer reports whether the visible health
+    // state changed; on success we publish a Health event after the
+    // Snapshot, on failure we publish the Health event alone.
+    let health_outcome = match &completion.outcome {
+        LoadOutcome::Success(_, _) => {
+            let mut coordinator_guard =
+                coordinator.lock().expect("coordinator lock poisoned");
+            let mut health_state = health.lock().expect("health lock poisoned");
+            health_state.apply_loader_success(&mut coordinator_guard.next_revision)
+        }
+        LoadOutcome::Failure(error) => {
+            let classification = classify_load_error(error);
+            apply_load_classification(health, coordinator, classification)
+        }
+        LoadOutcome::Stale => HealthApplyOutcome::Idle,
+    };
+
     let build = build_event_for_completion(runtime, &completion).await;
 
     let dirty_observed = {
@@ -708,8 +1121,9 @@ async fn handle_completion(
             dirty_observed.is_some()
         };
         if needs_dirty_followup {
-            handle_dirty_follow_up(runtime, coordinator, load_done_tx, ops).await;
+            handle_dirty_follow_up(runtime, coordinator, health, load_done_tx, ops).await;
         }
+        maybe_publish_health(runtime, coordinator, health, health_outcome);
         return;
     };
 
@@ -763,8 +1177,10 @@ async fn handle_completion(
         );
     }
 
+    maybe_publish_health(runtime, coordinator, health, health_outcome);
+
     if dirty_observed.is_some() {
-        handle_dirty_follow_up(runtime, coordinator, load_done_tx, ops).await;
+        handle_dirty_follow_up(runtime, coordinator, health, load_done_tx, ops).await;
     }
 }
 
@@ -780,6 +1196,180 @@ fn seed_refresh_sha(runtime: &Arc<Mutex<Option<WorkspaceRuntime>>>, path: &Path,
     }
 }
 
+/// Publish the latest health state as a [`IssueExplorerRefreshEvent::Health`]
+/// event when the reducer has marked the visible health dirty.
+fn publish_health(
+    runtime: &Arc<Mutex<Option<WorkspaceRuntime>>>,
+    health: &Arc<Mutex<RefreshHealthState>>,
+    coordinator: &Arc<Mutex<CoordinatorState>>,
+) {
+    let revision = {
+        let mut coordinator_guard =
+            coordinator.lock().expect("coordinator lock poisoned");
+        let mut health_state = health.lock().expect("health lock poisoned");
+        let Some(revision) = health_state.prepare_publish(&mut coordinator_guard.next_revision) else {
+            return;
+        };
+        let snapshot_health = health_state.health().clone();
+        let binding = match health_state.binding() {
+            RefreshHealthBinding::Active {
+                workspace_path,
+                workspace_selection_generation,
+            } => Some((workspace_path.clone(), *workspace_selection_generation)),
+            _ => None,
+        };
+        let Some((path, generation)) = binding else {
+            return;
+        };
+        let build = {
+            let mut guard = runtime.lock().expect("runtime lock poisoned");
+            guard.as_mut().and_then(|runtime_ref| {
+                crate::rpc::build_health_event(
+                    runtime_ref,
+                    &path,
+                    generation,
+                    snapshot_health,
+                    revision,
+                )
+            })
+        };
+        if let Some((app, event)) = build {
+            let published = crate::rpc::emit_refresh_event(&app, event, revision, "");
+            // We don't track a per-event SHA for health events; the SHA
+            // map is only relevant for snapshot publications. A failed
+            // health publish leaves `needs_publish = true` so the next
+            // tick retries with the same revision.
+            if matches!(published, crate::refresh::PublishOutcome::Published) {
+                health_state.mark_published();
+            }
+        }
+        revision
+    };
+    let _ = revision;
+}
+
+/// Publish a Health event when the reducer reported a visible change.
+fn maybe_publish_health(
+    runtime: &Arc<Mutex<Option<WorkspaceRuntime>>>,
+    coordinator: &Arc<Mutex<CoordinatorState>>,
+    health: &Arc<Mutex<RefreshHealthState>>,
+    outcome: HealthApplyOutcome,
+) {
+    if matches!(
+        outcome,
+        HealthApplyOutcome::Visible { .. } | HealthApplyOutcome::Recovered { .. }
+    ) {
+        publish_health(runtime, health, coordinator);
+    }
+}
+
+/// After an admitted transient probe failure, run one refresh-only
+/// `bw config list` validity check for the same binding so a Workspace
+/// that lost its Beadwork initialization can be surfaced immediately as
+/// a structural loader failure.
+async fn run_post_failure_validity_check(
+    runtime: &Arc<Mutex<Option<WorkspaceRuntime>>>,
+    coordinator: &Arc<Mutex<CoordinatorState>>,
+    health: &Arc<Mutex<RefreshHealthState>>,
+    ops: Arc<dyn RefreshOps>,
+    path: &Path,
+    generation: u32,
+) {
+    let validity_result = check_bw_validity_off_lock(path, ops.as_ref()).await;
+    let outcome = {
+        let mut coordinator_guard =
+            coordinator.lock().expect("coordinator lock poisoned");
+        let mut health_state = health.lock().expect("health lock poisoned");
+        match validity_result {
+            Ok(()) => health_state.apply_validity_check_success(&mut coordinator_guard.next_revision),
+            Err(ListIssuesError::MissingBinary) => health_state.apply_missing_bw_failure(
+                "bw missing from PATH".to_string(),
+                &mut coordinator_guard.next_revision,
+            ),
+            Err(ListIssuesError::NotBeadworkWorkspace { .. }) => {
+                health_state.apply_not_beadwork_workspace_failure(
+                    "workspace is no longer a Beadwork workspace".to_string(),
+                    &mut coordinator_guard.next_revision,
+                )
+            }
+            Err(other) => {
+                log::warn!(
+                    target: "beadsmith::refresh",
+                    "post-failure validity check failed for {}: {}",
+                    path.display(),
+                    other,
+                );
+                HealthApplyOutcome::Idle
+            }
+        }
+    };
+    if matches!(
+        outcome,
+        HealthApplyOutcome::Visible { .. } | HealthApplyOutcome::Recovered { .. }
+    ) {
+        publish_health(runtime, health, coordinator);
+    }
+    let _ = generation;
+}
+
+async fn check_bw_validity_off_lock(path: &Path, ops: &dyn RefreshOps) -> Result<(), ListIssuesError> {
+    let path = path.to_path_buf();
+    let ops = ops.validity_op();
+    tokio::task::spawn_blocking(move || ops(path.as_path()))
+        .await
+        .expect("validity check task panicked")
+}
+
+/// Run the validity check on a later active tick to recover from a
+/// structural loader slot (MissingBw / NotBeadworkWorkspace). Invoked
+/// from `handle_probe` only when the structural loader slot is already
+/// active; transient / no-slot states skip the call so we don't add
+/// permanent validity polling when Git probes are healthy.
+async fn run_validity_retry_tick(
+    runtime: &Arc<Mutex<Option<WorkspaceRuntime>>>,
+    coordinator: &Arc<Mutex<CoordinatorState>>,
+    health: &Arc<Mutex<RefreshHealthState>>,
+    ops: Arc<dyn RefreshOps>,
+    path: &Path,
+    generation: u32,
+) {
+    let validity_result = check_bw_validity_off_lock(path, ops.as_ref()).await;
+    let outcome = {
+        let mut coordinator_guard =
+            coordinator.lock().expect("coordinator lock poisoned");
+        let mut health_state = health.lock().expect("health lock poisoned");
+        match validity_result {
+            Ok(()) => health_state
+                .apply_validity_check_success(&mut coordinator_guard.next_revision),
+            Err(ListIssuesError::MissingBinary) => health_state.apply_missing_bw_failure(
+                "bw missing from PATH".to_string(),
+                &mut coordinator_guard.next_revision,
+            ),
+            Err(ListIssuesError::NotBeadworkWorkspace { .. }) => health_state
+                .apply_not_beadwork_workspace_failure(
+                    "workspace is no longer a Beadwork workspace".to_string(),
+                    &mut coordinator_guard.next_revision,
+                ),
+            Err(other) => {
+                log::warn!(
+                    target: "beadsmith::refresh",
+                    "validity retry tick failed for {}: {}",
+                    path.display(),
+                    other,
+                );
+                HealthApplyOutcome::Idle
+            }
+        }
+    };
+    if matches!(
+        outcome,
+        HealthApplyOutcome::Visible { .. } | HealthApplyOutcome::Recovered { .. }
+    ) {
+        publish_health(runtime, health, coordinator);
+    }
+    let _ = generation;
+}
+
 /// Post-completion dirty handling: if the previous load's lifetime
 /// observed a different SHA, probe the current ref tip and start at
 /// most one follow-up load for it. Runs on every terminal load
@@ -788,9 +1378,13 @@ fn seed_refresh_sha(runtime: &Arc<Mutex<Option<WorkspaceRuntime>>>, path: &Path,
 async fn handle_dirty_follow_up(
     runtime: &Arc<Mutex<Option<WorkspaceRuntime>>>,
     coordinator: &Arc<Mutex<CoordinatorState>>,
+    health: &Arc<Mutex<RefreshHealthState>>,
     load_done_tx: &tokio::sync::mpsc::UnboundedSender<LoadCompletion>,
     ops: Arc<dyn RefreshOps>,
 ) {
+    if scheduler_idle(runtime, health) {
+        return;
+    }
     let Some((path, generation)) = runtime_binding(runtime) else {
         return;
     };
@@ -886,6 +1480,29 @@ fn runtime_binding(runtime: &Arc<Mutex<Option<WorkspaceRuntime>>>) -> Option<(Pa
     current_workspace_binding(runtime)
 }
 
+/// True when the scheduler should remain idle: no runtime binding, no
+/// health binding, or the health reducer is in `IdleUnavailable`.
+///
+/// The `IdleUnavailable` short-circuit mirrors the plan's
+/// "Unavailable/deleted Current: ... stop probing/loading" rule. After
+/// `enter_idle_unavailable` fires, the workspace path is no longer
+/// readable and the scheduler must not retry probe/load attempts
+/// against it. The runtime binding can still report the stale path
+/// because the `WorkspaceService` only clears `state.current_workspace`
+/// when a new transition commits; a delete-mid-flight leaves the
+/// binding state intact until the renderer (or the next lifecycle
+/// event) confirms a new identity.
+fn scheduler_idle(
+    runtime: &Arc<Mutex<Option<WorkspaceRuntime>>>,
+    health: &Arc<Mutex<RefreshHealthState>>,
+) -> bool {
+    if runtime_binding(runtime).is_none() {
+        return true;
+    }
+    let health_state = health.lock().expect("health lock poisoned");
+    matches!(health_state.binding(), RefreshHealthBinding::IdleUnavailable { .. })
+}
+
 /// Read the most recently published SHA for `path` from the runtime's
 /// per-workspace SHA map. Returns `None` when the runtime has not been
 /// initialized, the entry has not been seeded, or the entry was evicted.
@@ -961,6 +1578,8 @@ async fn run_load(
     .await
     .expect("load task panicked")
 }
+
+mod health;
 
 #[cfg(test)]
 mod tests;

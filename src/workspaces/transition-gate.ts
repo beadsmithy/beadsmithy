@@ -21,6 +21,11 @@ import type {
   Workspace,
   WorkspaceState,
 } from "../rpc/bindings";
+import type {
+  IssueExplorerRefreshHealthEvent,
+  IssueExplorerRefreshSnapshotEvent,
+  RefreshHealth,
+} from "../refresh-health";
 import { isRetryableSwitchFailureKind } from "../workspace-switch-failure";
 
 /**
@@ -52,10 +57,19 @@ import { isRetryableSwitchFailureKind } from "../workspace-switch-failure";
  *   selector that revisits the same path under a new generation rebinds
  *   it without remounting.
  * - `acceptedRefreshRevision`: highest monotonic refresh revision the
- *   renderer has admitted. A late older revision cannot regress the
- *   Issue Explorer once a newer one has rendered. Reset to its sentinel
- *   whenever a different snapshot identity is committed or the snapshot
- *   is cleared so the next refresh has the full window to advance.
+ *   renderer has admitted for a Snapshot variant. A late older revision
+ *   cannot regress the Issue Explorer once a newer one has rendered.
+ *   Reset to its sentinel whenever a different snapshot identity is
+ *   committed or the snapshot is cleared so the next refresh has the
+ *   full window to advance.
+ * - `acceptedRefreshHealthRevision`: highest monotonic refresh revision
+ *   the renderer has admitted for a Health variant. Tracked separately
+ *   from `acceptedRefreshRevision` so delivery order between Snapshot
+ *   and Health events does not affect correctness. Reset alongside
+ *   `acceptedRefreshRevision` on identity changes.
+ * - `refreshHealth`: complete current health state. A successful Health
+ *   event replaces this in full; an absent or empty Health event
+ *   clears both slots.
  */
 export interface WorkspaceTransitionGateState {
   readonly acceptedGeneration: number;
@@ -64,6 +78,8 @@ export interface WorkspaceTransitionGateState {
   readonly confirmedWorkspacePath: string | null;
   readonly confirmedWorkspaceGeneration: number | null;
   readonly acceptedRefreshRevision: number | null;
+  readonly acceptedRefreshHealthRevision: number | null;
+  readonly refreshHealth: RefreshHealth | null;
 }
 
 /**
@@ -77,9 +93,11 @@ export const INITIAL_WORKSPACE_TRANSITION_GATE_STATE: WorkspaceTransitionGateSta
   {
     acceptedGeneration: 0,
     acceptedRefreshRevision: null,
+    acceptedRefreshHealthRevision: null,
     committedGeneration: -1,
     confirmedWorkspaceGeneration: null,
     confirmedWorkspacePath: null,
+    refreshHealth: null,
     terminalGeneration: -1,
   };
 
@@ -358,6 +376,9 @@ export const applyWorkspaceTransition = (
     decision,
     next: {
       acceptedGeneration: generation,
+      acceptedRefreshHealthRevision: identityChanged
+        ? null
+        : current.acceptedRefreshHealthRevision,
       acceptedRefreshRevision: identityChanged
         ? null
         : current.acceptedRefreshRevision,
@@ -367,6 +388,7 @@ export const applyWorkspaceTransition = (
           : current.committedGeneration,
       confirmedWorkspaceGeneration,
       confirmedWorkspacePath,
+      refreshHealth: identityChanged ? null : current.refreshHealth,
       terminalGeneration,
     },
   };
@@ -407,9 +429,11 @@ export const applyStartupIssueLoad = (
       },
       next: {
         ...current,
+        acceptedRefreshHealthRevision: null,
         acceptedRefreshRevision: null,
         confirmedWorkspaceGeneration: load.workspaceGeneration,
         confirmedWorkspacePath: load.workspacePath,
+        refreshHealth: null,
       },
     };
   }
@@ -459,7 +483,9 @@ export interface IssueExplorerRefreshPayload {
  *   admits a matching transition or a successful startup snapshot.
  *   `bsm-wj1.2` introduced this branch to close the backend event-
  *   ordering race without adding a map, queue, or Pending-specific
- *   classifier.
+ *   classifier. `bsm-wj1.3` widens the buffer to the tagged-union
+ *   event so a Health event for a not-yet-admitted identity can be
+ *   replayed by the App-level slot.
  */
 export type IssueExplorerRefreshDecision =
   | { readonly kind: "ignore" }
@@ -469,7 +495,7 @@ export type IssueExplorerRefreshDecision =
     }
   | {
       readonly kind: "defer";
-      readonly payload: IssueExplorerRefreshPayload;
+      readonly payload: IssueExplorerRefreshSnapshotEvent;
     };
 
 /**
@@ -480,6 +506,144 @@ export interface IssueExplorerRefreshResult {
   readonly next: WorkspaceTransitionGateState;
   readonly decision: IssueExplorerRefreshDecision;
 }
+
+/**
+ * Decision returned by [`applyIssueExplorerHealthRefresh`].
+ *
+ * Mirrors the Snapshot variant admission pattern: `ignore`,
+ * `commitRefreshHealth`, and `defer` are the exhaustive outcomes.
+ */
+export type IssueExplorerHealthRefreshDecision =
+  | { readonly kind: "ignore" }
+  | {
+      readonly kind: "commitRefreshHealth";
+      readonly health: RefreshHealth;
+    }
+  | {
+      readonly kind: "defer";
+      readonly payload: IssueExplorerRefreshHealthEvent;
+    };
+
+/**
+ * Result of admitting one Health-variant refresh payload.
+ */
+export interface IssueExplorerHealthRefreshResult {
+  readonly next: WorkspaceTransitionGateState;
+  readonly decision: IssueExplorerHealthRefreshDecision;
+}
+
+/**
+ * Admit a Health-variant refresh payload against the current gate state.
+ *
+ * The decision mirrors the Snapshot variant admission pattern but
+ * tracks an independent `acceptedRefreshHealthRevision` marker so
+ * delivery order between Snapshot and Health events does not affect
+ * correctness. The Health variant replaces the complete two-slot
+ * refresh health state in the gate; a null slot is "recovered".
+ *
+ * The outer envelope (path + generation) is paired with the gate's
+ * confirmed identity the same way the Snapshot variant is; an empty
+ * Health (both slots null) clears the gate's `refreshHealth` so the
+ * banner disappears when the backend reports recovery.
+ *
+ * Like the Snapshot variant, a Health event for a not-yet-admitted
+ * identity (the renderer is still catching up to the matching
+ * `workspace-transition`) defers so the App-level buffer can replay
+ * it after the matching transition lands. A stale Health event from a
+ * previous identity or with an older revision is ignored.
+ *
+ * A Health event never changes `IssueExplorerLoadState` or
+ * `workspaceKey`. The Issue Explorer remount key, active view, search,
+ * and selected Issue remain stable because the underlying identity is
+ * unchanged.
+ */
+export const applyIssueExplorerHealthRefresh = (
+  current: WorkspaceTransitionGateState,
+  payload: IssueExplorerRefreshHealthEvent
+): IssueExplorerHealthRefreshResult => {
+  // 1. Without a confirmed identity the gate has nothing to admit
+  //    against. Defer any valid (envelope-consistent) event so the
+  //    App-level slot can replay it after the renderer admits a
+  //    matching transition or startup snapshot.
+  if (
+    current.confirmedWorkspacePath === null ||
+    current.confirmedWorkspaceGeneration === null
+  ) {
+    return {
+      decision: { kind: "defer", payload },
+      next: current,
+    };
+  }
+  // Generation comparison drives the rest, mirroring
+  // `applyIssueExplorerRefresh` so a Health event for a not-yet-admitted
+  // workspace path defers (subject to the acceptedGeneration floor)
+  // instead of being silently ignored:
+  //
+  //    - generation > confirmed: a future event for a not-yet-admitted
+  //      selection. Defer (subject to the acceptedGeneration floor so
+  //      a re-ordered event cannot bypass a more-recent commit). The
+  //      floor treats "no confirmed generation" as older than any
+  //      valid event, so a startup-arriving Health event for the first
+  //      snapshot is also deferred until the startup commit lands.
+  //    - generation < confirmed: a stale event from a prior selection
+  //      — ignore.
+  //    - generation == confirmed: the path and revision decide.
+  if (
+    payload.workspaceSelectionGeneration >
+    current.confirmedWorkspaceGeneration
+  ) {
+    if (
+      payload.workspaceSelectionGeneration >= current.acceptedGeneration
+    ) {
+      return {
+        decision: { kind: "defer", payload },
+        next: current,
+      };
+    }
+    return { decision: { kind: "ignore" }, next: current };
+  }
+  if (
+    payload.workspaceSelectionGeneration <
+    current.confirmedWorkspaceGeneration
+  ) {
+    return { decision: { kind: "ignore" }, next: current };
+  }
+  // Generation matches confirmed. The path must match too — a same-
+  // generation event for a different workspace is incoherent and is
+  // dropped.
+  if (payload.workspacePath !== current.confirmedWorkspacePath) {
+    return { decision: { kind: "ignore" }, next: current };
+  }
+  // 2. Revision must be strictly newer than the highest accepted
+  //    health revision (independent of the Snapshot revision marker).
+  if (
+    current.acceptedRefreshHealthRevision !== null &&
+    payload.refreshRevision <= current.acceptedRefreshHealthRevision
+  ) {
+    return { decision: { kind: "ignore" }, next: current };
+  }
+  return {
+    decision: { kind: "commitRefreshHealth", health: payload.health },
+    next: {
+      ...current,
+      acceptedRefreshHealthRevision: payload.refreshRevision,
+      refreshHealth: payload.health,
+    },
+  };
+};
+
+/**
+ * Discard the renderer's complete refresh health state. Called when a
+ * confirmed path change / chooser transition makes the prior health
+ * stale (the renderer must show the chooser without a banner).
+ */
+export const clearRefreshHealth = (
+  current: WorkspaceTransitionGateState
+): WorkspaceTransitionGateState => ({
+  ...current,
+  acceptedRefreshHealthRevision: null,
+  refreshHealth: null,
+});
 
 /**
  * Admit one Issue Explorer refresh payload against the current gate
@@ -541,7 +705,10 @@ export const applyIssueExplorerRefresh = (
     current.confirmedWorkspaceGeneration === null
   ) {
     return {
-      decision: { kind: "defer", payload },
+      decision: {
+        kind: "defer",
+        payload: { ...payload, eventType: "snapshot" as const },
+      },
       next: current,
     };
   }
@@ -563,7 +730,10 @@ export const applyIssueExplorerRefresh = (
   ) {
     if (payload.workspaceSelectionGeneration >= current.acceptedGeneration) {
       return {
-        decision: { kind: "defer", payload },
+        decision: {
+          kind: "defer",
+          payload: { ...payload, eventType: "snapshot" as const },
+        },
         next: current,
       };
     }

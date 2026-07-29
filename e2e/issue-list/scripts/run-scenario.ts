@@ -140,6 +140,55 @@ const shellQuote = (value: string): string =>
   `'${value.replaceAll("'", "'\\\"'\\\"'")}'`;
 
 /**
+ * Create a scenario-owned PATH prefix that injects a controllable Git
+ * probe failure when the control marker file exists. The wrapper only
+ * fails the exact probe argv (`rev-parse --verify refs/heads/beadwork^{commit}`)
+ * that the backend refresh coordinator issues; every other Git command
+ * (e.g. `bw create`'s `git rev-parse --show-toplevel`, `git` invocations
+ * unrelated to the ref probe) passes through unchanged. The production
+ * binary and Rust command runner remain untouched: the wrappers exist
+ * only in this temporary scenario directory and are removed with the
+ * fixtures after WebDriver exits.
+ *
+ * `BEADSMITH_E2E_FAIL_GIT_PROBE` must be set to an absolute path of a
+ * control marker file. The wrapper returns status 128 with a fatal
+ * stderr line when the marker exists; removing the marker file restores
+ * pass-through on the next probe.
+ */
+const createRefreshFailureWrappers = (controlMarker: string): string => {
+  const wrapperDirectory = mkdtempSync(
+    path.join(tmpdir(), "beadsmith-e2e-refresh-failure-wrapper-")
+  );
+  const gitPath = execFileSync("which", ["git"], { encoding: "utf-8" }).trim();
+  if (!gitPath || gitPath === "not found on PATH") {
+    throw new Error(
+      "Could not create refresh-failure git wrapper: command missing"
+    );
+  }
+  const wrapperPath = path.join(wrapperDirectory, "git");
+  const markerQuoted = shellQuote(controlMarker);
+  writeFileSync(
+    wrapperPath,
+    [
+      "#!/bin/sh",
+      `# Ref-probe wrapper: when the control marker exists, fail the`,
+      `# exact probe argv; otherwise pass through to the real binary.`,
+      `MARKER=${markerQuoted}`,
+      `if [ -n "$MARKER" ] && [ -f "$MARKER" ]; then`,
+      `  if [ "$#" -eq 3 ] && [ "$1" = "rev-parse" ] && [ "$2" = "--verify" ] && [ "$3" = "refs/heads/beadwork^{commit}" ]; then`,
+      `    echo "fatal: probe failure injected (refresh-failure scenario)" >&2`,
+      `    exit 128`,
+      `  fi`,
+      `fi`,
+      `exec ${shellQuote(gitPath)} "$@"`,
+      "",
+    ].join("\n")
+  );
+  chmodSync(wrapperPath, 0o755);
+  return wrapperDirectory;
+};
+
+/**
  * Create a scenario-owned PATH prefix that delays only the spawned desktop
  * app's `bw` and `git` calls. The production binary and Rust command runner
  * remain untouched: the wrappers exist only in this temporary scenario
