@@ -77,9 +77,9 @@ export const selectBannerFailure = (
   }
   const structural = candidates.filter((failure) => !failure.transient);
   const pool = structural.length > 0 ? structural : candidates;
-  let selected = pool[0];
-  for (const candidate of pool.slice(1)) {
-    if (candidate.failureRevision > selected.failureRevision) {
+  let selected: RefreshFailure | null = null;
+  for (const candidate of pool) {
+    if (selected === null || candidate.failureRevision > selected.failureRevision) {
       selected = candidate;
     }
   }
@@ -94,20 +94,16 @@ export const RefreshFailureBanner = ({
   }
   return (
     <div
-      aria-live="polite"
       className="flex items-start gap-3 border-b border-border-main bg-danger/10 p-3"
+      data-failure-kind={failure.errorKind}
+      data-failure-revision={failure.failureRevision}
       data-testid="refresh-failure-banner"
-      role="alert"
+      role="status"
     >
       <AlertTriangle className="mt-0.5 size-4 shrink-0 text-danger" />
-      <div className="flex min-w-0 flex-col">
-        <p className="text-sm font-medium text-red-200">
-          {BANNER_COPY[failure.errorKind]}
-        </p>
-        <p className="mt-1 font-mono text-[10px] text-muted">
-          {failure.errorKind} (failureRevision {failure.failureRevision})
-        </p>
-      </div>
+      <p className="text-sm font-medium text-danger">
+        {BANNER_COPY[failure.errorKind]}
+      </p>
     </div>
   );
 };

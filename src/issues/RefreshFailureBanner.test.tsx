@@ -29,10 +29,14 @@ describe("RefreshFailureBanner", () => {
     );
     const banner = screen.getByTestId("refresh-failure-banner");
     expect(banner).toBeInTheDocument();
-    expect(banner).toHaveAttribute("role", "alert");
+    expect(banner).toHaveAttribute("role", "status");
+    expect(banner).toHaveAttribute("data-failure-kind", "refProbe");
+    expect(banner).toHaveAttribute("data-failure-revision", "5");
     expect(banner.textContent).toContain(
       "Automatic refresh is failing while checking Beadwork changes."
     );
+    // Diagnostic detail is no longer rendered for the end user.
+    expect(banner.textContent).not.toContain("failureRevision");
   });
 
   it("renders distinct copy for missing git", () => {
