@@ -1,0 +1,24 @@
+src/App.issue-refresh.test.tsx
+  s_d8e310d7cefb8b::t_b27e6e2624f4f9 591
+src/App.tsx
+  s_d8e310d7cefb8b::t_beebbefcabcaad 28
+  s_d8e310d7cefb8b::t_c52bf5e26161be 131,228-229
+  s_d8e310d7cefb8b::t_9ac90fe3ccfa81 290,324
+  s_d8e310d7cefb8b::t_d16bb696c77d7b 206
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.16",
+  "base_commit_sha": "96ba86e473b9e5e0a248fc973b93dfa8ca2796af",
+  "prompts": {},
+  "sessions": {
+    "s_d8e310d7cefb8b": {
+      "agent_id": {
+        "tool": "pi",
+        "id": "019faa9c-3fad-761d-b918-cc4c07942193",
+        "model": "MiniMax-M3"
+      },
+      "human_author": "Tomas Thor Jonsson <benregn@gmail.com>"
+    }
+  }
+}
