@@ -1472,6 +1472,26 @@ describe("applyIssueExplorerHealthRefresh generation ordering", () => {
     expect(result.next).toEqual(gate);
   });
 
+  it("defers a Health event for a different workspace path on a not-yet-admitted generation", () => {
+    // Mirrors `applyIssueExplorerRefresh`: the path check is only
+    // applied after the generation comparison, so a Health event for
+    // a future identity on a different workspace path defers and is
+    // replayed after the matching transition lands.
+    const gate = initialGate({
+      acceptedGeneration: 2,
+      confirmedWorkspaceGeneration: 1,
+      confirmedWorkspacePath: "/work/a",
+    });
+    const payload = refreshHealthPayload({
+      health: refreshHealthState({}),
+      refreshRevision: 2,
+      workspacePath: "/work/b",
+      workspaceSelectionGeneration: 2,
+    });
+    const result = applyIssueExplorerHealthRefresh(gate, payload);
+    expect(result.decision.kind).toBe("defer");
+  });
+
   it("ignores a Health event for a generation newer than accepted (reordered)", () => {
     // The acceptedGeneration floor catches reordered events that would
     // otherwise bypass a more-recent commit.

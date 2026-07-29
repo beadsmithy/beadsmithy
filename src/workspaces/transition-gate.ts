@@ -574,10 +574,10 @@ export const applyIssueExplorerHealthRefresh = (
       next: current,
     };
   }
-  if (payload.workspacePath !== current.confirmedWorkspacePath) {
-    return { decision: { kind: "ignore" }, next: current };
-  }
-  // Generation comparison drives the rest:
+  // Generation comparison drives the rest, mirroring
+  // `applyIssueExplorerRefresh` so a Health event for a not-yet-admitted
+  // workspace path defers (subject to the acceptedGeneration floor)
+  // instead of being silently ignored:
   //
   //    - generation > confirmed: a future event for a not-yet-admitted
   //      selection. Defer (subject to the acceptedGeneration floor so
@@ -606,6 +606,12 @@ export const applyIssueExplorerHealthRefresh = (
     payload.workspaceSelectionGeneration <
     current.confirmedWorkspaceGeneration
   ) {
+    return { decision: { kind: "ignore" }, next: current };
+  }
+  // Generation matches confirmed. The path must match too — a same-
+  // generation event for a different workspace is incoherent and is
+  // dropped.
+  if (payload.workspacePath !== current.confirmedWorkspacePath) {
     return { decision: { kind: "ignore" }, next: current };
   }
   // 2. Revision must be strictly newer than the highest accepted
