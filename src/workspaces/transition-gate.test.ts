@@ -1402,8 +1402,12 @@ describe("applyIssueExplorerHealthRefresh", () => {
     });
     const result = applyIssueExplorerHealthRefresh(gate, payload);
     expect(result.decision.kind).toBe("commitRefreshHealth");
-    expect(result.decision.kind === "commitRefreshHealth" &&
-      result.decision.health.refProbe).toBeNull();
+    if (result.decision.kind !== "commitRefreshHealth") {
+      throw new Error(
+        `expected commitRefreshHealth, got ${result.decision.kind}`
+      );
+    }
+    expect(result.decision.health.refProbe).toBeNull();
     expect(result.next.refreshHealth?.refProbe).toBeNull();
   });
 
@@ -1414,9 +1418,8 @@ describe("applyIssueExplorerHealthRefresh", () => {
       confirmedWorkspaceGeneration: 1,
       confirmedWorkspacePath: "/work/a",
     });
-    // A Health event with revision 5 (older than the admitted health
-    // revision 2 - oh wait, that's newer; let me use 1) is admitted
-    // while leaving the Snapshot marker untouched.
+    // A Health event newer than the admitted health revision is
+    // admitted while leaving the Snapshot marker untouched.
     const healthPayload = refreshHealthPayload({
       health: refreshHealthState({
         refProbe: refreshFailure({ errorKind: "refProbe", failureRevision: 9 }),

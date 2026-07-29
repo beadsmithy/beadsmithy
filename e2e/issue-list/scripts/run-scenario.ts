@@ -175,7 +175,7 @@ const createRefreshFailureWrappers = (controlMarker: string): string => {
       `# exact probe argv; otherwise pass through to the real binary.`,
       `MARKER=${markerQuoted}`,
       `if [ -n "$MARKER" ] && [ -f "$MARKER" ]; then`,
-      `  if [ "$1" = "rev-parse" ] && [ "$2" = "--verify" ] && [ "$3" = "refs/heads/beadwork^{commit}" ]; then`,
+      `  if [ "$#" -eq 3 ] && [ "$1" = "rev-parse" ] && [ "$2" = "--verify" ] && [ "$3" = "refs/heads/beadwork^{commit}" ]; then`,
       `    echo "fatal: probe failure injected (refresh-failure scenario)" >&2`,
       `    exit 128`,
       `  fi`,
