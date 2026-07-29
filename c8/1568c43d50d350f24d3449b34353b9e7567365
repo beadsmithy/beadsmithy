@@ -1,0 +1,23 @@
+src-tauri/src/refresh/health.rs
+  s_d8e310d7cefb8b::t_d963b81555e99e 453-458,460
+src-tauri/src/refresh.rs
+  s_d8e310d7cefb8b::t_6815fc98311f24 661-664,666-667,669
+src-tauri/src/refresh/health/tests.rs
+  s_d8e310d7cefb8b::t_1e247319e5a797 440-449,451-453,462-469
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.16",
+  "base_commit_sha": "c81568c43d50d350f24d3449b34353b9e7567365",
+  "prompts": {},
+  "sessions": {
+    "s_d8e310d7cefb8b": {
+      "agent_id": {
+        "tool": "pi",
+        "id": "019faa9c-3fad-761d-b918-cc4c07942193",
+        "model": "MiniMax-M3"
+      },
+      "human_author": "Tomas Thor Jonsson <benregn@gmail.com>"
+    }
+  }
+}
