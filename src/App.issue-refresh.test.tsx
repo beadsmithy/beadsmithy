@@ -588,7 +588,7 @@ describe("App issue explorer refresh", () => {
 
     const banner = await screen.findByTestId("refresh-failure-banner");
     expect(banner).toBeInTheDocument();
-    expect(banner).toHaveAttribute("role", "alert");
+    expect(banner).toHaveAttribute("role", "status");
     expect(banner.textContent).toContain(
       "Automatic refresh needs bw on PATH to read Beadwork data."
     );

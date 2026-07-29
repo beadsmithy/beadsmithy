@@ -25,6 +25,7 @@ import {
   isIssueExplorerRefreshEvent,
   type IssueExplorerRefreshEvent,
   type IssueExplorerRefreshHealthEvent,
+  type IssueExplorerRefreshSnapshotEvent,
   type RefreshHealth,
 } from "./refresh-health";
 import { useAppSettings } from "./settings/app-settings";
@@ -127,7 +128,7 @@ const applyRefreshDecision = (
   payload: IssueExplorerRefreshEvent,
   gateRef: { current: WorkspaceTransitionGateState },
   deferredSnapshotRef: {
-    current: import("./refresh-health").IssueExplorerRefreshSnapshotEvent | null;
+    current: IssueExplorerRefreshSnapshotEvent | null;
   },
   deferredHealthRef: {
     current: IssueExplorerRefreshHealthEvent | null;
@@ -202,7 +203,7 @@ export default function App() {
     INITIAL_WORKSPACE_TRANSITION_GATE_STATE.confirmedWorkspacePath ??
       INITIAL_WORKSPACE_REMOUNT_KEY
   );
-  const [refreshHealth, setRefreshHealthState] = useState<RefreshHealth | null>(
+  const [refreshHealth, setRefreshHealth] = useState<RefreshHealth | null>(
     null
   );
   const transitionGateRef = useRef<WorkspaceTransitionGateState>(
@@ -224,18 +225,13 @@ export default function App() {
    * Health variant; before the split, a single slot would silently
    * drop one variant when both were deferred for the same identity.
    */
-  const deferredSnapshotRef = useRef<
-    import("./refresh-health").IssueExplorerRefreshSnapshotEvent | null
-  >(null);
+  const deferredSnapshotRef =
+    useRef<IssueExplorerRefreshSnapshotEvent | null>(null);
   const deferredHealthRef = useRef<IssueExplorerRefreshHealthEvent | null>(
     null
   );
   const [dismissedSwitchErrorGeneration, setDismissedSwitchErrorGeneration] =
     useState<number | null>(null);
-
-  const setRefreshHealth = useCallback((health: RefreshHealth | null) => {
-    setRefreshHealthState(health);
-  }, []);
 
   const handleIssueListViewSelect = useCallback((viewId: IssueListViewId) => {
     setActiveIssueListViewId(viewId);
@@ -291,7 +287,7 @@ export default function App() {
       break;
     }
     return applied;
-  }, [setRefreshHealth]);
+  }, []);
 
   const applyTransition = useCallback(
     (
@@ -325,7 +321,7 @@ export default function App() {
       applyDeferredRefresh();
       return decision;
     },
-    [applyDeferredRefresh, setRefreshHealth]
+    [applyDeferredRefresh]
   );
 
   // `presentedIssueState` masks the successful Issue Explorer
