@@ -39,10 +39,10 @@ const BW_BLOCKED_ARGS: &[&str] = &["blocked", "--json"];
 /// (ADR-0003). `bw` emits the first when the cwd is a git repo Beadwork has not
 /// initialized, and the second when the cwd is not a git repo at all.
 ///
-/// Re-exported as [`crate::issues::NOT_BEADWORK_MARKERS`] so the refresh
-/// validity-check seam can classify `bw config list` failures using the
-/// same marker set.
-pub(super) const NOT_BEADWORK_MARKERS_LOCAL: &[&str] = &[
+/// Re-exported through [`crate::issues::NOT_BEADWORK_MARKERS`] so the
+/// refresh validity-check seam classifies `bw config list` failures the
+/// same way the issue adapter classifies `bw list/ready/blocked` failures.
+pub const NOT_BEADWORK_MARKERS_LOCAL: &[&str] = &[
     "beadwork not initialized",
     "not a git repository",
 ];

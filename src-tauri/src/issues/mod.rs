@@ -24,8 +24,6 @@ pub use runner::{CommandOutput, CommandRunner, ProcessRunner};
 /// Markers Beadwork writes to stderr when the cwd is not a usable Beadwork
 /// workspace. Shared with the refresh validity-check seam so the refresh
 /// module classifies `bw config list` failures the same way the issue
-/// adapter classifies `bw list/ready/blocked` failures.
-pub const NOT_BEADWORK_MARKERS: &[&str] = &[
-    "beadwork not initialized",
-    "not a git repository",
-];
+/// adapter classifies `bw list/ready/blocked` failures. Re-exported from
+/// the adapter so the two seams cannot drift apart on a future change.
+pub use adapter::NOT_BEADWORK_MARKERS_LOCAL as NOT_BEADWORK_MARKERS;
