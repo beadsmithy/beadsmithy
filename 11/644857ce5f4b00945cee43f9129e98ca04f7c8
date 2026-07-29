@@ -1,0 +1,22 @@
+src/workspaces/transition-gate.ts
+  s_d8e310d7cefb8b::t_6a78b37fb79943 577-580,611-614
+  s_d8e310d7cefb8b::t_95628193c55739 615-616
+src/workspaces/transition-gate.test.ts
+  s_d8e310d7cefb8b::t_b27cb218f9a164 1475-1494
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.16",
+  "base_commit_sha": "11644857ce5f4b00945cee43f9129e98ca04f7c8",
+  "prompts": {},
+  "sessions": {
+    "s_d8e310d7cefb8b": {
+      "agent_id": {
+        "tool": "pi",
+        "id": "019faa9c-3fad-761d-b918-cc4c07942193",
+        "model": "MiniMax-M3"
+      },
+      "human_author": "Tomas Thor Jonsson <benregn@gmail.com>"
+    }
+  }
+}
