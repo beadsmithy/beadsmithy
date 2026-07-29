@@ -1,0 +1,22 @@
+src-tauri/src/issues/adapter.rs
+  s_d8e310d7cefb8b::t_688954295c7088 42-44
+  s_d8e310d7cefb8b::t_bcc5076397cfb3 45
+src-tauri/src/issues/mod.rs
+  s_d8e310d7cefb8b::t_e8dba5e149b4be 27-29
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.16",
+  "base_commit_sha": "e2b0bc963afcafd7500bfd7533b745417a740714",
+  "prompts": {},
+  "sessions": {
+    "s_d8e310d7cefb8b": {
+      "agent_id": {
+        "tool": "pi",
+        "id": "019faa9c-3fad-761d-b918-cc4c07942193",
+        "model": "MiniMax-M3"
+      },
+      "human_author": "Tomas Thor Jonsson <benregn@gmail.com>"
+    }
+  }
+}
