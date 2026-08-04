@@ -660,7 +660,13 @@ fn time_refresh_interval() -> Duration {
                 TIME_REFRESH_INTERVAL
             }
         },
-        Err(_) => TIME_REFRESH_INTERVAL,
+        Err(_) => {
+            log::debug!(
+                target: "beadsmith::refresh",
+                "{OVERRIDE} not set; using the default 60s time refresh interval",
+            );
+            TIME_REFRESH_INTERVAL
+        }
     }
 }
 
