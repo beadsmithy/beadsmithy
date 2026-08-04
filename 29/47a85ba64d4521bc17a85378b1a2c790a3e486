@@ -1,0 +1,26 @@
+src/App.issue-refresh.test.tsx
+  s_193d760784bcb9::t_3a3b98b8bcafa8 422
+src/test/app-workspace-fixtures.ts
+  s_193d760784bcb9::t_bd9ea11df000ed 2,17-20
+  s_193d760784bcb9::t_e5301cd4b49760 3
+src/App.strict-mode-lifecycle.test.tsx
+  s_193d760784bcb9::t_a8c4c0b993b67e 170-174
+  s_193d760784bcb9::t_ebfa54385e5c8c 70-72,102-117
+  s_193d760784bcb9::t_7098b67a123189 4
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.20",
+  "base_commit_sha": "2947a85ba64d4521bc17a85378b1a2c790a3e486",
+  "prompts": {},
+  "sessions": {
+    "s_193d760784bcb9": {
+      "agent_id": {
+        "tool": "pi",
+        "id": "019fcbfe-4e64-7f1d-9b09-7e594ed9b784",
+        "model": "k3-256k"
+      },
+      "human_author": "Tomas Thor Jonsson <benregn@gmail.com>"
+    }
+  }
+}
