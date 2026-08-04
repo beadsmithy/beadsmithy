@@ -1,9 +1,6 @@
 import type { IssueExplorerLoadState } from "../issues/issue-loader";
-import type {
-  Issue,
-  LoadIssueExplorerDataResponse,
-  WorkspaceState,
-} from "../rpc/bindings";
+import type { IssueExplorerRefreshEvent as IssueExplorerRefreshPayload } from "../refresh-health";
+import type { Issue, WorkspaceState } from "../rpc/bindings";
 
 export interface WorkspaceTransitionEvent {
   payload: {
@@ -17,13 +14,10 @@ export type WorkspaceTransitionListener = (
 ) => void;
 
 export interface IssueExplorerRefreshEvent {
-  payload: {
-    issueData: LoadIssueExplorerDataResponse;
-    observedRefSha: string;
-    refreshRevision: number;
-    workspacePath: string;
-    workspaceSelectionGeneration: number;
-  };
+  // The payload reuses the canonical tagged union from
+  // `src/refresh-health.ts` (Snapshot | Health) so dispatched test
+  // payloads can never drift from the production envelope.
+  payload: IssueExplorerRefreshPayload;
 }
 
 export type IssueExplorerRefreshListener = (
