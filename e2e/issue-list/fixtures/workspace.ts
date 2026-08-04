@@ -382,6 +382,84 @@ export const removeWorkspace = (workspace: BeadworkWorkspace): void => {
 };
 
 /**
+ * Stable Ready Issue for the time/focus refresh scenarios. The scenario
+ * asserts it stays visible across every time- and focus-driven refresh
+ * so a refresh that blanks the list cannot masquerade as a pass.
+ */
+export const FIXTURE_TIME_BASELINE_TITLE =
+  "Stable baseline issue for refresh trigger proof";
+/**
+ * Dedicated Issue the time/focus scenarios create after launch and defer
+ * to a near-future boundary. Only a forced refresh (timer or focus) can
+ * move it into Ready: the ref probe observes an unchanged SHA and
+ * Beadsmith never calculates Ready membership locally.
+ */
+export const FIXTURE_TIME_DEFERRED_TITLE =
+  "Time-deferred issue for refresh trigger proof";
+
+/**
+ * A dedicated Beadwork workspace for the time/focus refresh trigger
+ * scenarios. Contains exactly one stable Ready Issue; the spec adds the
+ * deferred Issue after launch so the startup snapshot cannot satisfy
+ * the Ready-membership assertion.
+ */
+export const createTimeRefreshWorkspace = (): BeadworkWorkspace => {
+  const workspacePath = mkdtempSync(
+    path.join(tmpdir(), "beadsmith-e2e-time-refresh-")
+  );
+  console.log(
+    `[e2e:fixture] creating time-refresh Beadwork workspace at ${workspacePath}`
+  );
+  initGitBeadworkRepo(workspacePath);
+
+  const baselineId = createTaskIssue({
+    priority: "2",
+    title: FIXTURE_TIME_BASELINE_TITLE,
+    workspacePath,
+  });
+  console.log(
+    `[e2e:fixture] time-refresh workspace ready at ${workspacePath}: baseline=${baselineId}`
+  );
+  return {
+    issue: { id: baselineId, title: FIXTURE_TIME_BASELINE_TITLE },
+    path: workspacePath,
+  };
+};
+
+export interface DeferredRefreshIssue {
+  id: string;
+  title: string;
+  /** The RFC3339 `defer_until` boundary the Issue was deferred to. */
+  deferUntil: string;
+}
+
+/**
+ * Post-launch mutation for the time/focus refresh scenarios: create the
+ * dedicated deferred Issue in an already-selected workspace and defer it
+ * to `deferUntilIso` (an RFC3339 timestamp, which `bw defer` passes
+ * through verbatim). The caller chooses a near-future boundary after
+ * launch so the initial snapshot cannot satisfy the Ready assertion,
+ * then waits for the normal ref poll to publish the deferred snapshot
+ * before the boundary passes.
+ */
+export const createPostLaunchDeferredIssue = (
+  workspacePath: string,
+  deferUntilIso: string
+): DeferredRefreshIssue => {
+  console.log(
+    `[e2e:fixture] creating post-launch deferred issue in ${workspacePath} (defer_until=${deferUntilIso})`
+  );
+  const id = createTaskIssue({
+    priority: "3",
+    title: FIXTURE_TIME_DEFERRED_TITLE,
+    workspacePath,
+  });
+  runBw(["defer", id, deferUntilIso], workspacePath);
+  console.log(`[e2e:fixture] deferred issue ${id} until ${deferUntilIso}`);
+  return { deferUntil: deferUntilIso, id, title: FIXTURE_TIME_DEFERRED_TITLE };
+};
+
+/**
  * Fixed-RFC3339 fixture for the Child Issues desktop acceptance scenario
  * (`bsm-nd7.4`). One closed parent and three children exercise both
  * ordering keys (priority ascending, then `created` ascending); one

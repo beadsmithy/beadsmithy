@@ -47,3 +47,7 @@ libc = "0.2"
 
 [dev-dependencies]
 tauri = { version = "2", features = ["test"] }
+# `test-util` enables the paused-clock API the refresh cadence test uses
+# (`tokio::time::advance` + `#[tokio::test(start_paused)]`). Dev-only: the
+# production binary never sees it.
+tokio = { version = "1", features = ["test-util"] }

@@ -247,6 +247,15 @@ pub struct BeadsmithApiImpl {
     /// two-second tick. The handle carries no payload: the scheduler
     /// always rereads authoritative runtime state under the lock.
     refresh_lifecycle: Arc<Notify>,
+    /// Shared forced-refresh `Notify` the refresh coordinator awaits in
+    /// its select! loop alongside the lifecycle signal. The native
+    /// window focus-gain callback wakes it to request a `Force` refresh
+    /// through the same single-flight coordinator path used for ref
+    /// changes (the scheduler's 60-second time trigger enters the same
+    /// path directly from its own ticker). The handle carries no
+    /// payload: the scheduler re-checks for a usable Current Workspace
+    /// before probing.
+    refresh_forced: Arc<Notify>,
 }
 
 impl BeadsmithApiImpl {
@@ -302,7 +311,33 @@ impl BeadsmithApiImpl {
         drop(start_refresh_task(
             self.workspace.clone(),
             self.refresh_lifecycle.clone(),
+            self.refresh_forced.clone(),
         ));
+    }
+
+    /// Request one forced refresh of the Current Workspace's Issue
+    /// Explorer. Used by the native window focus-gain callback; the
+    /// scheduler's time trigger enters the same `Force` path directly
+    /// from its own ticker.
+    ///
+    /// The permit is only sent when a live non-Pending Current
+    /// Workspace exists right now, and the scheduler's forced branch
+    /// re-checks before probing. A focus event during startup or while
+    /// no Workspace is selected therefore cannot leave a stored permit
+    /// that fires as a delayed duplicate load after a later selection.
+    pub fn request_forced_refresh(&self) {
+        let usable_current = {
+            let runtime = self
+                .workspace
+                .lock()
+                .expect("workspace runtime lock poisoned");
+            runtime
+                .as_ref()
+                .is_some_and(|runtime_ref| current_workspace_binding(runtime_ref).is_some())
+        };
+        if usable_current {
+            self.refresh_forced.notify_one();
+        }
     }
 
     fn with_runtime<T>(&self, operation: impl FnOnce(&mut WorkspaceRuntime) -> T) -> T {
@@ -841,8 +876,7 @@ async fn validate_workspace_outside_lock(candidate: PathBuf) -> Result<Workspace
 /// unseeded without surfacing a switch-blocking error.
 async fn probe_ref_for_seed(path: PathBuf) -> Option<String> {
     tokio::task::spawn_blocking(move || {
-        crate::refresh::probe_beadwork_ref(&ProcessRunner::new(), &path)
-            .ok()
+        crate::refresh::probe_beadwork_ref(&ProcessRunner::new(), &path).ok()
     })
     .await
     .unwrap_or(None)

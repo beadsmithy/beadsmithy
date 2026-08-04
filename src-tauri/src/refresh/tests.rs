@@ -187,7 +187,7 @@ fn unseeded_state_triggers_one_initial_load_on_first_probe() {
     let mut state = CoordinatorState::unseeded();
     let binding = binding_for("/work/a", 1);
     let decision = state
-        .apply_probe(&binding, "abc123", None)
+        .apply_probe(&binding, "abc123", None, RefreshMode::IfChanged)
         .expect("unseeded coordinator must start one initial load");
     match decision {
         LoadDecision::StartLoad(binding) => {
@@ -208,7 +208,7 @@ fn unchanged_published_sha_does_not_trigger_a_load() {
     let mut state = CoordinatorState::unseeded();
     let binding = binding_for("/work/a", 1);
     state
-        .apply_probe(&binding, "abc123", None)
+        .apply_probe(&binding, "abc123", None, RefreshMode::IfChanged)
         .expect("first probe starts load");
     state.apply_load_success(&LoadBinding {
         binding: binding.clone(),
@@ -216,7 +216,7 @@ fn unchanged_published_sha_does_not_trigger_a_load() {
         refresh_revision: 1,
     });
 
-    let decision = state.apply_probe(&binding, "abc123", Some("abc123"));
+    let decision = state.apply_probe(&binding, "abc123", Some("abc123"), RefreshMode::IfChanged);
     assert!(
         decision.is_none(),
         "already-published SHA must not schedule another load"
@@ -228,7 +228,7 @@ fn changed_sha_after_publish_starts_exactly_one_load() {
     let mut state = CoordinatorState::unseeded();
     let binding = binding_for("/work/a", 1);
     state
-        .apply_probe(&binding, "abc", None)
+        .apply_probe(&binding, "abc", None, RefreshMode::IfChanged)
         .expect("first probe");
     state.apply_load_success(&LoadBinding {
         binding: binding.clone(),
@@ -237,7 +237,7 @@ fn changed_sha_after_publish_starts_exactly_one_load() {
     });
 
     let decision = state
-        .apply_probe(&binding, "def", Some("abc"))
+        .apply_probe(&binding, "def", Some("abc"), RefreshMode::IfChanged)
         .expect("changed SHA must start one load");
     match decision {
         LoadDecision::StartLoad(binding) => {
@@ -253,39 +253,48 @@ fn repeated_same_sha_during_active_load_does_not_create_extra_work() {
     let mut state = CoordinatorState::unseeded();
     let binding = binding_for("/work/a", 1);
     state
-        .apply_probe(&binding, "abc", None)
+        .apply_probe(&binding, "abc", None, RefreshMode::IfChanged)
         .expect("first probe starts load");
 
-    let outcome = state.apply_probe(&binding, "abc", None);
+    let outcome = state.apply_probe(&binding, "abc", None, RefreshMode::IfChanged);
     assert!(outcome.is_none());
-    assert!(state.dirty_target_sha.is_none());
+    assert!(state.pending_refresh.is_none());
     assert!(state.has_active_load);
 }
 
 #[test]
-fn several_changed_shas_during_active_load_retain_only_newest_dirty_target() {
+fn several_changed_shas_during_active_load_remain_one_pending_if_changed() {
     let mut state = CoordinatorState::unseeded();
     let binding = binding_for("/work/a", 1);
     state
-        .apply_probe(&binding, "v1", None)
+        .apply_probe(&binding, "v1", None, RefreshMode::IfChanged)
         .expect("first probe starts load");
 
     let mut probe_results = Vec::new();
     for sha in ["v2", "v3", "v4", "v5"] {
-        probe_results.push(state.apply_probe(&binding, sha, None).is_none());
+        probe_results.push(
+            state
+                .apply_probe(&binding, sha, None, RefreshMode::IfChanged)
+                .is_none(),
+        );
     }
     assert!(probe_results.iter().all(|is_none| *is_none));
-    assert_eq!(state.dirty_target_sha.as_deref(), Some("v5"));
+    // Pending work records intent, not a target SHA: a burst of ref
+    // moves stays one pending `IfChanged` request and the follow-up
+    // re-probes the current tip.
+    assert_eq!(state.pending_refresh, Some(RefreshMode::IfChanged));
     assert!(state.has_active_load);
 }
 
 #[test]
-fn dirty_target_is_cleared_when_a_load_starts() {
+fn pending_refresh_is_cleared_when_a_load_starts() {
     let mut state = CoordinatorState::unseeded();
     let binding = binding_for("/work/a", 1);
-    state.apply_probe(&binding, "v1", None).expect("first probe");
-    state.apply_probe(&binding, "v2", None);
-    assert_eq!(state.dirty_target_sha.as_deref(), Some("v2"));
+    state
+        .apply_probe(&binding, "v1", None, RefreshMode::IfChanged)
+        .expect("first probe");
+    state.apply_probe(&binding, "v2", None, RefreshMode::IfChanged);
+    assert_eq!(state.pending_refresh, Some(RefreshMode::IfChanged));
 
     state.apply_load_success(&LoadBinding {
         binding: binding.clone(),
@@ -293,23 +302,26 @@ fn dirty_target_is_cleared_when_a_load_starts() {
         refresh_revision: 1,
     });
 
-    // Probing again must schedule a new load for v2, the newest dirty
-    // target observed while the previous load was active.
+    // The follow-up request re-probes the current tip (v2). Starting
+    // the follow-up load consumes the pending mode.
     let decision = state
-        .apply_probe(&binding, "v2", Some("v1"))
-        .expect("dirty target SHA must start one load after active load completes");
+        .apply_probe(&binding, "v2", Some("v1"), RefreshMode::IfChanged)
+        .expect("pending refresh must start one load after the active load completes");
     match decision {
         LoadDecision::StartLoad(binding) => {
             assert_eq!(binding.observed_sha, "v2");
         }
     }
+    assert!(state.pending_refresh.is_none());
 }
 
 #[test]
 fn load_failure_does_not_advance_published_revision() {
     let mut state = CoordinatorState::unseeded();
     let binding = binding_for("/work/a", 1);
-    state.apply_probe(&binding, "v1", None).expect("first probe");
+    state
+        .apply_probe(&binding, "v1", None, RefreshMode::IfChanged)
+        .expect("first probe");
     state.apply_load_failure();
     assert!(!state.has_active_load);
     assert_eq!(state.last_published_revision, None);
@@ -319,7 +331,9 @@ fn load_failure_does_not_advance_published_revision() {
 fn load_success_advances_published_revision() {
     let mut state = CoordinatorState::unseeded();
     let binding = binding_for("/work/a", 1);
-    state.apply_probe(&binding, "v1", None).expect("first probe");
+    state
+        .apply_probe(&binding, "v1", None, RefreshMode::IfChanged)
+        .expect("first probe");
     state.apply_load_success(&LoadBinding {
         binding: binding.clone(),
         observed_sha: "v1".to_string(),
@@ -331,13 +345,15 @@ fn load_success_advances_published_revision() {
 }
 
 #[test]
-fn take_dirty_target_clears_the_slot() {
+fn take_pending_refresh_clears_the_slot() {
     let mut state = CoordinatorState::unseeded();
     let binding = binding_for("/work/a", 1);
-    state.apply_probe(&binding, "v1", None).expect("first probe");
-    state.apply_probe(&binding, "v2", None);
-    assert_eq!(state.take_dirty_target().as_deref(), Some("v2"));
-    assert!(state.take_dirty_target().is_none());
+    state
+        .apply_probe(&binding, "v1", None, RefreshMode::IfChanged)
+        .expect("first probe");
+    state.apply_probe(&binding, "v2", None, RefreshMode::IfChanged);
+    assert_eq!(state.take_pending_refresh(), Some(RefreshMode::IfChanged));
+    assert!(state.take_pending_refresh().is_none());
 }
 
 // =============================================================================
@@ -360,13 +376,15 @@ fn probe_for_a_new_binding_rebinds_and_starts_one_load() {
     let b = binding_for("/work/b", 2);
 
     // Bind to A.
-    let _ = state.apply_probe(&a, "v1", None).expect("a probe starts load");
+    let _ = state
+        .apply_probe(&a, "v1", None, RefreshMode::IfChanged)
+        .expect("a probe starts load");
 
     // A probe for B rebinds and starts one load for B without
     // disturbing A's active load (the in-flight A worker is now stale
     // and powerless because its binding no longer matches).
     let decision = state
-        .apply_probe(&b, "v2", None)
+        .apply_probe(&b, "v2", None, RefreshMode::IfChanged)
         .expect("a new binding probe must start one load");
     match decision {
         LoadDecision::StartLoad(load_binding) => {
@@ -386,7 +404,9 @@ fn probe_for_same_unchanged_sha_with_cached_value_skips_loading() {
     let binding = binding_for("/work/a", 1);
 
     // First load completes and seeds the SHA map.
-    let _ = state.apply_probe(&binding, "v1", None).expect("first probe");
+    let _ = state
+        .apply_probe(&binding, "v1", None, RefreshMode::IfChanged)
+        .expect("first probe");
     state.apply_load_success(&LoadBinding {
         binding: binding.clone(),
         observed_sha: "v1".to_string(),
@@ -394,14 +414,14 @@ fn probe_for_same_unchanged_sha_with_cached_value_skips_loading() {
     });
 
     // Same-SHA revisit probe: the SHA map already carries v1, so no
-    // loader runs and the dirty target stays cleared.
-    let decision = state.apply_probe(&binding, "v1", Some("v1"));
+    // loader runs and no pending work is queued.
+    let decision = state.apply_probe(&binding, "v1", Some("v1"), RefreshMode::IfChanged);
     assert!(
         decision.is_none(),
         "unchanged revisit must not schedule another load"
     );
     assert!(!state.has_active_load);
-    assert!(state.dirty_target_sha.is_none());
+    assert!(state.pending_refresh.is_none());
 }
 
 #[test]
@@ -409,7 +429,9 @@ fn probe_for_changed_sha_with_cached_value_starts_one_load() {
     let mut state = CoordinatorState::unseeded();
     let binding = binding_for("/work/a", 1);
 
-    let _ = state.apply_probe(&binding, "v1", None).expect("first probe");
+    let _ = state
+        .apply_probe(&binding, "v1", None, RefreshMode::IfChanged)
+        .expect("first probe");
     state.apply_load_success(&LoadBinding {
         binding: binding.clone(),
         observed_sha: "v1".to_string(),
@@ -417,7 +439,7 @@ fn probe_for_changed_sha_with_cached_value_starts_one_load() {
     });
 
     let decision = state
-        .apply_probe(&binding, "v2", Some("v1"))
+        .apply_probe(&binding, "v2", Some("v1"), RefreshMode::IfChanged)
         .expect("changed SHA must start one load");
     match decision {
         LoadDecision::StartLoad(load_binding) => {
@@ -431,18 +453,20 @@ fn probe_for_changed_sha_with_cached_value_starts_one_load() {
 fn deactivate_clears_active_binding_and_load_state() {
     let mut state = CoordinatorState::unseeded();
     let binding = binding_for("/work/a", 1);
-    state.apply_probe(&binding, "v1", None).expect("probe");
-    state.apply_probe(&binding, "v2", None);
+    state
+        .apply_probe(&binding, "v1", None, RefreshMode::IfChanged)
+        .expect("probe");
+    state.apply_probe(&binding, "v2", None, RefreshMode::IfChanged);
     assert!(state.has_active_load);
     assert!(state.active_binding.is_some());
-    assert!(state.dirty_target_sha.is_some());
+    assert!(state.pending_refresh.is_some());
 
     state.deactivate();
 
     assert!(state.active_binding.is_none());
     assert!(!state.has_active_load);
     assert!(state.active_load_sha.is_none());
-    assert!(state.dirty_target_sha.is_none());
+    assert!(state.pending_refresh.is_none());
 }
 
 #[test]
@@ -451,23 +475,27 @@ fn rebind_to_new_binding_clears_load_state() {
     let a = binding_for("/work/a", 1);
     let b = binding_for("/work/b", 2);
 
-    state.apply_probe(&a, "v1", None).expect("a probe");
-    state.apply_probe(&a, "v2", None);
-    assert_eq!(state.dirty_target_sha.as_deref(), Some("v2"));
+    state
+        .apply_probe(&a, "v1", None, RefreshMode::IfChanged)
+        .expect("a probe");
+    state.apply_probe(&a, "v2", None, RefreshMode::IfChanged);
+    assert_eq!(state.pending_refresh, Some(RefreshMode::IfChanged));
 
     state.rebind_to(b.clone());
 
     assert_eq!(state.active_binding, Some(b));
     assert!(!state.has_active_load);
     assert!(state.active_load_sha.is_none());
-    assert!(state.dirty_target_sha.is_none());
+    assert!(state.pending_refresh.is_none());
 }
 
 #[test]
 fn rebind_to_same_binding_is_a_noop() {
     let mut state = CoordinatorState::unseeded();
     let binding = binding_for("/work/a", 1);
-    state.apply_probe(&binding, "v1", None).expect("probe");
+    state
+        .apply_probe(&binding, "v1", None, RefreshMode::IfChanged)
+        .expect("probe");
     let original_next_revision = state.next_revision;
     let original_active_load_sha = state.active_load_sha.clone();
 
@@ -480,23 +508,23 @@ fn rebind_to_same_binding_is_a_noop() {
 }
 
 #[test]
-fn scheduler_concurrent_probe_populates_dirty_target_during_in_flight_load() {
+fn scheduler_concurrent_probe_queues_pending_refresh_during_in_flight_load() {
     let mut state = CoordinatorState::unseeded();
     let binding = binding_for("/work/a", 1);
     assert_eq!(
         state
-            .apply_probe(&binding, &git_sha(1), None)
+            .apply_probe(&binding, &git_sha(1), None, RefreshMode::IfChanged)
             .map(|d| matches!(d, LoadDecision::StartLoad(_))),
         Some(true),
         "first probe must start a load"
     );
 
-    let decision = state.apply_probe(&binding, &git_sha(2), None);
+    let decision = state.apply_probe(&binding, &git_sha(2), None, RefreshMode::IfChanged);
     assert!(
         decision.is_none(),
         "concurrent probe must not start a parallel load"
     );
-    assert_eq!(state.dirty_target_sha.as_deref(), Some(git_sha(2).as_str()));
+    assert_eq!(state.pending_refresh, Some(RefreshMode::IfChanged));
     assert!(
         state.has_active_load,
         "the active load must still be tracked"
@@ -504,14 +532,16 @@ fn scheduler_concurrent_probe_populates_dirty_target_during_in_flight_load() {
 }
 
 #[test]
-fn scheduler_follow_up_load_targets_current_tip_not_dirty_sha() {
+fn scheduler_follow_up_load_targets_current_tip_not_a_retained_sha() {
     let mut state = CoordinatorState::unseeded();
     let binding = binding_for("/work/a", 1);
-    let _ = state.apply_probe(&binding, &git_sha(1), None);
+    let _ = state.apply_probe(&binding, &git_sha(1), None, RefreshMode::IfChanged);
     for sha in [git_sha(2), git_sha(3), git_sha(4)] {
-        assert!(state.apply_probe(&binding, &sha, None).is_none());
+        assert!(state
+            .apply_probe(&binding, &sha, None, RefreshMode::IfChanged)
+            .is_none());
     }
-    assert_eq!(state.dirty_target_sha.as_deref(), Some(git_sha(4).as_str()));
+    assert_eq!(state.pending_refresh, Some(RefreshMode::IfChanged));
 
     state.apply_load_success(&LoadBinding {
         binding: binding.clone(),
@@ -519,13 +549,18 @@ fn scheduler_follow_up_load_targets_current_tip_not_dirty_sha() {
         refresh_revision: 1,
     });
 
-    let dirty = state.take_dirty_target();
-    assert_eq!(dirty.as_deref(), Some(git_sha(4).as_str()));
+    let pending = state.take_pending_refresh();
+    assert_eq!(pending, Some(RefreshMode::IfChanged));
 
-    // The follow-up probe runs against the current ref tip, not the
-    // dirty SHA. With the last-published SHA in the map matching the
+    // The follow-up probe runs against the current ref tip, not any
+    // retained SHA. With the last-published SHA in the map matching the
     // observed SHA, no new load is scheduled.
-    let decision = state.apply_probe(&binding, &git_sha(1), Some(&git_sha(1)));
+    let decision = state.apply_probe(
+        &binding,
+        &git_sha(1),
+        Some(&git_sha(1)),
+        RefreshMode::IfChanged,
+    );
     assert!(
         decision.is_none(),
         "current tip matches published SHA; no follow-up"
@@ -533,27 +568,232 @@ fn scheduler_follow_up_load_targets_current_tip_not_dirty_sha() {
 }
 
 #[test]
-fn apply_load_failure_does_not_clear_dirty_target() {
+fn apply_load_failure_does_not_clear_pending_refresh() {
     // bsm-wj1.2 review invariant: apply_load_failure clears the
     // active-load flag and the active SHA so the next probe can
-    // retry, but it MUST leave the dirty target untouched so a
-    // burst of probes that fired during the failed load is not
-    // silently dropped.
+    // retry, but it MUST leave the pending refresh untouched so a
+    // burst of requests that fired during the failed load is not
+    // silently dropped. Only terminal completion consumes pending work.
     let mut state = CoordinatorState::unseeded();
     let binding = binding_for("/work/a", 1);
-    state.apply_probe(&binding, "v1", None).expect("probe");
-    state.apply_probe(&binding, "v2", None);
-    assert_eq!(state.dirty_target_sha.as_deref(), Some("v2"));
+    state
+        .apply_probe(&binding, "v1", None, RefreshMode::IfChanged)
+        .expect("probe");
+    state.apply_probe(&binding, "v2", None, RefreshMode::IfChanged);
+    assert_eq!(state.pending_refresh, Some(RefreshMode::IfChanged));
 
     state.apply_load_failure();
 
     assert!(!state.has_active_load);
     assert!(state.active_load_sha.is_none());
     assert_eq!(
-        state.dirty_target_sha.as_deref(),
-        Some("v2"),
-        "apply_load_failure must preserve the dirty target"
+        state.pending_refresh,
+        Some(RefreshMode::IfChanged),
+        "apply_load_failure must preserve the pending refresh"
     );
+}
+
+// =============================================================================
+// RefreshMode (Force / IfChanged) coordinator tests.
+// =============================================================================
+//
+// These tests pin the bsm-wj1.4 mode-aware admission rules: the 60-second
+// time trigger and the native focus-gain trigger both request `Force`
+// refreshes through the same single-flight coordinator the ref probe
+// uses, and pending work records intent (a mode) rather than a target
+// SHA. `Force` dominates `IfChanged` when both arrive while a load is
+// active.
+
+#[test]
+fn force_starts_a_load_when_the_published_sha_is_unchanged() {
+    let mut state = CoordinatorState::unseeded();
+    let binding = binding_for("/work/a", 1);
+    state
+        .apply_probe(&binding, "abc123", None, RefreshMode::IfChanged)
+        .expect("first probe starts load");
+    state.apply_load_success(&LoadBinding {
+        binding: binding.clone(),
+        observed_sha: "abc123".to_string(),
+        refresh_revision: 1,
+    });
+
+    let decision = state
+        .apply_probe(&binding, "abc123", Some("abc123"), RefreshMode::Force)
+        .expect("Force must start a load even when the SHA is unchanged");
+    match decision {
+        LoadDecision::StartLoad(load) => {
+            assert_eq!(load.observed_sha, "abc123");
+            assert_eq!(load.refresh_revision, 2);
+        }
+    }
+    assert!(state.has_active_load);
+}
+
+#[test]
+fn forced_request_during_active_same_sha_load_queues_one_forced_follow_up() {
+    let mut state = CoordinatorState::unseeded();
+    let binding = binding_for("/work/a", 1);
+    state
+        .apply_probe(&binding, "abc", None, RefreshMode::IfChanged)
+        .expect("first probe starts load");
+
+    // The observed SHA matches the active load's SHA, so an `IfChanged`
+    // request would be a no-op; `Force` must still queue one follow-up.
+    let decision = state.apply_probe(&binding, "abc", None, RefreshMode::Force);
+    assert!(decision.is_none(), "no parallel load while one is active");
+    assert_eq!(state.pending_refresh, Some(RefreshMode::Force));
+
+    state.apply_load_success(&LoadBinding {
+        binding: binding.clone(),
+        observed_sha: "abc".to_string(),
+        refresh_revision: 1,
+    });
+    assert_eq!(state.take_pending_refresh(), Some(RefreshMode::Force));
+    assert!(state.pending_refresh.is_none());
+}
+
+#[test]
+fn changed_sha_request_then_force_upgrades_pending_to_force() {
+    let mut state = CoordinatorState::unseeded();
+    let binding = binding_for("/work/a", 1);
+    state
+        .apply_probe(&binding, "v1", None, RefreshMode::IfChanged)
+        .expect("first probe starts load");
+
+    state.apply_probe(&binding, "v2", None, RefreshMode::IfChanged);
+    assert_eq!(state.pending_refresh, Some(RefreshMode::IfChanged));
+
+    // A timer/focus request arriving behind a queued ref-change
+    // follow-up upgrades the pending work so the follow-up reloads even
+    // if the ref settles back to the published SHA.
+    state.apply_probe(&binding, "v2", None, RefreshMode::Force);
+    assert_eq!(state.pending_refresh, Some(RefreshMode::Force));
+}
+
+#[test]
+fn force_then_if_changed_does_not_downgrade_pending() {
+    let mut state = CoordinatorState::unseeded();
+    let binding = binding_for("/work/a", 1);
+    state
+        .apply_probe(&binding, "v1", None, RefreshMode::IfChanged)
+        .expect("first probe starts load");
+
+    state.apply_probe(&binding, "v1", None, RefreshMode::Force);
+    assert_eq!(state.pending_refresh, Some(RefreshMode::Force));
+
+    state.apply_probe(&binding, "v2", None, RefreshMode::IfChanged);
+    assert_eq!(state.pending_refresh, Some(RefreshMode::Force));
+}
+
+#[test]
+fn repeated_force_requests_remain_one_pending_mode() {
+    let mut state = CoordinatorState::unseeded();
+    let binding = binding_for("/work/a", 1);
+    state
+        .apply_probe(&binding, "v1", None, RefreshMode::IfChanged)
+        .expect("first probe starts load");
+
+    for _ in 0..3 {
+        let decision = state.apply_probe(&binding, "v1", None, RefreshMode::Force);
+        assert!(decision.is_none(), "no parallel load while one is active");
+    }
+    assert_eq!(state.pending_refresh, Some(RefreshMode::Force));
+
+    state.apply_load_success(&LoadBinding {
+        binding: binding.clone(),
+        observed_sha: "v1".to_string(),
+        refresh_revision: 1,
+    });
+    // Exactly one pending mode survives; completion consumes it once.
+    assert_eq!(state.take_pending_refresh(), Some(RefreshMode::Force));
+    assert!(state.take_pending_refresh().is_none());
+}
+
+#[test]
+fn forced_load_retains_binding_generation_and_monotonic_revision() {
+    let mut state = CoordinatorState::unseeded();
+    let binding = binding_for("/work/a", 7);
+    state
+        .apply_probe(&binding, "v1", None, RefreshMode::IfChanged)
+        .expect("first probe starts load");
+    state.apply_load_success(&LoadBinding {
+        binding: binding.clone(),
+        observed_sha: "v1".to_string(),
+        refresh_revision: 1,
+    });
+
+    let decision = state
+        .apply_probe(&binding, "v1", Some("v1"), RefreshMode::Force)
+        .expect("forced refresh starts a load");
+    match decision {
+        LoadDecision::StartLoad(load) => {
+            // The forced load carries the active binding's path and
+            // workspace-selection generation, and the coordinator's
+            // monotonic refresh revision keeps advancing.
+            assert_eq!(load.binding, binding);
+            assert_eq!(load.observed_sha, "v1");
+            assert_eq!(load.refresh_revision, 2);
+        }
+    }
+    assert_eq!(state.next_revision, 3);
+}
+
+#[test]
+fn successful_forced_probe_participates_in_probe_health_recovery() {
+    // The shared refresh-request handler applies
+    // `RefreshHealthState::apply_probe_success` on every successful
+    // probe — including a forced probe whose unchanged SHA schedules no
+    // load — so a recovered probe banner/counter does not stay dirty
+    // until the next 2-second tick. This pins the reducer contract the
+    // forced path relies on: after a visible transient probe episode, a
+    // successful probe reports Recovered and clears the slot.
+    let mut health_state = RefreshHealthState::new();
+    health_state.rebind_to_active(PathBuf::from("/work/a"), 1);
+    let mut next_revision: u64 = 1;
+    for _ in 0..TRANSIENT_FAILURE_THRESHOLD {
+        let _ = health_state.apply_transient_probe_failure("strike".into(), &mut next_revision);
+    }
+    assert!(health_state.health().ref_probe.is_some());
+
+    let outcome = health_state.apply_probe_success(&mut next_revision);
+    assert!(
+        matches!(outcome, HealthApplyOutcome::Recovered { .. }),
+        "a successful (forced) probe must recover probe health"
+    );
+    assert!(health_state.health().ref_probe.is_none());
+    assert!(health_state.needs_publish());
+}
+
+// =============================================================================
+// Time-trigger cadence seam test.
+// =============================================================================
+
+#[tokio::test(start_paused = true)]
+async fn time_refresh_ticker_delays_first_tick_and_skips_missed_ticks() {
+    let period = Duration::from_secs(60);
+    let mut ticker = time_refresh_ticker(period);
+
+    // No tick before the full configured period has elapsed: the initial
+    // snapshot already supplies the current state, so the time trigger
+    // must not fire early.
+    tokio::time::advance(period - Duration::from_secs(1)).await;
+    tokio::select! {
+        _ = ticker.tick() => panic!("time ticker must not tick before the full period"),
+        _ = tokio::task::yield_now() => {}
+    }
+
+    // The first tick fires at the full period.
+    tokio::time::advance(Duration::from_secs(1)).await;
+    ticker.tick().await;
+
+    // Missed ticks are skipped: advancing several periods at once yields
+    // exactly one immediately-available tick, never a catch-up burst.
+    tokio::time::advance(period * 3).await;
+    ticker.tick().await;
+    tokio::select! {
+        _ = ticker.tick() => panic!("MissedTickBehavior::Skip must not produce a catch-up burst"),
+        _ = tokio::task::yield_now() => {}
+    }
 }
 
 #[test]

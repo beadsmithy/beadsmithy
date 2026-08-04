@@ -11,6 +11,7 @@ pub mod rpc;
 pub mod settings;
 pub mod workspace;
 
+use tauri::Manager as _;
 use tauri_plugin_log::{Target, TargetKind};
 
 // Dev bridge for the `tauri-agent-tools` CLI (DOM/eval/screenshot inspection for
@@ -73,12 +74,30 @@ pub async fn run() {
 
     builder
         .invoke_handler(rpc::router::<tauri::Wry>(workspace_api).into_handler())
-        .setup(move |_app| {
-            workspace_setup_api.initialize_workspace(_app.handle().clone());
-            workspace_setup_api.initialize_settings(_app.handle().clone());
+        .setup(move |app| {
+            workspace_setup_api.initialize_workspace(app.handle().clone());
+            workspace_setup_api.initialize_settings(app.handle().clone());
             workspace_setup_api.start_refresh();
+            // Forward native focus-gain events to the refresh
+            // coordinator so returning to the window refreshes the
+            // Current Workspace immediately (ADR-0007 decision 3).
+            // Focus loss and every other window event do nothing; every
+            // observed focus gain refreshes, with no first-focus
+            // suppression — attaching after setup may miss a startup
+            // focus event, which is harmless because startup already
+            // loads/restores the snapshot, and suppressing could
+            // discard the user's first genuine return on platforms
+            // that emit no startup event.
+            if let Some(window) = app.get_webview_window("main") {
+                let api = workspace_setup_api.clone();
+                window.on_window_event(move |event| {
+                    if matches!(event, tauri::WindowEvent::Focused(true)) {
+                        api.request_forced_refresh();
+                    }
+                });
+            }
             #[cfg(debug_assertions)]
-            start_dev_bridge(_app.handle());
+            start_dev_bridge(app.handle());
             Ok(())
         })
         .run(tauri::generate_context!())

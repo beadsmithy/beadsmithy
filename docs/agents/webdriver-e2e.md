@@ -34,6 +34,11 @@ pnpm e2e:issue-list:atomic-switch
 pnpm e2e:issue-list:child-issues
 pnpm e2e:issue-list:restoration
 
+# Focused refresh-trigger proofs (bsm-wj1.4), deliberately outside the
+# default fast matrix above:
+pnpm e2e:issue-list:time-refresh
+pnpm e2e:issue-list:focus-refresh
+
 # Build + run the issue-list slice in one step (success, empty, atomic-switch, and restoration):
 pnpm test:e2e:issue-list
 
@@ -222,6 +227,34 @@ catalog changed.
   scenario harness inspects the scenario-owned store between phases as
   verification that the desktop binary is the only writer, not as a
   fixture seed.
+- `time-refresh` (`e2e/issue-list/issue-list.time-refresh.spec.ts`):
+  the time-trigger refresh proof (bsm-wj1.4). One dedicated workspace
+  with a single stable baseline Ready Issue. The debug-only
+  `BEADSMITH_REFRESH_TIME_INTERVAL_MS=3000` override shortens the
+  60-second time trigger (release builds ignore the variable). The spec
+  selects the workspace, then creates a dedicated Issue and defers it to
+  a near-future RFC3339 boundary through real `bw create` + `bw defer`
+  calls. The causal oracle: after the normal 2-second ref poll publishes
+  the post-mutation snapshot (Issue deferred, not Ready), the spec runs
+  no further `bw` commands, so `refs/heads/beadwork` cannot move and the
+  ref probe keeps observing the unchanged SHA -- only the forced time
+  trigger can run the loader that moves the Issue into Ready once the
+  boundary passes. The stable baseline Issue must stay visible and no
+  refresh-failure banner may appear.
+- `focus-refresh` (`e2e/issue-list/issue-list.focus-refresh.spec.ts`):
+  the focus-trigger refresh proof (bsm-wj1.4). Same fixture and flow,
+  but with `BEADSMITH_REFRESH_TIME_INTERVAL_MS=3600000` so the minute
+  timer can never satisfy the assertion: with an unchanged ref, a native
+  focus gain is the only possible refresh cause. The spec drives real OS
+  focus through AppleScript (macOS only; the spec skips on other hosts):
+  it activates Finder to blur the Beadsmith window
+  (`WindowEvent::Focused(false)`), waits for the defer boundary to pass,
+  confirms Ready has NOT converged while blurred, then re-activates the
+  `beadsmith` process through System Events
+  (`WindowEvent::Focused(true)`) and condition-waits for the Issue to
+  enter Ready. Focus loss and the boundary passage alone must not
+  refresh; only the focus gain may. Requires macOS Automation permission
+  for the terminal running the suite (System Events / Finder control).
 
 ## How it works
 
@@ -244,7 +277,12 @@ catalog changed.
   whose `parent` is set through `bw create --parent`, and a lonely root
   Issue with a unique description token; every timestamp is fixed
   through `BW_CLOCK` so the expected child order is declared, not
-  inferred. Nothing is committed to this repo and no machine-specific
+  inferred. The `time-refresh` and `focus-refresh` scenarios share the
+  `createTimeRefreshWorkspace()` fixture (one stable baseline Ready
+  Issue) plus the post-launch `createPostLaunchDeferredIssue()` helper
+  that defers a dedicated Issue to a caller-chosen near-future RFC3339
+  boundary after the binary has started. Nothing is committed to this
+  repo and no machine-specific
   path is baked in -- everything is created fresh per run and removed
   afterward.
 - **Scenario harness** (`e2e/issue-list/scripts/run-scenario.ts`): owns

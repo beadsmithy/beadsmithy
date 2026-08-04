@@ -19,6 +19,8 @@
     "e2e:issue-list:atomic-switch": "tsx e2e/issue-list/scripts/run-scenario.ts atomic-switch",
     "e2e:issue-list:child-issues": "tsx e2e/issue-list/scripts/run-scenario.ts child-issues",
     "e2e:issue-list:restoration": "tsx e2e/issue-list/scripts/run-scenario.ts restoration",
+    "e2e:issue-list:time-refresh": "tsx e2e/issue-list/scripts/run-scenario.ts time-refresh",
+    "e2e:issue-list:focus-refresh": "tsx e2e/issue-list/scripts/run-scenario.ts focus-refresh",
     "e2e:issue-list:complete": "pnpm e2e:issue-list:success && pnpm e2e:issue-list:empty && pnpm e2e:issue-list:atomic-switch && pnpm e2e:issue-list:child-issues && pnpm e2e:issue-list:restoration",
     "e2e:issue-list:order-changed": "pnpm e2e:issue-list:restoration && pnpm e2e:issue-list:child-issues && pnpm e2e:issue-list:atomic-switch && pnpm e2e:issue-list:empty && pnpm e2e:issue-list:success",
     "e2e:issue-list:isolation": "pnpm e2e:issue-list:complete && pnpm e2e:issue-list:order-changed && pnpm e2e:issue-list:complete",
