@@ -20,11 +20,15 @@
     {
       "text": "Implementation complete on branch bsm-wj1.4/refresh-time-and-focus: RefreshMode/pending-refresh coordinator, unified handle_refresh_request, 60s ticker + focus-driven forced Notify, native Focused(true) callback. 178 rust tests + 345 vitest pass; desktop time-refresh and focus-refresh scenarios both pass (focus via AppleScript OS activation, macOS). Deviations from plan: (1) tokio test-util added as dev-dependency feature for the paused-clock cadence test (plan listed Cargo.toml as unchanged — dev-only addition); (2) fixed pre-existing main breakage blocking pnpm build (tsc errors in App.issue-refresh.test.tsx fixtures, App.strict-mode-lifecycle.test.tsx) and pre-existing ultracite unused-var in run-scenario.ts (scaffold renamed with underscore).",
       "timestamp": "2026-08-04T10:01:22Z"
+    },
+    {
+      "text": "# Revised acceptance criteria (implemented)\n\nPer the revised implementation plan, the issue description's first-focus-suppression criterion is superseded. The implemented behavior:\n\n- A deferred Issue appears in Ready within 60 seconds of its boundary without a Beadwork ref move (desktop-proven with a 3s debug cadence).\n- Every observed native `WindowEvent::Focused(true)` requests an immediate refresh for a usable Current Workspace; there is NO first-focus suppression (missed-startup-event rationale in ADR-0007 decision 3, revised by this change).\n- Focus loss and non-focus window events do nothing.\n- Timer, focus, and ref requests merge into one pending mode per binding (Force dominates); no concurrent loaders.\n- Successful timer/focus refreshes are silent and replace the snapshot in place.\n- Failures reuse the existing classifier/counters/banners/snapshot preservation/stale-binding admission.\n- No timer or focus request probes or loads without a live non-Pending Current Workspace.\n- `bw ready` remains authoritative; Beadsmith never calculates Ready membership locally.",
+      "timestamp": "2026-08-04T10:27:20Z"
     }
   ],
   "priority": 2,
   "status": "in_progress",
   "title": "Refresh Ready on time and app focus",
   "type": "task",
-  "updated_at": "2026-08-04T10:01:22Z"
+  "updated_at": "2026-08-04T10:27:20Z"
 }
