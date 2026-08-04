@@ -1,0 +1,31 @@
+src-tauri/src/refresh.rs
+  s_193d760784bcb9::t_7c429e66cc13a4 663-669
+e2e/issue-list/issue-list.time-refresh.spec.ts
+  s_193d760784bcb9::t_77d33320bfe9fa 17-21,28,32,38,40
+e2e/issue-list/issue-list.focus-refresh.spec.ts
+  s_193d760784bcb9::t_4249cc8248dd63 45-46
+  s_193d760784bcb9::t_22900758f14d82 39-42
+  s_193d760784bcb9::t_2c508c58ae0a75 44,47-48,58-59,68,73-75,80,82,84,86-91,98-100,105,107,115,117,125-137
+  s_193d760784bcb9::t_df5e8701b9ce5e 51-57,60-67,108-114,118-124
+  s_193d760784bcb9::t_c07058e78d5fd1 79,81,83,85,104,106,116
+  s_193d760784bcb9::t_736ebc2570a728 27-32,151,155,167,175
+e2e/issue-list/helpers/refresh-trigger.ts
+  s_193d760784bcb9::t_f61afc74db5040 1-148
+  s_193d760784bcb9::t_7048ef9718f85b 149-150
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.20",
+  "base_commit_sha": "8fe3b2ab31df9c0c3d8bf559e92cc91da62e6401",
+  "prompts": {},
+  "sessions": {
+    "s_193d760784bcb9": {
+      "agent_id": {
+        "tool": "pi",
+        "id": "019fcbfe-4e64-7f1d-9b09-7e594ed9b784",
+        "model": "k3-256k"
+      },
+      "human_author": "Tomas Thor Jonsson <benregn@gmail.com>"
+    }
+  }
+}
