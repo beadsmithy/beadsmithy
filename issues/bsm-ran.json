@@ -2,13 +2,14 @@
   "assignee": "Tomas Thor Jonsson",
   "blocked_by": [],
   "blocks": [],
+  "closed_at": "2026-08-22T07:02:17Z",
   "created": "2026-07-28T07:09:46Z",
   "description": "Update the issue detail view's child issue list to use the same status icons and status-to-icon logic as the main issues list. Remove the current child issue status labels while preserving status meaning and accessibility.",
   "id": "bsm-ran",
   "labels": [],
   "priority": 2,
-  "status": "in_progress",
+  "status": "closed",
   "title": "Use status icons for child issues in issue detail",
   "type": "task",
-  "updated_at": "2026-07-28T07:09:51Z"
+  "updated_at": "2026-08-22T07:02:17Z"
 }
