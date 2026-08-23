@@ -688,6 +688,8 @@ export const IssueExplorer = ({
   activeIssueListViewId,
   issueState,
   route,
+  titleOverride,
+  focusRouteChanges,
   markdownFontSizePx,
   onIssueSearchChange,
   onIssueSelect,
@@ -697,6 +699,8 @@ export const IssueExplorer = ({
   activeIssueListViewId?: IssueListViewId;
   issueState: IssueExplorerLoadState;
   route?: IssueExplorerRouteState;
+  titleOverride?: string | null;
+  focusRouteChanges?: boolean;
   markdownFontSizePx?: number;
   onIssueListViewChange?: (viewId: IssueListViewId) => void;
   onIssueSearchChange?: (search: string) => void;
@@ -719,6 +723,7 @@ export const IssueExplorer = ({
     ? activeRoute.issueId
     : localSelectedIssueId;
   const childIssueSelectionRef = useRef(false);
+  const routeFocusInitializedRef = useRef(false);
   const detailHeadingRef = useRef<HTMLHeadingElement>(null);
 
   useExternalLifecycle(() => {
@@ -731,6 +736,26 @@ export const IssueExplorer = ({
   }, [selectedIssueId]);
 
   useExternalLifecycle(() => {
+    if (focusRouteChanges && !routeFocusInitializedRef.current) {
+      routeFocusInitializedRef.current = true;
+      return;
+    }
+    if (focusRouteChanges) {
+      detailHeadingRef.current?.focus({ preventScroll: true });
+    }
+  }, [
+    activeRoute.issueId,
+    activeRoute.search,
+    activeRoute.viewId,
+    focusRouteChanges,
+  ]);
+
+  useExternalLifecycle(() => {
+    if (titleOverride !== undefined && titleOverride !== null) {
+      document.title = titleOverride;
+      return;
+    }
+
     const selectedIssue =
       issueState.status === "success" && selectedIssueId !== null
         ? issueState.allIssues.find((issue) => issue.id === selectedIssueId)
@@ -742,7 +767,7 @@ export const IssueExplorer = ({
       title = `${selectedIssue.id} — ${selectedIssue.title} · Beadsmithy`;
     }
     document.title = title;
-  }, [activeRoute.issueId, issueState, selectedIssueId]);
+  }, [activeRoute.issueId, issueState, selectedIssueId, titleOverride]);
 
   const derivedState = useMemo(
     () =>
@@ -858,7 +883,7 @@ export const IssueExplorer = ({
             activeViewLabel={activeViewLabel}
             emptyReason={emptyReason}
             issueMap={issueMap}
-            onSelect={isRouteControlled ? undefined : handleSelect}
+            onSelect={handleSelect}
             rawSearchQuery={searchQuery}
             route={activeRoute}
             selectedIssueId={selectedIssueId}

@@ -1,12 +1,24 @@
 import { getCurrentWindow } from "@tauri-apps/api/window";
-import { PanelLeft } from "lucide-react";
+import { ChevronLeft, ChevronRight, PanelLeft } from "lucide-react";
 
 interface TitlebarProps {
+  backDisabled?: boolean;
+  backLabel?: string | null;
+  forwardDisabled?: boolean;
+  forwardLabel?: string | null;
+  onBack?: () => void;
+  onForward?: () => void;
   onToggleSidebar: () => void;
   sidebarCollapsed: boolean;
 }
 
 export const Titlebar = ({
+  backDisabled = true,
+  backLabel = null,
+  forwardDisabled = true,
+  forwardLabel = null,
+  onBack,
+  onForward,
   onToggleSidebar,
   sidebarCollapsed,
 }: TitlebarProps) => (
@@ -30,6 +42,29 @@ export const Titlebar = ({
         onClick={() => void getCurrentWindow().toggleMaximize()}
         type="button"
       />
+    </div>
+
+    <div className="ml-3 flex items-center gap-1" data-issue-navigation>
+      <button
+        aria-label="Back"
+        className="flex size-7 items-center justify-center rounded text-muted transition-colors hover:bg-white/5 hover:text-text-main disabled:cursor-not-allowed disabled:opacity-40"
+        disabled={backDisabled}
+        onClick={onBack}
+        title={backLabel === null ? "Back" : `Back to ${backLabel}`}
+        type="button"
+      >
+        <ChevronLeft aria-hidden="true" className="size-4" />
+      </button>
+      <button
+        aria-label="Forward"
+        className="flex size-7 items-center justify-center rounded text-muted transition-colors hover:bg-white/5 hover:text-text-main disabled:cursor-not-allowed disabled:opacity-40"
+        disabled={forwardDisabled}
+        onClick={onForward}
+        title={forwardLabel === null ? "Forward" : `Forward to ${forwardLabel}`}
+        type="button"
+      >
+        <ChevronRight aria-hidden="true" className="size-4" />
+      </button>
     </div>
 
     <button

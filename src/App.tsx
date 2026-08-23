@@ -19,6 +19,15 @@ import {
   selectIssueForView,
   serializeIssueExplorerRoute,
 } from "./issues/issue-navigation";
+import {
+  createIssueNavigationEntry,
+  createIssueNavigationLedger,
+  issueNavigationDestinationLabel,
+  readIssueNavigationEntry,
+  recordIssueNavigationEntry,
+  truncateForwardIssueNavigationEntries,
+  writeIssueNavigationState,
+} from "./issues/issue-navigation-coordinator";
 import { IssueExplorer } from "./issues/IssueExplorer";
 import { useExternalLifecycle } from "./lib/use-external-lifecycle";
 import { isIssueExplorerRefreshEvent } from "./refresh-health";
@@ -201,8 +210,17 @@ export default function App() {
   const fullLocation =
     locationSearch.length > 0 ? `${location}?${locationSearch}` : location;
   const issueRoute = parseIssueExplorerRoute(fullLocation);
-  const [appDestination, setAppDestination] =
-    useState<AppDestination>("issueExplorer");
+  const isSettingsRoute = location === "/settings";
+  const underlyingIssueRouteRef = useRef(issueRoute);
+  if (!isSettingsRoute) {
+    underlyingIssueRouteRef.current = issueRoute;
+  }
+  const explorerRoute = isSettingsRoute
+    ? underlyingIssueRouteRef.current
+    : issueRoute;
+  const appDestination: AppDestination = isSettingsRoute
+    ? "settings"
+    : "issueExplorer";
   const settings = useAppSettings();
   const [sidebarCollapsed, setSidebarCollapsed] = useState<boolean>(false);
   const [workspaceState, setWorkspaceState] = useState<WorkspaceState | null>(
@@ -218,6 +236,11 @@ export default function App() {
   const transitionGateRef = useRef<WorkspaceTransitionGateState>(
     INITIAL_WORKSPACE_TRANSITION_GATE_STATE
   );
+  const navigationLedgerRef = useRef(createIssueNavigationLedger());
+  const currentNavigationEntry = readIssueNavigationEntry(window.history.state);
+  const currentNavigationIndex = currentNavigationEntry?.index ?? 0;
+  const currentWorkspacePath =
+    issueState.status === "success" ? issueState.workspacePath : null;
   /**
    * Per-variant deferred buffer for `beadwork://issue-explorer-state-changed`
    * events whose selection generation is newer than the gate's confirmed
@@ -243,52 +266,150 @@ export default function App() {
   const [dismissedSwitchErrorGeneration, setDismissedSwitchErrorGeneration] =
     useState<number | null>(null);
 
-  useExternalLifecycle(() => {
-    const isIssueRoute = location === "/" || location.startsWith("/issues");
-    if (!isIssueRoute) {
-      return;
-    }
+  const navigateIssueRoute = useCallback(
+    (
+      route: typeof issueRoute,
+      replace: boolean,
+      workspacePath = currentWorkspacePath
+    ): void => {
+      const current = readIssueNavigationEntry(window.history.state);
+      const index = replace
+        ? (current?.index ?? 0)
+        : (current?.index ?? -1) + 1;
+      const entry = createIssueNavigationEntry(route, workspacePath, index);
+      if (!replace) {
+        truncateForwardIssueNavigationEntries(
+          navigationLedgerRef.current,
+          index - 1
+        );
+      }
+      recordIssueNavigationEntry(navigationLedgerRef.current, entry);
+      navigate(serializeIssueExplorerRoute(route), {
+        replace,
+        state: writeIssueNavigationState(window.history.state, entry),
+      });
+    },
+    [currentWorkspacePath, navigate]
+  );
 
-    const canonicalLocation = serializeIssueExplorerRoute(issueRoute);
-    if (fullLocation !== canonicalLocation) {
-      navigate(canonicalLocation, { replace: true });
+  useExternalLifecycle(() => {
+    const entry =
+      currentNavigationEntry ??
+      createIssueNavigationEntry(issueRoute, currentWorkspacePath, 0);
+    recordIssueNavigationEntry(navigationLedgerRef.current, entry);
+    if (currentNavigationEntry === null) {
+      window.history.replaceState(
+        writeIssueNavigationState(window.history.state, entry),
+        "",
+        serializeIssueExplorerRoute(issueRoute)
+      );
     }
-  }, [fullLocation, issueRoute, location, locationSearch, navigate]);
+  }, [currentNavigationEntry, currentWorkspacePath, issueRoute]);
+
+  useExternalLifecycle(() => {
+    const confirmedWorkspacePath =
+      transitionGateRef.current.confirmedWorkspacePath;
+    const currentHistoryEntry = readIssueNavigationEntry(window.history.state);
+    if (
+      issueState.status === "success" &&
+      confirmedWorkspacePath === issueState.workspacePath &&
+      currentHistoryEntry?.workspacePath !== issueState.workspacePath
+    ) {
+      navigateIssueRoute(
+        {
+          issueId: null,
+          search: "",
+          viewId: "all",
+        },
+        true,
+        issueState.workspacePath
+      );
+    }
+  }, [currentNavigationEntry, issueState, navigateIssueRoute]);
 
   const handleIssueListViewSelect = useCallback(
     (viewId: IssueListViewId) => {
       const selectedIssueId = selectIssueForView(
         issueState,
         viewId,
-        issueRoute.issueId
+        explorerRoute.issueId
       );
-      navigate(
-        serializeIssueExplorerRoute({
-          ...issueRoute,
-          issueId: selectedIssueId,
-          viewId,
-        })
-      );
-      setAppDestination("issueExplorer");
+      const nextRoute = {
+        ...explorerRoute,
+        issueId: selectedIssueId,
+        viewId,
+      };
+      if (
+        nextRoute.viewId === explorerRoute.viewId &&
+        nextRoute.issueId === explorerRoute.issueId
+      ) {
+        if (isSettingsRoute) {
+          navigateIssueRoute(explorerRoute, true);
+        }
+        return;
+      }
+      navigateIssueRoute(nextRoute, false);
     },
-    [issueRoute, issueState, navigate]
+    [explorerRoute, isSettingsRoute, issueState, navigateIssueRoute]
   );
 
   const handleIssueSelect = useCallback(
     (issueId: string) => {
-      navigate(serializeIssueExplorerRoute({ ...issueRoute, issueId }));
+      if (explorerRoute.issueId === issueId) {
+        return;
+      }
+      navigateIssueRoute({ ...explorerRoute, issueId }, false);
     },
-    [issueRoute, navigate]
+    [explorerRoute, navigateIssueRoute]
   );
 
   const handleIssueSearchChange = useCallback(
     (search: string) => {
-      navigate(serializeIssueExplorerRoute({ ...issueRoute, search }), {
-        replace: true,
-      });
+      navigateIssueRoute({ ...explorerRoute, search }, true);
     },
-    [issueRoute, navigate]
+    [explorerRoute, navigateIssueRoute]
   );
+
+  const previousNavigationEntry =
+    navigationLedgerRef.current.entries.get(currentNavigationIndex - 1) ?? null;
+  const nextNavigationEntry =
+    navigationLedgerRef.current.entries.get(currentNavigationIndex + 1) ?? null;
+
+  useExternalLifecycle(() => {
+    const handleKeyDown = (event: KeyboardEvent): void => {
+      const target = event.target;
+      const isEditableTarget =
+        target instanceof HTMLElement &&
+        (target.isContentEditable ||
+          target.tagName === "INPUT" ||
+          target.tagName === "TEXTAREA" ||
+          target.tagName === "SELECT");
+      if (isEditableTarget) {
+        return;
+      }
+
+      const isMac = navigator.platform.toLowerCase().includes("mac");
+      const usesBackShortcut = isMac
+        ? event.metaKey && event.key === "["
+        : event.altKey && event.key === "ArrowLeft";
+      const usesForwardShortcut = isMac
+        ? event.metaKey && event.key === "]"
+        : event.altKey && event.key === "ArrowRight";
+      if (!usesBackShortcut && !usesForwardShortcut) {
+        return;
+      }
+
+      event.preventDefault();
+      if (usesBackShortcut && previousNavigationEntry !== null) {
+        window.history.back();
+      } else if (usesForwardShortcut && nextNavigationEntry !== null) {
+        window.history.forward();
+      }
+    };
+
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [nextNavigationEntry, previousNavigationEntry]);
 
   const applyDeferredRefresh = useCallback((): boolean => {
     // Replay the deferred Snapshot first so the gate's confirmed
@@ -450,6 +571,14 @@ export default function App() {
       void (async () => {
         try {
           const initial = await loadIssueExplorerStateFromTauRpc();
+          if (
+            initial.status === "success" &&
+            transitionGateRef.current.confirmedWorkspacePath !== null &&
+            initial.workspacePath !==
+              transitionGateRef.current.confirmedWorkspacePath
+          ) {
+            return;
+          }
           const { decision, next } = applyStartupIssueLoad(
             transitionGateRef.current,
             initial,
@@ -613,12 +742,24 @@ export default function App() {
   return (
     <div className="flex h-screen w-screen flex-col overflow-hidden bg-background font-primary text-text-main antialiased">
       <Titlebar
+        backDisabled={previousNavigationEntry === null}
+        backLabel={issueNavigationDestinationLabel(previousNavigationEntry)}
+        forwardDisabled={nextNavigationEntry === null}
+        forwardLabel={issueNavigationDestinationLabel(nextNavigationEntry)}
+        onBack={() => {
+          if (isSettingsRoute && currentNavigationIndex === 0) {
+            navigateIssueRoute(explorerRoute, true);
+            return;
+          }
+          window.history.back();
+        }}
+        onForward={() => window.history.forward()}
         onToggleSidebar={() => setSidebarCollapsed((collapsed) => !collapsed)}
         sidebarCollapsed={sidebarCollapsed}
       />
       <div className="flex flex-1 overflow-hidden">
         <Sidebar
-          activeIssueListViewId={issueRoute.viewId}
+          activeIssueListViewId={explorerRoute.viewId}
           appDestination={appDestination}
           collapsed={sidebarCollapsed}
           disabled={sidebarDisabled}
@@ -626,7 +767,13 @@ export default function App() {
           issueState={presentedIssueState}
           onCollapseToggle={setSidebarCollapsed}
           onIssueListViewSelect={handleIssueListViewSelect}
-          onSettingsClick={() => setAppDestination("settings")}
+          onSettingsClick={() => {
+            underlyingIssueRouteRef.current = explorerRoute;
+            navigate("/settings", {
+              replace: true,
+              state: window.history.state,
+            });
+          }}
           workspaceHandlers={workspaceHandlers}
           workspaceState={workspaceState}
         />
@@ -665,13 +812,15 @@ export default function App() {
               </main>
             ) : (
               <IssueExplorer
-                activeIssueListViewId={issueRoute.viewId}
+                activeIssueListViewId={explorerRoute.viewId}
                 issueState={presentedIssueState}
                 markdownFontSizePx={settings.state.appliedFontSizePx}
                 onIssueSearchChange={handleIssueSearchChange}
                 onIssueSelect={handleIssueSelect}
-                route={issueRoute}
+                route={explorerRoute}
                 refreshHealth={refreshHealth}
+                titleOverride={isSettingsRoute ? "Settings · Beadsmithy" : null}
+                focusRouteChanges={!isSettingsRoute}
               />
             )}
           </div>
