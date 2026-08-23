@@ -1,0 +1,26 @@
+wdio.issue-list.conf.ts
+  s_2098807ccbaae2::t_146a48aacced63 31-33,51,56-60,124
+  s_2098807ccbaae2::t_432ce8546c98c7 30
+docs/agents/webdriver-e2e.md
+  s_2098807ccbaae2::t_3decfdd3e5c201 224-229
+e2e/issue-list/issue-list.restoration.spec.ts
+  s_2098807ccbaae2::t_585b7383736017 149-152
+  s_2098807ccbaae2::t_072b26a271c318 29,140-148,153-158
+  s_2098807ccbaae2::t_2946ba43918f47 159-160
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.23",
+  "base_commit_sha": "bc389a2360bf1c89c9d7063927b01ac7caae74ed",
+  "prompts": {},
+  "sessions": {
+    "s_2098807ccbaae2": {
+      "agent_id": {
+        "tool": "pi",
+        "id": "01a02dea-aa9c-78b1-a3b3-b3ed3a135ca6",
+        "model": "gpt-5.6-luna"
+      },
+      "human_author": "Tomas Thor Jonsson <benregn@gmail.com>"
+    }
+  }
+}
