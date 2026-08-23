@@ -1,4 +1,4 @@
-import { render, screen, within } from "@testing-library/react";
+import { fireEvent, render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
 
@@ -720,6 +720,49 @@ describe("IssueExplorer", () => {
       "Other metadata",
       "Comments",
     ]);
+  });
+
+  it("preserves modifier-click semantics for Issue links", () => {
+    const onIssueSelect = vi.fn();
+    const issue = buildIssue({ id: "bsm-modifier", title: "Modifier target" });
+
+    render(
+      <IssueExplorer
+        issueState={successState([issue])}
+        onIssueSelect={onIssueSelect}
+        route={{ issueId: null, search: "", viewId: "all" }}
+      />
+    );
+
+    const link = screen.getByRole("link", { name: /Modifier target/iu });
+    fireEvent.click(link, { ctrlKey: true });
+
+    expect(onIssueSelect).not.toHaveBeenCalled();
+    expect(link).toHaveAttribute("href", "/issues/bsm-modifier");
+  });
+
+  it("resets Issue Detail scroll when the routed Issue changes", () => {
+    const first = buildIssue({ id: "bsm-scroll-a", title: "First detail" });
+    const second = buildIssue({ id: "bsm-scroll-b", title: "Second detail" });
+    const { rerender } = render(
+      <IssueExplorer
+        issueState={successState([first, second])}
+        route={{ issueId: first.id, search: "", viewId: "all" }}
+      />
+    );
+    const firstDetail = getDetailElement();
+    firstDetail.scrollTop = 240;
+
+    rerender(
+      <IssueExplorer
+        issueState={successState([first, second])}
+        route={{ issueId: second.id, search: "", viewId: "all" }}
+      />
+    );
+
+    const secondDetail = getDetailElement();
+    expect(secondDetail).not.toBe(firstDetail);
+    expect(secondDetail.scrollTop).toBe(0);
   });
 
   it("marks the clicked Issue row as the selected row with an accessible current state", async () => {

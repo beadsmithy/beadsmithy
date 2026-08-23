@@ -17,15 +17,15 @@
  */
 import type { IssueExplorerLoadState } from "../issues/issue-loader";
 import type {
-  LoadIssueExplorerDataResponse,
-  Workspace,
-  WorkspaceState,
-} from "../rpc/bindings";
-import type {
   IssueExplorerRefreshHealthEvent,
   IssueExplorerRefreshSnapshotEvent,
   RefreshHealth,
 } from "../refresh-health";
+import type {
+  LoadIssueExplorerDataResponse,
+  Workspace,
+  WorkspaceState,
+} from "../rpc/bindings";
 import { isRetryableSwitchFailureKind } from "../workspace-switch-failure";
 
 /**
@@ -92,8 +92,8 @@ export interface WorkspaceTransitionGateState {
 export const INITIAL_WORKSPACE_TRANSITION_GATE_STATE: WorkspaceTransitionGateState =
   {
     acceptedGeneration: 0,
-    acceptedRefreshRevision: null,
     acceptedRefreshHealthRevision: null,
+    acceptedRefreshRevision: null,
     committedGeneration: -1,
     confirmedWorkspaceGeneration: null,
     confirmedWorkspacePath: null,
@@ -589,12 +589,9 @@ export const applyIssueExplorerHealthRefresh = (
   //      — ignore.
   //    - generation == confirmed: the path and revision decide.
   if (
-    payload.workspaceSelectionGeneration >
-    current.confirmedWorkspaceGeneration
+    payload.workspaceSelectionGeneration > current.confirmedWorkspaceGeneration
   ) {
-    if (
-      payload.workspaceSelectionGeneration >= current.acceptedGeneration
-    ) {
+    if (payload.workspaceSelectionGeneration >= current.acceptedGeneration) {
       return {
         decision: { kind: "defer", payload },
         next: current,
@@ -603,8 +600,7 @@ export const applyIssueExplorerHealthRefresh = (
     return { decision: { kind: "ignore" }, next: current };
   }
   if (
-    payload.workspaceSelectionGeneration <
-    current.confirmedWorkspaceGeneration
+    payload.workspaceSelectionGeneration < current.confirmedWorkspaceGeneration
   ) {
     return { decision: { kind: "ignore" }, next: current };
   }
@@ -623,7 +619,7 @@ export const applyIssueExplorerHealthRefresh = (
     return { decision: { kind: "ignore" }, next: current };
   }
   return {
-    decision: { kind: "commitRefreshHealth", health: payload.health },
+    decision: { health: payload.health, kind: "commitRefreshHealth" },
     next: {
       ...current,
       acceptedRefreshHealthRevision: payload.refreshRevision,
@@ -725,8 +721,7 @@ export const applyIssueExplorerRefresh = (
   //      — ignore.
   //    - generation == confirmed: the path and revision decide.
   if (
-    payload.workspaceSelectionGeneration >
-    current.confirmedWorkspaceGeneration
+    payload.workspaceSelectionGeneration > current.confirmedWorkspaceGeneration
   ) {
     if (payload.workspaceSelectionGeneration >= current.acceptedGeneration) {
       return {
@@ -741,8 +736,7 @@ export const applyIssueExplorerRefresh = (
   }
 
   if (
-    payload.workspaceSelectionGeneration <
-    current.confirmedWorkspaceGeneration
+    payload.workspaceSelectionGeneration < current.confirmedWorkspaceGeneration
   ) {
     return { decision: { kind: "ignore" }, next: current };
   }

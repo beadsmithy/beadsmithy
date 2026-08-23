@@ -84,6 +84,49 @@ export interface IssueExplorerRefreshHealthEvent {
   readonly workspaceSelectionGeneration: number;
 }
 
+const isObject = (value: unknown): value is Record<string, unknown> =>
+  typeof value === "object" && value !== null;
+
+const isRefreshFailureKind = (value: unknown): value is RefreshFailureKind =>
+  value === "refProbe" ||
+  value === "loader" ||
+  value === "missingGit" ||
+  value === "missingBw" ||
+  value === "notBeadworkWorkspace";
+
+const isRefreshFailure = (value: unknown): value is RefreshFailure => {
+  if (!isObject(value)) {
+    return false;
+  }
+  const candidate = value as Record<string, unknown>;
+  return (
+    isRefreshFailureKind(candidate.errorKind) &&
+    typeof candidate.message === "string" &&
+    typeof candidate.transient === "boolean" &&
+    typeof candidate.failureRevision === "number"
+  );
+};
+
+const isRefreshFailureOrNull = (
+  value: unknown
+): value is RefreshFailure | null => {
+  if (value === null) {
+    return true;
+  }
+  return isRefreshFailure(value);
+};
+
+export const isRefreshHealth = (value: unknown): value is RefreshHealth => {
+  if (!isObject(value)) {
+    return false;
+  }
+  const candidate = value as Record<string, unknown>;
+  return (
+    isRefreshFailureOrNull(candidate.refProbe) &&
+    isRefreshFailureOrNull(candidate.loader)
+  );
+};
+
 /**
  * Discriminant guard. Returns true when the payload is a
  * `IssueExplorerRefreshEvent` (any variant). False otherwise.
@@ -119,46 +162,3 @@ export const isIssueExplorerRefreshEvent = (
   }
   return false;
 };
-
-export const isRefreshHealth = (value: unknown): value is RefreshHealth => {
-  if (!isObject(value)) {
-    return false;
-  }
-  const candidate = value as Record<string, unknown>;
-  return (
-    isRefreshFailureOrNull(candidate.refProbe) &&
-    isRefreshFailureOrNull(candidate.loader)
-  );
-};
-
-const isRefreshFailureOrNull = (
-  value: unknown
-): value is RefreshFailure | null => {
-  if (value === null) {
-    return true;
-  }
-  return isRefreshFailure(value);
-};
-
-const isRefreshFailure = (value: unknown): value is RefreshFailure => {
-  if (!isObject(value)) {
-    return false;
-  }
-  const candidate = value as Record<string, unknown>;
-  return (
-    isRefreshFailureKind(candidate.errorKind) &&
-    typeof candidate.message === "string" &&
-    typeof candidate.transient === "boolean" &&
-    typeof candidate.failureRevision === "number"
-  );
-};
-
-const isRefreshFailureKind = (value: unknown): value is RefreshFailureKind =>
-  value === "refProbe" ||
-  value === "loader" ||
-  value === "missingGit" ||
-  value === "missingBw" ||
-  value === "notBeadworkWorkspace";
-
-const isObject = (value: unknown): value is Record<string, unknown> =>
-  typeof value === "object" && value !== null;

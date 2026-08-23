@@ -1,3 +1,4 @@
+import { AlertTriangle } from "lucide-react";
 /**
  * Non-disruptive banner that surfaces refresh failures above the Issue
  * Explorer list.
@@ -22,12 +23,7 @@
  */
 import type { ReactElement } from "react";
 
-import { AlertTriangle } from "lucide-react";
-
-import type {
-  RefreshFailure,
-  RefreshFailureKind,
-} from "../refresh-health";
+import type { RefreshFailure, RefreshFailureKind } from "../refresh-health";
 
 interface RefreshFailureBannerProps {
   /**
@@ -62,9 +58,10 @@ const BANNER_COPY: Record<RefreshFailureKind, string> = {
  * 1. structural before transient;
  * 2. within the same category, highest `failureRevision`.
  */
-export const selectBannerFailure = (
-  health: { readonly refProbe: RefreshFailure | null; readonly loader: RefreshFailure | null }
-): RefreshFailure | null => {
+export const selectBannerFailure = (health: {
+  readonly refProbe: RefreshFailure | null;
+  readonly loader: RefreshFailure | null;
+}): RefreshFailure | null => {
   const candidates: RefreshFailure[] = [];
   if (health.refProbe !== null) {
     candidates.push(health.refProbe);
@@ -79,7 +76,10 @@ export const selectBannerFailure = (
   const pool = structural.length > 0 ? structural : candidates;
   let selected: RefreshFailure | null = null;
   for (const candidate of pool) {
-    if (selected === null || candidate.failureRevision > selected.failureRevision) {
+    if (
+      selected === null ||
+      candidate.failureRevision > selected.failureRevision
+    ) {
       selected = candidate;
     }
   }
@@ -93,17 +93,16 @@ export const RefreshFailureBanner = ({
     return null;
   }
   return (
-    <div
+    <output
       className="flex items-start gap-3 border-b border-border-main bg-danger/10 p-3"
       data-failure-kind={failure.errorKind}
       data-failure-revision={failure.failureRevision}
       data-testid="refresh-failure-banner"
-      role="status"
     >
       <AlertTriangle className="mt-0.5 size-4 shrink-0 text-danger" />
       <p className="text-sm font-medium text-danger">
         {BANNER_COPY[failure.errorKind]}
       </p>
-    </div>
+    </output>
   );
 };

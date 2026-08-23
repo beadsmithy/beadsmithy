@@ -13,7 +13,7 @@ import {
   Search,
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
-import type { RefObject } from "react";
+import type { MouseEvent, RefObject } from "react";
 import { useMemo, useRef, useState } from "react";
 import { Link } from "wouter";
 
@@ -72,6 +72,15 @@ const MAX_VISIBLE_LABELS = 3;
 
 const SELECTED_ROW_CLASSES = "bg-surface";
 
+const isUnmodifiedPrimaryClick = (
+  event: MouseEvent<HTMLAnchorElement>
+): boolean =>
+  event.button === 0 &&
+  !event.altKey &&
+  !event.ctrlKey &&
+  !event.metaKey &&
+  !event.shiftKey;
+
 const IssueRow = ({
   issue,
   isSelected,
@@ -105,7 +114,7 @@ const IssueRow = ({
           data-selected={isSelected ? "true" : "false"}
           href={serializeIssueExplorerRoute({ ...route, issueId: issue.id })}
           onClick={(event) => {
-            if (onSelect !== undefined) {
+            if (onSelect !== undefined && isUnmodifiedPrimaryClick(event)) {
               event.preventDefault();
               onSelect(issue.id);
             }
@@ -368,7 +377,7 @@ const IssueReferenceLink = ({
     data-reference-issue-id={id}
     href={serializeIssueExplorerRoute({ ...route, issueId: id })}
     onClick={(event) => {
-      if (onSelect !== undefined) {
+      if (onSelect !== undefined && isUnmodifiedPrimaryClick(event)) {
         event.preventDefault();
         onSelect(id);
       }
@@ -455,6 +464,9 @@ const ChildIssueRow = ({
         data-child-issue-id={issue.id}
         href={serializeIssueExplorerRoute({ ...route, issueId: issue.id })}
         onClick={(event) => {
+          if (!isUnmodifiedPrimaryClick(event)) {
+            return;
+          }
           event.preventDefault();
           onUserDrivenSelect();
           onSelect(issue.id);
@@ -831,12 +843,7 @@ export const IssueExplorer = ({
     if (focusRouteChanges) {
       detailHeadingRef.current?.focus({ preventScroll: true });
     }
-  }, [
-    activeRoute.issueId,
-    activeRoute.search,
-    activeRoute.viewId,
-    focusRouteChanges,
-  ]);
+  }, [activeRoute.issueId, activeRoute.viewId, focusRouteChanges]);
 
   useExternalLifecycle(() => {
     if (titleOverride !== undefined && titleOverride !== null) {
@@ -1009,6 +1016,7 @@ export const IssueExplorer = ({
         </div>
       </section>
       <IssueDetailPane
+        key={serializeIssueExplorerRoute(activeRoute)}
         childIssues={childIssues}
         issueMap={issueMap}
         route={activeRoute}

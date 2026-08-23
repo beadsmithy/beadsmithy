@@ -43,7 +43,7 @@ describe("Issue detail deep-link copy", () => {
 
   it("copies the canonical Issue Location and exposes temporary success feedback", async () => {
     const user = userEvent.setup();
-    const writeText = vi.fn().mockResolvedValue(undefined);
+    const writeText = vi.fn().mockResolvedValue(null);
     Object.defineProperty(navigator, "clipboard", {
       configurable: true,
       value: { writeText },

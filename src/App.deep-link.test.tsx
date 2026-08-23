@@ -1,0 +1,182 @@
+import { render, screen, waitFor } from "@testing-library/react";
+import { beforeEach, describe, expect, it, vi } from "vitest";
+
+import type { IssueExplorerLoadState } from "./issues/issue-loader";
+import type * as IssueLoaderModule from "./issues/issue-loader";
+import type * as BindingsModule from "./rpc/bindings";
+import type { WorkspaceResolution } from "./rpc/bindings";
+import {
+  buildIssue,
+  createBothListenersMock,
+  successState,
+  workspace,
+} from "./test/app-workspace-fixtures";
+
+const loadIssueExplorerStateFromTauRpc =
+  vi.fn<() => Promise<IssueExplorerLoadState>>();
+const appSettingsState = vi.fn();
+const updateAppSettings = vi.fn();
+const workspaceState = vi.fn();
+const switchWorkspace = vi.fn();
+const resolveWorkspace = vi.fn();
+const open = vi.fn();
+const confirm = vi.fn();
+const getCurrent = vi.fn();
+const onOpenUrl = vi.fn();
+const windowApi = {
+  setFocus: vi.fn().mockResolvedValue(null),
+  unminimize: vi.fn().mockResolvedValue(null),
+};
+const getCurrentWindow = vi.fn(() => windowApi);
+const { implementation: listen } = createBothListenersMock();
+const createTauRPCProxy = vi.fn(() => ({
+  app_settings_state: appSettingsState,
+  cancel_workspace: vi.fn(),
+  list_issues: vi.fn(),
+  load_issue_explorer_data: vi.fn(),
+  remove_workspace: vi.fn(),
+  reset_workspace_memory: vi.fn(),
+  resolve_workspace: resolveWorkspace,
+  retry_workspace_memory: vi.fn(),
+  switch_workspace: switchWorkspace,
+  update_app_settings: updateAppSettings,
+  workspace_state: workspaceState,
+}));
+
+vi.mock("./issues/issue-loader", async (importOriginal) => {
+  const actual = await importOriginal<typeof IssueLoaderModule>();
+  return { ...actual, loadIssueExplorerStateFromTauRpc };
+});
+
+vi.mock("./rpc/bindings", async (importOriginal) => {
+  const actual = await importOriginal<typeof BindingsModule>();
+  return { ...actual, createTauRPCProxy };
+});
+
+vi.mock("@tauri-apps/api/event", () => ({ listen }));
+vi.mock("@tauri-apps/api/window", () => ({ getCurrentWindow }));
+vi.mock("@tauri-apps/plugin-deep-link", () => ({ getCurrent, onOpenUrl }));
+vi.mock("@tauri-apps/plugin-dialog", () => ({ confirm, open }));
+
+const { default: App } = await import("./App");
+
+const issueLocation = (workspacePath: string, issueId: string): string =>
+  `beadsmithy://${workspacePath}/issue/${issueId}`;
+
+describe("App deep-link delivery", () => {
+  beforeEach(() => {
+    window.history.replaceState(null, "", "/issues");
+    loadIssueExplorerStateFromTauRpc.mockReset();
+    appSettingsState.mockReset();
+    appSettingsState.mockResolvedValue({
+      settings: { markdown: { fontSizePx: 14 } },
+      warning: null,
+    });
+    updateAppSettings.mockReset();
+    updateAppSettings.mockResolvedValue({ markdown: { fontSizePx: 14 } });
+    workspaceState.mockReset();
+    workspaceState.mockResolvedValue(
+      workspace({
+        currentWorkspace: { availability: "available", path: "/work" },
+        generation: 1,
+      })
+    );
+    switchWorkspace.mockReset();
+    resolveWorkspace.mockReset();
+    confirm.mockReset();
+    open.mockReset();
+    getCurrent.mockReset();
+    getCurrent.mockResolvedValue([]);
+    windowApi.setFocus.mockClear();
+    windowApi.unminimize.mockClear();
+    onOpenUrl.mockReset();
+    onOpenUrl.mockResolvedValue(vi.fn());
+  });
+
+  it("opens a startup deep link after the authoritative snapshot commits", async () => {
+    const target = buildIssue({ id: "bsm-target", title: "Startup target" });
+    loadIssueExplorerStateFromTauRpc.mockResolvedValue(
+      successState({ allIssues: [target], workspacePath: "/work" })
+    );
+    getCurrent.mockResolvedValue([issueLocation("/work", target.id)]);
+
+    render(<App />);
+
+    await waitFor(() =>
+      expect(window.location.pathname).toBe(`/issues/${target.id}`)
+    );
+    expect(
+      screen.getByRole("main", { name: "Issue detail" })
+    ).toHaveTextContent(target.title);
+  });
+
+  it("opens the latest running-instance URL and focuses the existing window", async () => {
+    const first = buildIssue({ id: "bsm-first", title: "First issue" });
+    const second = buildIssue({ id: "bsm-second", title: "Second issue" });
+    loadIssueExplorerStateFromTauRpc.mockResolvedValue(
+      successState({ allIssues: [first, second], workspacePath: "/work" })
+    );
+    let deliverUrl: ((urls: string[]) => void) | undefined;
+    // eslint-disable-next-line promise/prefer-await-to-callbacks
+    onOpenUrl.mockImplementation((callback: (urls: string[]) => void) => {
+      deliverUrl = callback;
+      return Promise.resolve(vi.fn());
+    });
+
+    render(<App />);
+    await screen.findByRole("main", { name: "Issue detail" });
+    deliverUrl?.([issueLocation("/work", second.id)]);
+
+    await waitFor(() =>
+      expect(window.location.pathname).toBe(`/issues/${second.id}`)
+    );
+    expect(windowApi.setFocus).toHaveBeenCalled();
+  });
+
+  it("names the target Workspace and leaves it unchanged when confirmation is declined", async () => {
+    const current = buildIssue({ id: "bsm-current", title: "Current issue" });
+    loadIssueExplorerStateFromTauRpc.mockResolvedValue(
+      successState({ allIssues: [current], workspacePath: "/work/one" })
+    );
+    workspaceState.mockResolvedValue(
+      workspace({
+        catalog: [
+          { availability: "available", path: "/work/one" },
+          { availability: "available", path: "/work/two" },
+        ],
+        currentWorkspace: {
+          availability: "available",
+          path: "/work/one",
+        },
+        generation: 1,
+      })
+    );
+    const resolution: WorkspaceResolution = {
+      known: true,
+      workspace: {
+        availability: "available",
+        path: "/work/two",
+      },
+    };
+    resolveWorkspace.mockResolvedValue(resolution);
+    confirm.mockResolvedValue(false);
+
+    render(<App />);
+    await screen.findByRole("heading", { name: current.title });
+    const deliverUrl = await waitFor(() => {
+      const callback = onOpenUrl.mock.calls[0]?.[0] as
+        | ((urls: string[]) => void)
+        | undefined;
+      expect(callback).toBeDefined();
+      return callback as (urls: string[]) => void;
+    });
+    deliverUrl([issueLocation("/work/two", current.id)]);
+
+    await waitFor(() => expect(confirm).toHaveBeenCalled());
+    expect(confirm.mock.calls[0]?.[0]).toContain("/work/two");
+    expect(switchWorkspace).not.toHaveBeenCalled();
+    expect(
+      screen.getByRole("heading", { name: current.title })
+    ).toBeInTheDocument();
+  });
+});

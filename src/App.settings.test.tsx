@@ -118,6 +118,36 @@ describe("App settings", () => {
     ).toBeInTheDocument();
   });
 
+  it("returns to the underlying Issue route when Back is pressed from Settings", async () => {
+    const user = userEvent.setup();
+    const issue = buildIssue({
+      id: "bsm-settings-back",
+      title: "Settings target",
+    });
+    loadIssueExplorerStateFromTauRpc.mockResolvedValue(
+      successState({ allIssues: [issue], workspacePath: "/work" })
+    );
+    workspaceState.mockResolvedValue(
+      workspace({
+        currentWorkspace: { availability: "available", path: "/work" },
+      })
+    );
+
+    render(<App />);
+    await user.click(
+      await screen.findByRole("link", { name: /Settings target/iu })
+    );
+    await user.click(settingsButton());
+    await user.click(screen.getByRole("button", { name: /Back/iu }));
+
+    expect(
+      screen.queryByRole("main", { name: "Settings" })
+    ).not.toBeInTheDocument();
+    expect(
+      within(issueDetailMain()).getByRole("heading", { name: issue.title })
+    ).toBeInTheDocument();
+  });
+
   it("returns to the Issue Explorer and restores the active list view when a view is clicked", async () => {
     const user = userEvent.setup();
     const issue = buildIssue({ status: "open" });

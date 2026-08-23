@@ -3,12 +3,12 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import type { IssueExplorerLoadState } from "./issues/issue-loader";
 import type * as IssueLoaderModule from "./issues/issue-loader";
+import type { RefreshFailure } from "./refresh-health";
 import type * as BindingsModule from "./rpc/bindings";
 import type {
   LoadIssueExplorerDataResponse,
   WorkspaceState,
 } from "./rpc/bindings";
-import type { RefreshFailure } from "./refresh-health";
 import {
   buildIssue,
   createBothListenersMock,
@@ -579,7 +579,7 @@ describe("App issue explorer refresh", () => {
       listeners.refresh?.({
         payload: {
           eventType: "health",
-          health: { refProbe: null, loader: healthFailure },
+          health: { loader: healthFailure, refProbe: null },
           refreshRevision: 5,
           workspacePath: "/work/a",
           workspaceSelectionGeneration: 1,
@@ -589,7 +589,7 @@ describe("App issue explorer refresh", () => {
 
     const banner = await screen.findByTestId("refresh-failure-banner");
     expect(banner).toBeInTheDocument();
-    expect(banner).toHaveAttribute("role", "status");
+    expect(banner.tagName).toBe("OUTPUT");
     expect(banner.textContent).toContain(
       "Automatic refresh needs bw on PATH to read Beadwork data."
     );
@@ -638,20 +638,22 @@ describe("App issue explorer refresh", () => {
       listeners.refresh?.({
         payload: {
           eventType: "health",
-          health: { refProbe: bannerFailure, loader: null },
+          health: { loader: null, refProbe: bannerFailure },
           refreshRevision: 3,
           workspacePath: "/work/a",
           workspaceSelectionGeneration: 1,
         },
       });
     });
-    expect(await screen.findByTestId("refresh-failure-banner")).toBeInTheDocument();
+    expect(
+      await screen.findByTestId("refresh-failure-banner")
+    ).toBeInTheDocument();
 
     act(() => {
       listeners.refresh?.({
         payload: {
           eventType: "health",
-          health: { refProbe: null, loader: null },
+          health: { loader: null, refProbe: null },
           refreshRevision: 4,
           workspacePath: "/work/a",
           workspaceSelectionGeneration: 1,
@@ -696,13 +698,13 @@ describe("App issue explorer refresh", () => {
         payload: {
           eventType: "health",
           health: {
+            loader: null,
             refProbe: {
               errorKind: "refProbe",
               failureRevision: 5,
               message: "failing",
               transient: true,
             },
-            loader: null,
           },
           refreshRevision: 5,
           workspacePath: "/work/a",
@@ -710,7 +712,9 @@ describe("App issue explorer refresh", () => {
         },
       });
     });
-    expect(await screen.findByTestId("refresh-failure-banner")).toBeInTheDocument();
+    expect(
+      await screen.findByTestId("refresh-failure-banner")
+    ).toBeInTheDocument();
 
     // A stale Health event for a previous generation is ignored.
     act(() => {
@@ -718,13 +722,13 @@ describe("App issue explorer refresh", () => {
         payload: {
           eventType: "health",
           health: {
+            loader: null,
             refProbe: {
               errorKind: "refProbe",
               failureRevision: 9,
               message: "old",
               transient: true,
             },
-            loader: null,
           },
           refreshRevision: 9,
           workspacePath: "/work/a",
@@ -751,6 +755,7 @@ describe("App issue explorer refresh", () => {
     let resolveStartup: ((value: IssueExplorerLoadState) => void) | undefined;
     loadIssueExplorerStateFromTauRpc.mockImplementation(
       () =>
+        // eslint-disable-next-line promise/avoid-new
         new Promise<IssueExplorerLoadState>((resolve) => {
           resolveStartup = resolve;
         })
@@ -793,13 +798,13 @@ describe("App issue explorer refresh", () => {
         payload: {
           eventType: "health",
           health: {
+            loader: null,
             refProbe: {
               errorKind: "refProbe",
               failureRevision: 11,
               message: "failing",
               transient: true,
             },
-            loader: null,
           },
           refreshRevision: 11,
           workspacePath: "/work/a",
@@ -821,9 +826,11 @@ describe("App issue explorer refresh", () => {
     expect(await screen.findByText("Deferred")).toBeInTheDocument();
     // The Health event must also have been replayed and the banner
     // must show the structural copy for the refProbe failure.
-    expect(await screen.findByTestId("refresh-failure-banner")).toBeInTheDocument();
     expect(
-      screen.getByTestId("refresh-failure-banner").textContent
-    ).toContain("Automatic refresh is failing while checking Beadwork changes.");
+      await screen.findByTestId("refresh-failure-banner")
+    ).toBeInTheDocument();
+    expect(screen.getByTestId("refresh-failure-banner").textContent).toContain(
+      "Automatic refresh is failing while checking Beadwork changes."
+    );
   });
 });

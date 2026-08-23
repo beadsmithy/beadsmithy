@@ -56,7 +56,7 @@ export const readIssueNavigationEntry = (
     return null;
   }
 
-  return { index, workspacePath, issueId, search, viewId };
+  return { index, issueId, search, viewId, workspacePath };
 };
 
 export const writeIssueNavigationState = (

@@ -16,7 +16,9 @@ export interface IssueExplorerRouteState {
 export const isIssueListViewId = (value: string): value is IssueListViewId =>
   ISSUE_LIST_VIEW_DEFINITIONS.some((definition) => definition.id === value);
 
-const normalizeViewId = (value: string | null): IssueListViewId =>
+export const normalizeIssueListViewId = (
+  value: string | null
+): IssueListViewId =>
   value !== null && isIssueListViewId(value)
     ? value
     : DEFAULT_ISSUE_LIST_VIEW_ID;
@@ -29,6 +31,15 @@ const decodeIssueId = (value: string): string => {
   }
 };
 
+export const createIssueExplorerRoute = (
+  issueId: string | null,
+  searchParams: URLSearchParams
+): IssueExplorerRouteState => ({
+  issueId,
+  search: searchParams.get("search") ?? "",
+  viewId: normalizeIssueListViewId(searchParams.get("view")),
+});
+
 export const parseIssueExplorerRoute = (
   location: string
 ): IssueExplorerRouteState => {
@@ -40,11 +51,7 @@ export const parseIssueExplorerRoute = (
     : null;
   const params = new URLSearchParams(rawSearch);
 
-  return {
-    issueId,
-    search: params.get("search") ?? "",
-    viewId: normalizeViewId(params.get("view")),
-  };
+  return createIssueExplorerRoute(issueId, params);
 };
 
 export const serializeIssueExplorerRoute = (
