@@ -67,6 +67,12 @@ const isBeadsmithFrontmost = async (): Promise<boolean> =>
     ].join("\n")
   )) === "true";
 
+const MAX_FOCUS_ATTEMPTS = 10;
+const FOCUS_ATTEMPTS = Array.from(
+  { length: MAX_FOCUS_ATTEMPTS },
+  (_, index) => index + 1
+);
+
 /**
  * Move the OS frontmost application away from Beadsmith, delivering a
  * native `WindowEvent::Focused(false)` to the running binary. Finder is
@@ -77,7 +83,7 @@ const isBeadsmithFrontmost = async (): Promise<boolean> =>
 const defocusBeadsmithWindow = async (): Promise<void> => {
   console.log("[e2e:spec] moving OS focus away from Beadsmith (Finder)");
   // Retries must run sequentially, so the loop awaits each step.
-  for (let attempt = 1; attempt <= 10; attempt += 1) {
+  for (const attempt of FOCUS_ATTEMPTS) {
     // oxlint-disable-next-line no-await-in-loop
     await runOsascript('tell application "Finder" to activate');
     // oxlint-disable-next-line no-await-in-loop
@@ -102,7 +108,7 @@ const defocusBeadsmithWindow = async (): Promise<void> => {
 const focusBeadsmithWindow = async (): Promise<void> => {
   console.log("[e2e:spec] returning OS focus to the Beadsmith window");
   // Retries must run sequentially, so the loop awaits each step.
-  for (let attempt = 1; attempt <= 10; attempt += 1) {
+  for (const attempt of FOCUS_ATTEMPTS) {
     // oxlint-disable-next-line no-await-in-loop
     await runOsascript(
       [

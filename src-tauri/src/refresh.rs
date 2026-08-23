@@ -637,9 +637,10 @@ fn production_cadence() -> RefreshCadence {
 
 /// Time-trigger period. Debug builds honor the
 /// `BEADSMITH_REFRESH_TIME_INTERVAL_MS` override so the focused desktop
-/// scenarios can shorten (or disable) the minute trigger; invalid, zero,
-/// or missing values fall back to [`TIME_REFRESH_INTERVAL`] with a
-/// diagnostic log. Release builds never read the variable.
+/// scenarios can shorten the minute trigger; invalid, zero, or missing
+/// values fall back to [`TIME_REFRESH_INTERVAL`] with a diagnostic log.
+/// The override cannot disable the trigger. Release builds never read
+/// the variable.
 #[cfg(debug_assertions)]
 fn time_refresh_interval() -> Duration {
     const OVERRIDE: &str = "BEADSMITH_REFRESH_TIME_INTERVAL_MS";
@@ -709,9 +710,8 @@ async fn run_refresh_loop(
     let health = Arc::new(Mutex::new(RefreshHealthState::new()));
     let (load_done_tx, mut load_done_rx) = tokio::sync::mpsc::unbounded_channel::<LoadCompletion>();
 
-    let mut ticker = interval_at(Instant::now() + cadence.probe, cadence.probe);
-    ticker.set_missed_tick_behavior(MissedTickBehavior::Skip);
-    let mut time_ticker = time_refresh_ticker(cadence.time);
+    let mut ticker = skipping_ticker(cadence.probe);
+    let mut time_ticker = skipping_ticker(cadence.time);
 
     loop {
         let notified = lifecycle.notified();
@@ -747,12 +747,12 @@ async fn run_refresh_loop(
     }
 }
 
-/// Build the time-trigger ticker: first tick delayed by the full period
-/// (the initial snapshot already supplies the current state), missed
-/// ticks skipped so a blocked load cannot produce a catch-up burst.
-/// Extracted as the narrow cadence seam the paused-time unit test
-/// asserts against.
-fn time_refresh_ticker(period: Duration) -> tokio::time::Interval {
+/// Build a skip-on-missed-tick ticker with the first tick delayed by
+/// the full period (the initial snapshot already supplies the current
+/// state), so a blocked load cannot produce a catch-up burst on either
+/// the probe or the time trigger. Extracted as the narrow cadence seam
+/// the paused-time unit test asserts against.
+fn skipping_ticker(period: Duration) -> tokio::time::Interval {
     let mut ticker = interval_at(Instant::now() + period, period);
     ticker.set_missed_tick_behavior(MissedTickBehavior::Skip);
     ticker

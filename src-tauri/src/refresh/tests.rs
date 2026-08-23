@@ -270,15 +270,14 @@ fn several_changed_shas_during_active_load_remain_one_pending_if_changed() {
         .apply_probe(&binding, "v1", None, RefreshMode::IfChanged)
         .expect("first probe starts load");
 
-    let mut probe_results = Vec::new();
     for sha in ["v2", "v3", "v4", "v5"] {
-        probe_results.push(
+        assert!(
             state
                 .apply_probe(&binding, sha, None, RefreshMode::IfChanged)
                 .is_none(),
+            "probe for {sha} must not start a parallel load"
         );
     }
-    assert!(probe_results.iter().all(|is_none| *is_none));
     // Pending work records intent, not a target SHA: a burst of ref
     // moves stays one pending `IfChanged` request and the follow-up
     // re-probes the current tip.
@@ -769,15 +768,16 @@ fn successful_forced_probe_participates_in_probe_health_recovery() {
 // =============================================================================
 
 #[tokio::test(start_paused = true)]
-async fn time_refresh_ticker_delays_first_tick_and_skips_missed_ticks() {
+async fn skipping_ticker_delays_first_tick_and_skips_missed_ticks() {
     let period = Duration::from_secs(60);
-    let mut ticker = time_refresh_ticker(period);
+    let mut ticker = skipping_ticker(period);
 
     // No tick before the full configured period has elapsed: the initial
     // snapshot already supplies the current state, so the time trigger
     // must not fire early.
     tokio::time::advance(period - Duration::from_secs(1)).await;
     tokio::select! {
+        biased;
         _ = ticker.tick() => panic!("time ticker must not tick before the full period"),
         _ = tokio::task::yield_now() => {}
     }
@@ -791,6 +791,7 @@ async fn time_refresh_ticker_delays_first_tick_and_skips_missed_ticks() {
     tokio::time::advance(period * 3).await;
     ticker.tick().await;
     tokio::select! {
+        biased;
         _ = ticker.tick() => panic!("MissedTickBehavior::Skip must not produce a catch-up burst"),
         _ = tokio::task::yield_now() => {}
     }

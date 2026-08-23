@@ -317,7 +317,8 @@ const provisionResources = (phases: readonly Phase[]): ScenarioResources => {
   const provisionsB =
     scenario !== "child-issues" &&
     scenario !== "time-refresh" &&
-    scenario !== "focus-refresh";
+    scenario !== "focus-refresh" &&
+    scenario !== "restoration";
   const workspaceBEmpty = provisionsB ? createEmptyWorkspace() : undefined;
   const workspaceBSecond =
     scenario === "atomic-switch" ? createSecondIssueListWorkspace() : undefined;
@@ -325,10 +326,10 @@ const provisionResources = (phases: readonly Phase[]): ScenarioResources => {
   // does not exercise the true-empty fixture but the harness still
   // publishes BEADSMITH_E2E_WORKSPACE_B as the empty fixture path so the
   // scenario-level input validator passes. `restoration`,
-  // `child-issues`, and `time-refresh` only provision A; the
-  // one-Workspace shape mirrors the documented scenario contract.
-  const workspaceB =
-    scenario === "restoration" || !provisionsB ? undefined : workspaceBEmpty;
+  // `child-issues`, `time-refresh`, and `focus-refresh` only provision
+  // A; the one-Workspace shape mirrors the documented scenario
+  // contract.
+  const workspaceB = provisionsB ? workspaceBEmpty : undefined;
 
   let commandWrapperDirectory: string | undefined;
   if (plan.commandDelayMs !== undefined) {
