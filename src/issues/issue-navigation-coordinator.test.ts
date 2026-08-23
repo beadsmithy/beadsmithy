@@ -31,6 +31,11 @@ describe("Issue Navigation coordinator", () => {
       readIssueNavigationEntry({ beadsmithNavigation: { index: -1 } })
     ).toBe(null);
     expect(readIssueNavigationEntry({ beadsmithNavigation: null })).toBe(null);
+    expect(
+      readIssueNavigationEntry({
+        beadsmithNavigation: { ...route, index: 0, viewId: "unknown" },
+      })
+    ).toBe(null);
   });
 
   it("truncates forward entries after a new push", () => {

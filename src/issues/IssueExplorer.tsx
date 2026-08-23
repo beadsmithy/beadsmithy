@@ -541,9 +541,9 @@ const IssueDetailContent = ({
       className="flex flex-1 flex-col gap-6 overflow-y-auto bg-background p-8"
     >
       <header className="relative">
-        {onCopyDeepLink !== undefined ? (
+        {onCopyDeepLink === undefined ? null : (
           <button
-            aria-label="Copy deep link"
+            aria-label={copySucceeded ? "Copied deep link" : "Copy deep link"}
             className="absolute top-0 right-0 flex size-8 items-center justify-center rounded border border-border-main text-muted transition-colors hover:bg-white/5 hover:text-text-main"
             onClick={onCopyDeepLink}
             title={copySucceeded ? "Copied!" : "Copy deep link"}
@@ -555,7 +555,7 @@ const IssueDetailContent = ({
               <Copy aria-hidden="true" className="size-4" />
             )}
           </button>
-        ) : null}
+        )}
         <span
           className={`inline-flex shrink-0 items-center rounded-full border px-2 py-0.5 font-mono text-xs ${TONE_BADGE_CLASSES[view.badgeTone]}`}
         >

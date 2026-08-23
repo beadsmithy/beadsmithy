@@ -57,7 +57,7 @@ describe("Issue detail deep-link copy", () => {
       "beadsmithy:///Users/tomas/Work%20issue/issue/bsm-copy"
     );
     expect(
-      screen.getByRole("button", { name: "Copy deep link" })
+      screen.getByRole("button", { name: "Copied deep link" })
     ).toHaveAttribute("title", "Copied!");
   });
 

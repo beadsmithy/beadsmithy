@@ -54,12 +54,14 @@ describe("Issue Location URI", () => {
     expect(parseIssueLocationUri(uri).ok).toBe(false);
   });
 
-  it("rejects empty Issue IDs and relative workspace paths", () => {
+  it("rejects empty Issue IDs and invalid workspace paths", () => {
     expect(
       generateIssueLocationUri({ issueId: "", workspacePath: "/Users/work" })
     ).toEqual({ error: "empty-issue-id", ok: false });
-    expect(
-      generateIssueLocationUri({ issueId: "bsm-1", workspacePath: "relative" })
-    ).toEqual({ error: "invalid-workspace-path", ok: false });
+    for (const workspacePath of ["relative", "/", "/tmp/work/", "/tmp//work"]) {
+      expect(
+        generateIssueLocationUri({ issueId: "bsm-1", workspacePath })
+      ).toEqual({ error: "invalid-workspace-path", ok: false });
+    }
   });
 });

@@ -216,9 +216,11 @@ export default function App() {
   const issueRoute = parseIssueExplorerRoute(fullLocation);
   const isSettingsRoute = location === "/settings";
   const underlyingIssueRouteRef = useRef(issueRoute);
-  if (!isSettingsRoute) {
-    underlyingIssueRouteRef.current = issueRoute;
-  }
+  useExternalLifecycle(() => {
+    if (!isSettingsRoute) {
+      underlyingIssueRouteRef.current = issueRoute;
+    }
+  }, [isSettingsRoute, issueRoute]);
   const explorerRoute = isSettingsRoute
     ? underlyingIssueRouteRef.current
     : issueRoute;
@@ -283,6 +285,92 @@ export default function App() {
   const [dismissedSwitchErrorGeneration, setDismissedSwitchErrorGeneration] =
     useState<number | null>(null);
 
+  const applyDeferredRefresh = useCallback((): boolean => {
+    // Replay the deferred Snapshot first so the gate's confirmed
+    // identity is committed before the Health event runs through the
+    // gate (Health admission requires a confirmed identity). Loop
+    // until both slots drain — committing a Snapshot may open the
+    // gate for a previously-deferred Health event.
+    let applied = false;
+    for (let iteration = 0; iteration < 2; iteration += 1) {
+      const deferredSnapshot = deferredSnapshotRef.current;
+      if (deferredSnapshot !== null) {
+        deferredSnapshotRef.current = null;
+        const { decision, next } = applyIssueExplorerRefresh(
+          transitionGateRef.current,
+          deferredSnapshot
+        );
+        if (decision.kind === "commitRefreshSnapshot") {
+          transitionGateRef.current = next;
+          setIssueState({ ...decision.snapshot, status: "success" });
+          applied = true;
+          continue;
+        }
+        if (decision.kind === "ignore") {
+          continue;
+        }
+        deferredSnapshotRef.current = decision.payload;
+        continue;
+      }
+      const deferredHealth = deferredHealthRef.current;
+      if (deferredHealth !== null) {
+        deferredHealthRef.current = null;
+        const { decision, next } = applyIssueExplorerHealthRefresh(
+          transitionGateRef.current,
+          deferredHealth
+        );
+        if (decision.kind === "commitRefreshHealth") {
+          transitionGateRef.current = next;
+          setRefreshHealth(decision.health);
+          applied = true;
+          continue;
+        }
+        if (decision.kind === "ignore") {
+          continue;
+        }
+        deferredHealthRef.current = decision.payload;
+        continue;
+      }
+      break;
+    }
+    return applied;
+  }, []);
+
+  const applyTransition = useCallback(
+    (
+      transition: WorkspaceTransition,
+      expectedGeneration: number | null
+    ): WorkspaceTransitionDecision => {
+      const { decision, next } = applyWorkspaceTransition(
+        transitionGateRef.current,
+        transition,
+        expectedGeneration
+      );
+      const isClearSnapshot = decision.kind === "clearSnapshot";
+      transitionGateRef.current = next;
+
+      if (decision.kind === "ignore") {
+        return decision;
+      }
+
+      // A confirmed path change / chooser transition must clear the
+      // renderer's refresh health so the prior Workspace's banner
+      // cannot linger behind the chooser.
+      if (isClearSnapshot) {
+        transitionGateRef.current = clearRefreshHealth(
+          transitionGateRef.current
+        );
+        setRefreshHealth(null);
+      }
+
+      setWorkspaceState(transition.state);
+      applyTransitionDecision(decision, setIssueState, setWorkspaceKey);
+      applyDeferredRefresh();
+      return decision;
+    },
+    [applyDeferredRefresh]
+  );
+
   const navigateIssueRoute = useCallback(
     (
       route: typeof issueRoute,
@@ -333,6 +421,12 @@ export default function App() {
       confirmedWorkspacePath === issueState.workspacePath &&
       currentHistoryEntry?.workspacePath !== issueState.workspacePath
     ) {
+      if (
+        currentHistoryEntry?.workspacePath !== null &&
+        currentHistoryEntry?.workspacePath !== undefined
+      ) {
+        workspaceTraversalRef.current = `${currentHistoryEntry.index}:${currentHistoryEntry.workspacePath}`;
+      }
       manualWorkspaceSwitchRef.current = false;
       navigateIssueRoute(
         {
@@ -490,25 +584,33 @@ export default function App() {
         }
       }
     },
-    [explorerRoute, issueState, navigateIssueRoute, workspaceState]
+    [
+      applyTransition,
+      explorerRoute,
+      issueState,
+      navigateIssueRoute,
+      workspaceState,
+    ]
   );
 
-  deepLinkHandlerRef.current = (url, startup) => {
-    void handleDeepLinkUrl(url, startup);
-  };
-  deepLinkProcessorRef.current = () => {
-    const pending = pendingDeepLinkRef.current;
-    if (
-      pending === null ||
-      workspaceState === null ||
-      (workspaceState.pendingWorkspace !== null &&
-        workspaceState.pendingWorkspace !== undefined)
-    ) {
-      return;
-    }
-    pendingDeepLinkRef.current = null;
-    deepLinkHandlerRef.current(pending.url, pending.startup);
-  };
+  useExternalLifecycle(() => {
+    deepLinkHandlerRef.current = (url, startup) => {
+      void handleDeepLinkUrl(url, startup);
+    };
+    deepLinkProcessorRef.current = () => {
+      const pending = pendingDeepLinkRef.current;
+      if (
+        pending === null ||
+        workspaceState === null ||
+        (workspaceState.pendingWorkspace !== null &&
+          workspaceState.pendingWorkspace !== undefined)
+      ) {
+        return;
+      }
+      pendingDeepLinkRef.current = null;
+      deepLinkHandlerRef.current(pending.url, pending.startup);
+    };
+  }, [handleDeepLinkUrl, workspaceState]);
 
   useExternalLifecycle(() => {
     let disposed = false;
@@ -568,6 +670,20 @@ export default function App() {
     navigationLedgerRef.current.entries.get(currentNavigationIndex - 1) ?? null;
   const nextNavigationEntry =
     navigationLedgerRef.current.entries.get(currentNavigationIndex + 1) ?? null;
+  const handleBackNavigation = useCallback(() => {
+    if (isSettingsRoute) {
+      navigateIssueRoute(explorerRoute, true);
+      return;
+    }
+    if (previousNavigationEntry !== null) {
+      window.history.back();
+    }
+  }, [
+    explorerRoute,
+    isSettingsRoute,
+    navigateIssueRoute,
+    previousNavigationEntry,
+  ]);
 
   useExternalLifecycle(() => {
     const handleKeyDown = (event: KeyboardEvent): void => {
@@ -594,8 +710,11 @@ export default function App() {
       }
 
       event.preventDefault();
-      if (usesBackShortcut && previousNavigationEntry !== null) {
-        window.history.back();
+      if (
+        usesBackShortcut &&
+        (isSettingsRoute || previousNavigationEntry !== null)
+      ) {
+        handleBackNavigation();
       } else if (usesForwardShortcut && nextNavigationEntry !== null) {
         window.history.forward();
       }
@@ -603,93 +722,12 @@ export default function App() {
 
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [nextNavigationEntry, previousNavigationEntry]);
-
-  const applyDeferredRefresh = useCallback((): boolean => {
-    // Replay the deferred Snapshot first so the gate's confirmed
-    // identity is committed before the Health event runs through the
-    // gate (Health admission requires a confirmed identity). Loop
-    // until both slots drain — committing a Snapshot may open the
-    // gate for a previously-deferred Health event.
-    let applied = false;
-    for (let iteration = 0; iteration < 2; iteration += 1) {
-      const deferredSnapshot = deferredSnapshotRef.current;
-      if (deferredSnapshot !== null) {
-        deferredSnapshotRef.current = null;
-        const { decision, next } = applyIssueExplorerRefresh(
-          transitionGateRef.current,
-          deferredSnapshot
-        );
-        if (decision.kind === "commitRefreshSnapshot") {
-          transitionGateRef.current = next;
-          setIssueState({ ...decision.snapshot, status: "success" });
-          applied = true;
-          continue;
-        }
-        if (decision.kind === "ignore") {
-          continue;
-        }
-        deferredSnapshotRef.current = decision.payload;
-        continue;
-      }
-      const deferredHealth = deferredHealthRef.current;
-      if (deferredHealth !== null) {
-        deferredHealthRef.current = null;
-        const { decision, next } = applyIssueExplorerHealthRefresh(
-          transitionGateRef.current,
-          deferredHealth
-        );
-        if (decision.kind === "commitRefreshHealth") {
-          transitionGateRef.current = next;
-          setRefreshHealth(decision.health);
-          applied = true;
-          continue;
-        }
-        if (decision.kind === "ignore") {
-          continue;
-        }
-        deferredHealthRef.current = decision.payload;
-        continue;
-      }
-      break;
-    }
-    return applied;
-  }, []);
-
-  const applyTransition = useCallback(
-    (
-      transition: WorkspaceTransition,
-      expectedGeneration: number | null
-    ): WorkspaceTransitionDecision => {
-      const { decision, next } = applyWorkspaceTransition(
-        transitionGateRef.current,
-        transition,
-        expectedGeneration
-      );
-      const isClearSnapshot = decision.kind === "clearSnapshot";
-      transitionGateRef.current = next;
-
-      if (decision.kind === "ignore") {
-        return decision;
-      }
-
-      // A confirmed path change / chooser transition must clear the
-      // renderer's refresh health so the prior Workspace's banner
-      // cannot linger behind the chooser.
-      if (isClearSnapshot) {
-        transitionGateRef.current = clearRefreshHealth(
-          transitionGateRef.current
-        );
-        setRefreshHealth(null);
-      }
-
-      setWorkspaceState(transition.state);
-      applyTransitionDecision(decision, setIssueState, setWorkspaceKey);
-      applyDeferredRefresh();
-      return decision;
-    },
-    [applyDeferredRefresh]
-  );
+  }, [
+    handleBackNavigation,
+    isSettingsRoute,
+    nextNavigationEntry,
+    previousNavigationEntry,
+  ]);
 
   useExternalLifecycle(() => {
     const target = currentNavigationEntry;
@@ -725,7 +763,10 @@ export default function App() {
         setDeepLinkError(
           "Could not restore the Workspace from navigation history."
         );
-        window.history.go(returnIndex - target.index);
+        const delta = returnIndex - target.index;
+        if (delta !== 0) {
+          window.history.go(delta);
+        }
       }
     })();
   }, [
@@ -985,17 +1026,11 @@ export default function App() {
   return (
     <div className="flex h-screen w-screen flex-col overflow-hidden bg-background font-primary text-text-main antialiased">
       <Titlebar
-        backDisabled={previousNavigationEntry === null}
+        backDisabled={!isSettingsRoute && previousNavigationEntry === null}
         backLabel={issueNavigationDestinationLabel(previousNavigationEntry)}
         forwardDisabled={nextNavigationEntry === null}
         forwardLabel={issueNavigationDestinationLabel(nextNavigationEntry)}
-        onBack={() => {
-          if (isSettingsRoute && currentNavigationIndex === 0) {
-            navigateIssueRoute(explorerRoute, true);
-            return;
-          }
-          window.history.back();
-        }}
+        onBack={handleBackNavigation}
         onForward={() => window.history.forward()}
         onToggleSidebar={() => setSidebarCollapsed((collapsed) => !collapsed)}
         sidebarCollapsed={sidebarCollapsed}

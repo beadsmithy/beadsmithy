@@ -46,7 +46,7 @@ export const Titlebar = ({
 
     <div className="ml-3 flex items-center gap-1" data-issue-navigation>
       <button
-        aria-label="Back"
+        aria-label={backLabel === null ? "Back" : `Back to ${backLabel}`}
         className="flex size-7 items-center justify-center rounded text-muted transition-colors hover:bg-white/5 hover:text-text-main disabled:cursor-not-allowed disabled:opacity-40"
         disabled={backDisabled}
         onClick={onBack}
@@ -56,7 +56,9 @@ export const Titlebar = ({
         <ChevronLeft aria-hidden="true" className="size-4" />
       </button>
       <button
-        aria-label="Forward"
+        aria-label={
+          forwardLabel === null ? "Forward" : `Forward to ${forwardLabel}`
+        }
         className="flex size-7 items-center justify-center rounded text-muted transition-colors hover:bg-white/5 hover:text-text-main disabled:cursor-not-allowed disabled:opacity-40"
         disabled={forwardDisabled}
         onClick={onForward}

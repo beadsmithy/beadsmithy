@@ -41,11 +41,13 @@ export const generateIssueLocationUri = (
     return { error: "invalid-workspace-path", ok: false };
   }
 
-  const workspaceSegments = location.workspacePath
-    .split("/")
-    .slice(1)
-    .map(encodePathSegment);
-  const encodedWorkspacePath = workspaceSegments.join("/");
+  const workspaceSegments = location.workspacePath.split("/").slice(1);
+  if (workspaceSegments.some((segment) => segment.length === 0)) {
+    return { error: "invalid-workspace-path", ok: false };
+  }
+  const encodedWorkspacePath = workspaceSegments
+    .map(encodePathSegment)
+    .join("/");
   return {
     ok: true,
     value: `${SCHEME_PREFIX}${encodedWorkspacePath}/issue/${encodePathSegment(location.issueId)}`,

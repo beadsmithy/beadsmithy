@@ -1,5 +1,8 @@
 import type { IssueExplorerRouteState } from "./issue-navigation";
-import { serializeIssueExplorerRoute } from "./issue-navigation";
+import {
+  isIssueListViewId,
+  serializeIssueExplorerRoute,
+} from "./issue-navigation";
 
 export interface IssueNavigationEntry extends IssueExplorerRouteState {
   index: number;
@@ -28,30 +31,32 @@ export const createIssueNavigationEntry = (
   workspacePath,
 });
 
+const isRecord = (value: unknown): value is Record<string, unknown> =>
+  typeof value === "object" && value !== null;
+
 export const readIssueNavigationEntry = (
   state: unknown
 ): IssueNavigationEntry | null => {
-  if (typeof state !== "object" || state === null) {
+  if (!isRecord(state) || !isRecord(state.beadsmithNavigation)) {
     return null;
   }
 
-  const navigation = (state as IssueNavigationHistoryState).beadsmithNavigation;
+  const navigation = state.beadsmithNavigation;
+  const { index, workspacePath, issueId, search, viewId } = navigation;
   if (
-    typeof navigation !== "object" ||
-    navigation === null ||
-    typeof navigation.index !== "number" ||
-    !Number.isInteger(navigation.index) ||
-    navigation.index < 0 ||
-    (typeof navigation.workspacePath !== "string" &&
-      navigation.workspacePath !== null) ||
-    (typeof navigation.issueId !== "string" && navigation.issueId !== null) ||
-    typeof navigation.search !== "string" ||
-    typeof navigation.viewId !== "string"
+    typeof index !== "number" ||
+    !Number.isInteger(index) ||
+    index < 0 ||
+    (typeof workspacePath !== "string" && workspacePath !== null) ||
+    (typeof issueId !== "string" && issueId !== null) ||
+    typeof search !== "string" ||
+    typeof viewId !== "string" ||
+    !isIssueListViewId(viewId)
   ) {
     return null;
   }
 
-  return navigation;
+  return { index, workspacePath, issueId, search, viewId };
 };
 
 export const writeIssueNavigationState = (

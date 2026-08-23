@@ -13,13 +13,12 @@ export interface IssueExplorerRouteState {
   viewId: IssueListViewId;
 }
 
-const ISSUE_LIST_VIEW_IDS = new Set<IssueListViewId>(
-  ISSUE_LIST_VIEW_DEFINITIONS.map((definition) => definition.id)
-);
+export const isIssueListViewId = (value: string): value is IssueListViewId =>
+  ISSUE_LIST_VIEW_DEFINITIONS.some((definition) => definition.id === value);
 
 const normalizeViewId = (value: string | null): IssueListViewId =>
-  value !== null && ISSUE_LIST_VIEW_IDS.has(value as IssueListViewId)
-    ? (value as IssueListViewId)
+  value !== null && isIssueListViewId(value)
+    ? value
     : DEFAULT_ISSUE_LIST_VIEW_ID;
 
 const decodeIssueId = (value: string): string => {
