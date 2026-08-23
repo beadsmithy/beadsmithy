@@ -1,0 +1,20 @@
+e2e/issue-list/issue-list.focus-refresh.spec.ts
+  s_74a8f30af665d5::t_6b88afea589a60 39-42,49
+  s_74a8f30af665d5::t_d251088fe9c70a 44-48,50
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.23",
+  "base_commit_sha": "78a55ebecedeac153516d003dd9ef75e922935bc",
+  "prompts": {},
+  "sessions": {
+    "s_74a8f30af665d5": {
+      "agent_id": {
+        "tool": "pi",
+        "id": "01a02df6-fe40-74b4-ab51-ca1506783b04",
+        "model": "k3-256k"
+      },
+      "human_author": "Tomas Thor Jonsson <benregn@gmail.com>"
+    }
+  }
+}
