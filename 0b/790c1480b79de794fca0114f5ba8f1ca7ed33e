@@ -1,0 +1,36 @@
+src/App.tsx
+  s_2098807ccbaae2::t_e8468fdba5fc46 290
+src/issues/use-issue-workspace-traversal.ts
+  s_2098807ccbaae2::t_0c4d76c676d004 115-117
+src/App.deep-link.test.tsx
+  s_2098807ccbaae2::t_eab520c5a2ec0c 112-113
+  s_78fdb229ecac2d::t_a5fd4b73ae2884 117-120,137-139
+  s_2098807ccbaae2::t_28515b24034e72 116,121-136,140-144
+  s_78fdb229ecac2d::t_fa579fbea0798f 114-115
+src/issues/use-issue-deep-link-coordinator.ts
+  s_2098807ccbaae2::t_d4f6b7f6960b91 27-34,83-86,116-119
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.23",
+  "base_commit_sha": "0b790c1480b79de794fca0114f5ba8f1ca7ed33e",
+  "prompts": {},
+  "sessions": {
+    "s_2098807ccbaae2": {
+      "agent_id": {
+        "tool": "pi",
+        "id": "01a02dea-aa9c-78b1-a3b3-b3ed3a135ca6",
+        "model": "gpt-5.6-luna"
+      },
+      "human_author": "Tomas Thor Jonsson <benregn@gmail.com>"
+    },
+    "s_78fdb229ecac2d": {
+      "agent_id": {
+        "tool": "pi",
+        "id": "01a0307f-6916-7bc4-bcfe-08c4f6549bb1",
+        "model": "gpt-5.6-sol"
+      },
+      "human_author": "Tomas Thor Jonsson <benregn@gmail.com>"
+    }
+  }
+}
