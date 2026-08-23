@@ -1,0 +1,26 @@
+src/App.tsx
+  s_2098807ccbaae2::t_8e9b721a6c636b 5,249
+  s_2098807ccbaae2::t_f20dab1e707865 388,395-397,402-421,424-486,491-493,498
+  s_2098807ccbaae2::t_eba5f872dc66bb 499-500
+src-tauri/src/rpc.rs
+  s_2098807ccbaae2::t_93599362a5b74e 46-52,232,429-442
+  s_2098807ccbaae2::t_9bdbb7aa0e93a5 443-444
+src/rpc/bindings.ts
+  s_2098807ccbaae2::t_22a9000fa69149 121-122,150,160-161
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.23",
+  "base_commit_sha": "f4d302046e89813d68936ec6d4e34f5f7d7b2b19",
+  "prompts": {},
+  "sessions": {
+    "s_2098807ccbaae2": {
+      "agent_id": {
+        "tool": "pi",
+        "id": "01a02dea-aa9c-78b1-a3b3-b3ed3a135ca6",
+        "model": "gpt-5.6-luna"
+      },
+      "human_author": "Tomas Thor Jonsson <benregn@gmail.com>"
+    }
+  }
+}
