@@ -112,6 +112,9 @@ export const useIssueWorkspaceTraversal = ({
           null
         );
       } catch {
+        if (workspaceTraversalRef.current === traversalKey) {
+          workspaceTraversalRef.current = null;
+        }
         setDeepLinkError(
           "Could not restore the Workspace from navigation history."
         );

@@ -109,6 +109,39 @@ describe("App deep-link delivery", () => {
       screen.getByRole("main", { name: "Issue detail" })
     ).toHaveTextContent(target.title);
     expect(document.title).toContain(target.title);
+    expect(confirm).not.toHaveBeenCalled();
+    expect(switchWorkspace).not.toHaveBeenCalled();
+  });
+
+  it("defers a current-Workspace startup link until the snapshot is ready", async () => {
+    const target = buildIssue({
+      id: "bsm-loading-target",
+      title: "Loading target",
+    });
+    let resolveLoad: ((state: IssueExplorerLoadState) => void) | undefined;
+    loadIssueExplorerStateFromTauRpc.mockImplementation(
+      () =>
+        // eslint-disable-next-line promise/avoid-new
+        new Promise<IssueExplorerLoadState>((resolve) => {
+          resolveLoad = resolve;
+        })
+    );
+    getCurrent.mockResolvedValue([issueLocation("/work", target.id)]);
+
+    render(<App />);
+
+    await waitFor(() => expect(getCurrent).toHaveBeenCalled());
+    expect(confirm).not.toHaveBeenCalled();
+    expect(switchWorkspace).not.toHaveBeenCalled();
+
+    resolveLoad?.(
+      successState({ allIssues: [target], workspacePath: "/work" })
+    );
+    await waitFor(() =>
+      expect(window.location.pathname).toBe(`/issues/${target.id}`)
+    );
+    expect(confirm).not.toHaveBeenCalled();
+    expect(switchWorkspace).not.toHaveBeenCalled();
   });
 
   it("preserves the current destination and shows an error when a confirmed switch fails", async () => {

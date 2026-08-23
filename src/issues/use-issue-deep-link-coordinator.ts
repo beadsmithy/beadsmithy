@@ -24,6 +24,14 @@ type ApplyTransition = (
   expectedGeneration: number | null
 ) => unknown;
 
+const readCurrentWorkspacePath = (
+  issueState: IssueExplorerLoadState,
+  workspaceState: WorkspaceState
+): string | null =>
+  issueState.status === "success"
+    ? issueState.workspacePath
+    : (workspaceState.currentWorkspace?.path ?? null);
+
 export interface IssueDeepLinkCoordinatorOptions {
   applyTransition: ApplyTransition;
   explorerRoute: IssueExplorerRouteState;
@@ -72,8 +80,10 @@ export const useIssueDeepLinkCoordinator = ({
         return;
       }
 
-      const deepLinkWorkspacePath =
-        issueState.status === "success" ? issueState.workspacePath : null;
+      const deepLinkWorkspacePath = readCurrentWorkspacePath(
+        issueState,
+        workspaceState
+      );
       if (parsed.value.workspacePath === deepLinkWorkspacePath) {
         if (issueState.status !== "success") {
           pendingDeepLinkRef.current = { startup, url };
@@ -103,8 +113,10 @@ export const useIssueDeepLinkCoordinator = ({
         if (requestGeneration !== deepLinkRequestGenerationRef.current) {
           return;
         }
-        const resolvedCurrentPath =
-          issueState.status === "success" ? issueState.workspacePath : null;
+        const resolvedCurrentPath = readCurrentWorkspacePath(
+          issueState,
+          workspaceState
+        );
         if (resolution.workspace.path === resolvedCurrentPath) {
           const targetIsVisible =
             issueState.status === "success" &&

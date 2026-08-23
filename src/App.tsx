@@ -287,7 +287,7 @@ export default function App() {
     // until both slots drain — committing a Snapshot may open the
     // gate for a previously-deferred Health event.
     let applied = false;
-    for (let iteration = 0; iteration < 2; iteration += 1) {
+    for (const _ of [0, 1]) {
       const deferredSnapshot = deferredSnapshotRef.current;
       if (deferredSnapshot !== null) {
         deferredSnapshotRef.current = null;
