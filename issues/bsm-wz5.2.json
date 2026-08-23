@@ -1,5 +1,5 @@
 {
-  "assignee": "",
+  "assignee": "Tomas Thor Jonsson",
   "blocked_by": [
     "bsm-wz5.1"
   ],
@@ -13,8 +13,8 @@
   "labels": [],
   "parent": "bsm-wz5",
   "priority": 2,
-  "status": "open",
+  "status": "in_progress",
   "title": "Add same-Workspace Back and Forward navigation",
   "type": "task",
-  "updated_at": "2026-07-19T21:46:14Z"
+  "updated_at": "2026-08-23T09:52:56Z"
 }
