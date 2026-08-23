@@ -221,12 +221,12 @@ catalog changed.
   Beadsmith binaries** against the same scenario-owned store. Phase 1
   proves empty startup, selects Workspace A through the typed RPC, and
   asserts the desktop binary persisted A. Phase 2 launches a new real
-  Beadsmith binary against the same store and proves A is restored as the
-  Current Workspace from persistence alone -- the spec issues no
-  `switch_workspace` and reads only what the second binary renders. The
-  scenario harness inspects the scenario-owned store between phases as
-  verification that the desktop binary is the only writer, not as a
-  fixture seed.
+  Beadsmith binary against the same store with a genuine startup Issue
+  deep link in its process arguments, proving the restored Workspace
+  resolves the link and selects the shared Issue without another
+  `switch_workspace`. The scenario harness inspects the scenario-owned
+  store between phases as verification that the desktop binary is the only
+  writer, not as a fixture seed.
 - `time-refresh` (`e2e/issue-list/issue-list.time-refresh.spec.ts`):
   the time-trigger refresh proof (bsm-wj1.4). One dedicated workspace
   with a single stable baseline Ready Issue. The debug-only

@@ -27,7 +27,10 @@
 import { existsSync } from "node:fs";
 import path from "node:path";
 
-import { resolveBwPath } from "./e2e/issue-list/fixtures/workspace.ts";
+import {
+  FIXTURE_SHARED_ID,
+  resolveBwPath,
+} from "./e2e/issue-list/fixtures/workspace.ts";
 import {
   assertEmbeddedWebDriverPortAvailable,
   EMBEDDED_WEBDRIVER_PORT,
@@ -45,9 +48,15 @@ const APP_BINARY_PATH = path.resolve(
 const {
   fixtureA: workspaceA,
   fixtureB: workspaceB,
+  phase,
   scenario,
   storePath,
 } = parseHarnessEnvironment(process.env);
+
+const startupDeepLink =
+  scenario === "restoration" && phase === "2"
+    ? `beadsmithy://${workspaceA}/issue/${FIXTURE_SHARED_ID}`
+    : null;
 
 export const config: WebdriverIO.Config = {
   bail: 0,
@@ -112,7 +121,7 @@ export const config: WebdriverIO.Config = {
     [
       "@wdio/tauri-service",
       {
-        appArgs: [],
+        appArgs: startupDeepLink === null ? [] : [startupDeepLink],
         appBinaryPath: APP_BINARY_PATH,
         backendLogLevel: "debug",
         captureBackendLogs: true,
