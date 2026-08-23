@@ -15,6 +15,7 @@ import {
 } from "./issues/issue-loader";
 import type { IssueExplorerLoadState } from "./issues/issue-loader";
 import {
+  isIssueInListView,
   parseIssueExplorerRoute,
   selectIssueForView,
   serializeIssueExplorerRoute,
@@ -368,6 +369,26 @@ export default function App() {
       navigateIssueRoute({ ...explorerRoute, search }, true);
     },
     [explorerRoute, navigateIssueRoute]
+  );
+
+  const handleIssueReferenceSelect = useCallback(
+    (issueId: string) => {
+      if (explorerRoute.issueId === issueId) {
+        return;
+      }
+      const targetIsVisible = isIssueInListView(
+        issueState,
+        explorerRoute.viewId,
+        issueId
+      );
+      navigateIssueRoute(
+        targetIsVisible
+          ? { ...explorerRoute, issueId }
+          : { issueId, search: "", viewId: "all" },
+        false
+      );
+    },
+    [explorerRoute, issueState, navigateIssueRoute]
   );
 
   const previousNavigationEntry =
@@ -817,6 +838,7 @@ export default function App() {
                 markdownFontSizePx={settings.state.appliedFontSizePx}
                 onIssueSearchChange={handleIssueSearchChange}
                 onIssueSelect={handleIssueSelect}
+                onIssueReferenceSelect={handleIssueReferenceSelect}
                 route={explorerRoute}
                 refreshHealth={refreshHealth}
                 titleOverride={isSettingsRoute ? "Settings · Beadsmithy" : null}

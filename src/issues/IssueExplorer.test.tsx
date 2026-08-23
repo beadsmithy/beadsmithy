@@ -1236,14 +1236,13 @@ describe("IssueExplorer", () => {
 
       // Each entry is a keyboard-operable button with the expected
       // accessible name and the established ID / status / title order.
-      const firstButton = within(firstItem).getByRole("button", {
+      const firstButton = within(firstItem).getByRole("link", {
         name: "bsm-parent.p1-older: Older P1 task. In Progress",
       });
       expect(firstButton).toHaveAttribute(
         "data-child-issue-id",
         "bsm-parent.p1-older"
       );
-      expect(firstButton).toHaveAttribute("type", "button");
       const firstButtonText = firstButton.textContent ?? "";
       expect(firstButtonText.indexOf("bsm-parent.p1-older")).toBeLessThan(
         firstButtonText.indexOf("In Progress")
@@ -1255,7 +1254,7 @@ describe("IssueExplorer", () => {
       // The section contains exactly four buttons, one per child.
       const allButtons = within(
         section.getByRole("list", { name: "Child Issues" })
-      ).getAllByRole("button");
+      ).getAllByRole("link");
       expect(allButtons).toHaveLength(4);
 
       // The full section flow still places Child Issues between
@@ -1399,8 +1398,8 @@ describe("IssueExplorer", () => {
           name: "Child Issues",
         })
       )
-        .getAllByRole("button")
-        .find((button) => button.dataset.childIssueId === issue.id) ??
+        .getAllByRole("link")
+        .find((link) => link.dataset.childIssueId === issue.id) ??
       (() => {
         throw new Error(`No child issue button rendered for issue ${issue.id}`);
       })();
@@ -1525,7 +1524,7 @@ describe("IssueExplorer", () => {
       expect(detail.getByText("bsm-child")).toBeInTheDocument();
     });
 
-    it("activates a Child Issue when the button is focused and Space is pressed", async () => {
+    it("activates a Child Issue link when focused and Enter is pressed", async () => {
       const user = userEvent.setup();
       const parent = buildIssue({
         id: "bsm-parent",
@@ -1543,7 +1542,7 @@ describe("IssueExplorer", () => {
 
       const childButton = getChildIssueRowButton(child);
       childButton.focus();
-      await user.keyboard(" ");
+      await user.keyboard("{Enter}");
 
       const detail = getDetail();
       const heading = detail.getByRole("heading", {
@@ -1917,10 +1916,8 @@ describe("IssueExplorer", () => {
 
         await user.click(getRowButton(parent));
         const childButton = screen
-          .getAllByRole("button")
-          .find(
-            (button) => button.dataset.childIssueId === "bsm-workspace-child"
-          );
+          .getAllByRole("link")
+          .find((link) => link.dataset.childIssueId === "bsm-workspace-child");
         if (!(childButton instanceof HTMLElement)) {
           throw new Error(
             "Expected the Child Issue button to be an HTMLElement"
