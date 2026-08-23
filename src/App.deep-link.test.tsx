@@ -108,6 +108,48 @@ describe("App deep-link delivery", () => {
     expect(
       screen.getByRole("main", { name: "Issue detail" })
     ).toHaveTextContent(target.title);
+    expect(document.title).toContain(target.title);
+  });
+
+  it("preserves the current destination and shows an error when a confirmed switch fails", async () => {
+    const current = buildIssue({ id: "bsm-current", title: "Current issue" });
+    loadIssueExplorerStateFromTauRpc.mockResolvedValue(
+      successState({ allIssues: [current], workspacePath: "/work/one" })
+    );
+    workspaceState.mockResolvedValue(
+      workspace({
+        currentWorkspace: {
+          availability: "available",
+          path: "/work/one",
+        },
+        generation: 1,
+      })
+    );
+    resolveWorkspace.mockResolvedValue({
+      known: true,
+      workspace: { availability: "available", path: "/work/two" },
+    });
+    confirm.mockResolvedValue(true);
+    switchWorkspace.mockRejectedValue(new Error("workspace unavailable"));
+
+    render(<App />);
+    await screen.findByRole("main", { name: "Issue detail" });
+    const deliverUrl = await waitFor(() => {
+      const callback = onOpenUrl.mock.calls[0]?.[0] as
+        | ((urls: string[]) => void)
+        | undefined;
+      expect(callback).toBeDefined();
+      return callback as (urls: string[]) => void;
+    });
+    deliverUrl([issueLocation("/work/two", current.id)]);
+
+    expect(await screen.findByRole("alert")).toHaveTextContent(
+      "Workspace resolution failed"
+    );
+    expect(window.location.pathname).toBe("/issues");
+    expect(
+      screen.getByRole("main", { name: "Issue detail" })
+    ).toHaveTextContent("No issue selected");
   });
 
   it("opens the latest running-instance URL and focuses the existing window", async () => {
