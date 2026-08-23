@@ -1,0 +1,26 @@
+src-tauri/src/refresh.rs
+  s_74a8f30af665d5::t_30d32cf47b30a3 640-643,713-714,750-755
+e2e/issue-list/issue-list.focus-refresh.spec.ts
+  s_74a8f30af665d5::t_76383fddeebf91 70-75,86,111
+src-tauri/src/refresh/tests.rs
+  s_74a8f30af665d5::t_ba3e358bcc033e 274,278,771,773,780,794
+e2e/issue-list/scripts/run-scenario.ts
+  s_74a8f30af665d5::t_5beef68489f99b 320-321,332
+  s_74a8f30af665d5::t_7e67d233dff560 329-331
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.23",
+  "base_commit_sha": "1d8d6d1b77caba9320c7917329275b8bdbaab845",
+  "prompts": {},
+  "sessions": {
+    "s_74a8f30af665d5": {
+      "agent_id": {
+        "tool": "pi",
+        "id": "01a02df6-fe40-74b4-ab51-ca1506783b04",
+        "model": "k3-256k"
+      },
+      "human_author": "Tomas Thor Jonsson <benregn@gmail.com>"
+    }
+  }
+}
