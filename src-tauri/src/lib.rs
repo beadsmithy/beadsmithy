@@ -59,6 +59,15 @@ pub async fn run() {
     let workspace_api = rpc::BeadsmithApiImpl::default();
     let workspace_setup_api = workspace_api.clone();
     let builder = tauri::Builder::default()
+        // Single Instance must be registered before Deep Link so Linux
+        // second launches are routed through the deep-link plugin.
+        .plugin(tauri_plugin_single_instance::init(|app, _args, _cwd| {
+            if let Some(window) = app.get_webview_window("main") {
+                let _ = window.unminimize();
+                let _ = window.set_focus();
+            }
+        }))
+        .plugin(tauri_plugin_deep_link::init())
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_store::Builder::default().build())
         .plugin(tauri_plugin_dialog::init())

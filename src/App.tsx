@@ -1,5 +1,7 @@
 import { listen } from "@tauri-apps/api/event";
 import type { UnlistenFn } from "@tauri-apps/api/event";
+import { getCurrentWindow } from "@tauri-apps/api/window";
+import { getCurrent, onOpenUrl } from "@tauri-apps/plugin-deep-link";
 import { open } from "@tauri-apps/plugin-dialog";
 import { useCallback, useRef, useState } from "react";
 import { useLocation, useSearch } from "wouter";
@@ -14,6 +16,7 @@ import {
   loadIssueExplorerStateFromTauRpc,
 } from "./issues/issue-loader";
 import type { IssueExplorerLoadState } from "./issues/issue-loader";
+import { parseIssueLocationUri } from "./issues/issue-location-uri";
 import {
   isIssueInListView,
   parseIssueExplorerRoute,
@@ -234,6 +237,15 @@ export default function App() {
   const [refreshHealth, setRefreshHealth] = useState<RefreshHealth | null>(
     null
   );
+  const [deepLinkError, setDeepLinkError] = useState<string | null>(null);
+  const pendingDeepLinkRef = useRef<{
+    startup: boolean;
+    url: string;
+  } | null>(null);
+  const deepLinkHandlerRef = useRef<(url: string, startup: boolean) => void>(
+    () => undefined
+  );
+  const deepLinkProcessorRef = useRef<() => void>(() => undefined);
   const transitionGateRef = useRef<WorkspaceTransitionGateState>(
     INITIAL_WORKSPACE_TRANSITION_GATE_STATE
   );
@@ -370,6 +382,90 @@ export default function App() {
     },
     [explorerRoute, navigateIssueRoute]
   );
+
+  const handleDeepLinkUrl = useCallback(
+    (url: string, startup: boolean): void => {
+      const parsed = parseIssueLocationUri(url);
+      if (!parsed.ok) {
+        setDeepLinkError(`Could not open link (${parsed.error}).`);
+        return;
+      }
+      if (
+        issueState.status !== "success" ||
+        (workspaceState?.pendingWorkspace !== null &&
+          workspaceState?.pendingWorkspace !== undefined)
+      ) {
+        pendingDeepLinkRef.current = { startup, url };
+        return;
+      }
+      if (parsed.value.workspacePath !== issueState.workspacePath) {
+        setDeepLinkError("Could not open link: it targets another Workspace.");
+        return;
+      }
+      const targetIsVisible = isIssueInListView(
+        issueState,
+        explorerRoute.viewId,
+        parsed.value.issueId
+      );
+      navigateIssueRoute(
+        targetIsVisible
+          ? { ...explorerRoute, issueId: parsed.value.issueId }
+          : { issueId: parsed.value.issueId, search: "", viewId: "all" },
+        startup
+      );
+      setDeepLinkError(null);
+    },
+    [explorerRoute, issueState, navigateIssueRoute, workspaceState]
+  );
+
+  deepLinkHandlerRef.current = handleDeepLinkUrl;
+  deepLinkProcessorRef.current = () => {
+    const pending = pendingDeepLinkRef.current;
+    if (
+      pending === null ||
+      issueState.status !== "success" ||
+      (workspaceState?.pendingWorkspace !== null &&
+        workspaceState?.pendingWorkspace !== undefined)
+    ) {
+      return;
+    }
+    pendingDeepLinkRef.current = null;
+    deepLinkHandlerRef.current(pending.url, pending.startup);
+  };
+
+  useExternalLifecycle(() => {
+    let disposed = false;
+    let unlisten: UnlistenFn | undefined;
+    void (async () => {
+      try {
+        unlisten = await onOpenUrl((urls) => {
+          const url = urls.at(-1);
+          if (url !== undefined) {
+            void getCurrentWindow().unminimize();
+            void getCurrentWindow().setFocus();
+            pendingDeepLinkRef.current = { startup: false, url };
+            deepLinkProcessorRef.current();
+          }
+        });
+        const urls = await getCurrent();
+        const url = urls?.at(-1);
+        if (!disposed && url !== undefined) {
+          pendingDeepLinkRef.current = { startup: true, url };
+          deepLinkProcessorRef.current();
+        }
+      } catch {
+        // Deep-link delivery is unavailable in renderer-only environments.
+      }
+    })();
+    return () => {
+      disposed = true;
+      unlisten?.();
+    };
+  }, []);
+
+  useExternalLifecycle(() => {
+    deepLinkProcessorRef.current();
+  }, [issueState.status, workspaceState?.pendingWorkspace]);
 
   const handleIssueReferenceSelect = useCallback(
     (issueId: string) => {
@@ -778,6 +874,23 @@ export default function App() {
         onToggleSidebar={() => setSidebarCollapsed((collapsed) => !collapsed)}
         sidebarCollapsed={sidebarCollapsed}
       />
+      {deepLinkError !== null ? (
+        <div
+          aria-live="assertive"
+          className="flex items-center gap-3 border-b border-danger/40 bg-danger/10 px-4 py-2 text-sm text-red-200"
+          role="alert"
+        >
+          <span className="flex-1">{deepLinkError}</span>
+          <button
+            aria-label="Dismiss deep-link error"
+            className="rounded px-2 py-1 text-xs text-text-main hover:bg-white/10"
+            onClick={() => setDeepLinkError(null)}
+            type="button"
+          >
+            Dismiss
+          </button>
+        </div>
+      ) : null}
       <div className="flex flex-1 overflow-hidden">
         <Sidebar
           activeIssueListViewId={explorerRoute.viewId}

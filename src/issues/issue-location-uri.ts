@@ -14,6 +14,10 @@ export type IssueLocationUriResult =
   | { ok: true; value: string }
   | { error: IssueLocationUriError; ok: false };
 
+export type IssueLocationUriParseResult =
+  | { ok: true; value: IssueLocation }
+  | { error: IssueLocationUriError; ok: false };
+
 const SCHEME_PREFIX = "beadsmithy:///";
 
 const encodePathSegment = (segment: string): string =>
@@ -50,7 +54,7 @@ export const generateIssueLocationUri = (
 
 export const parseIssueLocationUri = (
   uri: string
-): IssueLocationUriResult | { ok: true; value: IssueLocation } => {
+): IssueLocationUriParseResult => {
   if (!uri.startsWith(SCHEME_PREFIX)) {
     return { error: "unsupported-scheme", ok: false };
   }
