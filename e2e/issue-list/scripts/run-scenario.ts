@@ -21,6 +21,12 @@
  *   - `restoration`    two binaries against one shared scenario-owned store,
  *                      same fixture A reused; phase 1 selects A, phase 2
  *                      asserts the next binary restored A from persistence
+ *   - `time-refresh`   one binary, single-baseline-Issue fixture A, shortened
+ *                      debug-only time-refresh cadence; a post-launch deferred
+ *                      Issue must enter Ready without a ref move
+ *   - `focus-refresh`  one binary, same fixture, hour-long debug time cadence
+ *                      so only a native focus gain can move the deferred Issue
+ *                      into Ready after its boundary
  */
 import { execFileSync, spawnSync } from "node:child_process";
 import {
@@ -38,6 +44,7 @@ import {
   createEmptyWorkspace,
   createIssueListWorkspace,
   createSecondIssueListWorkspace,
+  createTimeRefreshWorkspace,
   removeWorkspace,
   resolveBwPath,
 } from "../fixtures/workspace.ts";
@@ -60,6 +67,11 @@ interface ScenarioPlan {
   readonly sharesStoreAcrossPhases: boolean;
   /** Default `BEADSMITH_E2E_COMMAND_DELAY_MS` for the atomic scenario. */
   readonly commandDelayMs?: string;
+  /**
+   * Debug-only `BEADSMITH_REFRESH_TIME_INTERVAL_MS` override for the
+   * refresh-trigger scenarios. Release builds ignore the variable.
+   */
+  readonly refreshTimeIntervalMs?: string;
 }
 
 const SCENARIO_PLANS: Record<Scenario, ScenarioPlan> = {
@@ -76,6 +88,14 @@ const SCENARIO_PLANS: Record<Scenario, ScenarioPlan> = {
     phases: ["1"],
     sharesStoreAcrossPhases: false,
   },
+  "focus-refresh": {
+    phases: ["1"],
+    // Push the minute timer an hour out so the timer can never satisfy
+    // the focus assertion: with an unchanged ref, native focus gain is
+    // the only possible refresh cause.
+    refreshTimeIntervalMs: "3600000",
+    sharesStoreAcrossPhases: false,
+  },
   issues: {
     phases: ["1"],
     sharesStoreAcrossPhases: false,
@@ -83,6 +103,11 @@ const SCENARIO_PLANS: Record<Scenario, ScenarioPlan> = {
   restoration: {
     phases: ["1", "2"],
     sharesStoreAcrossPhases: true,
+  },
+  "time-refresh": {
+    phases: ["1"],
+    refreshTimeIntervalMs: "3000",
+    sharesStoreAcrossPhases: false,
   },
 };
 
@@ -97,7 +122,7 @@ const parseArgs = (argv: readonly string[]): ParsedArgs => {
   const [scenarioArg, ...rest] = argv;
   if (!isScenario(scenarioArg)) {
     console.error(
-      "Usage: run-scenario.ts <child-issues|empty|issues|atomic-switch|restoration> [--phase 1|2]"
+      "Usage: run-scenario.ts <child-issues|empty|focus-refresh|issues|atomic-switch|restoration|time-refresh> [--phase 1|2]"
     );
     process.exit(1);
   }
@@ -155,7 +180,7 @@ const shellQuote = (value: string): string =>
  * stderr line when the marker exists; removing the marker file restores
  * pass-through on the next probe.
  */
-const createRefreshFailureWrappers = (controlMarker: string): string => {
+const _createRefreshFailureWrappers = (controlMarker: string): string => {
   const wrapperDirectory = mkdtempSync(
     path.join(tmpdir(), "beadsmith-e2e-refresh-failure-wrapper-")
   );
@@ -280,24 +305,31 @@ const provisionResources = (phases: readonly Phase[]): ScenarioResources => {
   // Workspace A and skips the always-true-empty Workspace B that the
   // other scenarios share, so the one-Workspace harness shape does
   // not leave a leaked temp directory behind on cleanup.
-  const workspaceA =
-    scenario === "child-issues"
-      ? createChildIssuesWorkspace()
-      : createIssueListWorkspace();
-  const workspaceBEmpty =
-    scenario === "child-issues" ? undefined : createEmptyWorkspace();
+  const workspaceA = ((): BeadworkWorkspace => {
+    if (scenario === "child-issues") {
+      return createChildIssuesWorkspace();
+    }
+    if (scenario === "time-refresh" || scenario === "focus-refresh") {
+      return createTimeRefreshWorkspace();
+    }
+    return createIssueListWorkspace();
+  })();
+  const provisionsB =
+    scenario !== "child-issues" &&
+    scenario !== "time-refresh" &&
+    scenario !== "focus-refresh" &&
+    scenario !== "restoration";
+  const workspaceBEmpty = provisionsB ? createEmptyWorkspace() : undefined;
   const workspaceBSecond =
     scenario === "atomic-switch" ? createSecondIssueListWorkspace() : undefined;
   // `issues` and `empty` use B (true-empty) directly; `atomic-switch`
   // does not exercise the true-empty fixture but the harness still
   // publishes BEADSMITH_E2E_WORKSPACE_B as the empty fixture path so the
-  // scenario-level input validator passes. `restoration` and
-  // `child-issues` only provision A; the one-Workspace shape mirrors
-  // the documented scenario contract.
-  const workspaceB =
-    scenario === "restoration" || scenario === "child-issues"
-      ? undefined
-      : workspaceBEmpty;
+  // scenario-level input validator passes. `restoration`,
+  // `child-issues`, `time-refresh`, and `focus-refresh` only provision
+  // A; the one-Workspace shape mirrors the documented scenario
+  // contract.
+  const workspaceB = provisionsB ? workspaceBEmpty : undefined;
 
   let commandWrapperDirectory: string | undefined;
   if (plan.commandDelayMs !== undefined) {
@@ -357,6 +389,15 @@ const buildPhaseEnvironment = (
     if (plan.commandDelayMs !== undefined) {
       env.BEADSMITH_E2E_COMMAND_DELAY_MS = plan.commandDelayMs;
     }
+  }
+  if (plan.refreshTimeIntervalMs !== undefined) {
+    // Debug-only cadence override honored by the spawned desktop binary
+    // (src-tauri/src/refresh.rs). Shortening the 60-second time trigger
+    // keeps the refresh-trigger scenario inside the mocha timeout while
+    // still proving the timer (not the 2-second ref probe) caused the
+    // refresh: the ref SHA never moves after the deferred snapshot
+    // lands.
+    env.BEADSMITH_REFRESH_TIME_INTERVAL_MS = plan.refreshTimeIntervalMs;
   }
   return env;
 };

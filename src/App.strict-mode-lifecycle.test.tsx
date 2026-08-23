@@ -1,6 +1,7 @@
 import type { UnlistenFn } from "@tauri-apps/api/event";
 import { act, render } from "@testing-library/react";
 import { StrictMode } from "react";
+import type { Mock } from "vitest";
 import {
   afterAll,
   afterEach,
@@ -66,7 +67,9 @@ interface ListenerController {
     eventName: string,
     callback: ListenerCallback
   ) => Promise<UnlistenFn>;
-  listen: ReturnType<typeof vi.fn>;
+  listen: Mock<
+    (eventName: string, callback: ListenerCallback) => Promise<UnlistenFn>
+  >;
   registration: (name: RegistrationName) => Registration;
   resolve: (name: RegistrationName) => void;
 }
@@ -96,21 +99,22 @@ const createListenerController = (): ListenerController => {
       }
     }
 
-    const name: RegistrationName = isTransition
-      ? `T${transitionCount}`
-      : (() => {
-          const owner = (["T1", "T2"] as const).find((transitionName) => {
-            const transition = registrations.get(transitionName);
-            return transition?.resolved && !refreshOwners.has(transitionName);
-          });
-          if (!owner) {
-            throw new Error(
-              "Refresh registration requested before its transition resolved"
-            );
-          }
-          refreshOwners.add(owner);
-          return owner === "T1" ? "R1" : "R2";
-        })();
+    let name: RegistrationName;
+    if (isTransition) {
+      name = transitionCount === 1 ? "T1" : "T2";
+    } else {
+      const owner = (["T1", "T2"] as const).find((transitionName) => {
+        const transition = registrations.get(transitionName);
+        return transition?.resolved && !refreshOwners.has(transitionName);
+      });
+      if (!owner) {
+        throw new Error(
+          "Refresh registration requested before its transition resolved"
+        );
+      }
+      refreshOwners.add(owner);
+      name = owner === "T1" ? "R1" : "R2";
+    }
     let resolvePromise: (unlisten: UnlistenFn) => void = () => {
       throw new Error(`Registration ${name} was resolved twice`);
     };
@@ -163,7 +167,11 @@ const createListenerController = (): ListenerController => {
   };
 };
 
-let listenerController: ListenerController | undefined;
+// Assigned in `beforeEach` before any test body or listener mock call
+// runs. Declared without `| undefined` so the (many) test-body usages
+// below do not each need a narrowing assertion; the `listen` mock keeps
+// its runtime guard so a missed initialization still fails loudly.
+let listenerController: ListenerController;
 
 vi.mock("@tauri-apps/api/event", () => ({
   // eslint-disable-next-line promise/prefer-await-to-callbacks

@@ -19,6 +19,10 @@
  *   - `atomic-switch` — populated A + populated B fixtures, delayed wrappers
  *   - `child-issues`  — dedicated closed-parent fixture A only
  *   - `restoration`   — two sequential binaries against one shared store
+ *   - `time-refresh`  — single-baseline fixture A, shortened debug
+ *                       time-refresh cadence, post-launch deferred Issue
+ *   - `focus-refresh` — same fixture, hour-long time cadence so only a
+ *                       native focus gain can refresh after the boundary
  */
 import { existsSync } from "node:fs";
 import path from "node:path";
@@ -132,6 +136,12 @@ export const config: WebdriverIO.Config = {
     }
     if (scenario === "restoration") {
       return ["./e2e/issue-list/issue-list.restoration.spec.ts"];
+    }
+    if (scenario === "time-refresh") {
+      return ["./e2e/issue-list/issue-list.time-refresh.spec.ts"];
+    }
+    if (scenario === "focus-refresh") {
+      return ["./e2e/issue-list/issue-list.focus-refresh.spec.ts"];
     }
     return ["./e2e/issue-list/issue-list.success.spec.ts"];
   })(),

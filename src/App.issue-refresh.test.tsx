@@ -419,6 +419,7 @@ describe("App issue explorer refresh", () => {
     act(() => {
       listeners.refresh?.({
         payload: {
+          eventType: "snapshot" as const,
           issueData: {
             allIssues: [buildIssue({ id: "x", title: "Inconsistent" })],
             blockedIssues: [],

@@ -12,14 +12,16 @@ describe("parseScenario", () => {
     "empty",
     "issues",
     "atomic-switch",
+    "focus-refresh",
     "restoration",
+    "time-refresh",
   ] as const)("accepts the %s scenario", (scenario) => {
     expect(parseScenario(scenario)).toBe(scenario);
   });
 
   it("rejects an unknown scenario with the received value", () => {
     expect(() => parseScenario("unknown-scenario")).toThrow(
-      'BEADSMITH_E2E_SCENARIO must be one of child-issues|empty|issues|atomic-switch|restoration; received "unknown-scenario"'
+      'BEADSMITH_E2E_SCENARIO must be one of child-issues|empty|focus-refresh|issues|atomic-switch|restoration|time-refresh; received "unknown-scenario"'
     );
   });
 });
@@ -45,7 +47,7 @@ describe("parseHarnessEnvironment", () => {
         BEADSMITH_WORKSPACE_STORE_PATH: "/stores/workspaces.json",
       })
     ).toThrow(
-      '- BEADSMITH_E2E_SCENARIO must be one of child-issues|empty|issues|atomic-switch|restoration; received "<missing>"'
+      '- BEADSMITH_E2E_SCENARIO must be one of child-issues|empty|focus-refresh|issues|atomic-switch|restoration|time-refresh; received "<missing>"'
     );
   });
 
@@ -104,7 +106,7 @@ describe("parseHarnessEnvironment", () => {
     ).toThrow(
       [
         "Invalid Issue List E2E harness environment:",
-        '- BEADSMITH_E2E_SCENARIO must be one of child-issues|empty|issues|atomic-switch|restoration; received "unknown-scenario"',
+        '- BEADSMITH_E2E_SCENARIO must be one of child-issues|empty|focus-refresh|issues|atomic-switch|restoration|time-refresh; received "unknown-scenario"',
         '- BEADSMITH_E2E_PHASE must be one of 1|2; received "3"',
         "- BEADSMITH_E2E_WORKSPACE_A is required",
         "- BEADSMITH_E2E_WORKSPACE_B is required",
@@ -140,6 +142,36 @@ describe("parseHarnessEnvironment", () => {
       fixtureA: "/fixtures/a",
       phase: "1",
       scenario: "child-issues",
+      storePath: "/stores/workspaces.json",
+    });
+  });
+
+  it("accepts the focus-refresh scenario without a B fixture", () => {
+    expect(
+      parseHarnessEnvironment({
+        BEADSMITH_E2E_SCENARIO: "focus-refresh",
+        BEADSMITH_E2E_WORKSPACE_A: "/fixtures/a",
+        BEADSMITH_WORKSPACE_STORE_PATH: "/stores/workspaces.json",
+      })
+    ).toEqual({
+      fixtureA: "/fixtures/a",
+      phase: "1",
+      scenario: "focus-refresh",
+      storePath: "/stores/workspaces.json",
+    });
+  });
+
+  it("accepts the time-refresh scenario without a B fixture", () => {
+    expect(
+      parseHarnessEnvironment({
+        BEADSMITH_E2E_SCENARIO: "time-refresh",
+        BEADSMITH_E2E_WORKSPACE_A: "/fixtures/a",
+        BEADSMITH_WORKSPACE_STORE_PATH: "/stores/workspaces.json",
+      })
+    ).toEqual({
+      fixtureA: "/fixtures/a",
+      phase: "1",
+      scenario: "time-refresh",
       storePath: "/stores/workspaces.json",
     });
   });
