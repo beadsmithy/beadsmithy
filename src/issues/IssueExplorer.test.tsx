@@ -93,16 +93,16 @@ const requireHTMLElement = (element: Element | null): HTMLElement => {
 
 const getRowButton = (issue: Issue) =>
   within(screen.getByRole("list", { name: "Issues" }))
-    .getAllByRole("button")
-    .find((button) => button.dataset.issueId === issue.id) ??
+    .getAllByRole("link")
+    .find((link) => link.dataset.issueId === issue.id) ??
   (() => {
     throw new Error(`No row button rendered for issue ${issue.id}`);
   })();
 
 const getRenderedIssueIds = () =>
   within(screen.getByRole("list", { name: "Issues" }))
-    .getAllByRole("button")
-    .map((button) => button.dataset.issueId ?? "");
+    .getAllByRole("link")
+    .map((link) => link.dataset.issueId ?? "");
 
 const getSearchInput = () =>
   screen.getByRole("textbox", { name: "Search issues" });
@@ -479,9 +479,9 @@ describe("IssueExplorer", () => {
     ]);
     expect(screen.queryByText(closedIssue.title)).toBeNull();
     expect(screen.queryByText(unknownStatusIssue.title)).toBeNull();
-    expect(
-      screen.getAllByRole("button", { name: /In Progress/u })
-    ).toHaveLength(2);
+    expect(screen.getAllByRole("link", { name: /In Progress/u })).toHaveLength(
+      2
+    );
     expect(screen.getByText("blocked by 1 · blocks 1")).toBeInTheDocument();
 
     await user.click(getRowButton(inProgressEpic));
@@ -521,11 +521,11 @@ describe("IssueExplorer", () => {
       },
     });
 
-    const rowButtons = within(screen.getByRole("list", { name: "Issues" }))
-      .getAllByRole("button")
-      .map((button) => button.dataset.issueId);
+    const rowLinks = within(screen.getByRole("list", { name: "Issues" }))
+      .getAllByRole("link")
+      .map((link) => link.dataset.issueId);
 
-    expect(rowButtons).toEqual(["bsm-command-first", "bsm-command-second"]);
+    expect(rowLinks).toEqual(["bsm-command-first", "bsm-command-second"]);
     expect(screen.queryByText("Would be derived locally")).toBeNull();
   });
 
@@ -1660,7 +1660,7 @@ describe("IssueExplorer", () => {
       // the visible list.
       const visibleRows = within(
         screen.getByRole("list", { name: "Issues" })
-      ).getAllByRole("button");
+      ).getAllByRole("link");
       for (const row of visibleRows) {
         expect(row).not.toHaveAttribute("aria-current");
       }
@@ -1805,7 +1805,7 @@ describe("IssueExplorer", () => {
       // Selected row is hidden; no aria-current anywhere.
       const visibleRows = within(
         screen.getByRole("list", { name: "Issues" })
-      ).getAllByRole("button");
+      ).getAllByRole("link");
       for (const row of visibleRows) {
         expect(row).not.toHaveAttribute("aria-current");
       }
@@ -1847,7 +1847,7 @@ describe("IssueExplorer", () => {
         />
       );
 
-      expect(getDetail().getByText(/No issue selected/u)).toBeInTheDocument();
+      expect(getDetail().getByText(/Issue not found/u)).toBeInTheDocument();
     });
 
     it("does not auto-restore a cleared selection when the Issue reappears in allIssues later", async () => {
@@ -1876,7 +1876,7 @@ describe("IssueExplorer", () => {
         />
       );
 
-      expect(getDetail().getByText(/No issue selected/u)).toBeInTheDocument();
+      expect(getDetail().getByText(/Issue not found/u)).toBeInTheDocument();
 
       // Bring the Issue back in a later load.
       rerender(
@@ -1888,12 +1888,11 @@ describe("IssueExplorer", () => {
         />
       );
 
-      // The cleared selection is sticky: detail is still empty, no row
-      // carries aria-current.
-      expect(getDetail().getByText(/No issue selected/u)).toBeInTheDocument();
+      // The route remains active and resolves again when the Issue returns.
+      expect(getDetail().getByText(selected.title)).toBeInTheDocument();
       const restoredRow = getRowButton(selected);
-      expect(restoredRow).not.toHaveAttribute("aria-current");
-      expect(restoredRow).toHaveAttribute("data-selected", "false");
+      expect(restoredRow).toHaveAttribute("aria-current", "true");
+      expect(restoredRow).toHaveAttribute("data-selected", "true");
     });
 
     it("does not move focus when the explorer remounts on a workspace transition", async () => {
@@ -2171,11 +2170,11 @@ describe("IssueExplorer", () => {
       },
     });
 
-    const rowButtons = within(screen.getByRole("list", { name: "Issues" }))
-      .getAllByRole("button")
-      .map((button) => button.dataset.issueId);
+    const rowLinks = within(screen.getByRole("list", { name: "Issues" }))
+      .getAllByRole("link")
+      .map((link) => link.dataset.issueId);
 
-    expect(rowButtons).toEqual(["bsm-command-first", "bsm-command-second"]);
+    expect(rowLinks).toEqual(["bsm-command-first", "bsm-command-second"]);
     expect(screen.queryByText("Would be derived locally")).toBeNull();
   });
 

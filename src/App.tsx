@@ -2,32 +2,37 @@ import { listen } from "@tauri-apps/api/event";
 import type { UnlistenFn } from "@tauri-apps/api/event";
 import { open } from "@tauri-apps/plugin-dialog";
 import { useCallback, useRef, useState } from "react";
+import { useLocation, useSearch } from "wouter";
 
 import "./App.css";
 import { Sidebar } from "./components/Sidebar";
 import { Titlebar } from "./components/Titlebar";
 import { pickerDefaultPath } from "./components/WorkspaceSelector";
-import { DEFAULT_ISSUE_LIST_VIEW_ID } from "./issues/issue-list-view";
 import type { IssueListViewId } from "./issues/issue-list-view";
 import {
   ISSUE_EXPLORER_LOADING_STATE,
   loadIssueExplorerStateFromTauRpc,
 } from "./issues/issue-loader";
 import type { IssueExplorerLoadState } from "./issues/issue-loader";
+import {
+  parseIssueExplorerRoute,
+  selectIssueForView,
+  serializeIssueExplorerRoute,
+} from "./issues/issue-navigation";
 import { IssueExplorer } from "./issues/IssueExplorer";
 import { useExternalLifecycle } from "./lib/use-external-lifecycle";
+import { isIssueExplorerRefreshEvent } from "./refresh-health";
+import type {
+  IssueExplorerRefreshEvent,
+  IssueExplorerRefreshHealthEvent,
+  IssueExplorerRefreshSnapshotEvent,
+  RefreshHealth,
+} from "./refresh-health";
 import { createTauRPCProxy } from "./rpc/bindings";
 import type {
   LoadIssueExplorerDataResponse,
   WorkspaceState,
 } from "./rpc/bindings";
-import {
-  isIssueExplorerRefreshEvent,
-  type IssueExplorerRefreshEvent,
-  type IssueExplorerRefreshHealthEvent,
-  type IssueExplorerRefreshSnapshotEvent,
-  type RefreshHealth,
-} from "./refresh-health";
 import { useAppSettings } from "./settings/app-settings";
 import { SettingsPage } from "./settings/SettingsPage";
 import {
@@ -174,7 +179,8 @@ const applyRefreshDecision = (
     case "defer":
       if (
         deferredHealthRef.current === null ||
-        deferredHealthRef.current.refreshRevision <= healthPayload.refreshRevision
+        deferredHealthRef.current.refreshRevision <=
+          healthPayload.refreshRevision
       ) {
         deferredHealthRef.current = healthPayload;
       }
@@ -190,8 +196,11 @@ export default function App() {
   const [issueState, setIssueState] = useState<IssueExplorerLoadState>(
     ISSUE_EXPLORER_LOADING_STATE
   );
-  const [activeIssueListViewId, setActiveIssueListViewId] =
-    useState<IssueListViewId>(DEFAULT_ISSUE_LIST_VIEW_ID);
+  const [location, navigate] = useLocation();
+  const locationSearch = useSearch();
+  const fullLocation =
+    locationSearch.length > 0 ? `${location}?${locationSearch}` : location;
+  const issueRoute = parseIssueExplorerRoute(fullLocation);
   const [appDestination, setAppDestination] =
     useState<AppDestination>("issueExplorer");
   const settings = useAppSettings();
@@ -225,18 +234,61 @@ export default function App() {
    * Health variant; before the split, a single slot would silently
    * drop one variant when both were deferred for the same identity.
    */
-  const deferredSnapshotRef =
-    useRef<IssueExplorerRefreshSnapshotEvent | null>(null);
+  const deferredSnapshotRef = useRef<IssueExplorerRefreshSnapshotEvent | null>(
+    null
+  );
   const deferredHealthRef = useRef<IssueExplorerRefreshHealthEvent | null>(
     null
   );
   const [dismissedSwitchErrorGeneration, setDismissedSwitchErrorGeneration] =
     useState<number | null>(null);
 
-  const handleIssueListViewSelect = useCallback((viewId: IssueListViewId) => {
-    setActiveIssueListViewId(viewId);
-    setAppDestination("issueExplorer");
-  }, []);
+  useExternalLifecycle(() => {
+    const isIssueRoute = location === "/" || location.startsWith("/issues");
+    if (!isIssueRoute) {
+      return;
+    }
+
+    const canonicalLocation = serializeIssueExplorerRoute(issueRoute);
+    if (fullLocation !== canonicalLocation) {
+      navigate(canonicalLocation, { replace: true });
+    }
+  }, [fullLocation, issueRoute, location, locationSearch, navigate]);
+
+  const handleIssueListViewSelect = useCallback(
+    (viewId: IssueListViewId) => {
+      const selectedIssueId = selectIssueForView(
+        issueState,
+        viewId,
+        issueRoute.issueId
+      );
+      navigate(
+        serializeIssueExplorerRoute({
+          ...issueRoute,
+          issueId: selectedIssueId,
+          viewId,
+        })
+      );
+      setAppDestination("issueExplorer");
+    },
+    [issueRoute, issueState, navigate]
+  );
+
+  const handleIssueSelect = useCallback(
+    (issueId: string) => {
+      navigate(serializeIssueExplorerRoute({ ...issueRoute, issueId }));
+    },
+    [issueRoute, navigate]
+  );
+
+  const handleIssueSearchChange = useCallback(
+    (search: string) => {
+      navigate(serializeIssueExplorerRoute({ ...issueRoute, search }), {
+        replace: true,
+      });
+    },
+    [issueRoute, navigate]
+  );
 
   const applyDeferredRefresh = useCallback((): boolean => {
     // Replay the deferred Snapshot first so the gate's confirmed
@@ -566,7 +618,7 @@ export default function App() {
       />
       <div className="flex flex-1 overflow-hidden">
         <Sidebar
-          activeIssueListViewId={activeIssueListViewId}
+          activeIssueListViewId={issueRoute.viewId}
           appDestination={appDestination}
           collapsed={sidebarCollapsed}
           disabled={sidebarDisabled}
@@ -613,10 +665,12 @@ export default function App() {
               </main>
             ) : (
               <IssueExplorer
-                activeIssueListViewId={activeIssueListViewId}
+                activeIssueListViewId={issueRoute.viewId}
                 issueState={presentedIssueState}
                 markdownFontSizePx={settings.state.appliedFontSizePx}
-                onIssueListViewChange={setActiveIssueListViewId}
+                onIssueSearchChange={handleIssueSearchChange}
+                onIssueSelect={handleIssueSelect}
+                route={issueRoute}
                 refreshHealth={refreshHealth}
               />
             )}

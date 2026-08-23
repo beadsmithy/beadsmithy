@@ -202,7 +202,7 @@ describe("App settings", () => {
     });
 
     await user.type(searchBox, "Alpha");
-    await user.click(screen.getByRole("button", { name: /Alpha one/iu }));
+    await user.click(screen.getByRole("link", { name: /Alpha one/iu }));
 
     await waitFor(() =>
       expect(
@@ -219,7 +219,7 @@ describe("App settings", () => {
     expect(
       within(issueDetailMain()).getByRole("heading", { name: "Alpha one" })
     ).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: /Alpha one/iu })).toHaveAttribute(
+    expect(screen.getByRole("link", { name: /Alpha one/iu })).toHaveAttribute(
       "aria-current",
       "true"
     );
@@ -245,8 +245,8 @@ describe("App settings", () => {
 
     render(<App />);
 
-    await waitFor(() => screen.getByRole("button", { name: /Alpha/iu }));
-    await user.click(screen.getByRole("button", { name: /Alpha/iu }));
+    await waitFor(() => screen.getByRole("link", { name: /Alpha/iu }));
+    await user.click(screen.getByRole("link", { name: /Alpha/iu }));
 
     const article = await waitFor(() =>
       within(issueDetailMain()).getByRole("article")
@@ -312,8 +312,8 @@ describe("App settings", () => {
 
     render(<App />);
 
-    await waitFor(() => screen.getByRole("button", { name: /Alpha/iu }));
-    await user.click(screen.getByRole("button", { name: /Alpha/iu }));
+    await waitFor(() => screen.getByRole("link", { name: /Alpha/iu }));
+    await user.click(screen.getByRole("link", { name: /Alpha/iu }));
 
     await user.click(settingsButton());
 
@@ -329,9 +329,9 @@ describe("App settings", () => {
     );
 
     await waitFor(() =>
-      expect(screen.getByRole("button", { name: /Beta/iu })).toBeInTheDocument()
+      expect(screen.getByRole("link", { name: /Beta/iu })).toBeInTheDocument()
     );
-    await user.click(screen.getByRole("button", { name: /Beta/iu }));
+    await user.click(screen.getByRole("link", { name: /Beta/iu }));
 
     const article = within(issueDetailMain()).getByRole("article");
     await waitFor(() => expect(article).toHaveStyle({ fontSize: "32px" }));

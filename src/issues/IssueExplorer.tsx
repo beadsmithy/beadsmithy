@@ -13,15 +13,13 @@ import {
 import type { LucideIcon } from "lucide-react";
 import type { RefObject } from "react";
 import { useMemo, useRef, useState } from "react";
+import { Link } from "wouter";
 
 import type { ExternalLinkOpener } from "../components/external-link-opener";
 import { openExternalLink as defaultOpenExternalLink } from "../components/external-link-opener";
 import { MarkdownContent } from "../components/MarkdownContent";
 import { useExternalLifecycle } from "../lib/use-external-lifecycle";
-import type {
-  RefreshFailure,
-  RefreshHealth,
-} from "../refresh-health";
+import type { RefreshFailure, RefreshHealth } from "../refresh-health";
 import type { Issue, IssueComment } from "../rpc/bindings";
 import {
   deriveIssueExplorerState,
@@ -32,12 +30,14 @@ import type { IssueListEmptyReason } from "./issue-explorer-state";
 import { getChildIssues } from "./issue-hierarchy";
 import type { IssueListViewId } from "./issue-list-view";
 import type { IssueExplorerLoadState } from "./issue-loader";
+import { serializeIssueExplorerRoute } from "./issue-navigation";
+import type { IssueExplorerRouteState } from "./issue-navigation";
+import { toIssueViewModel } from "./issue-view";
+import type { IssueTone } from "./issue-view";
 import {
   RefreshFailureBanner,
   selectBannerFailure,
 } from "./RefreshFailureBanner";
-import { toIssueViewModel } from "./issue-view";
-import type { IssueTone } from "./issue-view";
 
 const EMPTY_CHILD_ISSUES: Issue[] = [];
 
@@ -74,11 +74,13 @@ const IssueRow = ({
   isSelected,
   issueMap,
   onSelect,
+  route,
 }: {
   issue: Issue;
   isSelected: boolean;
   issueMap: Record<string, Issue>;
-  onSelect: (issueId: string) => void;
+  onSelect?: (issueId: string) => void;
+  route: IssueExplorerRouteState;
 }) => {
   const view = toIssueViewModel(issue, issueMap);
   const ToneIcon = ISSUE_TONE_ICONS[view.tone];
@@ -92,14 +94,19 @@ const IssueRow = ({
         aria-label={`${view.id}: ${view.title}. ${view.metadataLabel}`}
         className={rowContainerClassName}
       >
-        <button
+        <Link
           aria-current={isSelected ? "true" : undefined}
           aria-label={`${view.id}: ${view.title}. ${view.metadataLabel}`}
           className="block w-full cursor-pointer p-3 text-left transition-colors hover:bg-white/5 focus:bg-white/5 focus:outline-none"
           data-issue-id={issue.id}
           data-selected={isSelected ? "true" : "false"}
-          onClick={() => onSelect(issue.id)}
-          type="button"
+          href={serializeIssueExplorerRoute({ ...route, issueId: issue.id })}
+          onClick={(event) => {
+            if (onSelect !== undefined) {
+              event.preventDefault();
+              onSelect(issue.id);
+            }
+          }}
         >
           <div className="mb-1.5 flex min-w-0 items-center gap-2">
             <ToneIcon
@@ -146,7 +153,7 @@ const IssueRow = ({
               ) : null}
             </div>
           ) : null}
-        </button>
+        </Link>
       </article>
     </li>
   );
@@ -185,6 +192,7 @@ const IssueListContent = ({
   issueMap,
   onSelect,
   rawSearchQuery,
+  route,
   selectedIssueId,
   state,
   visibleIssues,
@@ -192,8 +200,9 @@ const IssueListContent = ({
   activeViewLabel: string;
   emptyReason: IssueListEmptyReason | null;
   issueMap: Record<string, Issue>;
-  onSelect: (issueId: string) => void;
+  onSelect?: (issueId: string) => void;
   rawSearchQuery: string;
+  route: IssueExplorerRouteState;
   selectedIssueId: string | null;
   state: IssueExplorerLoadState;
   visibleIssues: Issue[];
@@ -248,11 +257,28 @@ const IssueListContent = ({
           issueMap={issueMap}
           key={issue.id}
           onSelect={onSelect}
+          route={route}
         />
       ))}
     </ul>
   );
 };
+
+const IssueDetailNotFound = ({ issueId }: { issueId: string }) => (
+  <main
+    aria-label="Issue detail"
+    className="flex flex-1 flex-col items-center justify-center bg-background p-8"
+  >
+    <div className="mb-6 flex size-16 items-center justify-center rounded-2xl border border-danger/40 bg-danger/10 shadow-[inset_0_1px_0_rgba(255,255,255,0.05)]">
+      <AlertTriangle className="size-8 text-danger" strokeWidth={1.5} />
+    </div>
+    <h2 className="mb-2 text-xl font-semibold text-primary">Issue not found</h2>
+    <p className="max-w-sm text-center text-sm text-muted">
+      Beadwork does not contain Issue{" "}
+      <span className="font-mono">{issueId}</span> in this Workspace.
+    </p>
+  </main>
+);
 
 const IssueDetailEmpty = () => (
   <main
@@ -619,6 +645,7 @@ const IssueDetailPane = ({
   childIssues,
   issueMap,
   selectedIssue,
+  missingIssueId,
   markdownFontSizePx,
   onSelect,
   onUserDrivenSelect,
@@ -628,15 +655,22 @@ const IssueDetailPane = ({
   childIssues: Issue[];
   issueMap: Record<string, Issue>;
   selectedIssue: Issue | null;
+  missingIssueId: string | null;
   markdownFontSizePx?: number;
   onSelect: (issueId: string) => void;
   onUserDrivenSelect: () => void;
   openExternalLink: ExternalLinkOpener;
   titleRef: RefObject<HTMLHeadingElement | null>;
-}) =>
-  selectedIssue === null ? (
-    <IssueDetailEmpty />
-  ) : (
+}) => {
+  if (selectedIssue === null && missingIssueId !== null) {
+    return <IssueDetailNotFound issueId={missingIssueId} />;
+  }
+
+  if (selectedIssue === null) {
+    return <IssueDetailEmpty />;
+  }
+
+  return (
     <IssueDetailContent
       childIssues={childIssues}
       issue={selectedIssue}
@@ -648,25 +682,42 @@ const IssueDetailPane = ({
       titleRef={titleRef}
     />
   );
+};
 
 export const IssueExplorer = ({
   activeIssueListViewId,
   issueState,
+  route,
   markdownFontSizePx,
-  onIssueListViewChange,
+  onIssueSearchChange,
+  onIssueSelect,
   openExternalLink = defaultOpenExternalLink,
   refreshHealth,
 }: {
   activeIssueListViewId?: IssueListViewId;
   issueState: IssueExplorerLoadState;
+  route?: IssueExplorerRouteState;
   markdownFontSizePx?: number;
   onIssueListViewChange?: (viewId: IssueListViewId) => void;
+  onIssueSearchChange?: (search: string) => void;
+  onIssueSelect?: (issueId: string) => void;
   openExternalLink?: ExternalLinkOpener;
   refreshHealth?: RefreshHealth | null;
 }) => {
-  void onIssueListViewChange;
-  const [searchQuery, setSearchQuery] = useState("");
-  const [selectedIssueId, setSelectedIssueId] = useState<string | null>(null);
+  const [localSearchQuery, setLocalSearchQuery] = useState("");
+  const [localSelectedIssueId, setLocalSelectedIssueId] = useState<
+    string | null
+  >(null);
+  const isRouteControlled = route !== undefined;
+  const activeRoute: IssueExplorerRouteState = route ?? {
+    issueId: localSelectedIssueId,
+    search: localSearchQuery,
+    viewId: activeIssueListViewId ?? "all",
+  };
+  const searchQuery = isRouteControlled ? activeRoute.search : localSearchQuery;
+  const selectedIssueId = isRouteControlled
+    ? activeRoute.issueId
+    : localSelectedIssueId;
   const childIssueSelectionRef = useRef(false);
   const detailHeadingRef = useRef<HTMLHeadingElement>(null);
 
@@ -679,15 +730,29 @@ export const IssueExplorer = ({
     childIssueSelectionRef.current = false;
   }, [selectedIssueId]);
 
+  useExternalLifecycle(() => {
+    const selectedIssue =
+      issueState.status === "success" && selectedIssueId !== null
+        ? issueState.allIssues.find((issue) => issue.id === selectedIssueId)
+        : undefined;
+    let title = "Beadsmithy";
+    if (activeRoute.issueId !== null && selectedIssue === undefined) {
+      title = "Issue not found · Beadsmithy";
+    } else if (selectedIssue !== undefined) {
+      title = `${selectedIssue.id} — ${selectedIssue.title} · Beadsmithy`;
+    }
+    document.title = title;
+  }, [activeRoute.issueId, issueState, selectedIssueId]);
+
   const derivedState = useMemo(
     () =>
       deriveIssueExplorerState({
-        activeIssueListViewId,
+        activeIssueListViewId: activeRoute.viewId,
         issueState,
         searchQuery,
         selectedIssueId,
       }),
-    [activeIssueListViewId, issueState, searchQuery, selectedIssueId]
+    [activeRoute.viewId, issueState, searchQuery, selectedIssueId]
   );
 
   const {
@@ -730,22 +795,20 @@ export const IssueExplorer = ({
   // avoids any post-render imperative synchronization.
   const issueListScrollContainerKey = activeViewId;
 
-  // Clear the selected Issue ID when it is no longer present in
-  // `allIssues`. The cleared state is not auto-restored if a later load
-  // makes the Issue visible again. Workspace transitions are handled
-  // separately by the App-level `workspaceKey` remount — this effect
-  // runs only inside the explorer's React subtree, so the only clearing
-  // trigger here is `allIssues` membership.
-  if (
-    issueState.status === "success" &&
-    selectedIssueId !== null &&
-    !issueState.allIssues.some((issue) => issue.id === selectedIssueId)
-  ) {
-    setSelectedIssueId(null);
-  }
-
   const handleSelect = (issueId: string) => {
-    setSelectedIssueId(issueId);
+    if (onIssueSelect !== undefined) {
+      onIssueSelect(issueId);
+      return;
+    }
+    setLocalSelectedIssueId(issueId);
+  };
+
+  const handleSearchChange = (search: string) => {
+    if (onIssueSearchChange !== undefined) {
+      onIssueSearchChange(search);
+      return;
+    }
+    setLocalSearchQuery(search);
   };
 
   const handleUserDrivenChildIssueSelect = () => {
@@ -776,7 +839,7 @@ export const IssueExplorer = ({
               className="w-full rounded-md border border-border-main bg-surface py-1.5 pr-12 pl-9 text-sm text-text-main placeholder:text-muted focus:border-accent focus:outline-none disabled:opacity-50"
               disabled={isSearchDisabled}
               id="issue-search"
-              onChange={(event) => setSearchQuery(event.target.value)}
+              onChange={(event) => handleSearchChange(event.target.value)}
               placeholder="Search issues..."
               type="text"
               value={searchQuery}
@@ -795,8 +858,9 @@ export const IssueExplorer = ({
             activeViewLabel={activeViewLabel}
             emptyReason={emptyReason}
             issueMap={issueMap}
-            onSelect={handleSelect}
+            onSelect={isRouteControlled ? undefined : handleSelect}
             rawSearchQuery={searchQuery}
+            route={activeRoute}
             selectedIssueId={selectedIssueId}
             state={issueState}
             visibleIssues={visibleIssues}
@@ -811,6 +875,13 @@ export const IssueExplorer = ({
         onUserDrivenSelect={handleUserDrivenChildIssueSelect}
         openExternalLink={openExternalLink}
         selectedIssue={selectedIssue}
+        missingIssueId={
+          issueState.status === "success" &&
+          activeRoute.issueId !== null &&
+          selectedIssue === null
+            ? activeRoute.issueId
+            : null
+        }
         titleRef={detailHeadingRef}
       />
     </>

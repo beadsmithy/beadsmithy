@@ -1,5 +1,6 @@
 import React from "react";
 import ReactDOM from "react-dom/client";
+import { Router } from "wouter";
 
 import App from "./App";
 
@@ -13,8 +14,10 @@ void (async () => {
   await installWdioPlugin();
 
   ReactDOM.createRoot(document.querySelector("#root") as HTMLElement).render(
-    <React.StrictMode>
-      <App />
-    </React.StrictMode>
+    <Router>
+      <React.StrictMode>
+        <App />
+      </React.StrictMode>
+    </Router>
   );
 })();
