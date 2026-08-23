@@ -36,8 +36,18 @@ const execFileAsync = promisify(execFile);
 
 const { fixtureA } = parseHarnessEnvironment(process.env);
 
+// Activation AppleScripts normally finish in well under a second; ten
+// seconds only fires on a genuinely stalled OS automation call.
+const OSASCRIPT_TIMEOUT_MS = 10_000;
+
 const runOsascript = async (script: string): Promise<string> => {
-  const { stdout } = await execFileAsync("osascript", ["-e", script]);
+  // A stalled AppleScript (e.g. an unresponsive System Events or a
+  // pending Automation permission prompt) must not hang the awaited
+  // retry loops forever: bound every call and force-kill on timeout.
+  const { stdout } = await execFileAsync("osascript", ["-e", script], {
+    killSignal: "SIGKILL",
+    timeout: OSASCRIPT_TIMEOUT_MS,
+  });
   return stdout.trim();
 };
 
