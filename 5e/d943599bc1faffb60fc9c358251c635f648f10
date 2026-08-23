@@ -1,0 +1,38 @@
+src/App.tsx
+  s_2098807ccbaae2::t_16fbac549ab1bf 3-4,19,240-243
+  s_2098807ccbaae2::t_abe1ddf4f434a0 244-248,386-393,396-425,428-442,445-467
+  s_2098807ccbaae2::t_49f48d730c8d67 877-892
+  s_2098807ccbaae2::t_dfb832fbf4c2cc 443-444
+  s_2098807ccbaae2::t_c884efcc0f8bae 394-395,426-427,468-469,893
+src-tauri/src/lib.rs
+  s_2098807ccbaae2::t_1f19dada48bd4b 62-70
+  s_2098807ccbaae2::t_a4e6682afcf521 14
+src-tauri/tauri.conf.json
+  s_2098807ccbaae2::t_317c3a80349505 12-18
+src-tauri/capabilities/default.json
+  s_2098807ccbaae2::t_9b0aa8be0149fd 14-15
+src-tauri/Cargo.toml
+  s_2098807ccbaae2::t_27de60c3cfcdb7 26-27
+package.json
+  s_2098807ccbaae2::t_64fe33fe4c572e 37
+pnpm-lock.yaml
+  s_2098807ccbaae2::t_ce265efbe428e1 20-22,1928-1930,6505-6508
+src-tauri/Cargo.lock
+  s_2098807ccbaae2::t_4d7cfb15839ac7 323,327,614-633,717-722,934-942,1667-1672,2649-2658,3155-3164,3952-3972,4058-4074,4378-4386,5233-5243
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.23",
+  "base_commit_sha": "5ed943599bc1faffb60fc9c358251c635f648f10",
+  "prompts": {},
+  "sessions": {
+    "s_2098807ccbaae2": {
+      "agent_id": {
+        "tool": "pi",
+        "id": "01a02dea-aa9c-78b1-a3b3-b3ed3a135ca6",
+        "model": "gpt-5.6-luna"
+      },
+      "human_author": "Tomas Thor Jonsson <benregn@gmail.com>"
+    }
+  }
+}
