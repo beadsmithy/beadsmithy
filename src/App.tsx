@@ -2,7 +2,7 @@ import { listen } from "@tauri-apps/api/event";
 import type { UnlistenFn } from "@tauri-apps/api/event";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import { getCurrent, onOpenUrl } from "@tauri-apps/plugin-deep-link";
-import { open } from "@tauri-apps/plugin-dialog";
+import { confirm, open } from "@tauri-apps/plugin-dialog";
 import { useCallback, useRef, useState } from "react";
 import { useLocation, useSearch } from "wouter";
 
@@ -246,6 +246,7 @@ export default function App() {
     () => undefined
   );
   const deepLinkProcessorRef = useRef<() => void>(() => undefined);
+  const deepLinkRequestGenerationRef = useRef(0);
   const transitionGateRef = useRef<WorkspaceTransitionGateState>(
     INITIAL_WORKSPACE_TRANSITION_GATE_STATE
   );
@@ -384,48 +385,119 @@ export default function App() {
   );
 
   const handleDeepLinkUrl = useCallback(
-    (url: string, startup: boolean): void => {
+    async (url: string, startup: boolean): Promise<void> => {
       const parsed = parseIssueLocationUri(url);
       if (!parsed.ok) {
         setDeepLinkError(`Could not open link (${parsed.error}).`);
         return;
       }
       if (
-        issueState.status !== "success" ||
-        (workspaceState?.pendingWorkspace !== null &&
-          workspaceState?.pendingWorkspace !== undefined)
+        workspaceState === null ||
+        (workspaceState.pendingWorkspace !== null &&
+          workspaceState.pendingWorkspace !== undefined)
       ) {
         pendingDeepLinkRef.current = { startup, url };
         return;
       }
-      if (parsed.value.workspacePath !== issueState.workspacePath) {
-        setDeepLinkError("Could not open link: it targets another Workspace.");
+
+      const currentWorkspacePath =
+        issueState.status === "success" ? issueState.workspacePath : null;
+      if (parsed.value.workspacePath === currentWorkspacePath) {
+        if (issueState.status !== "success") {
+          pendingDeepLinkRef.current = { startup, url };
+          return;
+        }
+        const targetIsVisible = isIssueInListView(
+          issueState,
+          explorerRoute.viewId,
+          parsed.value.issueId
+        );
+        navigateIssueRoute(
+          targetIsVisible
+            ? { ...explorerRoute, issueId: parsed.value.issueId }
+            : { issueId: parsed.value.issueId, search: "", viewId: "all" },
+          startup
+        );
+        setDeepLinkError(null);
         return;
       }
-      const targetIsVisible = isIssueInListView(
-        issueState,
-        explorerRoute.viewId,
-        parsed.value.issueId
-      );
-      navigateIssueRoute(
-        targetIsVisible
-          ? { ...explorerRoute, issueId: parsed.value.issueId }
-          : { issueId: parsed.value.issueId, search: "", viewId: "all" },
-        startup
-      );
-      setDeepLinkError(null);
+
+      const requestGeneration = ++deepLinkRequestGenerationRef.current;
+      try {
+        const resolution = await createTauRPCProxy().resolve_workspace(
+          parsed.value.workspacePath
+        );
+        if (requestGeneration !== deepLinkRequestGenerationRef.current) {
+          return;
+        }
+        const resolvedCurrentPath =
+          issueState.status === "success" ? issueState.workspacePath : null;
+        if (resolution.workspace.path === resolvedCurrentPath) {
+          const targetIsVisible =
+            issueState.status === "success" &&
+            isIssueInListView(
+              issueState,
+              explorerRoute.viewId,
+              parsed.value.issueId
+            );
+          navigateIssueRoute(
+            targetIsVisible
+              ? { ...explorerRoute, issueId: parsed.value.issueId }
+              : { issueId: parsed.value.issueId, search: "", viewId: "all" },
+            startup,
+            resolution.workspace.path
+          );
+          setDeepLinkError(null);
+          return;
+        }
+        const action = resolution.known
+          ? "open this remembered Workspace"
+          : "add and open this Workspace";
+        const accepted = await confirm(
+          `Do you want to ${action} and open Issue ${parsed.value.issueId}?`,
+          { title: "Open Issue Location" }
+        );
+        if (
+          !accepted ||
+          requestGeneration !== deepLinkRequestGenerationRef.current
+        ) {
+          return;
+        }
+        const switched = await createTauRPCProxy().switch_workspace(
+          parsed.value.workspacePath
+        );
+        if (requestGeneration !== deepLinkRequestGenerationRef.current) {
+          return;
+        }
+        applyTransition(
+          { issueData: switched.issueData, state: switched.state },
+          null
+        );
+        navigateIssueRoute(
+          { issueId: parsed.value.issueId, search: "", viewId: "all" },
+          startup,
+          switched.issueData.workspacePath
+        );
+        setDeepLinkError(null);
+      } catch {
+        if (requestGeneration === deepLinkRequestGenerationRef.current) {
+          setDeepLinkError("Could not open link: Workspace resolution failed.");
+        }
+      }
     },
     [explorerRoute, issueState, navigateIssueRoute, workspaceState]
   );
 
-  deepLinkHandlerRef.current = handleDeepLinkUrl;
+  deepLinkHandlerRef.current = (url, startup) => {
+    void handleDeepLinkUrl(url, startup);
+  };
   deepLinkProcessorRef.current = () => {
     const pending = pendingDeepLinkRef.current;
     if (
       pending === null ||
-      issueState.status !== "success" ||
-      (workspaceState?.pendingWorkspace !== null &&
-        workspaceState?.pendingWorkspace !== undefined)
+      workspaceState === null ||
+      (workspaceState.pendingWorkspace !== null &&
+        workspaceState.pendingWorkspace !== undefined)
     ) {
       return;
     }
