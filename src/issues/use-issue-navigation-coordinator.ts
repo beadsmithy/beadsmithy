@@ -1,4 +1,4 @@
-import { useCallback, useRef } from "react";
+import { useCallback, useRef, useState } from "react";
 
 import { useExternalLifecycle } from "../lib/use-external-lifecycle";
 import type { IssueExplorerRouteState } from "./issue-navigation";
@@ -48,6 +48,15 @@ export const useIssueNavigationCoordinator = ({
   issueRoute,
   navigate,
 }: IssueNavigationCoordinatorOptions): IssueNavigationCoordinatorResult => {
+  const [, setHistoryRevision] = useState(0);
+  useExternalLifecycle(() => {
+    const handlePopState = (): void => {
+      setHistoryRevision((revision) => revision + 1);
+    };
+    window.addEventListener("popstate", handlePopState);
+    return () => window.removeEventListener("popstate", handlePopState);
+  }, []);
+
   const underlyingIssueRouteRef = useRef(issueRoute);
   useExternalLifecycle(() => {
     if (!isSettingsRoute) {
@@ -110,12 +119,25 @@ export const useIssueNavigationCoordinator = ({
     const entry =
       currentNavigationEntry ??
       createIssueNavigationEntry(issueRoute, currentWorkspacePath, 0);
-    recordIssueNavigationEntry(navigationLedgerRef.current, entry);
-    if (currentNavigationEntry === null) {
+    const authoritativeEntry =
+      currentNavigationEntry !== null &&
+      currentNavigationEntry.workspacePath === null &&
+      currentWorkspacePath !== null
+        ? createIssueNavigationEntry(
+            currentNavigationEntry,
+            currentWorkspacePath,
+            currentNavigationEntry.index
+          )
+        : entry;
+    recordIssueNavigationEntry(navigationLedgerRef.current, authoritativeEntry);
+    if (
+      currentNavigationEntry === null ||
+      authoritativeEntry !== currentNavigationEntry
+    ) {
       window.history.replaceState(
-        writeIssueNavigationState(window.history.state, entry),
+        writeIssueNavigationState(window.history.state, authoritativeEntry),
         "",
-        serializeIssueExplorerRoute(issueRoute)
+        serializeIssueExplorerRoute(authoritativeEntry)
       );
     }
   }, [currentNavigationEntry, currentWorkspacePath, issueRoute]);
@@ -127,6 +149,7 @@ export const useIssueNavigationCoordinator = ({
   const handleBackNavigation = useCallback(() => {
     if (isSettingsRoute) {
       navigateIssueRoute(explorerRoute, true);
+      window.history.back();
       return;
     }
     if (previousNavigationEntry !== null) {

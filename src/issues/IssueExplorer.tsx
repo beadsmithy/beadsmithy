@@ -276,7 +276,13 @@ const IssueListContent = ({
   );
 };
 
-const IssueDetailNotFound = ({ issueId }: { issueId: string }) => (
+const IssueDetailNotFound = ({
+  issueId,
+  titleRef,
+}: {
+  issueId: string;
+  titleRef: RefObject<HTMLHeadingElement | null>;
+}) => (
   <main
     aria-label="Issue detail"
     className="flex flex-1 flex-col items-center justify-center bg-background p-8"
@@ -284,7 +290,13 @@ const IssueDetailNotFound = ({ issueId }: { issueId: string }) => (
     <div className="mb-6 flex size-16 items-center justify-center rounded-2xl border border-danger/40 bg-danger/10 shadow-[inset_0_1px_0_rgba(255,255,255,0.05)]">
       <AlertTriangle className="size-8 text-danger" strokeWidth={1.5} />
     </div>
-    <h2 className="mb-2 text-xl font-semibold text-primary">Issue not found</h2>
+    <h2
+      className="mb-2 text-xl font-semibold text-primary"
+      ref={titleRef}
+      tabIndex={-1}
+    >
+      Issue not found
+    </h2>
     <p className="max-w-sm text-center text-sm text-muted">
       Beadwork does not contain Issue{" "}
       <span className="font-mono">{issueId}</span> in this Workspace.
@@ -292,7 +304,11 @@ const IssueDetailNotFound = ({ issueId }: { issueId: string }) => (
   </main>
 );
 
-const IssueDetailEmpty = () => (
+const IssueDetailEmpty = ({
+  titleRef,
+}: {
+  titleRef: RefObject<HTMLHeadingElement | null>;
+}) => (
   <main
     aria-label="Issue detail"
     className="flex flex-1 flex-col items-center justify-center bg-background p-8"
@@ -300,7 +316,11 @@ const IssueDetailEmpty = () => (
     <div className="mb-6 flex size-16 items-center justify-center rounded-2xl border border-border-main bg-surface shadow-[inset_0_1px_0_rgba(255,255,255,0.05)]">
       <FileText className="size-8 text-muted" strokeWidth={1.5} />
     </div>
-    <h2 className="mb-2 text-xl font-semibold text-primary">
+    <h2
+      className="mb-2 text-xl font-semibold text-primary"
+      ref={titleRef}
+      tabIndex={-1}
+    >
       No issue selected
     </h2>
     <p className="max-w-sm text-center text-sm text-muted">
@@ -757,11 +777,11 @@ const IssueDetailPane = ({
   copySucceeded: boolean;
 }) => {
   if (selectedIssue === null && missingIssueId !== null) {
-    return <IssueDetailNotFound issueId={missingIssueId} />;
+    return <IssueDetailNotFound issueId={missingIssueId} titleRef={titleRef} />;
   }
 
   if (selectedIssue === null) {
-    return <IssueDetailEmpty />;
+    return <IssueDetailEmpty titleRef={titleRef} />;
   }
 
   return (
@@ -825,6 +845,8 @@ export const IssueExplorer = ({
   const [copySucceeded, setCopySucceeded] = useState(false);
   const routeFocusInitializedRef = useRef(false);
   const detailHeadingRef = useRef<HTMLHeadingElement>(null);
+  const workspaceIdentity =
+    issueState.status === "success" ? issueState.workspacePath : null;
 
   useExternalLifecycle(() => {
     if (!childIssueSelectionRef.current) {
@@ -843,7 +865,12 @@ export const IssueExplorer = ({
     if (focusRouteChanges) {
       detailHeadingRef.current?.focus({ preventScroll: true });
     }
-  }, [activeRoute.issueId, activeRoute.viewId, focusRouteChanges]);
+  }, [
+    activeRoute.issueId,
+    activeRoute.viewId,
+    focusRouteChanges,
+    workspaceIdentity,
+  ]);
 
   useExternalLifecycle(() => {
     if (titleOverride !== undefined && titleOverride !== null) {

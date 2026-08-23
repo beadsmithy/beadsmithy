@@ -15,10 +15,17 @@ import type { IssueExplorerLoadState } from "./issues/issue-loader";
 import {
   createIssueExplorerRoute,
   isIssueInListView,
+  isIssueListViewId,
   selectIssueForView,
+  serializeIssueExplorerRoute,
 } from "./issues/issue-navigation";
 import { issueNavigationDestinationLabel } from "./issues/issue-navigation-coordinator";
 import { IssueExplorer } from "./issues/IssueExplorer";
+import {
+  finishNavigationIntent,
+  INITIAL_NAVIGATION_INTENT,
+  transitionMatchesNavigationIntent,
+} from "./issues/navigation-intent";
 import { useIssueDeepLinkCoordinator } from "./issues/use-issue-deep-link-coordinator";
 import { useIssueNavigationCoordinator } from "./issues/use-issue-navigation-coordinator";
 import { useIssueWorkspaceTraversal } from "./issues/use-issue-workspace-traversal";
@@ -31,12 +38,10 @@ import type {
   IssueExplorerRefreshSnapshotEvent,
   RefreshHealth,
 } from "./refresh-health";
-import type {
-  LoadIssueExplorerDataResponse,
-  WorkspaceState,
-} from "./rpc/bindings";
+import type { WorkspaceState } from "./rpc/bindings";
 import { useAppSettings } from "./settings/app-settings";
 import { SettingsPage } from "./settings/SettingsPage";
+import type { WorkspaceTransition } from "./workspaces/transition-contract";
 import {
   applyIssueExplorerHealthRefresh,
   applyIssueExplorerRefresh,
@@ -53,11 +58,6 @@ import type {
 
 const WORKSPACE_TRANSITION_EVENT = "workspace-transition";
 const ISSUE_EXPLORER_REFRESH_EVENT = "beadwork://issue-explorer-state-changed";
-
-interface WorkspaceTransition {
-  issueData: LoadIssueExplorerDataResponse | null;
-  state: WorkspaceState;
-}
 
 type AppDestination = "issueExplorer" | "settings";
 
@@ -220,6 +220,15 @@ export default function App() {
     searchParams
   );
   const isSettingsRoute = settingsMatch;
+  const rawViewParam = searchParams.get("view");
+  useExternalLifecycle(() => {
+    if (rawViewParam !== null && !isIssueListViewId(rawViewParam)) {
+      navigate(serializeIssueExplorerRoute(issueRoute), {
+        replace: true,
+        state: window.history.state,
+      });
+    }
+  }, [issueRoute, navigate, rawViewParam]);
   const currentWorkspacePath =
     issueState.status === "success" ? issueState.workspacePath : null;
   const {
@@ -252,6 +261,7 @@ export default function App() {
     null
   );
   const manualWorkspaceSwitchRef = useRef(false);
+  const navigationIntentRef = useRef(INITIAL_NAVIGATION_INTENT);
   const transitionGateRef = useRef<WorkspaceTransitionGateState>(
     INITIAL_WORKSPACE_TRANSITION_GATE_STATE
   );
@@ -369,6 +379,7 @@ export default function App() {
   const { refreshWorkspaceState, workspaceHandlers } = useWorkspaceCoordinator({
     applyTransition,
     manualWorkspaceSwitchRef,
+    navigationIntentRef,
     setDismissedSwitchErrorGeneration,
     setIssueState,
     setWorkspaceKey,
@@ -382,6 +393,7 @@ export default function App() {
       explorerRoute,
       issueState,
       navigateIssueRoute,
+      navigationIntentRef,
       workspaceState,
     });
 
@@ -393,6 +405,7 @@ export default function App() {
     issueState,
     manualWorkspaceSwitchRef,
     navigateIssueRoute,
+    navigationIntentRef,
     setDeepLinkError,
   });
 
@@ -490,7 +503,23 @@ export default function App() {
       const transitionListener = await listen<WorkspaceTransition>(
         WORKSPACE_TRANSITION_EVENT,
         (event) => {
+          const { currentWorkspace, pendingWorkspace } = event.payload.state;
+          const intentGeneration = navigationIntentRef.current.generation;
+          if (
+            !transitionMatchesNavigationIntent(
+              navigationIntentRef,
+              currentWorkspace?.path ?? null,
+              pendingWorkspace?.path ?? null
+            )
+          ) {
+            return;
+          }
           applyTransition(event.payload, null);
+          if (
+            currentWorkspace?.path === navigationIntentRef.current.workspacePath
+          ) {
+            finishNavigationIntent(navigationIntentRef, intentGeneration);
+          }
         }
       );
       if (disposed) {
@@ -656,8 +685,8 @@ export default function App() {
 
         <div className="relative flex flex-1">
           <div
-            key={workspaceKey}
             aria-hidden={appDestination === "settings" ? true : undefined}
+            data-workspace-key={workspaceKey}
             className={`flex flex-1 ${
               appDestination === "settings" ? "invisible" : ""
             }`}

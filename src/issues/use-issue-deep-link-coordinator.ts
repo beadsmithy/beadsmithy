@@ -1,28 +1,28 @@
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import { getCurrent, onOpenUrl } from "@tauri-apps/plugin-deep-link";
 import { confirm } from "@tauri-apps/plugin-dialog";
-import { useCallback, useRef, useState } from "react";
+import { useCallback, useMemo, useRef, useState } from "react";
 
 import { useExternalLifecycle } from "../lib/use-external-lifecycle";
-import { createTauRPCProxy } from "../rpc/bindings";
-import type {
-  LoadIssueExplorerDataResponse,
-  WorkspaceState,
-} from "../rpc/bindings";
+import type { WorkspaceState } from "../rpc/bindings";
+import type { ApplyWorkspaceTransition } from "../workspaces/transition-contract";
+import {
+  createTauRpcWorkspaceService,
+  resolveWorkspace,
+  runWorkspaceEffect,
+  switchWorkspace,
+} from "../workspaces/workspace-service";
+import type { WorkspaceServiceClient } from "../workspaces/workspace-service";
 import type { IssueExplorerLoadState } from "./issue-loader";
 import { parseIssueLocationUri } from "./issue-location-uri";
 import { isIssueInListView } from "./issue-navigation";
 import type { IssueExplorerRouteState } from "./issue-navigation";
-
-interface WorkspaceTransition {
-  issueData: LoadIssueExplorerDataResponse | null;
-  state: WorkspaceState;
-}
-
-type ApplyTransition = (
-  transition: WorkspaceTransition,
-  expectedGeneration: number | null
-) => unknown;
+import {
+  beginNavigationIntent,
+  finishNavigationIntent,
+  isCurrentNavigationIntent,
+} from "./navigation-intent";
+import type { NavigationIntentRef } from "./navigation-intent";
 
 const readCurrentWorkspacePath = (
   issueState: IssueExplorerLoadState,
@@ -32,8 +32,17 @@ const readCurrentWorkspacePath = (
     ? issueState.workspacePath
     : (workspaceState.currentWorkspace?.path ?? null);
 
+const reportWorkspaceResolutionFailure = (
+  setDeepLinkError: (message: string) => void,
+  isCurrent: boolean
+): void => {
+  if (isCurrent) {
+    setDeepLinkError("Could not open link: Workspace resolution failed.");
+  }
+};
+
 export interface IssueDeepLinkCoordinatorOptions {
-  applyTransition: ApplyTransition;
+  applyTransition: ApplyWorkspaceTransition;
   explorerRoute: IssueExplorerRouteState;
   issueState: IssueExplorerLoadState;
   navigateIssueRoute: (
@@ -41,6 +50,8 @@ export interface IssueDeepLinkCoordinatorOptions {
     replace: boolean,
     workspacePath?: string | null
   ) => void;
+  navigationIntentRef: NavigationIntentRef;
+  workspaceService?: WorkspaceServiceClient;
   workspaceState: WorkspaceState | null;
 }
 
@@ -55,8 +66,14 @@ export const useIssueDeepLinkCoordinator = ({
   explorerRoute,
   issueState,
   navigateIssueRoute,
+  navigationIntentRef,
+  workspaceService: injectedWorkspaceService,
   workspaceState,
 }: IssueDeepLinkCoordinatorOptions): IssueDeepLinkCoordinatorResult => {
+  const workspaceService = useMemo(
+    () => injectedWorkspaceService ?? createTauRpcWorkspaceService(),
+    [injectedWorkspaceService]
+  );
   const [deepLinkError, setDeepLinkError] = useState<string | null>(null);
   const pendingDeepLinkRef = useRef<{
     startup: boolean;
@@ -66,8 +83,6 @@ export const useIssueDeepLinkCoordinator = ({
     () => 0
   );
   const deepLinkProcessorRef = useRef<() => void>(() => 0);
-  const deepLinkRequestGenerationRef = useRef(0);
-
   const handleDeepLinkUrl = useCallback(
     async (url: string, startup: boolean): Promise<void> => {
       const parsed = parseIssueLocationUri(url);
@@ -75,6 +90,10 @@ export const useIssueDeepLinkCoordinator = ({
         setDeepLinkError(`Could not open link (${parsed.error}).`);
         return;
       }
+      const requestGeneration = beginNavigationIntent(
+        navigationIntentRef,
+        parsed.value.workspacePath
+      );
       if (workspaceState === null || workspaceState.pendingWorkspace !== null) {
         pendingDeepLinkRef.current = { startup, url };
         return;
@@ -101,16 +120,27 @@ export const useIssueDeepLinkCoordinator = ({
           startup
         );
         setDeepLinkError(null);
+        finishNavigationIntent(navigationIntentRef, requestGeneration);
         return;
       }
 
-      deepLinkRequestGenerationRef.current += 1;
-      const requestGeneration = deepLinkRequestGenerationRef.current;
       try {
-        const resolution = await createTauRPCProxy().resolve_workspace(
-          parsed.value.workspacePath
+        const resolutionResult = await runWorkspaceEffect(
+          resolveWorkspace(parsed.value.workspacePath),
+          workspaceService
         );
-        if (requestGeneration !== deepLinkRequestGenerationRef.current) {
+        if (!resolutionResult.ok) {
+          reportWorkspaceResolutionFailure(
+            setDeepLinkError,
+            isCurrentNavigationIntent(navigationIntentRef, requestGeneration)
+          );
+          finishNavigationIntent(navigationIntentRef, requestGeneration);
+          return;
+        }
+        const resolution = resolutionResult.value;
+        if (
+          !isCurrentNavigationIntent(navigationIntentRef, requestGeneration)
+        ) {
           return;
         }
         const resolvedCurrentPath = readCurrentWorkspacePath(
@@ -142,18 +172,33 @@ export const useIssueDeepLinkCoordinator = ({
           `Do you want to ${action} at ${resolution.workspace.path} and open Issue ${parsed.value.issueId}?`,
           { title: "Open Issue Location" }
         );
+        if (!accepted) {
+          finishNavigationIntent(navigationIntentRef, requestGeneration);
+          return;
+        }
         if (
-          !accepted ||
-          requestGeneration !== deepLinkRequestGenerationRef.current
+          !isCurrentNavigationIntent(navigationIntentRef, requestGeneration)
         ) {
           return;
         }
-        const switched = await createTauRPCProxy().switch_workspace(
-          parsed.value.workspacePath
+        const switchedResult = await runWorkspaceEffect(
+          switchWorkspace(parsed.value.workspacePath),
+          workspaceService
         );
-        if (requestGeneration !== deepLinkRequestGenerationRef.current) {
+        if (!switchedResult.ok) {
+          reportWorkspaceResolutionFailure(
+            setDeepLinkError,
+            isCurrentNavigationIntent(navigationIntentRef, requestGeneration)
+          );
+          finishNavigationIntent(navigationIntentRef, requestGeneration);
           return;
         }
+        if (
+          !isCurrentNavigationIntent(navigationIntentRef, requestGeneration)
+        ) {
+          return;
+        }
+        const switched = switchedResult.value;
         applyTransition(
           { issueData: switched.issueData, state: switched.state },
           null
@@ -164,9 +209,11 @@ export const useIssueDeepLinkCoordinator = ({
           switched.issueData.workspacePath
         );
         setDeepLinkError(null);
+        finishNavigationIntent(navigationIntentRef, requestGeneration);
       } catch {
-        if (requestGeneration === deepLinkRequestGenerationRef.current) {
+        if (isCurrentNavigationIntent(navigationIntentRef, requestGeneration)) {
           setDeepLinkError("Could not open link: Workspace resolution failed.");
+          finishNavigationIntent(navigationIntentRef, requestGeneration);
         }
       }
     },
@@ -175,6 +222,8 @@ export const useIssueDeepLinkCoordinator = ({
       explorerRoute,
       issueState,
       navigateIssueRoute,
+      navigationIntentRef,
+      workspaceService,
       workspaceState,
     ]
   );

@@ -1,4 +1,5 @@
-import { render, screen, waitFor } from "@testing-library/react";
+import { render, screen, waitFor, within } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import type { IssueExplorerLoadState } from "./issues/issue-loader";
@@ -185,6 +186,117 @@ describe("App deep-link delivery", () => {
     ).toHaveTextContent("No issue selected");
   });
 
+  it("restores the initial Workspace when Back follows a cross-Workspace deep link", async () => {
+    const user = userEvent.setup();
+    const issueA = buildIssue({ id: "bsm-history-id", title: "Issue A" });
+    const issueB = buildIssue({ id: "bsm-history-id", title: "Issue B" });
+    loadIssueExplorerStateFromTauRpc.mockResolvedValue(
+      successState({ allIssues: [issueA], workspacePath: "/work/a" })
+    );
+    resolveWorkspace.mockResolvedValue({
+      known: true,
+      workspace: { availability: "available", path: "/work/b" },
+    });
+    confirm.mockResolvedValue(true);
+    switchWorkspace
+      .mockResolvedValueOnce({
+        issueData: successState({
+          allIssues: [issueB],
+          workspacePath: "/work/b",
+        }),
+        state: workspace({
+          currentWorkspace: { availability: "available", path: "/work/b" },
+          generation: 2,
+        }),
+      })
+      .mockResolvedValueOnce({
+        issueData: successState({
+          allIssues: [issueA],
+          workspacePath: "/work/a",
+        }),
+        state: workspace({
+          currentWorkspace: { availability: "available", path: "/work/a" },
+          generation: 3,
+        }),
+      })
+      .mockResolvedValueOnce({
+        issueData: successState({
+          allIssues: [issueB],
+          workspacePath: "/work/b",
+        }),
+        state: workspace({
+          currentWorkspace: { availability: "available", path: "/work/b" },
+          generation: 4,
+        }),
+      })
+      .mockResolvedValueOnce({
+        issueData: successState({
+          allIssues: [issueA],
+          workspacePath: "/work/a",
+        }),
+        state: workspace({
+          currentWorkspace: { availability: "available", path: "/work/a" },
+          generation: 5,
+        }),
+      });
+    let deliverUrl: ((urls: string[]) => void) | undefined;
+    // eslint-disable-next-line promise/prefer-await-to-callbacks
+    onOpenUrl.mockImplementation((callback: (urls: string[]) => void) => {
+      deliverUrl = callback;
+      return Promise.resolve(vi.fn());
+    });
+
+    render(<App />);
+    await user.click(await screen.findByRole("link", { name: /Issue A/iu }));
+    deliverUrl?.([issueLocation("/work/b", issueB.id)]);
+
+    await waitFor(() =>
+      expect(
+        within(screen.getByRole("main", { name: "Issue detail" })).getByRole(
+          "heading",
+          { name: issueB.title }
+        )
+      ).toBeInTheDocument()
+    );
+    await user.click(screen.getByRole("button", { name: /Back/iu }));
+
+    await waitFor(() =>
+      expect(
+        within(screen.getByRole("main", { name: "Issue detail" })).getByRole(
+          "heading",
+          { name: issueA.title }
+        )
+      ).toBeInTheDocument()
+    );
+    expect(document.activeElement).toBe(
+      within(screen.getByRole("main", { name: "Issue detail" })).getByRole(
+        "heading",
+        { name: issueA.title }
+      )
+    );
+    expect(switchWorkspace).toHaveBeenCalledTimes(2);
+
+    await user.click(screen.getByRole("button", { name: /Forward/iu }));
+    await waitFor(() =>
+      expect(
+        within(screen.getByRole("main", { name: "Issue detail" })).getByRole(
+          "heading",
+          { name: issueB.title }
+        )
+      ).toBeInTheDocument()
+    );
+    await user.click(screen.getByRole("button", { name: /Back/iu }));
+    await waitFor(() =>
+      expect(
+        within(screen.getByRole("main", { name: "Issue detail" })).getByRole(
+          "heading",
+          { name: issueA.title }
+        )
+      ).toBeInTheDocument()
+    );
+    expect(switchWorkspace).toHaveBeenCalledTimes(4);
+  });
+
   it("opens the latest running-instance URL and focuses the existing window", async () => {
     const first = buildIssue({ id: "bsm-first", title: "First issue" });
     const second = buildIssue({ id: "bsm-second", title: "Second issue" });
@@ -206,6 +318,49 @@ describe("App deep-link delivery", () => {
       expect(window.location.pathname).toBe(`/issues/${second.id}`)
     );
     expect(windowApi.setFocus).toHaveBeenCalled();
+  });
+
+  it("lets a newer same-Workspace link supersede an older async Workspace resolution", async () => {
+    const current = buildIssue({ id: "bsm-current", title: "Current issue" });
+    const newer = buildIssue({ id: "bsm-newer", title: "Newer issue" });
+    loadIssueExplorerStateFromTauRpc.mockResolvedValue(
+      successState({ allIssues: [current, newer], workspacePath: "/work/one" })
+    );
+    let resolveFirst: ((resolution: WorkspaceResolution) => void) | undefined;
+    resolveWorkspace.mockImplementation(
+      () =>
+        // eslint-disable-next-line promise/avoid-new
+        new Promise<WorkspaceResolution>((resolve) => {
+          resolveFirst = resolve;
+        })
+    );
+    let deliverUrl: ((urls: string[]) => void) | undefined;
+    // eslint-disable-next-line promise/prefer-await-to-callbacks
+    onOpenUrl.mockImplementation((callback: (urls: string[]) => void) => {
+      deliverUrl = callback;
+      return Promise.resolve(vi.fn());
+    });
+
+    render(<App />);
+    await screen.findByRole("heading", { name: current.title });
+    deliverUrl?.([issueLocation("/work/two", newer.id)]);
+    await waitFor(() => expect(resolveWorkspace).toHaveBeenCalledTimes(1));
+    deliverUrl?.([issueLocation("/work/one", newer.id)]);
+
+    await waitFor(() =>
+      expect(
+        within(screen.getByRole("main", { name: "Issue detail" })).getByRole(
+          "heading",
+          { name: newer.title }
+        )
+      ).toBeInTheDocument()
+    );
+    resolveFirst?.({
+      known: true,
+      workspace: { availability: "available", path: "/work/two" },
+    });
+    await waitFor(() => expect(confirm).not.toHaveBeenCalled());
+    expect(switchWorkspace).not.toHaveBeenCalled();
   });
 
   it("names the target Workspace and leaves it unchanged when confirmation is declined", async () => {

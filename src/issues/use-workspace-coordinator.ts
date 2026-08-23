@@ -1,25 +1,29 @@
 import { open } from "@tauri-apps/plugin-dialog";
 import type { MutableRefObject } from "react";
-import { useCallback } from "react";
+import { useCallback, useMemo } from "react";
 
 import { pickerDefaultPath } from "../components/WorkspaceSelector";
-import { createTauRPCProxy } from "../rpc/bindings";
-import type {
-  LoadIssueExplorerDataResponse,
-  WorkspaceState,
-} from "../rpc/bindings";
+import type { WorkspaceState } from "../rpc/bindings";
+import type { ApplyWorkspaceTransition } from "../workspaces/transition-contract";
 import type { WorkspaceTransitionGateState } from "../workspaces/transition-gate";
+import {
+  cancelWorkspace as cancelWorkspaceEffect,
+  createTauRpcWorkspaceService,
+  readWorkspaceState,
+  removeWorkspace as removeWorkspaceEffect,
+  resetWorkspaceMemory as resetWorkspaceMemoryEffect,
+  retryWorkspaceMemory as retryWorkspaceMemoryEffect,
+  runWorkspaceEffect,
+  switchWorkspace,
+} from "../workspaces/workspace-service";
+import type { WorkspaceServiceClient } from "../workspaces/workspace-service";
 import type { IssueExplorerLoadState } from "./issue-loader";
-
-interface WorkspaceTransition {
-  issueData: LoadIssueExplorerDataResponse | null;
-  state: WorkspaceState;
-}
-
-type ApplyTransition = (
-  transition: WorkspaceTransition,
-  expectedGeneration: number | null
-) => unknown;
+import {
+  beginNavigationIntent,
+  finishNavigationIntent,
+  isCurrentNavigationIntent,
+} from "./navigation-intent";
+import type { NavigationIntentRef } from "./navigation-intent";
 
 const NO_WORKSPACE_ERROR_STATE: IssueExplorerLoadState = {
   error: {
@@ -38,12 +42,14 @@ const applyNoWorkspacePresentation = (
 };
 
 export interface WorkspaceCoordinatorOptions {
-  applyTransition: ApplyTransition;
+  applyTransition: ApplyWorkspaceTransition;
   manualWorkspaceSwitchRef: MutableRefObject<boolean>;
+  navigationIntentRef: NavigationIntentRef;
   setDismissedSwitchErrorGeneration: (generation: number | null) => void;
   setIssueState: (state: IssueExplorerLoadState) => void;
   setWorkspaceKey: (key: string) => void;
   transitionGateRef: MutableRefObject<WorkspaceTransitionGateState>;
+  workspaceService?: WorkspaceServiceClient;
   workspaceState: WorkspaceState | null;
 }
 
@@ -64,34 +70,54 @@ export interface WorkspaceCoordinatorResult {
 export const useWorkspaceCoordinator = ({
   applyTransition,
   manualWorkspaceSwitchRef,
+  navigationIntentRef,
   setDismissedSwitchErrorGeneration,
   setIssueState,
   setWorkspaceKey,
   transitionGateRef,
+  workspaceService: injectedWorkspaceService,
   workspaceState,
 }: WorkspaceCoordinatorOptions): WorkspaceCoordinatorResult => {
+  const workspaceService = useMemo(
+    () => injectedWorkspaceService ?? createTauRpcWorkspaceService(),
+    [injectedWorkspaceService]
+  );
+
   const refreshWorkspaceState = useCallback(async () => {
-    try {
-      const next = await createTauRPCProxy().workspace_state();
-      applyTransition({ issueData: null, state: next }, null);
-    } catch {
-      // No typed state is available if the transport itself is unavailable.
+    const result = await runWorkspaceEffect(
+      readWorkspaceState,
+      workspaceService
+    );
+    if (!result.ok) {
+      return;
     }
-  }, [applyTransition]);
+    applyTransition({ issueData: null, state: result.value }, null);
+  }, [applyTransition, workspaceService]);
 
   const selectWorkspace = async (path: string): Promise<void> => {
     manualWorkspaceSwitchRef.current = true;
     const expectedGeneration = transitionGateRef.current.acceptedGeneration + 1;
+    const intentGeneration = beginNavigationIntent(navigationIntentRef, path);
     setDismissedSwitchErrorGeneration(null);
-    try {
-      const response = await createTauRPCProxy().switch_workspace(path);
-      applyTransition(
-        { issueData: response.issueData, state: response.state },
-        expectedGeneration
-      );
-    } catch {
-      await refreshWorkspaceState();
+    const result = await runWorkspaceEffect(
+      switchWorkspace(path),
+      workspaceService
+    );
+    if (!result.ok) {
+      if (isCurrentNavigationIntent(navigationIntentRef, intentGeneration)) {
+        finishNavigationIntent(navigationIntentRef, intentGeneration);
+        await refreshWorkspaceState();
+      }
+      return;
     }
+    if (!isCurrentNavigationIntent(navigationIntentRef, intentGeneration)) {
+      return;
+    }
+    applyTransition(
+      { issueData: result.value.issueData, state: result.value.state },
+      expectedGeneration
+    );
+    finishNavigationIntent(navigationIntentRef, intentGeneration);
   };
 
   const chooseWorkspace = async (): Promise<void> => {
@@ -109,47 +135,59 @@ export const useWorkspaceCoordinator = ({
     }
   };
 
-  const removeWorkspace = async (path: string): Promise<void> => {
-    try {
-      const state = await createTauRPCProxy().remove_workspace(path);
-      applyTransition({ issueData: null, state }, null);
-    } catch {
+  const removeSelectedWorkspace = async (path: string): Promise<void> => {
+    const result = await runWorkspaceEffect(
+      removeWorkspaceEffect(path),
+      workspaceService
+    );
+    if (!result.ok) {
       await refreshWorkspaceState();
+      return;
     }
+    applyTransition({ issueData: null, state: result.value }, null);
   };
 
-  const retryWorkspaceMemory = async (): Promise<void> => {
-    try {
-      const response = await createTauRPCProxy().retry_workspace_memory();
-      applyTransition(
-        { issueData: response.issueData, state: response.state },
-        null
-      );
-    } catch {
+  const retryMemory = async (): Promise<void> => {
+    const result = await runWorkspaceEffect(
+      retryWorkspaceMemoryEffect,
+      workspaceService
+    );
+    if (!result.ok) {
       await refreshWorkspaceState();
+      return;
     }
+    applyTransition(
+      { issueData: result.value.issueData, state: result.value.state },
+      null
+    );
   };
 
-  const resetWorkspaceMemory = async (): Promise<void> => {
-    try {
-      const state = await createTauRPCProxy().reset_workspace_memory();
-      applyTransition({ issueData: null, state }, null);
-      applyNoWorkspacePresentation(setIssueState, setWorkspaceKey);
-    } catch {
+  const resetMemory = async (): Promise<void> => {
+    const result = await runWorkspaceEffect(
+      resetWorkspaceMemoryEffect,
+      workspaceService
+    );
+    if (!result.ok) {
       await refreshWorkspaceState();
+      return;
     }
+    applyTransition({ issueData: null, state: result.value }, null);
+    applyNoWorkspacePresentation(setIssueState, setWorkspaceKey);
   };
 
-  const cancelWorkspace = async (): Promise<void> => {
-    try {
-      const response = await createTauRPCProxy().cancel_workspace();
-      applyTransition(
-        { issueData: response.issueData, state: response.state },
-        null
-      );
-    } catch {
+  const cancelPendingWorkspace = async (): Promise<void> => {
+    const result = await runWorkspaceEffect(
+      cancelWorkspaceEffect,
+      workspaceService
+    );
+    if (!result.ok) {
       await refreshWorkspaceState();
+      return;
     }
+    applyTransition(
+      { issueData: result.value.issueData, state: result.value.state },
+      null
+    );
   };
 
   const retryLastSwitch = async (): Promise<void> => {
@@ -170,17 +208,17 @@ export const useWorkspaceCoordinator = ({
         workspaceState?.pendingWorkspace === null ||
         workspaceState?.pendingWorkspace === undefined
           ? undefined
-          : () => void cancelWorkspace(),
+          : () => void cancelPendingWorkspace(),
       onChoose: () => void chooseWorkspace(),
       onDismissSwitchError: dismissSwitchError,
-      onRemove: (path: string) => void removeWorkspace(path),
-      onResetMemory: () => void resetWorkspaceMemory(),
+      onRemove: (path: string) => void removeSelectedWorkspace(path),
+      onResetMemory: () => void resetMemory(),
       onRetryLastSwitch:
         workspaceState?.retryWorkspace === null ||
         workspaceState?.retryWorkspace === undefined
           ? undefined
           : () => void retryLastSwitch(),
-      onRetryMemory: () => void retryWorkspaceMemory(),
+      onRetryMemory: () => void retryMemory(),
       onSelect: (path: string) => void selectWorkspace(path),
     },
   };

@@ -118,14 +118,12 @@ describe("App settings", () => {
     ).toBeInTheDocument();
   });
 
-  it("returns to the underlying Issue route when Back is pressed from Settings", async () => {
+  it("traverses Back from Settings to the prior Issue and keeps the later Issue Forward", async () => {
     const user = userEvent.setup();
-    const issue = buildIssue({
-      id: "bsm-settings-back",
-      title: "Settings target",
-    });
+    const issueA = buildIssue({ id: "bsm-settings-a", title: "Issue A" });
+    const issueB = buildIssue({ id: "bsm-settings-b", title: "Issue B" });
     loadIssueExplorerStateFromTauRpc.mockResolvedValue(
-      successState({ allIssues: [issue], workspacePath: "/work" })
+      successState({ allIssues: [issueA, issueB], workspacePath: "/work" })
     );
     workspaceState.mockResolvedValue(
       workspace({
@@ -134,18 +132,22 @@ describe("App settings", () => {
     );
 
     render(<App />);
-    await user.click(
-      await screen.findByRole("link", { name: /Settings target/iu })
-    );
+    await user.click(await screen.findByRole("link", { name: /Issue A/iu }));
+    await user.click(screen.getByRole("link", { name: /^bsm-settings-b:/u }));
     await user.click(settingsButton());
     await user.click(screen.getByRole("button", { name: /Back/iu }));
 
+    await waitFor(() => {
+      expect(
+        within(issueDetailMain()).getByRole("heading", { name: issueA.title })
+      ).toBeInTheDocument();
+    });
+    expect(
+      screen.getByRole("button", { name: /Forward to bsm-settings-b/iu })
+    ).toBeEnabled();
     expect(
       screen.queryByRole("main", { name: "Settings" })
     ).not.toBeInTheDocument();
-    expect(
-      within(issueDetailMain()).getByRole("heading", { name: issue.title })
-    ).toBeInTheDocument();
   });
 
   it("returns to the Issue Explorer and restores the active list view when a view is clicked", async () => {

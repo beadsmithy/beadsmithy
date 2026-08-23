@@ -1613,6 +1613,40 @@ describe("IssueExplorer", () => {
       }
     });
 
+    it("focuses the detail landmark for missing Issues and same-ID Workspace changes", () => {
+      const issueA = buildIssue({ id: "bsm-focus-id", title: "Issue A" });
+      const issueB = buildIssue({ id: "bsm-focus-id", title: "Issue B" });
+      const { rerender } = render(
+        <IssueExplorer
+          focusRouteChanges
+          issueState={successState([issueA], "/work/a")}
+          route={{ issueId: null, search: "", viewId: "all" }}
+        />
+      );
+
+      rerender(
+        <IssueExplorer
+          focusRouteChanges
+          issueState={successState([issueA], "/work/a")}
+          route={{ issueId: "bsm-missing", search: "", viewId: "all" }}
+        />
+      );
+      expect(document.activeElement).toBe(
+        getDetail().getByRole("heading", { name: "Issue not found" })
+      );
+
+      rerender(
+        <IssueExplorer
+          focusRouteChanges
+          issueState={successState([issueB], "/work/b")}
+          route={{ issueId: issueB.id, search: "", viewId: "all" }}
+        />
+      );
+      expect(document.activeElement).toBe(
+        getDetail().getByRole("heading", { name: "Issue B" })
+      );
+    });
+
     it("keeps focus in the Issue List when an Issue List row is selected", async () => {
       const user = userEvent.setup();
       const issue = buildIssue({

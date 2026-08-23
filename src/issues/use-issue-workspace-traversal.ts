@@ -1,40 +1,40 @@
-import { useRef } from "react";
+import { useMemo, useRef } from "react";
 import type { MutableRefObject } from "react";
 
 import { useExternalLifecycle } from "../lib/use-external-lifecycle";
-import { createTauRPCProxy } from "../rpc/bindings";
-import type {
-  LoadIssueExplorerDataResponse,
-  WorkspaceState,
-} from "../rpc/bindings";
+import type { ApplyWorkspaceTransition } from "../workspaces/transition-contract";
+import {
+  createTauRpcWorkspaceService,
+  runWorkspaceEffect,
+  switchWorkspace,
+} from "../workspaces/workspace-service";
+import type { WorkspaceServiceClient } from "../workspaces/workspace-service";
 import type { IssueExplorerLoadState } from "./issue-loader";
 import type { IssueExplorerRouteState } from "./issue-navigation";
 import type { IssueNavigationEntry } from "./issue-navigation-coordinator";
 import { readIssueNavigationEntry } from "./issue-navigation-coordinator";
-
-interface WorkspaceTransition {
-  issueData: LoadIssueExplorerDataResponse | null;
-  state: WorkspaceState;
-}
-
-type ApplyTransition = (
-  transition: WorkspaceTransition,
-  expectedGeneration: number | null
-) => unknown;
+import {
+  beginNavigationIntent,
+  finishNavigationIntent,
+  isCurrentNavigationIntent,
+} from "./navigation-intent";
+import type { NavigationIntentRef } from "./navigation-intent";
 
 export interface IssueWorkspaceTraversalOptions {
-  applyTransition: ApplyTransition;
+  applyTransition: ApplyWorkspaceTransition;
   confirmedWorkspacePath: string | null;
   currentNavigationEntry: IssueNavigationEntry | null;
   currentNavigationIndex: number;
   issueState: IssueExplorerLoadState;
   manualWorkspaceSwitchRef: MutableRefObject<boolean>;
+  navigationIntentRef: NavigationIntentRef;
   navigateIssueRoute: (
     route: IssueExplorerRouteState,
     replace: boolean,
     workspacePath?: string | null
   ) => void;
   setDeepLinkError: (message: string) => void;
+  workspaceService?: WorkspaceServiceClient;
 }
 
 export const useIssueWorkspaceTraversal = ({
@@ -44,9 +44,15 @@ export const useIssueWorkspaceTraversal = ({
   currentNavigationIndex,
   issueState,
   manualWorkspaceSwitchRef,
+  navigationIntentRef,
   navigateIssueRoute,
   setDeepLinkError,
+  workspaceService: injectedWorkspaceService,
 }: IssueWorkspaceTraversalOptions): void => {
+  const workspaceService = useMemo(
+    () => injectedWorkspaceService ?? createTauRpcWorkspaceService(),
+    [injectedWorkspaceService]
+  );
   const workspaceTraversalRef = useRef<string | null>(null);
   const lastNavigationIndexRef = useRef(0);
 
@@ -96,40 +102,60 @@ export const useIssueWorkspaceTraversal = ({
       return;
     }
     workspaceTraversalRef.current = traversalKey;
+    const intentGeneration = beginNavigationIntent(
+      navigationIntentRef,
+      target.workspacePath
+    );
     const returnIndex = lastNavigationIndexRef.current;
     const targetWorkspacePath = target.workspacePath;
     void (async () => {
-      try {
-        const switched =
-          await createTauRPCProxy().switch_workspace(targetWorkspacePath);
-        const current = readIssueNavigationEntry(window.history.state);
-        if (current?.index !== target.index) {
-          return;
-        }
-        manualWorkspaceSwitchRef.current = false;
-        applyTransition(
-          { issueData: switched.issueData, state: switched.state },
-          null
-        );
-      } catch {
-        if (workspaceTraversalRef.current === traversalKey) {
+      const switchedResult = await runWorkspaceEffect(
+        switchWorkspace(targetWorkspacePath),
+        workspaceService
+      );
+      const current = readIssueNavigationEntry(window.history.state);
+      if (
+        !switchedResult.ok ||
+        !isCurrentNavigationIntent(navigationIntentRef, intentGeneration) ||
+        workspaceTraversalRef.current !== traversalKey ||
+        current?.index !== target.index
+      ) {
+        if (
+          !switchedResult.ok &&
+          isCurrentNavigationIntent(navigationIntentRef, intentGeneration) &&
+          workspaceTraversalRef.current === traversalKey
+        ) {
           workspaceTraversalRef.current = null;
+          finishNavigationIntent(navigationIntentRef, intentGeneration);
+          setDeepLinkError(
+            "Could not restore the Workspace from navigation history."
+          );
+          const delta = returnIndex - target.index;
+          if (delta !== 0) {
+            window.history.go(delta);
+          }
         }
-        setDeepLinkError(
-          "Could not restore the Workspace from navigation history."
-        );
-        const delta = returnIndex - target.index;
-        if (delta !== 0) {
-          window.history.go(delta);
-        }
+        return;
       }
+      manualWorkspaceSwitchRef.current = false;
+      applyTransition(
+        {
+          issueData: switchedResult.value.issueData,
+          state: switchedResult.value.state,
+        },
+        null
+      );
+      workspaceTraversalRef.current = null;
+      finishNavigationIntent(navigationIntentRef, intentGeneration);
     })();
   }, [
     applyTransition,
     currentNavigationEntry,
     issueState,
     manualWorkspaceSwitchRef,
+    navigationIntentRef,
     setDeepLinkError,
+    workspaceService,
   ]);
 
   useExternalLifecycle(() => {
