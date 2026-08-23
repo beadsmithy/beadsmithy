@@ -247,6 +247,9 @@ export default function App() {
   );
   const deepLinkProcessorRef = useRef<() => void>(() => undefined);
   const deepLinkRequestGenerationRef = useRef(0);
+  const manualWorkspaceSwitchRef = useRef(false);
+  const workspaceTraversalRef = useRef<string | null>(null);
+  const lastNavigationIndexRef = useRef(0);
   const transitionGateRef = useRef<WorkspaceTransitionGateState>(
     INITIAL_WORKSPACE_TRANSITION_GATE_STATE
   );
@@ -326,9 +329,11 @@ export default function App() {
     const currentHistoryEntry = readIssueNavigationEntry(window.history.state);
     if (
       issueState.status === "success" &&
+      manualWorkspaceSwitchRef.current &&
       confirmedWorkspacePath === issueState.workspacePath &&
       currentHistoryEntry?.workspacePath !== issueState.workspacePath
     ) {
+      manualWorkspaceSwitchRef.current = false;
       navigateIssueRoute(
         {
           issueId: null,
@@ -686,6 +691,54 @@ export default function App() {
     [applyDeferredRefresh]
   );
 
+  useExternalLifecycle(() => {
+    const target = currentNavigationEntry;
+    if (
+      target === null ||
+      target.workspacePath === null ||
+      issueState.status !== "success" ||
+      target.workspacePath === issueState.workspacePath
+    ) {
+      return;
+    }
+    const traversalKey = `${target.index}:${target.workspacePath}`;
+    if (workspaceTraversalRef.current === traversalKey) {
+      return;
+    }
+    workspaceTraversalRef.current = traversalKey;
+    const returnIndex = lastNavigationIndexRef.current;
+    const targetWorkspacePath = target.workspacePath;
+    void (async () => {
+      try {
+        const switched =
+          await createTauRPCProxy().switch_workspace(targetWorkspacePath);
+        const current = readIssueNavigationEntry(window.history.state);
+        if (current?.index !== target.index) {
+          return;
+        }
+        manualWorkspaceSwitchRef.current = false;
+        applyTransition(
+          { issueData: switched.issueData, state: switched.state },
+          null
+        );
+      } catch {
+        setDeepLinkError(
+          "Could not restore the Workspace from navigation history."
+        );
+        window.history.go(returnIndex - target.index);
+      }
+    })();
+  }, [
+    applyTransition,
+    currentNavigationEntry,
+    issueState,
+    currentWorkspacePath,
+  ]);
+
+  useExternalLifecycle(() => {
+    lastNavigationIndexRef.current = currentNavigationIndex;
+  }, [currentNavigationIndex]);
+
   // `presentedIssueState` masks the successful Issue Explorer
   // snapshot with the established loading presentation while a
   // Workspace switch is Pending, so the renderer's view of the new
@@ -823,6 +876,7 @@ export default function App() {
   }, [applyTransition, refreshWorkspaceState]);
 
   const selectWorkspace = async (path: string) => {
+    manualWorkspaceSwitchRef.current = true;
     const expectedGeneration = transitionGateRef.current.acceptedGeneration + 1;
     setDismissedSwitchErrorGeneration(null);
     try {

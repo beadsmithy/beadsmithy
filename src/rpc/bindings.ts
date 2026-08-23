@@ -147,18 +147,18 @@ retryWorkspace: Workspace | null; generation: number; error: WorkspaceError | nu
  */
 export type WorkspaceSwitchResponse = { state: WorkspaceState; issueData: LoadIssueExplorerDataResponse }
 
-const ARGS_MAP = { '':'{"app_settings_state":[],"cancel_workspace":[],"list_issues":[],"load_issue_explorer_data":[],"remove_workspace":["path"],"reset_workspace_memory":[],"retry_workspace_memory":[],"switch_workspace":["candidate_path"],"update_app_settings":["settings"],"workspace_state":[],"resolve_workspace":["candidate_path"]}', 'devBridge':'{"result":["id","value"]}' }
+const ARGS_MAP = { '':'{"app_settings_state":[],"cancel_workspace":[],"list_issues":[],"load_issue_explorer_data":[],"remove_workspace":["path"],"reset_workspace_memory":[],"resolve_workspace":["candidate_path"],"retry_workspace_memory":[],"switch_workspace":["candidate_path"],"update_app_settings":["settings"],"workspace_state":[]}', 'devBridge':'{"result":["id","value"]}' }
 export type Router = { "": {app_settings_state: () => Promise<AppSettingsState>,
 cancel_workspace: () => Promise<WorkspaceCancelResponse>,
 list_issues: () => Promise<ListIssuesResponse>,
 load_issue_explorer_data: () => Promise<LoadIssueExplorerDataResponse>,
 remove_workspace: (path: string) => Promise<WorkspaceState>,
 reset_workspace_memory: () => Promise<WorkspaceState>,
+resolve_workspace: (candidatePath: string) => Promise<WorkspaceResolution>,
 retry_workspace_memory: () => Promise<WorkspaceRetryMemoryResponse>,
 switch_workspace: (candidatePath: string) => Promise<WorkspaceSwitchResponse>,
 update_app_settings: (settings: AppSettingsUpdate) => Promise<AppSettings>,
-workspace_state: () => Promise<WorkspaceState>,
-resolve_workspace: (candidatePath: string) => Promise<WorkspaceResolution>},
+workspace_state: () => Promise<WorkspaceState>},
 "devBridge": {result: (id: string, value: string) => Promise<void>} };
 
 
