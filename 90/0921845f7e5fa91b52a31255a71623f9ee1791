@@ -1,0 +1,65 @@
+src/issues/issue-navigation.test.ts
+  s_2098807ccbaae2::t_535586ddea44fc 1-91
+src/main.tsx
+  s_2098807ccbaae2::t_947226a75168eb 3,17-21
+src/issues/IssueExplorer.tsx
+  s_2098807ccbaae2::t_6617db501fb5e6 33-34
+  s_2098807ccbaae2::t_30528e098d5bce 717,799-811,842,861,863,878-879
+  s_2098807ccbaae2::t_79e577d180651d 267-279
+  s_2098807ccbaae2::t_4bf42a81a5a426 82,690,692-693,699,702-703,707-715
+  s_2098807ccbaae2::t_2dd6c6089ea692 740-746,750
+  s_2098807ccbaae2::t_fe746f95981554 733-739
+  s_2098807ccbaae2::t_b9276a1c92c6ed 664-670
+  s_2098807ccbaae2::t_0039655aee9ecf 103-109,156,195,203
+  s_2098807ccbaae2::t_bf56a767c77457 16,22,35-36,77,83,97,205,260,280-282,648,658,671-673,685,716,718-720,755,880-884
+src/App.tsx
+  s_2098807ccbaae2::t_d359931af11f29 24-29,246
+  s_2098807ccbaae2::t_f37b2d2b81b58a 5,17-21,199-200,239,247-252,254-255,257-286,288-291
+  s_2098807ccbaae2::t_9a5e31845eb857 621,668,671-673
+  s_2098807ccbaae2::t_da14c1f8166ab1 201-203,253,256
+  s_74a8f30af665d5::t_8017ada111f6d9 30,182-183,237-238,287
+src/issues/IssueExplorer.test.tsx
+  s_2098807ccbaae2::t_bc3598095c3350 1663,1808
+  s_2098807ccbaae2::t_ea06192aea290f 483,1850,1879
+  s_2098807ccbaae2::t_d62771eff0557a 1891-1892,1894-1895
+  s_2098807ccbaae2::t_6fb668ec4f00db 524-526,528,2173-2175,2177
+  s_2098807ccbaae2::t_0811060dad37b9 96-97,104-105
+  s_2098807ccbaae2::t_a063d565ac9d29 482,484
+src/test/setup.ts
+  s_2098807ccbaae2::t_1898a5b14b00b7 7
+src/App.settings.test.tsx
+  s_2098807ccbaae2::t_27e055c37c83e1 205,222,248-249,315-316
+  s_2098807ccbaae2::t_bf720b5db1a061 332
+  s_2098807ccbaae2::t_c88c8c156363fb 334
+src/issues/issue-navigation.ts
+  s_2098807ccbaae2::t_afe623d9fe52f2 38-40
+  s_2098807ccbaae2::t_5678065b087e40 1-37,41-89
+package.json
+  s_2098807ccbaae2::t_aef5336b52b090 51-52
+pnpm-lock.yaml
+  s_2098807ccbaae2::t_db25be31777191 59-61,4469-4472,4920-4924,5117-5121,9687-9688,10167-10170,10364-10370
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.23",
+  "base_commit_sha": "900921845f7e5fa91b52a31255a71623f9ee1791",
+  "prompts": {},
+  "sessions": {
+    "s_2098807ccbaae2": {
+      "agent_id": {
+        "tool": "pi",
+        "id": "01a02dea-aa9c-78b1-a3b3-b3ed3a135ca6",
+        "model": "gpt-5.6-luna"
+      },
+      "human_author": "Tomas Thor Jonsson <benregn@gmail.com>"
+    },
+    "s_74a8f30af665d5": {
+      "agent_id": {
+        "tool": "pi",
+        "id": "01a02df6-fe40-74b4-ab51-ca1506783b04",
+        "model": "k3-256k"
+      },
+      "human_author": "Tomas Thor Jonsson <benregn@gmail.com>"
+    }
+  }
+}
