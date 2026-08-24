@@ -1,18 +1,19 @@
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import { getCurrent, onOpenUrl } from "@tauri-apps/plugin-deep-link";
 import { confirm } from "@tauri-apps/plugin-dialog";
-import { useCallback, useMemo, useRef, useState } from "react";
+import { useCallback, useRef, useState } from "react";
 
 import { useExternalLifecycle } from "../lib/use-external-lifecycle";
 import type { WorkspaceState } from "../rpc/bindings";
 import type { ApplyWorkspaceTransition } from "../workspaces/transition-contract";
 import {
-  createTauRpcWorkspaceService,
-  resolveWorkspace,
-  runWorkspaceEffect,
-  switchWorkspace,
+  interruptWorkspaceProgram,
+  observeWorkspaceProgram,
+  resolveAndOpenIssueLocation,
+  startWorkspaceProgram,
+  useWorkspaceServiceLayer,
 } from "../workspaces/workspace-service";
-import type { WorkspaceServiceClient } from "../workspaces/workspace-service";
+import type { WorkspaceProgramFiber } from "../workspaces/workspace-service";
 import type { IssueExplorerLoadState } from "./issue-loader";
 import { parseIssueLocationUri } from "./issue-location-uri";
 import { isIssueInListView } from "./issue-navigation";
@@ -51,7 +52,6 @@ export interface IssueDeepLinkCoordinatorOptions {
     workspacePath?: string | null
   ) => void;
   navigationIntentRef: NavigationIntentRef;
-  workspaceService?: WorkspaceServiceClient;
   workspaceState: WorkspaceState | null;
 }
 
@@ -67,13 +67,9 @@ export const useIssueDeepLinkCoordinator = ({
   issueState,
   navigateIssueRoute,
   navigationIntentRef,
-  workspaceService: injectedWorkspaceService,
   workspaceState,
 }: IssueDeepLinkCoordinatorOptions): IssueDeepLinkCoordinatorResult => {
-  const workspaceService = useMemo(
-    () => injectedWorkspaceService ?? createTauRpcWorkspaceService(),
-    [injectedWorkspaceService]
-  );
+  const workspaceServiceLayer = useWorkspaceServiceLayer();
   const [deepLinkError, setDeepLinkError] = useState<string | null>(null);
   const pendingDeepLinkRef = useRef<{
     startup: boolean;
@@ -83,13 +79,24 @@ export const useIssueDeepLinkCoordinator = ({
     () => 0
   );
   const deepLinkProcessorRef = useRef<() => void>(() => 0);
+  const activeProgramRef = useRef<WorkspaceProgramFiber | null>(null);
+
+  const stopActiveProgram = useCallback(() => {
+    const fiber = activeProgramRef.current;
+    activeProgramRef.current = null;
+    if (fiber !== null) {
+      interruptWorkspaceProgram(fiber);
+    }
+  }, []);
+
   const handleDeepLinkUrl = useCallback(
-    async (url: string, startup: boolean): Promise<void> => {
+    (url: string, startup: boolean): void => {
       const parsed = parseIssueLocationUri(url);
       if (!parsed.ok) {
         setDeepLinkError(`Could not open link (${parsed.error}).`);
         return;
       }
+      stopActiveProgram();
       const requestGeneration = beginNavigationIntent(
         navigationIntentRef,
         parsed.value.workspacePath
@@ -124,98 +131,84 @@ export const useIssueDeepLinkCoordinator = ({
         return;
       }
 
-      try {
-        const resolutionResult = await runWorkspaceEffect(
-          resolveWorkspace(parsed.value.workspacePath),
-          workspaceService
-        );
-        if (!resolutionResult.ok) {
+      const fiber = startWorkspaceProgram(
+        resolveAndOpenIssueLocation(
+          parsed.value.workspacePath,
+          deepLinkWorkspacePath,
+          (resolution) =>
+            confirm(
+              `Do you want to ${
+                resolution.known
+                  ? "open this remembered Workspace"
+                  : "add and open this Workspace"
+              } at ${resolution.workspace.path} and open Issue ${parsed.value.issueId}?`,
+              { title: "Open Issue Location" }
+            )
+        ),
+        workspaceServiceLayer
+      );
+      activeProgramRef.current = fiber;
+      void observeWorkspaceProgram(
+        fiber,
+        () => {
+          if (activeProgramRef.current === fiber) {
+            activeProgramRef.current = null;
+          }
           reportWorkspaceResolutionFailure(
             setDeepLinkError,
             isCurrentNavigationIntent(navigationIntentRef, requestGeneration)
           );
           finishNavigationIntent(navigationIntentRef, requestGeneration);
-          return;
-        }
-        const resolution = resolutionResult.value;
-        if (
-          !isCurrentNavigationIntent(navigationIntentRef, requestGeneration)
-        ) {
-          return;
-        }
-        const resolvedCurrentPath = readCurrentWorkspacePath(
-          issueState,
-          workspaceState
-        );
-        if (resolution.workspace.path === resolvedCurrentPath) {
-          const targetIsVisible =
-            issueState.status === "success" &&
-            isIssueInListView(
-              issueState,
-              explorerRoute.viewId,
-              parsed.value.issueId
+        },
+        (result) => {
+          if (activeProgramRef.current === fiber) {
+            activeProgramRef.current = null;
+          }
+          if (
+            !isCurrentNavigationIntent(navigationIntentRef, requestGeneration)
+          ) {
+            return;
+          }
+          if (result.kind === "cancelled") {
+            finishNavigationIntent(navigationIntentRef, requestGeneration);
+            return;
+          }
+          if (result.kind === "already-current") {
+            const targetIsVisible =
+              issueState.status === "success" &&
+              isIssueInListView(
+                issueState,
+                explorerRoute.viewId,
+                parsed.value.issueId
+              );
+            navigateIssueRoute(
+              targetIsVisible
+                ? { ...explorerRoute, issueId: parsed.value.issueId }
+                : { issueId: parsed.value.issueId, search: "", viewId: "all" },
+              startup,
+              result.resolution.workspace.path
             );
+            setDeepLinkError(null);
+            finishNavigationIntent(navigationIntentRef, requestGeneration);
+            return;
+          }
+          const { switched } = result;
+          if (switched === null) {
+            return;
+          }
+          applyTransition(
+            { issueData: switched.issueData, state: switched.state },
+            null
+          );
           navigateIssueRoute(
-            targetIsVisible
-              ? { ...explorerRoute, issueId: parsed.value.issueId }
-              : { issueId: parsed.value.issueId, search: "", viewId: "all" },
+            { issueId: parsed.value.issueId, search: "", viewId: "all" },
             startup,
-            resolution.workspace.path
+            switched.issueData.workspacePath
           );
           setDeepLinkError(null);
-          return;
-        }
-        const action = resolution.known
-          ? "open this remembered Workspace"
-          : "add and open this Workspace";
-        const accepted = await confirm(
-          `Do you want to ${action} at ${resolution.workspace.path} and open Issue ${parsed.value.issueId}?`,
-          { title: "Open Issue Location" }
-        );
-        if (!accepted) {
-          finishNavigationIntent(navigationIntentRef, requestGeneration);
-          return;
-        }
-        if (
-          !isCurrentNavigationIntent(navigationIntentRef, requestGeneration)
-        ) {
-          return;
-        }
-        const switchedResult = await runWorkspaceEffect(
-          switchWorkspace(parsed.value.workspacePath),
-          workspaceService
-        );
-        if (!switchedResult.ok) {
-          reportWorkspaceResolutionFailure(
-            setDeepLinkError,
-            isCurrentNavigationIntent(navigationIntentRef, requestGeneration)
-          );
-          finishNavigationIntent(navigationIntentRef, requestGeneration);
-          return;
-        }
-        if (
-          !isCurrentNavigationIntent(navigationIntentRef, requestGeneration)
-        ) {
-          return;
-        }
-        const switched = switchedResult.value;
-        applyTransition(
-          { issueData: switched.issueData, state: switched.state },
-          null
-        );
-        navigateIssueRoute(
-          { issueId: parsed.value.issueId, search: "", viewId: "all" },
-          startup,
-          switched.issueData.workspacePath
-        );
-        setDeepLinkError(null);
-        finishNavigationIntent(navigationIntentRef, requestGeneration);
-      } catch {
-        if (isCurrentNavigationIntent(navigationIntentRef, requestGeneration)) {
-          setDeepLinkError("Could not open link: Workspace resolution failed.");
           finishNavigationIntent(navigationIntentRef, requestGeneration);
         }
-      }
+      );
     },
     [
       applyTransition,
@@ -223,14 +216,16 @@ export const useIssueDeepLinkCoordinator = ({
       issueState,
       navigateIssueRoute,
       navigationIntentRef,
-      workspaceService,
+      setDeepLinkError,
+      stopActiveProgram,
+      workspaceServiceLayer,
       workspaceState,
     ]
   );
 
   useExternalLifecycle(() => {
     deepLinkHandlerRef.current = (url, startup) => {
-      void handleDeepLinkUrl(url, startup);
+      handleDeepLinkUrl(url, startup);
     };
     deepLinkProcessorRef.current = () => {
       const pending = pendingDeepLinkRef.current;
@@ -279,6 +274,13 @@ export const useIssueDeepLinkCoordinator = ({
   useExternalLifecycle(() => {
     deepLinkProcessorRef.current();
   }, [issueState.status, workspaceState?.pendingWorkspace]);
+
+  useExternalLifecycle(
+    () => () => {
+      stopActiveProgram();
+    },
+    [stopActiveProgram]
+  );
 
   return {
     deepLinkError,

@@ -1,14 +1,16 @@
-import { useMemo, useRef } from "react";
+import { useRef } from "react";
 import type { MutableRefObject } from "react";
 
 import { useExternalLifecycle } from "../lib/use-external-lifecycle";
 import type { ApplyWorkspaceTransition } from "../workspaces/transition-contract";
 import {
-  createTauRpcWorkspaceService,
-  runWorkspaceEffect,
-  switchWorkspace,
+  interruptWorkspaceProgram,
+  observeWorkspaceProgram,
+  startWorkspaceProgram,
+  switchDuringHistoryTraversal,
+  useWorkspaceServiceLayer,
 } from "../workspaces/workspace-service";
-import type { WorkspaceServiceClient } from "../workspaces/workspace-service";
+import type { WorkspaceProgramFiber } from "../workspaces/workspace-service";
 import type { IssueExplorerLoadState } from "./issue-loader";
 import type { IssueExplorerRouteState } from "./issue-navigation";
 import type { IssueNavigationEntry } from "./issue-navigation-coordinator";
@@ -34,7 +36,6 @@ export interface IssueWorkspaceTraversalOptions {
     workspacePath?: string | null
   ) => void;
   setDeepLinkError: (message: string) => void;
-  workspaceService?: WorkspaceServiceClient;
 }
 
 export const useIssueWorkspaceTraversal = ({
@@ -47,14 +48,11 @@ export const useIssueWorkspaceTraversal = ({
   navigationIntentRef,
   navigateIssueRoute,
   setDeepLinkError,
-  workspaceService: injectedWorkspaceService,
 }: IssueWorkspaceTraversalOptions): void => {
-  const workspaceService = useMemo(
-    () => injectedWorkspaceService ?? createTauRpcWorkspaceService(),
-    [injectedWorkspaceService]
-  );
+  const workspaceServiceLayer = useWorkspaceServiceLayer();
   const workspaceTraversalRef = useRef<string | null>(null);
   const lastNavigationIndexRef = useRef(0);
+  const activeProgramRef = useRef<WorkspaceProgramFiber | null>(null);
 
   useExternalLifecycle(() => {
     const { index, workspacePath } = currentNavigationEntry ?? {};
@@ -101,6 +99,11 @@ export const useIssueWorkspaceTraversal = ({
     if (workspaceTraversalRef.current === traversalKey) {
       return;
     }
+    const previousFiber = activeProgramRef.current;
+    activeProgramRef.current = null;
+    if (previousFiber !== null) {
+      interruptWorkspaceProgram(previousFiber);
+    }
     workspaceTraversalRef.current = traversalKey;
     const intentGeneration = beginNavigationIntent(
       navigationIntentRef,
@@ -108,46 +111,57 @@ export const useIssueWorkspaceTraversal = ({
     );
     const returnIndex = lastNavigationIndexRef.current;
     const targetWorkspacePath = target.workspacePath;
-    void (async () => {
-      const switchedResult = await runWorkspaceEffect(
-        switchWorkspace(targetWorkspacePath),
-        workspaceService
-      );
-      const current = readIssueNavigationEntry(window.history.state);
-      if (
-        !switchedResult.ok ||
-        !isCurrentNavigationIntent(navigationIntentRef, intentGeneration) ||
-        workspaceTraversalRef.current !== traversalKey ||
-        current?.index !== target.index
-      ) {
-        if (
-          !switchedResult.ok &&
-          isCurrentNavigationIntent(navigationIntentRef, intentGeneration) &&
-          workspaceTraversalRef.current === traversalKey
-        ) {
-          workspaceTraversalRef.current = null;
-          finishNavigationIntent(navigationIntentRef, intentGeneration);
-          setDeepLinkError(
-            "Could not restore the Workspace from navigation history."
-          );
-          const delta = returnIndex - target.index;
-          if (delta !== 0) {
-            window.history.go(delta);
-          }
+    const fiber = startWorkspaceProgram(
+      switchDuringHistoryTraversal(targetWorkspacePath),
+      workspaceServiceLayer
+    );
+    activeProgramRef.current = fiber;
+    void observeWorkspaceProgram(
+      fiber,
+      () => {
+        if (activeProgramRef.current === fiber) {
+          activeProgramRef.current = null;
         }
-        return;
+        if (
+          !isCurrentNavigationIntent(navigationIntentRef, intentGeneration) ||
+          workspaceTraversalRef.current !== traversalKey
+        ) {
+          return;
+        }
+        workspaceTraversalRef.current = null;
+        finishNavigationIntent(navigationIntentRef, intentGeneration);
+        setDeepLinkError(
+          "Could not restore the Workspace from navigation history."
+        );
+        const delta = returnIndex - target.index;
+        if (delta !== 0) {
+          window.history.go(delta);
+        }
+      },
+      (switched) => {
+        if (activeProgramRef.current === fiber) {
+          activeProgramRef.current = null;
+        }
+        const current = readIssueNavigationEntry(window.history.state);
+        if (
+          !isCurrentNavigationIntent(navigationIntentRef, intentGeneration) ||
+          workspaceTraversalRef.current !== traversalKey ||
+          current?.index !== target.index
+        ) {
+          return;
+        }
+        manualWorkspaceSwitchRef.current = false;
+        applyTransition(
+          {
+            issueData: switched.issueData,
+            state: switched.state,
+          },
+          null
+        );
+        workspaceTraversalRef.current = null;
+        finishNavigationIntent(navigationIntentRef, intentGeneration);
       }
-      manualWorkspaceSwitchRef.current = false;
-      applyTransition(
-        {
-          issueData: switchedResult.value.issueData,
-          state: switchedResult.value.state,
-        },
-        null
-      );
-      workspaceTraversalRef.current = null;
-      finishNavigationIntent(navigationIntentRef, intentGeneration);
-    })();
+    );
   }, [
     applyTransition,
     currentNavigationEntry,
@@ -155,10 +169,21 @@ export const useIssueWorkspaceTraversal = ({
     manualWorkspaceSwitchRef,
     navigationIntentRef,
     setDeepLinkError,
-    workspaceService,
+    workspaceServiceLayer,
   ]);
 
   useExternalLifecycle(() => {
     lastNavigationIndexRef.current = currentNavigationIndex;
   }, [currentNavigationIndex]);
+
+  useExternalLifecycle(
+    () => () => {
+      const fiber = activeProgramRef.current;
+      activeProgramRef.current = null;
+      if (fiber !== null) {
+        interruptWorkspaceProgram(fiber);
+      }
+    },
+    []
+  );
 };
