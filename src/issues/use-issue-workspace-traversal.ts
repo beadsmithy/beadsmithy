@@ -14,7 +14,6 @@ import type { WorkspaceProgramFiber } from "../workspaces/workspace-service";
 import type { IssueExplorerLoadState } from "./issue-loader";
 import type { IssueExplorerRouteState } from "./issue-navigation";
 import type { IssueNavigationEntry } from "./issue-navigation-coordinator";
-import { readIssueNavigationEntry } from "./issue-navigation-coordinator";
 import {
   beginNavigationIntent,
   finishNavigationIntent,
@@ -53,6 +52,11 @@ export const useIssueWorkspaceTraversal = ({
   const workspaceTraversalRef = useRef<string | null>(null);
   const lastNavigationIndexRef = useRef(0);
   const activeProgramRef = useRef<WorkspaceProgramFiber | null>(null);
+  const currentNavigationEntryRef = useRef<IssueNavigationEntry | null>(null);
+
+  useExternalLifecycle(() => {
+    currentNavigationEntryRef.current = currentNavigationEntry;
+  }, [currentNavigationEntry]);
 
   useExternalLifecycle(() => {
     const { index, workspacePath } = currentNavigationEntry ?? {};
@@ -142,7 +146,7 @@ export const useIssueWorkspaceTraversal = ({
         if (activeProgramRef.current === fiber) {
           activeProgramRef.current = null;
         }
-        const current = readIssueNavigationEntry(window.history.state);
+        const { current } = currentNavigationEntryRef;
         if (
           !isCurrentNavigationIntent(navigationIntentRef, intentGeneration) ||
           workspaceTraversalRef.current !== traversalKey ||

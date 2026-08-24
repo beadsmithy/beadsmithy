@@ -1,4 +1,4 @@
-import { useCallback, useRef, useState } from "react";
+import { useCallback, useRef } from "react";
 
 import { useExternalLifecycle } from "../lib/use-external-lifecycle";
 import type { IssueExplorerRouteState } from "./issue-navigation";
@@ -12,7 +12,10 @@ import {
   truncateForwardIssueNavigationEntries,
   writeIssueNavigationState,
 } from "./issue-navigation-coordinator";
-import type { IssueNavigationEntry } from "./issue-navigation-coordinator";
+import type {
+  IssueNavigationEntry,
+  IssueNavigationLedger,
+} from "./issue-navigation-coordinator";
 
 interface NavigationOptions {
   replace?: boolean;
@@ -22,6 +25,7 @@ interface NavigationOptions {
 type Navigate = (path: string, options?: NavigationOptions) => void;
 
 export interface IssueNavigationCoordinatorOptions {
+  currentHistoryState: unknown;
   currentWorkspacePath: string | null;
   isSettingsRoute: boolean;
   issueRoute: IssueExplorerRouteState;
@@ -43,20 +47,12 @@ export interface IssueNavigationCoordinatorResult {
 }
 
 export const useIssueNavigationCoordinator = ({
+  currentHistoryState,
   currentWorkspacePath,
   isSettingsRoute,
   issueRoute,
   navigate,
 }: IssueNavigationCoordinatorOptions): IssueNavigationCoordinatorResult => {
-  const [, setHistoryRevision] = useState(0);
-  useExternalLifecycle(() => {
-    const handlePopState = (): void => {
-      setHistoryRevision((revision) => revision + 1);
-    };
-    window.addEventListener("popstate", handlePopState);
-    return () => window.removeEventListener("popstate", handlePopState);
-  }, []);
-
   const underlyingIssueRouteRef = useRef(issueRoute);
   useExternalLifecycle(() => {
     if (!isSettingsRoute) {
@@ -67,8 +63,12 @@ export const useIssueNavigationCoordinator = ({
   const explorerRoute = isSettingsRoute
     ? underlyingIssueRouteRef.current
     : issueRoute;
-  const navigationLedgerRef = useRef(createIssueNavigationLedger());
-  const currentNavigationEntry = readIssueNavigationEntry(window.history.state);
+  const navigationLedgerRef = useRef<IssueNavigationLedger | null>(null);
+  if (navigationLedgerRef.current === null) {
+    navigationLedgerRef.current = createIssueNavigationLedger();
+  }
+  const navigationLedger = navigationLedgerRef.current;
+  const currentNavigationEntry = readIssueNavigationEntry(currentHistoryState);
   const currentNavigationIndex = currentNavigationEntry?.index ?? 0;
 
   const navigateIssueRoute = useCallback(
@@ -77,42 +77,42 @@ export const useIssueNavigationCoordinator = ({
       replace: boolean,
       workspacePath = currentWorkspacePath
     ): void => {
-      let current = readIssueNavigationEntry(window.history.state);
+      let current = readIssueNavigationEntry(currentHistoryState);
+      let navigationReplace = replace;
       if (isSettingsRoute) {
         const underlyingEntry = createIssueNavigationEntry(
           explorerRoute,
           current?.workspacePath ?? currentWorkspacePath,
           current?.index ?? 0
         );
-        recordIssueNavigationEntry(
-          navigationLedgerRef.current,
-          underlyingEntry
-        );
-        window.history.replaceState(
-          writeIssueNavigationState(window.history.state, underlyingEntry),
-          "",
-          serializeIssueExplorerRoute(explorerRoute)
-        );
+        recordIssueNavigationEntry(navigationLedger, underlyingEntry);
         current = underlyingEntry;
+        // Settings occupies the current browser entry. Replace it with the
+        // destination so the underlying Issue remains a ledger-only entry.
+        navigationReplace = true;
       }
 
-      const index = replace
+      const index = navigationReplace
         ? (current?.index ?? 0)
         : (current?.index ?? -1) + 1;
       const entry = createIssueNavigationEntry(route, workspacePath, index);
-      if (!replace) {
-        truncateForwardIssueNavigationEntries(
-          navigationLedgerRef.current,
-          index - 1
-        );
+      if (!navigationReplace) {
+        truncateForwardIssueNavigationEntries(navigationLedger, index - 1);
       }
-      recordIssueNavigationEntry(navigationLedgerRef.current, entry);
+      recordIssueNavigationEntry(navigationLedger, entry);
       navigate(serializeIssueExplorerRoute(route), {
-        replace,
-        state: writeIssueNavigationState(window.history.state, entry),
+        replace: navigationReplace,
+        state: writeIssueNavigationState(currentHistoryState, entry),
       });
     },
-    [currentWorkspacePath, explorerRoute, isSettingsRoute, navigate]
+    [
+      currentHistoryState,
+      currentWorkspacePath,
+      explorerRoute,
+      isSettingsRoute,
+      navigate,
+      navigationLedger,
+    ]
   );
 
   useExternalLifecycle(() => {
@@ -129,23 +129,32 @@ export const useIssueNavigationCoordinator = ({
             currentNavigationEntry.index
           )
         : entry;
-    recordIssueNavigationEntry(navigationLedgerRef.current, authoritativeEntry);
+    recordIssueNavigationEntry(navigationLedger, authoritativeEntry);
     if (
       currentNavigationEntry === null ||
       authoritativeEntry !== currentNavigationEntry
     ) {
-      window.history.replaceState(
-        writeIssueNavigationState(window.history.state, authoritativeEntry),
-        "",
-        serializeIssueExplorerRoute(authoritativeEntry)
-      );
+      navigate(serializeIssueExplorerRoute(authoritativeEntry), {
+        replace: true,
+        state: writeIssueNavigationState(
+          currentHistoryState,
+          authoritativeEntry
+        ),
+      });
     }
-  }, [currentNavigationEntry, currentWorkspacePath, issueRoute]);
+  }, [
+    currentHistoryState,
+    currentNavigationEntry,
+    currentWorkspacePath,
+    issueRoute,
+    navigate,
+    navigationLedger,
+  ]);
 
   const previousNavigationEntry =
-    navigationLedgerRef.current.entries.get(currentNavigationIndex - 1) ?? null;
+    navigationLedger.entries.get(currentNavigationIndex - 1) ?? null;
   const nextNavigationEntry =
-    navigationLedgerRef.current.entries.get(currentNavigationIndex + 1) ?? null;
+    navigationLedger.entries.get(currentNavigationIndex + 1) ?? null;
   const handleBackNavigation = useCallback(() => {
     if (isSettingsRoute) {
       navigateIssueRoute(explorerRoute, true);

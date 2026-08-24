@@ -2,6 +2,7 @@ import { listen } from "@tauri-apps/api/event";
 import type { UnlistenFn } from "@tauri-apps/api/event";
 import { useCallback, useRef, useState } from "react";
 import { Route, Switch, useLocation, useRoute, useSearchParams } from "wouter";
+import { useHistoryState } from "wouter/use-browser-location";
 
 import "./App.css";
 import { Sidebar } from "./components/Sidebar";
@@ -210,6 +211,7 @@ export default function App() {
     ISSUE_EXPLORER_LOADING_STATE
   );
   const [location, navigate] = useLocation();
+  const currentHistoryState = useHistoryState<unknown>();
   const [settingsMatch] = useRoute("/settings");
   const [issueDetailMatch, issueDetailParams] = useRoute<{
     issueId?: string;
@@ -225,10 +227,10 @@ export default function App() {
     if (rawViewParam !== null && !isIssueListViewId(rawViewParam)) {
       navigate(serializeIssueExplorerRoute(issueRoute), {
         replace: true,
-        state: window.history.state,
+        state: currentHistoryState,
       });
     }
-  }, [issueRoute, navigate, rawViewParam]);
+  }, [currentHistoryState, issueRoute, navigate, rawViewParam]);
   const currentWorkspacePath =
     issueState.status === "success" ? issueState.workspacePath : null;
   const {
@@ -240,6 +242,7 @@ export default function App() {
     nextNavigationEntry,
     previousNavigationEntry,
   } = useIssueNavigationCoordinator({
+    currentHistoryState,
     currentWorkspacePath,
     isSettingsRoute,
     issueRoute,
@@ -676,7 +679,7 @@ export default function App() {
           onSettingsClick={() => {
             navigate("/settings", {
               replace: true,
-              state: window.history.state,
+              state: currentHistoryState,
             });
           }}
           workspaceHandlers={workspaceHandlers}
