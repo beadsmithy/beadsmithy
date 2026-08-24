@@ -96,6 +96,11 @@ export const useIssueDeepLinkCoordinator = ({
         setDeepLinkError(`Could not open link (${parsed.error}).`);
         return;
       }
+      const completeCurrentIntent = (generation: number): void => {
+        if (isCurrentNavigationIntent(navigationIntentRef, generation)) {
+          finishNavigationIntent(navigationIntentRef, generation);
+        }
+      };
       stopActiveProgram();
       const requestGeneration = beginNavigationIntent(
         navigationIntentRef,
@@ -126,8 +131,8 @@ export const useIssueDeepLinkCoordinator = ({
             : { issueId: parsed.value.issueId, search: "", viewId: "all" },
           startup
         );
+        completeCurrentIntent(requestGeneration);
         setDeepLinkError(null);
-        finishNavigationIntent(navigationIntentRef, requestGeneration);
         return;
       }
 
@@ -158,7 +163,7 @@ export const useIssueDeepLinkCoordinator = ({
             setDeepLinkError,
             isCurrentNavigationIntent(navigationIntentRef, requestGeneration)
           );
-          finishNavigationIntent(navigationIntentRef, requestGeneration);
+          completeCurrentIntent(requestGeneration);
         },
         (result) => {
           if (activeProgramRef.current === fiber) {
@@ -170,7 +175,7 @@ export const useIssueDeepLinkCoordinator = ({
             return;
           }
           if (result.kind === "cancelled") {
-            finishNavigationIntent(navigationIntentRef, requestGeneration);
+            completeCurrentIntent(requestGeneration);
             return;
           }
           if (result.kind === "already-current") {
@@ -188,12 +193,13 @@ export const useIssueDeepLinkCoordinator = ({
               startup,
               result.resolution.workspace.path
             );
+            completeCurrentIntent(requestGeneration);
             setDeepLinkError(null);
-            finishNavigationIntent(navigationIntentRef, requestGeneration);
             return;
           }
           const { switched } = result;
           if (switched === null) {
+            completeCurrentIntent(requestGeneration);
             return;
           }
           applyTransition(
@@ -205,8 +211,8 @@ export const useIssueDeepLinkCoordinator = ({
             startup,
             switched.issueData.workspacePath
           );
+          completeCurrentIntent(requestGeneration);
           setDeepLinkError(null);
-          finishNavigationIntent(navigationIntentRef, requestGeneration);
         }
       );
     },

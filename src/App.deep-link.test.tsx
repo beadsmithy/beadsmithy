@@ -29,7 +29,7 @@ const windowApi = {
   unminimize: vi.fn().mockResolvedValue(null),
 };
 const getCurrentWindow = vi.fn(() => windowApi);
-const { implementation: listen } = createBothListenersMock();
+const { implementation: listen, listeners } = createBothListenersMock();
 const createTauRPCProxy = vi.fn(() => ({
   app_settings_state: appSettingsState,
   cancel_workspace: vi.fn(),
@@ -295,6 +295,69 @@ describe("App deep-link delivery", () => {
       ).toBeInTheDocument()
     );
     expect(switchWorkspace).toHaveBeenCalledTimes(4);
+  });
+
+  it("clears a canonicalized Current Workspace intent before a later transition", async () => {
+    const target = buildIssue({
+      id: "bsm-canonical-target",
+      title: "Canonical target",
+    });
+    const transitioned = buildIssue({
+      id: target.id,
+      title: "Later Workspace issue",
+    });
+    loadIssueExplorerStateFromTauRpc.mockResolvedValue(
+      successState({ allIssues: [target], workspacePath: "/work/current" })
+    );
+    resolveWorkspace.mockResolvedValue({
+      known: true,
+      workspace: { availability: "available", path: "/work/current" },
+    });
+
+    render(<App />);
+    const deliverUrl = await waitFor(() => {
+      const callback = onOpenUrl.mock.calls[0]?.[0] as
+        | ((urls: string[]) => void)
+        | undefined;
+      expect(callback).toBeDefined();
+      return callback as (urls: string[]) => void;
+    });
+    deliverUrl([issueLocation("/work/current/subdirectory", target.id)]);
+
+    await waitFor(() =>
+      expect(
+        within(screen.getByRole("main", { name: "Issue detail" })).getByRole(
+          "heading",
+          { name: target.title }
+        )
+      ).toBeInTheDocument()
+    );
+    expect(window.location.pathname).toBe(`/issues/${target.id}`);
+    expect(resolveWorkspace).toHaveBeenCalledWith("/work/current/subdirectory");
+    expect(confirm).not.toHaveBeenCalled();
+    expect(switchWorkspace).not.toHaveBeenCalled();
+
+    listeners.transition?.({
+      payload: {
+        issueData: successState({
+          allIssues: [transitioned],
+          workspacePath: "/work/current",
+        }),
+        state: workspace({
+          currentWorkspace: {
+            availability: "available",
+            path: "/work/current",
+          },
+          generation: 2,
+          pendingWorkspace: {
+            availability: "available",
+            path: "/work/later",
+          },
+        }),
+      },
+    });
+
+    expect(await screen.findByText("Loading issue views")).toBeInTheDocument();
   });
 
   it("opens the latest running-instance URL and focuses the existing window", async () => {
