@@ -43,6 +43,13 @@ pub struct WorkspaceTransition {
     pub issue_data: Option<LoadIssueExplorerDataResponse>,
 }
 
+#[derive(Debug, Clone, Serialize, specta::Type)]
+#[serde(rename_all = "camelCase")]
+pub struct WorkspaceResolution {
+    pub known: bool,
+    pub workspace: Workspace,
+}
+
 /// In-memory data is only published after the workspace service's durable
 /// Current commit. It lets Issue Explorer reload without accepting a path.
 pub(crate) struct WorkspaceRuntime {
@@ -222,6 +229,7 @@ pub trait BeadsmithApi {
     async fn list_issues() -> Result<ListIssuesResponse, IssueListError>;
     async fn load_issue_explorer_data() -> Result<LoadIssueExplorerDataResponse, IssueListError>;
     async fn workspace_state() -> WorkspaceState;
+    async fn resolve_workspace(candidate_path: String) -> Result<WorkspaceResolution, WorkspaceError>;
     async fn switch_workspace(
         candidate_path: String,
     ) -> Result<WorkspaceSwitchResponse, WorkspaceError>;
@@ -451,6 +459,22 @@ impl BeadsmithApi for BeadsmithApiImpl {
 
     async fn workspace_state(self) -> WorkspaceState {
         self.with_runtime(|runtime| runtime.service.state().clone())
+    }
+
+    async fn resolve_workspace(
+        self,
+        candidate_path: String,
+    ) -> Result<WorkspaceResolution, WorkspaceError> {
+        let workspace = validate_workspace_outside_lock(PathBuf::from(candidate_path)).await?;
+        let known = self.with_runtime(|runtime| {
+            runtime
+                .service
+                .state()
+                .catalog
+                .iter()
+                .any(|candidate| candidate.path == workspace.path)
+        });
+        Ok(WorkspaceResolution { known, workspace })
     }
 
     async fn switch_workspace(

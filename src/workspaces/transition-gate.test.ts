@@ -2,16 +2,16 @@ import { describe, expect, it } from "vitest";
 
 import type { IssueExplorerLoadState } from "../issues/issue-loader";
 import type {
+  IssueExplorerRefreshHealthEvent,
+  RefreshHealth,
+} from "../refresh-health";
+import type {
   Issue,
   LoadIssueExplorerDataResponse,
   Workspace,
   WorkspaceError,
   WorkspaceState,
 } from "../rpc/bindings";
-import type {
-  IssueExplorerRefreshHealthEvent,
-  RefreshHealth,
-} from "../refresh-health";
 import {
   applyIssueExplorerHealthRefresh,
   applyIssueExplorerRefresh,
@@ -1184,15 +1184,12 @@ describe("applyIssueExplorerRefresh", () => {
     const deferredPayload = {
       ...refreshPayload({
         refreshRevision: 9,
-        workspaceSelectionGeneration: 3,
         workspacePath: "/work/b",
+        workspaceSelectionGeneration: 3,
       }),
       issueData: refreshSnapshot("/work/b", 3),
     };
-    const deferred = applyIssueExplorerRefresh(
-      pendingB.next,
-      deferredPayload
-    );
+    const deferred = applyIssueExplorerRefresh(pendingB.next, deferredPayload);
     expect(deferred.decision.kind).toBe("defer");
 
     // B commits: the gate now admits the deferred payload as a
@@ -1279,9 +1276,10 @@ const refreshFailure = (overrides: {
   transient: overrides.transient ?? true,
 });
 
-const refreshHealthState = (
-  overrides: { readonly refProbe?: ReturnType<typeof refreshFailure> | null; readonly loader?: ReturnType<typeof refreshFailure> | null }
-): RefreshHealth => ({
+const refreshHealthState = (overrides: {
+  readonly refProbe?: ReturnType<typeof refreshFailure> | null;
+  readonly loader?: ReturnType<typeof refreshFailure> | null;
+}): RefreshHealth => ({
   loader: overrides.loader === undefined ? null : overrides.loader,
   refProbe: overrides.refProbe === undefined ? null : overrides.refProbe,
 });

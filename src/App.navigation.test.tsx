@@ -81,6 +81,16 @@ describe("App navigation", () => {
     workspaceState.mockRejectedValue(new Error("workspace unavailable"));
   });
 
+  it("replaces an invalid view query parameter with the canonical All route", async () => {
+    window.history.replaceState(null, "", "/issues?view=not-a-view");
+    loadIssueExplorerStateFromTauRpc.mockResolvedValue(successState({}));
+
+    render(<App />);
+
+    await screen.findByRole("button", { name: "All, 0 issues" });
+    await waitFor(() => expect(window.location.search).toBe(""));
+  });
+
   it("keeps sidebar view controls unavailable with hidden counts while issues are loading", () => {
     loadIssueExplorerStateFromTauRpc.mockReturnValue(Promise.race([]));
 

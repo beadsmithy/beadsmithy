@@ -1,11 +1,11 @@
 import { render, screen } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
 
+import type { RefreshFailure } from "../refresh-health";
 import {
   RefreshFailureBanner,
   selectBannerFailure,
 } from "./RefreshFailureBanner";
-import type { RefreshFailure } from "../refresh-health";
 
 const failure = (overrides: Partial<RefreshFailure>): RefreshFailure => ({
   errorKind: "refProbe",
@@ -29,7 +29,7 @@ describe("RefreshFailureBanner", () => {
     );
     const banner = screen.getByTestId("refresh-failure-banner");
     expect(banner).toBeInTheDocument();
-    expect(banner).toHaveAttribute("role", "status");
+    expect(banner.tagName).toBe("OUTPUT");
     expect(banner).toHaveAttribute("data-failure-kind", "refProbe");
     expect(banner).toHaveAttribute("data-failure-revision", "5");
     expect(banner.textContent).toContain(
@@ -87,9 +87,7 @@ describe("RefreshFailureBanner", () => {
 
 describe("selectBannerFailure", () => {
   it("returns null when both slots are empty", () => {
-    expect(
-      selectBannerFailure({ refProbe: null, loader: null })
-    ).toBeNull();
+    expect(selectBannerFailure({ loader: null, refProbe: null })).toBeNull();
   });
 
   it("prefers a structural failure over a transient failure", () => {
@@ -104,21 +102,21 @@ describe("selectBannerFailure", () => {
       transient: true,
     });
     expect(
-      selectBannerFailure({ refProbe: transient, loader: structural })
+      selectBannerFailure({ loader: structural, refProbe: transient })
     ).toEqual(structural);
     expect(
-      selectBannerFailure({ refProbe: structural, loader: transient })
+      selectBannerFailure({ loader: transient, refProbe: structural })
     ).toEqual(structural);
   });
 
   it("within the same category, prefers the highest failureRevision", () => {
     const older = failure({ errorKind: "refProbe", failureRevision: 3 });
     const newer = failure({ errorKind: "refProbe", failureRevision: 5 });
-    expect(
-      selectBannerFailure({ refProbe: older, loader: newer })
-    ).toEqual(newer);
-    expect(
-      selectBannerFailure({ refProbe: newer, loader: older })
-    ).toEqual(newer);
+    expect(selectBannerFailure({ loader: newer, refProbe: older })).toEqual(
+      newer
+    );
+    expect(selectBannerFailure({ loader: older, refProbe: newer })).toEqual(
+      newer
+    );
   });
 });

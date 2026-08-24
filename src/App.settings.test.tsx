@@ -118,6 +118,38 @@ describe("App settings", () => {
     ).toBeInTheDocument();
   });
 
+  it("traverses Back from Settings to the prior Issue and keeps the later Issue Forward", async () => {
+    const user = userEvent.setup();
+    const issueA = buildIssue({ id: "bsm-settings-a", title: "Issue A" });
+    const issueB = buildIssue({ id: "bsm-settings-b", title: "Issue B" });
+    loadIssueExplorerStateFromTauRpc.mockResolvedValue(
+      successState({ allIssues: [issueA, issueB], workspacePath: "/work" })
+    );
+    workspaceState.mockResolvedValue(
+      workspace({
+        currentWorkspace: { availability: "available", path: "/work" },
+      })
+    );
+
+    render(<App />);
+    await user.click(await screen.findByRole("link", { name: /Issue A/iu }));
+    await user.click(screen.getByRole("link", { name: /^bsm-settings-b:/u }));
+    await user.click(settingsButton());
+    await user.click(screen.getByRole("button", { name: /Back/iu }));
+
+    await waitFor(() => {
+      expect(
+        within(issueDetailMain()).getByRole("heading", { name: issueA.title })
+      ).toBeInTheDocument();
+    });
+    expect(
+      screen.getByRole("button", { name: /Forward to bsm-settings-b/iu })
+    ).toBeEnabled();
+    expect(
+      screen.queryByRole("main", { name: "Settings" })
+    ).not.toBeInTheDocument();
+  });
+
   it("returns to the Issue Explorer and restores the active list view when a view is clicked", async () => {
     const user = userEvent.setup();
     const issue = buildIssue({ status: "open" });
@@ -202,7 +234,7 @@ describe("App settings", () => {
     });
 
     await user.type(searchBox, "Alpha");
-    await user.click(screen.getByRole("button", { name: /Alpha one/iu }));
+    await user.click(screen.getByRole("link", { name: /Alpha one/iu }));
 
     await waitFor(() =>
       expect(
@@ -219,7 +251,7 @@ describe("App settings", () => {
     expect(
       within(issueDetailMain()).getByRole("heading", { name: "Alpha one" })
     ).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: /Alpha one/iu })).toHaveAttribute(
+    expect(screen.getByRole("link", { name: /Alpha one/iu })).toHaveAttribute(
       "aria-current",
       "true"
     );
@@ -245,8 +277,8 @@ describe("App settings", () => {
 
     render(<App />);
 
-    await waitFor(() => screen.getByRole("button", { name: /Alpha/iu }));
-    await user.click(screen.getByRole("button", { name: /Alpha/iu }));
+    await waitFor(() => screen.getByRole("link", { name: /Alpha/iu }));
+    await user.click(screen.getByRole("link", { name: /Alpha/iu }));
 
     const article = await waitFor(() =>
       within(issueDetailMain()).getByRole("article")
@@ -312,8 +344,8 @@ describe("App settings", () => {
 
     render(<App />);
 
-    await waitFor(() => screen.getByRole("button", { name: /Alpha/iu }));
-    await user.click(screen.getByRole("button", { name: /Alpha/iu }));
+    await waitFor(() => screen.getByRole("link", { name: /Alpha/iu }));
+    await user.click(screen.getByRole("link", { name: /Alpha/iu }));
 
     await user.click(settingsButton());
 
@@ -329,9 +361,9 @@ describe("App settings", () => {
     );
 
     await waitFor(() =>
-      expect(screen.getByRole("button", { name: /Beta/iu })).toBeInTheDocument()
+      expect(screen.getByRole("link", { name: /Beta/iu })).toBeInTheDocument()
     );
-    await user.click(screen.getByRole("button", { name: /Beta/iu }));
+    await user.click(screen.getByRole("link", { name: /Beta/iu }));
 
     const article = within(issueDetailMain()).getByRole("article");
     await waitFor(() => expect(article).toHaveStyle({ fontSize: "32px" }));

@@ -1,35 +1,48 @@
 import { listen } from "@tauri-apps/api/event";
 import type { UnlistenFn } from "@tauri-apps/api/event";
-import { open } from "@tauri-apps/plugin-dialog";
 import { useCallback, useRef, useState } from "react";
+import { Route, Switch, useLocation, useRoute, useSearchParams } from "wouter";
+import { useHistoryState } from "wouter/use-browser-location";
 
 import "./App.css";
 import { Sidebar } from "./components/Sidebar";
 import { Titlebar } from "./components/Titlebar";
-import { pickerDefaultPath } from "./components/WorkspaceSelector";
-import { DEFAULT_ISSUE_LIST_VIEW_ID } from "./issues/issue-list-view";
 import type { IssueListViewId } from "./issues/issue-list-view";
 import {
   ISSUE_EXPLORER_LOADING_STATE,
   loadIssueExplorerStateFromTauRpc,
 } from "./issues/issue-loader";
 import type { IssueExplorerLoadState } from "./issues/issue-loader";
-import { IssueExplorer } from "./issues/IssueExplorer";
-import { useExternalLifecycle } from "./lib/use-external-lifecycle";
-import { createTauRPCProxy } from "./rpc/bindings";
-import type {
-  LoadIssueExplorerDataResponse,
-  WorkspaceState,
-} from "./rpc/bindings";
 import {
-  isIssueExplorerRefreshEvent,
-  type IssueExplorerRefreshEvent,
-  type IssueExplorerRefreshHealthEvent,
-  type IssueExplorerRefreshSnapshotEvent,
-  type RefreshHealth,
+  createIssueExplorerRoute,
+  isIssueInListView,
+  isIssueListViewId,
+  selectIssueForView,
+  serializeIssueExplorerRoute,
+} from "./issues/issue-navigation";
+import { issueNavigationDestinationLabel } from "./issues/issue-navigation-coordinator";
+import { IssueExplorer } from "./issues/IssueExplorer";
+import {
+  finishNavigationIntent,
+  INITIAL_NAVIGATION_INTENT,
+  transitionMatchesNavigationIntent,
+} from "./issues/navigation-intent";
+import { useIssueDeepLinkCoordinator } from "./issues/use-issue-deep-link-coordinator";
+import { useIssueNavigationCoordinator } from "./issues/use-issue-navigation-coordinator";
+import { useIssueWorkspaceTraversal } from "./issues/use-issue-workspace-traversal";
+import { useWorkspaceCoordinator } from "./issues/use-workspace-coordinator";
+import { useExternalLifecycle } from "./lib/use-external-lifecycle";
+import { isIssueExplorerRefreshEvent } from "./refresh-health";
+import type {
+  IssueExplorerRefreshEvent,
+  IssueExplorerRefreshHealthEvent,
+  IssueExplorerRefreshSnapshotEvent,
+  RefreshHealth,
 } from "./refresh-health";
+import type { WorkspaceState } from "./rpc/bindings";
 import { useAppSettings } from "./settings/app-settings";
 import { SettingsPage } from "./settings/SettingsPage";
+import type { WorkspaceTransition } from "./workspaces/transition-contract";
 import {
   applyIssueExplorerHealthRefresh,
   applyIssueExplorerRefresh,
@@ -46,11 +59,6 @@ import type {
 
 const WORKSPACE_TRANSITION_EVENT = "workspace-transition";
 const ISSUE_EXPLORER_REFRESH_EVENT = "beadwork://issue-explorer-state-changed";
-
-interface WorkspaceTransition {
-  issueData: LoadIssueExplorerDataResponse | null;
-  state: WorkspaceState;
-}
 
 type AppDestination = "issueExplorer" | "settings";
 
@@ -145,9 +153,10 @@ const applyRefreshDecision = (
       payload
     );
     switch (decision.kind) {
-      case "ignore":
+      case "ignore": {
         return;
-      case "defer":
+      }
+      case "defer": {
         if (
           deferredSnapshotRef.current === null ||
           deferredSnapshotRef.current.refreshRevision <= payload.refreshRevision
@@ -155,12 +164,16 @@ const applyRefreshDecision = (
           deferredSnapshotRef.current = payload;
         }
         return;
-      case "commitRefreshSnapshot":
+      }
+      case "commitRefreshSnapshot": {
         gateRef.current = next;
         setIssueState({ ...decision.snapshot, status: "success" });
         return;
+      }
+      default: {
+        return;
+      }
     }
-    return;
   }
   // Health variant
   const healthPayload: IssueExplorerRefreshHealthEvent = payload;
@@ -169,20 +182,27 @@ const applyRefreshDecision = (
     healthPayload
   );
   switch (decision.kind) {
-    case "ignore":
+    case "ignore": {
       return;
-    case "defer":
+    }
+    case "defer": {
       if (
         deferredHealthRef.current === null ||
-        deferredHealthRef.current.refreshRevision <= healthPayload.refreshRevision
+        deferredHealthRef.current.refreshRevision <=
+          healthPayload.refreshRevision
       ) {
         deferredHealthRef.current = healthPayload;
       }
       return;
-    case "commitRefreshHealth":
+    }
+    case "commitRefreshHealth": {
       gateRef.current = next;
       setRefreshHealth(decision.health);
       return;
+    }
+    default: {
+      break;
+    }
   }
 };
 
@@ -190,10 +210,47 @@ export default function App() {
   const [issueState, setIssueState] = useState<IssueExplorerLoadState>(
     ISSUE_EXPLORER_LOADING_STATE
   );
-  const [activeIssueListViewId, setActiveIssueListViewId] =
-    useState<IssueListViewId>(DEFAULT_ISSUE_LIST_VIEW_ID);
-  const [appDestination, setAppDestination] =
-    useState<AppDestination>("issueExplorer");
+  const [location, navigate] = useLocation();
+  const currentHistoryState = useHistoryState<unknown>();
+  const [settingsMatch] = useRoute("/settings");
+  const [issueDetailMatch, issueDetailParams] = useRoute<{
+    issueId?: string;
+  }>("/issues/:issueId");
+  const [searchParams] = useSearchParams();
+  const issueRoute = createIssueExplorerRoute(
+    issueDetailMatch ? (issueDetailParams.issueId ?? null) : null,
+    searchParams
+  );
+  const isSettingsRoute = settingsMatch;
+  const rawViewParam = searchParams.get("view");
+  useExternalLifecycle(() => {
+    if (rawViewParam !== null && !isIssueListViewId(rawViewParam)) {
+      navigate(serializeIssueExplorerRoute(issueRoute), {
+        replace: true,
+        state: currentHistoryState,
+      });
+    }
+  }, [currentHistoryState, issueRoute, navigate, rawViewParam]);
+  const currentWorkspacePath =
+    issueState.status === "success" ? issueState.workspacePath : null;
+  const {
+    currentNavigationEntry,
+    currentNavigationIndex,
+    explorerRoute,
+    handleBackNavigation,
+    navigateIssueRoute,
+    nextNavigationEntry,
+    previousNavigationEntry,
+  } = useIssueNavigationCoordinator({
+    currentHistoryState,
+    currentWorkspacePath,
+    isSettingsRoute,
+    issueRoute,
+    navigate,
+  });
+  const appDestination: AppDestination = isSettingsRoute
+    ? "settings"
+    : "issueExplorer";
   const settings = useAppSettings();
   const [sidebarCollapsed, setSidebarCollapsed] = useState<boolean>(false);
   const [workspaceState, setWorkspaceState] = useState<WorkspaceState | null>(
@@ -206,6 +263,8 @@ export default function App() {
   const [refreshHealth, setRefreshHealth] = useState<RefreshHealth | null>(
     null
   );
+  const manualWorkspaceSwitchRef = useRef(false);
+  const navigationIntentRef = useRef(INITIAL_NAVIGATION_INTENT);
   const transitionGateRef = useRef<WorkspaceTransitionGateState>(
     INITIAL_WORKSPACE_TRANSITION_GATE_STATE
   );
@@ -225,18 +284,14 @@ export default function App() {
    * Health variant; before the split, a single slot would silently
    * drop one variant when both were deferred for the same identity.
    */
-  const deferredSnapshotRef =
-    useRef<IssueExplorerRefreshSnapshotEvent | null>(null);
+  const deferredSnapshotRef = useRef<IssueExplorerRefreshSnapshotEvent | null>(
+    null
+  );
   const deferredHealthRef = useRef<IssueExplorerRefreshHealthEvent | null>(
     null
   );
   const [dismissedSwitchErrorGeneration, setDismissedSwitchErrorGeneration] =
     useState<number | null>(null);
-
-  const handleIssueListViewSelect = useCallback((viewId: IssueListViewId) => {
-    setActiveIssueListViewId(viewId);
-    setAppDestination("issueExplorer");
-  }, []);
 
   const applyDeferredRefresh = useCallback((): boolean => {
     // Replay the deferred Snapshot first so the gate's confirmed
@@ -245,7 +300,7 @@ export default function App() {
     // until both slots drain — committing a Snapshot may open the
     // gate for a previously-deferred Health event.
     let applied = false;
-    for (let iteration = 0; iteration < 2; iteration += 1) {
+    for (const _ of [0, 1]) {
       const deferredSnapshot = deferredSnapshotRef.current;
       if (deferredSnapshot !== null) {
         deferredSnapshotRef.current = null;
@@ -324,6 +379,102 @@ export default function App() {
     [applyDeferredRefresh]
   );
 
+  const { refreshWorkspaceState, workspaceHandlers } = useWorkspaceCoordinator({
+    applyTransition,
+    manualWorkspaceSwitchRef,
+    navigationIntentRef,
+    setDismissedSwitchErrorGeneration,
+    setIssueState,
+    setWorkspaceKey,
+    transitionGateRef,
+    workspaceState,
+  });
+
+  const { deepLinkError, dismissDeepLinkError, setDeepLinkError } =
+    useIssueDeepLinkCoordinator({
+      applyTransition,
+      explorerRoute,
+      issueState,
+      navigateIssueRoute,
+      navigationIntentRef,
+      workspaceState,
+    });
+
+  useIssueWorkspaceTraversal({
+    applyTransition,
+    confirmedWorkspacePath: transitionGateRef.current.confirmedWorkspacePath,
+    currentNavigationEntry,
+    currentNavigationIndex,
+    issueState,
+    manualWorkspaceSwitchRef,
+    navigateIssueRoute,
+    navigationIntentRef,
+    setDeepLinkError,
+  });
+
+  const handleIssueListViewSelect = useCallback(
+    (viewId: IssueListViewId) => {
+      const selectedIssueId = selectIssueForView(
+        issueState,
+        viewId,
+        explorerRoute.issueId
+      );
+      const nextRoute = {
+        ...explorerRoute,
+        issueId: selectedIssueId,
+        viewId,
+      };
+      if (
+        nextRoute.viewId === explorerRoute.viewId &&
+        nextRoute.issueId === explorerRoute.issueId
+      ) {
+        if (isSettingsRoute) {
+          navigateIssueRoute(explorerRoute, true);
+        }
+        return;
+      }
+      navigateIssueRoute(nextRoute, false);
+    },
+    [explorerRoute, isSettingsRoute, issueState, navigateIssueRoute]
+  );
+
+  const handleIssueSelect = useCallback(
+    (issueId: string) => {
+      if (explorerRoute.issueId === issueId) {
+        return;
+      }
+      navigateIssueRoute({ ...explorerRoute, issueId }, false);
+    },
+    [explorerRoute, navigateIssueRoute]
+  );
+
+  const handleIssueSearchChange = useCallback(
+    (search: string) => {
+      navigateIssueRoute({ ...explorerRoute, search }, true);
+    },
+    [explorerRoute, navigateIssueRoute]
+  );
+
+  const handleIssueReferenceSelect = useCallback(
+    (issueId: string) => {
+      if (explorerRoute.issueId === issueId) {
+        return;
+      }
+      const targetIsVisible = isIssueInListView(
+        issueState,
+        explorerRoute.viewId,
+        issueId
+      );
+      navigateIssueRoute(
+        targetIsVisible
+          ? { ...explorerRoute, issueId }
+          : { issueId, search: "", viewId: "all" },
+        false
+      );
+    },
+    [explorerRoute, issueState, navigateIssueRoute]
+  );
+
   // `presentedIssueState` masks the successful Issue Explorer
   // snapshot with the established loading presentation while a
   // Workspace switch is Pending, so the renderer's view of the new
@@ -334,19 +485,11 @@ export default function App() {
   // Pending also wins over the no-Current chooser so a no-Current
   // → B selection shows loading instead of the chooser.
   const presentedIssueState: IssueExplorerLoadState =
-    workspaceState?.pendingWorkspace == null
+    workspaceState?.pendingWorkspace === null ||
+    workspaceState?.pendingWorkspace === undefined
       ? issueState
       : ISSUE_EXPLORER_LOADING_STATE;
   const sidebarDisabled = presentedIssueState.status !== "success";
-
-  const refreshWorkspaceState = useCallback(async () => {
-    try {
-      const next = await createTauRPCProxy().workspace_state();
-      applyTransition({ issueData: null, state: next }, null);
-    } catch {
-      // No typed state is available if the transport itself is unavailable.
-    }
-  }, [applyTransition]);
 
   useExternalLifecycle(() => {
     let disposed = false;
@@ -363,7 +506,23 @@ export default function App() {
       const transitionListener = await listen<WorkspaceTransition>(
         WORKSPACE_TRANSITION_EVENT,
         (event) => {
+          const { currentWorkspace, pendingWorkspace } = event.payload.state;
+          const intentGeneration = navigationIntentRef.current.generation;
+          if (
+            !transitionMatchesNavigationIntent(
+              navigationIntentRef,
+              currentWorkspace?.path ?? null,
+              pendingWorkspace?.path ?? null
+            )
+          ) {
+            return;
+          }
           applyTransition(event.payload, null);
+          if (
+            currentWorkspace?.path === navigationIntentRef.current.workspacePath
+          ) {
+            finishNavigationIntent(navigationIntentRef, intentGeneration);
+          }
         }
       );
       if (disposed) {
@@ -398,6 +557,14 @@ export default function App() {
       void (async () => {
         try {
           const initial = await loadIssueExplorerStateFromTauRpc();
+          if (
+            initial.status === "success" &&
+            transitionGateRef.current.confirmedWorkspacePath !== null &&
+            initial.workspacePath !==
+              transitionGateRef.current.confirmedWorkspacePath
+          ) {
+            return;
+          }
           const { decision, next } = applyStartupIssueLoad(
             transitionGateRef.current,
             initial,
@@ -452,121 +619,56 @@ export default function App() {
     };
   }, [applyTransition, refreshWorkspaceState]);
 
-  const selectWorkspace = async (path: string) => {
-    const expectedGeneration = transitionGateRef.current.acceptedGeneration + 1;
-    setDismissedSwitchErrorGeneration(null);
-    try {
-      const response = await createTauRPCProxy().switch_workspace(path);
-      applyTransition(
-        { issueData: response.issueData, state: response.state },
-        expectedGeneration
-      );
-    } catch {
-      await refreshWorkspaceState();
-    }
-  };
-
-  const chooseWorkspace = async () => {
-    try {
-      const selection = await open({
-        defaultPath: pickerDefaultPath(workspaceState) ?? undefined,
-        directory: true,
-        multiple: false,
-      });
-      if (typeof selection === "string") {
-        await selectWorkspace(selection);
-      }
-    } catch {
-      await refreshWorkspaceState();
-    }
-  };
-
-  const removeWorkspace = async (path: string) => {
-    try {
-      const state = await createTauRPCProxy().remove_workspace(path);
-      applyTransition({ issueData: null, state }, null);
-    } catch {
-      await refreshWorkspaceState();
-    }
-  };
-
-  const retryWorkspaceMemory = async () => {
-    try {
-      const response = await createTauRPCProxy().retry_workspace_memory();
-      applyTransition(
-        { issueData: response.issueData, state: response.state },
-        null
-      );
-    } catch {
-      await refreshWorkspaceState();
-    }
-  };
-
-  const resetWorkspaceMemory = async () => {
-    try {
-      const state = await createTauRPCProxy().reset_workspace_memory();
-      applyTransition({ issueData: null, state }, null);
-      applyNoWorkspacePresentation(
-        "/__reset__",
-        setIssueState,
-        setWorkspaceKey
-      );
-    } catch {
-      await refreshWorkspaceState();
-    }
-  };
-
-  const cancelWorkspace = async () => {
-    try {
-      const response = await createTauRPCProxy().cancel_workspace();
-      applyTransition(
-        { issueData: response.issueData, state: response.state },
-        null
-      );
-    } catch {
-      await refreshWorkspaceState();
-    }
-  };
-
-  const retryLastSwitch = async () => {
-    const retryPath = workspaceState?.retryWorkspace?.path;
-    if (retryPath !== null && retryPath !== undefined && retryPath !== "") {
-      await selectWorkspace(retryPath);
-    }
-  };
-
-  const dismissSwitchError = () => {
-    setDismissedSwitchErrorGeneration(workspaceState?.generation ?? null);
-  };
-
-  const workspaceHandlers = {
-    onCancel:
-      workspaceState?.pendingWorkspace === null ||
-      workspaceState?.pendingWorkspace === undefined
-        ? undefined
-        : () => void cancelWorkspace(),
-    onChoose: () => void chooseWorkspace(),
-    onDismissSwitchError: dismissSwitchError,
-    onRemove: (path: string) => void removeWorkspace(path),
-    onResetMemory: () => void resetWorkspaceMemory(),
-    onRetryLastSwitch:
-      workspaceState?.retryWorkspace === null ||
-      workspaceState?.retryWorkspace === undefined
-        ? undefined
-        : () => void retryLastSwitch(),
-    onRetryMemory: () => void retryWorkspaceMemory(),
-    onSelect: (path: string) => void selectWorkspace(path),
-  };
+  const backDisabled = isSettingsRoute
+    ? false
+    : previousNavigationEntry === null;
+  const issueExplorerView = (
+    <IssueExplorer
+      activeIssueListViewId={explorerRoute.viewId}
+      focusRouteChanges={!isSettingsRoute}
+      issueState={presentedIssueState}
+      markdownFontSizePx={settings.state.appliedFontSizePx}
+      onIssueReferenceSelect={handleIssueReferenceSelect}
+      onIssueSearchChange={handleIssueSearchChange}
+      onIssueSelect={handleIssueSelect}
+      refreshHealth={refreshHealth}
+      route={explorerRoute}
+      titleOverride={isSettingsRoute ? "Settings · Beadsmithy" : null}
+    />
+  );
 
   return (
     <div className="flex h-screen w-screen flex-col overflow-hidden bg-background font-primary text-text-main antialiased">
       <Titlebar
+        backDisabled={backDisabled}
+        backLabel={issueNavigationDestinationLabel(previousNavigationEntry)}
+        forwardDisabled={nextNavigationEntry === null}
+        forwardLabel={issueNavigationDestinationLabel(nextNavigationEntry)}
+        onBack={handleBackNavigation}
+        onForward={() => window.history.forward()}
         onToggleSidebar={() => setSidebarCollapsed((collapsed) => !collapsed)}
         sidebarCollapsed={sidebarCollapsed}
       />
+      {deepLinkError === null ? null : (
+        <div
+          aria-live="assertive"
+          className="flex items-center gap-3 border-b border-danger/40 bg-danger/10 px-4 py-2 text-sm text-red-200"
+          role="alert"
+        >
+          <span className="flex-1">{deepLinkError}</span>
+          <button
+            aria-label="Dismiss deep-link error"
+            className="rounded px-2 py-1 text-xs text-text-main hover:bg-white/10"
+            onClick={dismissDeepLinkError}
+            type="button"
+          >
+            Dismiss
+          </button>
+        </div>
+      )}
       <div className="flex flex-1 overflow-hidden">
         <Sidebar
-          activeIssueListViewId={activeIssueListViewId}
+          activeIssueListViewId={explorerRoute.viewId}
           appDestination={appDestination}
           collapsed={sidebarCollapsed}
           disabled={sidebarDisabled}
@@ -574,15 +676,20 @@ export default function App() {
           issueState={presentedIssueState}
           onCollapseToggle={setSidebarCollapsed}
           onIssueListViewSelect={handleIssueListViewSelect}
-          onSettingsClick={() => setAppDestination("settings")}
+          onSettingsClick={() => {
+            navigate("/settings", {
+              replace: true,
+              state: currentHistoryState,
+            });
+          }}
           workspaceHandlers={workspaceHandlers}
           workspaceState={workspaceState}
         />
 
         <div className="relative flex flex-1">
           <div
-            key={workspaceKey}
             aria-hidden={appDestination === "settings" ? true : undefined}
+            data-workspace-key={workspaceKey}
             className={`flex flex-1 ${
               appDestination === "settings" ? "invisible" : ""
             }`}
@@ -604,7 +711,7 @@ export default function App() {
                   </p>
                   <button
                     className="mt-4 rounded border border-border-main px-3 py-2 text-sm hover:bg-white/5"
-                    onClick={() => void chooseWorkspace()}
+                    onClick={workspaceHandlers.onChoose}
                     type="button"
                   >
                     Choose folder
@@ -612,24 +719,24 @@ export default function App() {
                 </div>
               </main>
             ) : (
-              <IssueExplorer
-                activeIssueListViewId={activeIssueListViewId}
-                issueState={presentedIssueState}
-                markdownFontSizePx={settings.state.appliedFontSizePx}
-                onIssueListViewChange={setActiveIssueListViewId}
-                refreshHealth={refreshHealth}
-              />
+              <Switch location={location}>
+                <Route path="/issues/:issueId">{issueExplorerView}</Route>
+                <Route path="/issues">{issueExplorerView}</Route>
+                <Route>{issueExplorerView}</Route>
+              </Switch>
             )}
           </div>
-          {appDestination === "settings" ? (
-            <SettingsPage
-              className="absolute inset-0 z-10"
-              onDraftChange={settings.setDraft}
-              onReset={settings.reset}
-              onRetry={settings.retry}
-              state={settings.state}
-            />
-          ) : null}
+          <Switch location={location}>
+            <Route path="/settings">
+              <SettingsPage
+                className="absolute inset-0 z-10"
+                onDraftChange={settings.setDraft}
+                onReset={settings.reset}
+                onRetry={settings.retry}
+                state={settings.state}
+              />
+            </Route>
+          </Switch>
         </div>
       </div>
     </div>

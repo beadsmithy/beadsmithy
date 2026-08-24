@@ -26,6 +26,7 @@ import {
   FIXTURE_DESCRIPTION_INLINE_CODE,
   FIXTURE_ISSUE_TITLE,
   FIXTURE_READY_TITLE,
+  FIXTURE_SHARED_TITLE_A,
 } from "./fixtures/workspace.ts";
 import {
   expectIssueVisible,
@@ -134,6 +135,27 @@ describe(`Workspace restoration (WebDriver e2e) [${phaseTag}]`, () => {
     await expectIssueVisible(FIXTURE_ISSUE_TITLE);
     await expectIssueVisible(FIXTURE_READY_TITLE);
     await expectIssueVisible(FIXTURE_BLOCKER_TITLE);
+  });
+
+  it("phase 2 startup deep-link selects the current Workspace Issue in the real binary", async () => {
+    const phase = process.env.BEADSMITH_E2E_PHASE ?? "1";
+    if (phase === "1") {
+      return;
+    }
+
+    await expectCurrentWorkspace(workspaceA);
+    const detail = await browser.$('main[aria-label="Issue detail"]');
+    await browser.waitUntil(
+      async () => {
+        const text = await detail.getText();
+        return text.includes(FIXTURE_SHARED_TITLE_A);
+      },
+      {
+        timeout: 30_000,
+        timeoutMsg:
+          "Expected the startup deep link to select the shared Issue in the restored Workspace",
+      }
+    );
   });
 
   it("phase 2 restores the persisted Workspace detail content for the current Issue", async () => {

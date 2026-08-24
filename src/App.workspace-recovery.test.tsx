@@ -106,15 +106,16 @@ describe("App workspace recovery", () => {
           },
         })
       );
-    cancelWorkspace.mockResolvedValue(
-      workspace({
+    cancelWorkspace.mockResolvedValue({
+      issueData: null,
+      state: workspace({
         catalog: [{ availability: "available", path: "/work/current" }],
         currentWorkspace: {
           availability: "available",
           path: "/work/current",
         },
-      })
-    );
+      }),
+    });
     // A failed switch leaves the catch branch to refresh workspaceState;
     // the second mock surfaces a pending workspace, which is what the
     // selector needs to render the Cancel control.
@@ -460,8 +461,9 @@ describe("App workspace recovery", () => {
         generation: 1,
       })
     );
-    cancelWorkspace.mockResolvedValue(
-      workspace({
+    cancelWorkspace.mockResolvedValue({
+      issueData: null,
+      state: workspace({
         catalog: [
           { availability: "available", path: "/work/a" },
           { availability: "available", path: "/work/b" },
@@ -472,8 +474,8 @@ describe("App workspace recovery", () => {
         // success transition that follows on the same generation.
         generation: 1,
         pendingWorkspace: null,
-      })
-    );
+      }),
+    });
     switchWorkspace.mockResolvedValue({
       issueData: {
         allIssues: [bIssue],
@@ -533,16 +535,17 @@ describe("App workspace recovery", () => {
     // The final commit has already happened in the backend, so its Cancel
     // response carries B Current but intentionally keeps generation 2.
     // Its snapshot is still unpublished, so A remains rendered here.
-    cancelWorkspace.mockResolvedValue(
-      workspace({
+    cancelWorkspace.mockResolvedValue({
+      issueData: null,
+      state: workspace({
         catalog: [
           { availability: "available", path: "/work/a" },
           { availability: "available", path: "/work/b" },
         ],
         currentWorkspace: { availability: "available", path: "/work/b" },
         generation: 2,
-      })
-    );
+      }),
+    });
     await user.click(await screen.findByTestId("cancel-workspace-switch"));
     await waitFor(() => {
       expect(cancelWorkspace).toHaveBeenCalledTimes(1);
