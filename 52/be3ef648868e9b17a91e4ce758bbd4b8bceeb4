@@ -1,0 +1,51 @@
+src/issues/use-workspace-coordinator.ts
+  s_849a842053344a::t_3cadd02f20d32c 4,12-14,16-24,26,91,96,99-102,104,107,111,113-115,117-119,121-124,128-131,133-134,136,141-156,170,177-181,185-193,199-204,208-217,221,224,232-237,252
+  s_849a842053344a::t_d1488afd9a3887 103
+  s_849a842053344a::t_92f3a639bc08bf 7,25,238-239,241
+  s_849a842053344a::t_70d21bf6402868 92,94-95,98,105-106,108-110,112,116,120,125,240
+  s_849a842053344a::t_9dd645c2204f2c 52-55,132
+  s_4d8e4d65f6d966::t_2fdc1bddd554f3 126-127
+  s_849a842053344a::t_cd000ff3d8b280 2,197-198,249,253,258-260
+src/issues/use-issue-deep-link-coordinator.ts
+  s_849a842053344a::t_7b61583625148e 195
+  s_849a842053344a::t_ffcd8270d13cef 4,10-14,16,72,82-91,93,99,134-156,162-189,191-194,196-202,204,206,211,219-221,228,278-283
+  s_849a842053344a::t_59d715bd5dbe30 284
+src/workspaces/workspace-service.ts
+  s_849a842053344a::t_502841ec58b2be 2-3,189,191-192
+  s_849a842053344a::t_fa850aeb2a42f7 214,218-229
+  s_849a842053344a::t_6f30c449924bfe 1,46-47,115-159,161,174-188,190,193-213,215-217
+  s_849a842053344a::t_19e89ae6336be8 230-234
+src/workspaces/workspace-service.test.ts
+  s_849a842053344a::t_64272792889913 1,4-11,28-37,42-52,55-56,65,68-86,92-97,99-118,120-125,130-136
+  s_849a842053344a::t_70e6dd810c7ddc 90,98,119
+  s_849a842053344a::t_0cac9424b061d6 57-64,87-89,91,126-129
+src/main.tsx
+  s_849a842053344a::t_a1798697f2143e 6,20-22
+src/issues/use-issue-workspace-traversal.ts
+  s_4d8e4d65f6d966::t_fcfef88c703de3 146,150,152
+  s_849a842053344a::t_8afa077dcc2fe7 1,7-11,13,52,55,102-106,114-124,126-127,129,131-145,147-149,151,153-162,164,172,178-188
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.23",
+  "base_commit_sha": "52be3ef648868e9b17a91e4ce758bbd4b8bceeb4",
+  "prompts": {},
+  "sessions": {
+    "s_4d8e4d65f6d966": {
+      "agent_id": {
+        "tool": "pi",
+        "id": "01a032ba-118d-734a-bed2-1d1f15131c17",
+        "model": "gpt-5.6-luna"
+      },
+      "human_author": "Tomas Thor Jonsson <benregn@gmail.com>"
+    },
+    "s_849a842053344a": {
+      "agent_id": {
+        "tool": "pi",
+        "id": "01a032ee-31ed-7511-8041-8775b5dd1d9b",
+        "model": "gpt-5.6-luna"
+      },
+      "human_author": "Tomas Thor Jonsson <benregn@gmail.com>"
+    }
+  }
+}
