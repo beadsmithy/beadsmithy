@@ -1,0 +1,24 @@
+src/App.deep-link.test.tsx
+  s_1d4dec26d4773f::t_e1a70acb15441b 347
+  s_1d4dec26d4773f::t_9d3e2c00156278 32,300-339,341-344,350-355
+  s_1d4dec26d4773f::t_936ac59d6b1f85 340,345-346,348-349,356
+  s_1d4dec26d4773f::t_7dcb5573cedd59 357-358
+src/issues/use-issue-deep-link-coordinator.ts
+  s_1d4dec26d4773f::t_b676e4307e6f6e 99-103,134,166,178,196,202,214
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.23",
+  "base_commit_sha": "1acb3c2eba4bb1570f7a42b24aa0207ea1702600",
+  "prompts": {},
+  "sessions": {
+    "s_1d4dec26d4773f": {
+      "agent_id": {
+        "tool": "pi",
+        "id": "01a03306-de74-7f10-9b38-1158a58203c4",
+        "model": "gpt-5.6-luna"
+      },
+      "human_author": "Tomas Thor Jonsson <benregn@gmail.com>"
+    }
+  }
+}
