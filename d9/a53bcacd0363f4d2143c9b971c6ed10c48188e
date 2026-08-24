@@ -1,0 +1,28 @@
+src/issues/use-issue-navigation-coordinator.ts
+  s_a7d54d842b2960::t_bf6d958c5875a7 1,28,50,71,80-81,90-92,95,99,104-105,108-113,115,137-143,145-150,152
+  s_a7d54d842b2960::t_bb7df51aa2e591 114,151
+  s_a7d54d842b2960::t_77d7beb4e5e2d7 15-18,66-70,88,100,102,132,155,157
+src/issues/use-issue-workspace-traversal.ts
+  s_a7d54d842b2960::t_8fc3c2faec447b 55-59
+  s_a7d54d842b2960::t_a30d02b4cffa2f 149
+src/App.tsx
+  s_a7d54d842b2960::t_d364c25dd0e8e6 5,214,230,233,245,682
+src/issues/UseIssueNavigationCoordinator.test.tsx
+  s_a7d54d842b2960::t_fabdf13efe594d 1-129
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.23",
+  "base_commit_sha": "d9a53bcacd0363f4d2143c9b971c6ed10c48188e",
+  "prompts": {},
+  "sessions": {
+    "s_a7d54d842b2960": {
+      "agent_id": {
+        "tool": "pi",
+        "id": "01a0330f-b7f4-7d94-beaa-fd11b97e280c",
+        "model": "gpt-5.6-luna"
+      },
+      "human_author": "Tomas Thor Jonsson <benregn@gmail.com>"
+    }
+  }
+}
