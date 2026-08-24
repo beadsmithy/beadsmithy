@@ -1,0 +1,42 @@
+src-tauri/src/rpc/tests.rs
+  s_fbf43f6220c281::t_dae450bc300725 515-537
+  s_fbf43f6220c281::t_35454bf8b1622a 512-514
+src/workspaces/workspace-service.ts
+  s_fbf43f6220c281::t_f85df519f42c20 146-151,159,165-170,174,180-185,188-189,191
+  s_fbf43f6220c281::t_35fdcd67b3dded 130
+src-tauri/src/workspace/tests.rs
+  s_fbf43f6220c281::t_79c2b6f6bf0cc1 290
+src/App.deep-link.test.tsx
+  s_fbf43f6220c281::t_42dcd1d0da1fd0 89-92
+src/issues/use-issue-deep-link-coordinator.ts
+  s_fbf43f6220c281::t_2d5e0e6fc21cb1 217-226
+src-tauri/src/workspace.rs
+  s_fbf43f6220c281::t_30efe4c22c9270 195-196
+  s_fbf43f6220c281::t_15f597934b9521 197,226,260,274,297-298,310,312,315-325,511
+  s_fbf43f6220c281::t_b6c91c08c08124 247
+src-tauri/src/rpc.rs
+  s_fbf43f6220c281::t_834e2d79d79152 502-503,505,507,670-671
+  s_fbf43f6220c281::t_1d80e90c5f605b 638,654,656,668,686,698-702,708,714,716,736,739,741
+  s_fbf43f6220c281::t_3cdd442922ecb1 732,740,742-743
+src/App.tsx
+  s_fbf43f6220c281::t_7d768c6156935b 101-102,104-106,108-117,124,126-135,153
+  s_fbf43f6220c281::t_d102d4afae8afe 773,775
+  s_fbf43f6220c281::t_ecdf4f4935b9d0 772,774,776
+  s_fbf43f6220c281::t_01317d4eabd2b4 103,107,722
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.23",
+  "base_commit_sha": "3191af80bcbc79559237aff08e14cf4f1451bfb3",
+  "prompts": {},
+  "sessions": {
+    "s_fbf43f6220c281": {
+      "agent_id": {
+        "tool": "pi",
+        "id": "01a0331e-1ef4-7f37-9a96-38cee92a38cb",
+        "model": "gpt-5.6-luna"
+      },
+      "human_author": "Tomas Thor Jonsson <benregn@gmail.com>"
+    }
+  }
+}
