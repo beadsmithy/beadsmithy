@@ -1,5 +1,5 @@
 {
-  "assignee": "",
+  "assignee": "Tomas Thor Jonsson",
   "blocked_by": [],
   "blocks": [],
   "created": "2026-08-26T16:39:07Z",
@@ -9,8 +9,8 @@
     "ready-for-agent"
   ],
   "priority": 2,
-  "status": "open",
+  "status": "in_progress",
   "title": "Centralize Beadsmith quality gates on mise",
   "type": "epic",
-  "updated_at": "2026-08-26T16:39:11Z"
+  "updated_at": "2026-08-26T19:15:06Z"
 }
