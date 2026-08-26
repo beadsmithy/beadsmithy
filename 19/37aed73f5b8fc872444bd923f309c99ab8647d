@@ -1,0 +1,19 @@
+quality.ignores.ts
+  s_6e243fac4461ee::t_e6d0f065f6ae50 12-15,19
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.24",
+  "base_commit_sha": "1937aed73f5b8fc872444bd923f309c99ab8647d",
+  "prompts": {},
+  "sessions": {
+    "s_6e243fac4461ee": {
+      "agent_id": {
+        "tool": "pi",
+        "id": "01a03fe6-1083-794e-90f7-99d82617d4af",
+        "model": "k3-256k"
+      },
+      "human_author": "Tomas Thor Jonsson <benregn@gmail.com>"
+    }
+  }
+}
