@@ -89,6 +89,11 @@ depends = [
 # raw_args passes caller-supplied file arguments straight through so Lefthook
 # can append {staged_files}. Lefthook wiring lives in a follow-up issue; these
 # tasks only define the repo-owned commands.
+#
+# WARNING: hook:react-doctor-staged keeps raw_args = true per spec, but
+# react-doctor --staged reads the git index itself and takes no file operands.
+# Wire it WITHOUT a {staged_files} glob — any appended path would be treated
+# as a directory argument and fail.
 
 [tasks."hook:ultracite-staged"]
 description = "Pre-commit adapter: Ultracite fix on staged files"
