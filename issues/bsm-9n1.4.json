@@ -13,9 +13,15 @@
     "ready-for-agent"
   ],
   "parent": "bsm-9n1",
+  "comments": [
+    {
+      "text": "## Implementation plan\n\nAdapter names match the existing mise.toml hook adapters (bsm-9n1.3): `hook:ultracite-staged`, `hook:react-doctor-staged`, `hook:rust-fmt-staged`. All three already accept raw_args, so passing `{staged_files}` through `-- {staged_files}` just works.\n\n1. Rewrite `lefthook.yml` so every pre-commit tool execution routes through `scripts/mise-exec.sh` and a mise adapter task — no raw `pnpm dlx`, `npx react-doctor`, or `cargo fmt` invocations.\n2. React Doctor: keep the capture-and-swallow-failure wrapper, route it through `./scripts/mise-exec.sh run hook:react-doctor-staged`. Do NOT pass `{staged_files}` — the adapter reads the git index itself and would treat appended paths as directory arguments (per the mise.toml comment).\n3. Ultracite: `./scripts/mise-exec.sh run hook:ultracite-staged -- {staged_files}` with the existing JS/TS/JSON/JSONC/CSS glob and `docs/research/infra/**` + `.agents/skills/**` exclusions, `stage_fixed: true`.\n4. Rust: `./scripts/mise-exec.sh run hook:rust-fmt-staged -- {staged_files}` with the existing `**/*.rs` glob and `docs/research/infra/**` exclusion, `stage_fixed: true`.\n5. Add a `name:` per job for clearer `lefthook run` output (metadata only; behavior unchanged).\n6. Validation: `./node_modules/.bin/lefthook dump` to verify commands and templates; `./node_modules/.bin/lefthook run pre-commit` end-to-end with a staged TS/CSS/JSON change and a staged Rust change; verify an unstaged malformed file is not modified; verify React Doctor advisory behavior; verify `docs/research/infra/**` and `.agents/skills/**` exclusions; verify a path with spaces.\n\nNo scripts/mise-exec.sh changes, no mise.toml changes, no package.json changes — those are owned by sibling issues.",
+      "timestamp": "2026-08-26T22:02:34Z"
+    }
+  ],
   "priority": 2,
   "status": "in_progress",
   "title": "Migrate Lefthook pre-commit to mise adapters",
   "type": "task",
-  "updated_at": "2026-08-26T21:59:33Z"
+  "updated_at": "2026-08-26T22:02:34Z"
 }
