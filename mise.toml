@@ -106,6 +106,6 @@ raw_args = true
 run = "pnpm exec react-doctor --staged --blocking warning"
 
 [tasks."hook:rust-fmt-staged"]
-description = "Pre-commit adapter: rustfmt on staged files"
+description = "Pre-commit adapter: rustfmt on staged files (reads edition from the surrounding Cargo.toml; use rustfmt, not cargo fmt — cargo fmt always reformats the crate root too, which breaks staged-only)"
 raw_args = true
-run = "cargo fmt --manifest-path src-tauri/Cargo.toml --"
+run = "rustfmt"
