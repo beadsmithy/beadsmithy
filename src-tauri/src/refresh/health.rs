@@ -156,9 +156,7 @@ impl RefreshHealthBinding {
     /// exists. Returns `None` for `IdleNoCurrent`.
     pub fn path(&self) -> Option<&PathBuf> {
         match self {
-            Self::Active {
-                workspace_path, ..
-            } => Some(workspace_path),
+            Self::Active { workspace_path, .. } => Some(workspace_path),
             Self::SuspendedPending {
                 retained_workspace_path,
                 ..
@@ -479,8 +477,7 @@ impl RefreshHealthState {
             return HealthApplyOutcome::Idle;
         }
         let prior = self.ref_probe_failures;
-        self.ref_probe_failures =
-            prior.saturating_add(1).min(TRANSIENT_FAILURE_THRESHOLD);
+        self.ref_probe_failures = prior.saturating_add(1).min(TRANSIENT_FAILURE_THRESHOLD);
         if self.ref_probe_failures < TRANSIENT_FAILURE_THRESHOLD {
             return HealthApplyOutcome::Silent;
         }
@@ -502,9 +499,7 @@ impl RefreshHealthState {
             return HealthApplyOutcome::Idle;
         }
         let prior = self.loader_failures;
-        self.loader_failures = prior
-            .saturating_add(1)
-            .min(TRANSIENT_FAILURE_THRESHOLD);
+        self.loader_failures = prior.saturating_add(1).min(TRANSIENT_FAILURE_THRESHOLD);
         if self.loader_failures < TRANSIENT_FAILURE_THRESHOLD {
             return HealthApplyOutcome::Silent;
         }
@@ -619,10 +614,7 @@ impl RefreshHealthState {
     /// from a structural loader failure after the user has repaired the
     /// dependency, while preserving the rule that only a complete
     /// loader success resets a transient loader failure.
-    pub fn apply_validity_check_success(
-        &mut self,
-        next_revision: &mut u64,
-    ) -> HealthApplyOutcome {
+    pub fn apply_validity_check_success(&mut self, next_revision: &mut u64) -> HealthApplyOutcome {
         if !matches!(self.binding, RefreshHealthBinding::Active { .. }) {
             return HealthApplyOutcome::Idle;
         }

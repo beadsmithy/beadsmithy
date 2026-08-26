@@ -497,13 +497,15 @@ fn reset_explicitly_recovers_from_unreadable_memory() {
 
 #[test]
 fn catalog_is_capped_at_one_hundred_entries() {
-    let mut persisted = PersistedWorkspaceState::default();
-    persisted.catalog = (0..100)
-        .map(|index| Workspace {
-            path: format!("/work/{index}"),
-            availability: WorkspaceAvailability::Available,
-        })
-        .collect();
+    let persisted = PersistedWorkspaceState {
+        catalog: (0..100)
+            .map(|index| Workspace {
+                path: format!("/work/{index}"),
+                availability: WorkspaceAvailability::Available,
+            })
+            .collect(),
+        ..Default::default()
+    };
     let store = FakeStore::empty();
     *store.load_result.borrow_mut() = Ok(Some(persisted));
     let mut service = WorkspaceService::from_store(store);

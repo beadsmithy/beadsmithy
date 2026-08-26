@@ -53,13 +53,6 @@ impl FakeRunner {
         }
     }
 
-    fn with_outputs_vec(outputs: VecDeque<Result<CommandOutput, io::ErrorKind>>) -> Self {
-        Self {
-            outputs: Mutex::new(outputs),
-            recorded: Mutex::new(Vec::new()),
-        }
-    }
-
     fn recorded(&self) -> Vec<Invocation> {
         self.recorded.lock().unwrap().clone()
     }

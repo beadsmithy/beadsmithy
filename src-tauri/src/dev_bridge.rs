@@ -626,7 +626,7 @@ pub fn start_bridge(
 
             // Read body
             let mut body = String::new();
-            if let Err(_) = request.as_reader().read_to_string(&mut body) {
+            if request.as_reader().read_to_string(&mut body).is_err() {
                 let _ = request.respond(Response::from_string("Bad request").with_status_code(400));
                 continue;
             }

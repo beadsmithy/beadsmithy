@@ -30,7 +30,10 @@ fn rebind_active(state: &mut RefreshHealthState) -> RefreshHealthRebind {
 #[test]
 fn new_state_is_idle_with_no_visible_health() {
     let state = new_state();
-    assert!(matches!(state.binding(), RefreshHealthBinding::IdleNoCurrent));
+    assert!(matches!(
+        state.binding(),
+        RefreshHealthBinding::IdleNoCurrent
+    ));
     assert_eq!(state.health(), &RefreshHealth::default());
     assert!(!state.needs_publish());
     assert_eq!(state.health_revision(), None);
@@ -76,12 +79,15 @@ fn transient_probe_failure_at_threshold_installs_visible_slot() {
     for _ in 0..(TRANSIENT_FAILURE_THRESHOLD - 1) {
         let _ = state.apply_transient_probe_failure("strike".into(), &mut next_revision);
     }
-    let outcome =
-        state.apply_transient_probe_failure("strike-five".into(), &mut next_revision);
+    let outcome = state.apply_transient_probe_failure("strike-five".into(), &mut next_revision);
     match outcome {
         HealthApplyOutcome::Visible { failure_revision } => {
             assert_eq!(
-                state.health().ref_probe.as_ref().map(|f| f.failure_revision),
+                state
+                    .health()
+                    .ref_probe
+                    .as_ref()
+                    .map(|f| f.failure_revision),
                 Some(failure_revision)
             );
             assert!(state.needs_publish());
@@ -123,8 +129,7 @@ fn transient_probe_failure_after_recovery_resets_counter() {
     assert!(!state.needs_publish());
     // Next four strikes must be silent again.
     for _ in 0..(TRANSIENT_FAILURE_THRESHOLD - 1) {
-        let outcome =
-            state.apply_transient_probe_failure("strike".into(), &mut next_revision);
+        let outcome = state.apply_transient_probe_failure("strike".into(), &mut next_revision);
         assert_eq!(outcome, HealthApplyOutcome::Silent);
     }
 }
@@ -219,7 +224,10 @@ fn missing_bw_failure_installs_immediately_in_loader_slot() {
     assert_eq!(loader.error_kind, RefreshFailureKind::MissingBw);
     // Structural failures must carry `transient: false` so the
     // renderer's structural-over-transient banner priority works.
-    assert!(!loader.transient, "structural MissingBw must be non-transient");
+    assert!(
+        !loader.transient,
+        "structural MissingBw must be non-transient"
+    );
 }
 
 #[test]
@@ -426,7 +434,10 @@ fn enter_idle_no_current_clears_state() {
         let _ = state.apply_transient_probe_failure("probe".into(), &mut next_revision);
     }
     state.enter_idle_no_current();
-    assert!(matches!(state.binding(), RefreshHealthBinding::IdleNoCurrent));
+    assert!(matches!(
+        state.binding(),
+        RefreshHealthBinding::IdleNoCurrent
+    ));
     assert_eq!(state.health(), &RefreshHealth::default());
     assert!(!state.needs_publish());
     let outcome = state.apply_transient_probe_failure("probe".into(), &mut next_revision);
@@ -474,7 +485,10 @@ fn enter_idle_unavailable_with_no_current_binding_does_not_publish() {
     let mut state = new_state();
     let had_identity = state.enter_idle_unavailable(false);
     assert!(!had_identity);
-    assert!(matches!(state.binding(), RefreshHealthBinding::IdleNoCurrent));
+    assert!(matches!(
+        state.binding(),
+        RefreshHealthBinding::IdleNoCurrent
+    ));
     assert!(!state.needs_publish());
 }
 
