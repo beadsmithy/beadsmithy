@@ -9,8 +9,11 @@
 
 // Vendored/generated content that isn't ours to lint or reformat:
 // upstream source snapshots and vendored agent skills.
-export const VENDORED_IGNORES = ["docs/research/infra/**", ".agents/skills/**"];
+export const VENDORED_IGNORES = [
+  "docs/research/infra/**",
+  ".agents/skills/**",
+] as const;
 
 // Files that must not be reformatted but are still linted (with targeted
 // rule overrides in oxlint.config.ts where needed).
-export const FORMAT_ONLY_IGNORES = ["src/rpc/bindings.ts"];
+export const FORMAT_ONLY_IGNORES = ["src/rpc/bindings.ts"] as const;
