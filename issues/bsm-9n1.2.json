@@ -7,11 +7,13 @@
   "created": "2026-08-26T16:39:08Z",
   "description": "## Background\n\n`oxlint.config.ts` and `oxfmt.config.ts` each define overlapping project ignore arrays for vendored skills and upstream source snapshots. The duplicated lists are accompanied by comments telling maintainers to keep them synchronized with Lefthook. This is a drift risk: a path can be ignored by one formatter surface and still be scanned by another.\n\nThe generated TauRPC binding at `src/rpc/bindings.ts` is intentionally ignored by the formatter but still linted with a targeted rule override.\n\n## What to build\n\nCreate one repository-owned TypeScript module containing the shared ignore policy and make both oxc configurations consume it.\n\n## Technical Approach\n\nAdd `quality.ignores.ts` with:\n\n```ts\nexport const VENDORED_IGNORES = [\n  \"docs/research/infra/**\",\n  \".agents/skills/**\",\n];\n\nexport const FORMAT_ONLY_IGNORES = [\"src/rpc/bindings.ts\"];\n```\n\nUpdate:\n\n- `oxlint.config.ts` to import and use `VENDORED_IGNORES`;\n- `oxfmt.config.ts` to use both arrays;\n- comments to identify `quality.ignores.ts` as the canonical lint/format policy.\n\nKeep Lefthook `exclude` entries as trigger-level performance filters. They must not become a competing policy or diverge silently.\n\nDo not add `scratch/**` without an explicit decision that personal scratch files are project-owned. The current scratch files are globally ignored local files and should be handled by clean-checkout verification instead.\n\n## Considerations\n\n- Do not edit `.agents/skills/**`.\n- Preserve Ultracite’s existing built-in ignore patterns.\n- Preserve the generated binding’s lint override and only remove its format processing.\n- The new module itself must pass the project’s lint and format checks.\n\n## Acceptance criteria\n\n- [ ] `quality.ignores.ts` is the only project-owned definition of the shared vendored and generated ignore arrays.\n- [ ] `oxlint.config.ts` and `oxfmt.config.ts` import the shared arrays and have no duplicated `PROJECT_IGNORES` list.\n- [ ] The effective tracked-file findings before and after the refactor are unchanged.\n- [ ] `docs/research/infra/**` and `.agents/skills/**` remain excluded from both relevant oxc surfaces.\n- [ ] `src/rpc/bindings.ts` remains excluded from formatting and retains its lint override.\n\n## Test Plan\n\n- Run `pnpm exec ultracite check` before and after the refactor from a clean checkout and compare findings.\n- Run `pnpm exec tsc --noEmit`.\n- Run the relevant config-loading command or `mise run check` after the mise task slice exists.\n- Inspect Lefthook exclusions to confirm they remain trigger filters rather than a new source of policy.\n\n## Triage\n\nready-for-agent",
   "id": "bsm-9n1.2",
-  "labels": [],
+  "labels": [
+    "ready-for-agent"
+  ],
   "parent": "bsm-9n1",
   "priority": 2,
   "status": "open",
   "title": "Centralize frontend quality ignores",
   "type": "task",
-  "updated_at": "2026-08-26T16:39:09Z"
+  "updated_at": "2026-08-26T16:39:11Z"
 }
