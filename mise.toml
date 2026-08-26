@@ -1,0 +1,106 @@
+# Canonical toolchain and quality-gate task graph for Beadsmith.
+#
+# `mise run gate` is the single mergeability gate. Hooks, Worktrunk, agents,
+# and docs delegate to these tasks instead of redefining quality commands.
+# Toolchain provisioning: run `mise trust && mise install` once per checkout.
+min_version = "2026.8.12"
+
+[settings]
+# pnpm's version and checksum resolve from package.json's `packageManager`
+# field — that field is the single pnpm source of truth, so no pnpm entry
+# is duplicated under [tools].
+idiomatic_version_file_enable_tools = ["pnpm"]
+
+[tools]
+node = "24.13.0"
+# The `default` rustup profile includes rustfmt and clippy alongside rustc
+# and cargo, so one entry provisions the whole Rust quality toolchain.
+rust = { version = "1.97.1", profile = "default" }
+
+# --- Frontend quality -------------------------------------------------------
+
+[tasks.check]
+description = "Lint and format-check frontend sources (Ultracite)"
+run = "pnpm exec ultracite check"
+
+[tasks.fix]
+description = "Auto-fix frontend lint and format findings (Ultracite)"
+run = "pnpm exec ultracite fix"
+
+[tasks.typecheck]
+description = "Typecheck frontend sources without emitting"
+run = "pnpm exec tsc --noEmit"
+
+[tasks.test]
+description = "Run frontend unit tests (Vitest)"
+run = "pnpm exec vitest run"
+
+# React Doctor and Ultracite Doctor are distinct tools: the former audits
+# React code health, the latter verifies the Ultracite setup itself.
+[tasks."doctor:react"]
+description = "Audit React codebase health (React Doctor, advisory)"
+run = "pnpm exec react-doctor"
+
+[tasks."doctor:ultracite"]
+description = "Verify Ultracite configuration health"
+run = "pnpm exec ultracite doctor"
+
+# --- Rust quality -----------------------------------------------------------
+
+[tasks."rust:fmt"]
+description = "Format Rust sources"
+run = "cargo fmt --manifest-path src-tauri/Cargo.toml"
+
+[tasks."rust:fmt-check"]
+description = "Check Rust formatting without modifying files"
+run = "cargo fmt --manifest-path src-tauri/Cargo.toml -- --check"
+
+[tasks."rust:check"]
+description = "Typecheck the Tauri Rust crate"
+run = "cargo check --manifest-path src-tauri/Cargo.toml"
+
+[tasks."rust:clippy"]
+description = "Lint Rust with Clippy, warnings denied"
+run = "cargo clippy --manifest-path src-tauri/Cargo.toml --all-targets -- -D warnings"
+
+[tasks."rust:test"]
+description = "Run Rust tests"
+run = "cargo test --manifest-path src-tauri/Cargo.toml"
+
+# --- Gate -------------------------------------------------------------------
+#
+# The gate intentionally excludes the Vite/Tauri application build: it is a
+# code-quality gate, and application builds are covered by the e2e scenario
+# pipelines (e2e:build) and packaging. Decision recorded in bsm-9n1.3.
+
+[tasks.gate]
+description = "Mergeability gate: frontend lint/format, typecheck, unit tests, Rust fmt check, Clippy, Rust tests"
+depends = [
+  "check",
+  "typecheck",
+  "test",
+  "rust:fmt-check",
+  "rust:clippy",
+  "rust:test",
+]
+
+# --- Hook adapters ----------------------------------------------------------
+#
+# raw_args passes caller-supplied file arguments straight through so Lefthook
+# can append {staged_files}. Lefthook wiring lives in a follow-up issue; these
+# tasks only define the repo-owned commands.
+
+[tasks."hook:ultracite-staged"]
+description = "Pre-commit adapter: Ultracite fix on staged files"
+raw_args = true
+run = "pnpm exec ultracite fix"
+
+[tasks."hook:react-doctor-staged"]
+description = "Pre-commit adapter: React Doctor staged scan (reads the git index; pass no file args)"
+raw_args = true
+run = "pnpm exec react-doctor --staged --blocking warning"
+
+[tasks."hook:rust-fmt-staged"]
+description = "Pre-commit adapter: rustfmt on staged files"
+raw_args = true
+run = "cargo fmt --manifest-path src-tauri/Cargo.toml --"
