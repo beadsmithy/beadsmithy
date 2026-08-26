@@ -16,9 +16,15 @@
     "ready-for-agent"
   ],
   "parent": "bsm-9n1",
+  "comments": [
+    {
+      "text": "## Implementation plan\n\n1. **mise.toml** (new, repo root):\n   - Top-level `min_version = \"2026.8.12\"`, `[settings] idiomatic_version_file_enable_tools = [\"pnpm\"]` so pnpm resolves from the existing `packageManager` field (no version duplication).\n   - `[tools]`: node 24.13.0, rust { version 1.97.1, profile \"default\" } (default profile ships rustfmt + clippy via rustup).\n   - Tasks: `check`, `fix`, `typecheck` (tsc --noEmit), `test` (vitest run), `doctor:react` / `doctor:ultracite` (kept distinct per epic), `rust:fmt`, `rust:fmt-check`, `rust:check`, `rust:clippy` (default policy: --all-targets -- -D warnings; bsm-9n1.1 documents no approved alternative), `rust:test`.\n   - `gate` depends on check, typecheck, test, rust:fmt-check, rust:clippy, rust:test — parallel via mise's normal dep execution (cargo's own target-dir lock handles rust task contention).\n   - Hook adapters with `raw_args = true`: `hook:ultracite-staged` (appends staged files to `ultracite fix`), `hook:react-doctor-staged` (react-doctor reads the git index itself via --staged; callers pass no file args), `hook:rust-fmt-staged` (mirrors current lefthook invocation, staged files after `--`).\n   - All Node-local tools invoked via `pnpm exec` — no dlx/npx.\n2. **scripts/mise-exec.sh** (new, executable): generic launcher resolving $MISE_BIN → `command -v mise` → $HOME/.local/bin/mise, execs with \"$@\", actionable error (exit 127) when missing. No quality commands.\n3. **Vite build decision**: gate excludes the Vite/tauri build. Rationale: gate covers lint/format/typecheck/unit-test quality; application build is exercised by e2e scenario pipelines (e2e:build) and packaging. Decision will be recorded in the PR body and here.\n4. **Verification**: disposable-dir idiomatic pnpm resolution test; `mise trust` + `mise install` in worktree; version assertions (node v24.13.0, pnpm 11.23.0); `mise tasks validate` / `mise tasks deps gate` / `mise run --dry gate`; each task individually; full `mise run gate`; `sh -n` + exec bit on the launcher.",
+      "timestamp": "2026-08-26T21:22:05Z"
+    }
+  ],
   "priority": 1,
   "status": "in_progress",
   "title": "Add canonical mise toolchain and quality gate",
   "type": "task",
-  "updated_at": "2026-08-26T21:19:45Z"
+  "updated_at": "2026-08-26T21:22:05Z"
 }
