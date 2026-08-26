@@ -4,6 +4,8 @@
   "blocks": [
     "bsm-9n1.3"
   ],
+  "closed_at": "2026-08-26T21:00:55Z",
+  "close_reason": "PR #65: baseline green — cargo fmt --check, clippy --all-targets -D warnings, and cargo test (178 passed) all exit clean on Rust 1.97.1",
   "created": "2026-08-26T16:39:08Z",
   "description": "## Background\n\nThe planned `mise run gate` includes Rust formatting checks and Clippy with warnings treated as errors. The current repository cannot adopt those checks unchanged because the baseline is already red: `cargo fmt --manifest-path src-tauri/Cargo.toml -- --check` reports formatting differences in tracked Rust files, and `cargo clippy --manifest-path src-tauri/Cargo.toml -- -D warnings` reports seven warnings. `cargo test` passes but emits two test-only warnings.\n\nThe gate should expose new regressions, not fail solely because the repository has never satisfied its proposed strict policy.\n\n## What to build\n\nBring the tracked Rust backend to a clean baseline suitable for strict automated gates without changing runtime behavior, the TauRPC contract, or test intent.\n\n## Technical Approach\n\n- Run Rust formatting and apply only the resulting formatting changes.\n- Resolve the current Clippy findings, including complex type signatures, argument-count structure, collapsible conditionals, derivable defaults, and redundant pattern matching.\n- Decide whether test targets are included in the Clippy policy. The default is `cargo clippy --manifest-path src-tauri/Cargo.toml --all-targets -- -D warnings`.\n- Resolve test-only warnings where they are genuine dead code, or document a narrowly scoped exception if a warning is intentionally required.\n- Keep changes limited to the Rust baseline and avoid combining unrelated refactors.\n\n## Considerations\n\n- Preserve all existing behavior and test assertions.\n- Do not broaden production visibility merely to silence a warning.\n- The selected Rust toolchain must be the one later pinned by mise: Rust 1.97.1 with rustfmt and Clippy available.\n- If strict Clippy requires broad architectural changes, stop and report the affected findings rather than silently weakening the policy.\n\n## Acceptance criteria\n\n- [ ] `cargo fmt --manifest-path src-tauri/Cargo.toml -- --check` exits 0.\n- [ ] `cargo clippy --manifest-path src-tauri/Cargo.toml --all-targets -- -D warnings` exits 0, or a separately tracked and explicitly approved exception documents why it cannot yet do so.\n- [ ] `cargo test --manifest-path src-tauri/Cargo.toml` passes with no newly introduced warnings.\n- [ ] Rust runtime behavior, public contracts, and test coverage are unchanged.\n- [ ] The final diff contains only baseline formatting, warning fixes, and necessary focused tests/comments.\n\n## Test Plan\n\n- Run focused tests for every touched module.\n- Run `cargo fmt --manifest-path src-tauri/Cargo.toml -- --check`.\n- Run `cargo clippy --manifest-path src-tauri/Cargo.toml --all-targets -- -D warnings`.\n- Run `cargo test --manifest-path src-tauri/Cargo.toml`.\n\n## Triage\n\nready-for-agent",
   "id": "bsm-9n1.1",
@@ -12,8 +14,8 @@
   ],
   "parent": "bsm-9n1",
   "priority": 1,
-  "status": "in_progress",
+  "status": "closed",
   "title": "Make Rust quality baseline green for strict gates",
   "type": "task",
-  "updated_at": "2026-08-26T20:51:11Z"
+  "updated_at": "2026-08-26T21:00:55Z"
 }
