@@ -1,0 +1,19 @@
+mise.toml
+  s_903ab640320761::t_cc7f5e58691467 92-96
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.24",
+  "base_commit_sha": "22271c62bd1003b4f1d6b3039d3fbe228d5189a2",
+  "prompts": {},
+  "sessions": {
+    "s_903ab640320761": {
+      "agent_id": {
+        "tool": "pi",
+        "id": "01a03ff0-ebb6-79af-851f-a677edc4326c",
+        "model": "k3-256k"
+      },
+      "human_author": "Tomas Thor Jonsson <benregn@gmail.com>"
+    }
+  }
+}
