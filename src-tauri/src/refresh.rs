@@ -87,12 +87,16 @@ pub use health::{
 /// workspace path and returns the same typed error, used after an
 /// admitted transient probe failure to detect a Workspace that lost its
 /// Beadwork initialization.
+/// Boxed operation closures returned by [`RefreshOps`], factored into
+/// aliases so the trait signatures stay readable.
+type ProbeOp = Box<dyn Fn(&Path) -> Result<String, ProbeError> + Send + 'static>;
+type LoadOp = Box<dyn Fn(&Path) -> Result<IssueExplorerData, ListIssuesError> + Send + 'static>;
+type ValidityOp = Box<dyn Fn(&Path) -> Result<(), ListIssuesError> + Send + 'static>;
+
 pub(crate) trait RefreshOps: Send + Sync + 'static {
-    fn probe_op(&self) -> Box<dyn Fn(&Path) -> Result<String, ProbeError> + Send + 'static>;
-    fn load_op(
-        &self,
-    ) -> Box<dyn Fn(&Path) -> Result<IssueExplorerData, ListIssuesError> + Send + 'static>;
-    fn validity_op(&self) -> Box<dyn Fn(&Path) -> Result<(), ListIssuesError> + Send + 'static>;
+    fn probe_op(&self) -> ProbeOp;
+    fn load_op(&self) -> LoadOp;
+    fn validity_op(&self) -> ValidityOp;
 }
 
 /// Production [`RefreshOps`] that shells out to `git rev-parse` and
@@ -100,13 +104,11 @@ pub(crate) trait RefreshOps: Send + Sync + 'static {
 struct ProcessOps;
 
 impl RefreshOps for ProcessOps {
-    fn probe_op(&self) -> Box<dyn Fn(&Path) -> Result<String, ProbeError> + Send + 'static> {
+    fn probe_op(&self) -> ProbeOp {
         Box::new(|p| probe_beadwork_ref(&ProcessRunner::new(), p))
     }
 
-    fn load_op(
-        &self,
-    ) -> Box<dyn Fn(&Path) -> Result<IssueExplorerData, ListIssuesError> + Send + 'static> {
+    fn load_op(&self) -> LoadOp {
         Box::new(|p| {
             let runner = ProcessRunner::new();
             let all_issues = crate::issues::list_all_issues(&runner, p)?;
@@ -120,7 +122,7 @@ impl RefreshOps for ProcessOps {
         })
     }
 
-    fn validity_op(&self) -> Box<dyn Fn(&Path) -> Result<(), ListIssuesError> + Send + 'static> {
+    fn validity_op(&self) -> ValidityOp {
         Box::new(|p| check_bw_validity(&ProcessRunner::new(), p))
     }
 }
@@ -809,7 +811,6 @@ async fn handle_refresh_request(
                 runtime,
                 coordinator,
                 health,
-                load_done_tx,
                 ops.clone(),
                 &path,
                 generation,
@@ -987,7 +988,6 @@ async fn classify_and_apply_probe_failure(
     runtime: &Arc<Mutex<Option<WorkspaceRuntime>>>,
     coordinator: &Arc<Mutex<CoordinatorState>>,
     health: &Arc<Mutex<RefreshHealthState>>,
-    load_done_tx: &tokio::sync::mpsc::UnboundedSender<LoadCompletion>,
     ops: Arc<dyn RefreshOps>,
     path: &Path,
     generation: u32,
@@ -1012,7 +1012,6 @@ async fn classify_and_apply_probe_failure(
             publish_health(runtime, health, coordinator);
         }
         let _ = generation;
-        let _ = load_done_tx;
         return;
     }
     let classification = classify_probe_error(&error);
@@ -1023,16 +1022,14 @@ async fn classify_and_apply_probe_failure(
     ) {
         publish_health(runtime, health, coordinator);
     }
-    if matches!(probe_outcome, HealthApplyOutcome::Visible { .. }) {
-        if matches!(
+    if matches!(probe_outcome, HealthApplyOutcome::Visible { .. })
+        && matches!(
             error,
             ProbeError::CommandFailed { .. } | ProbeError::InvalidOutput(_)
-        ) {
-            run_post_failure_validity_check(runtime, coordinator, health, ops, path, generation)
-                .await;
-        }
+        )
+    {
+        run_post_failure_validity_check(runtime, coordinator, health, ops, path, generation).await;
     }
-    let _ = load_done_tx;
 }
 
 /// Handle one lifecycle wake. The shared `Notify` carries no paths, so

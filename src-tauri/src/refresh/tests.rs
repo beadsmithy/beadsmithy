@@ -994,7 +994,3 @@ fn classify_load_error_command_failed_is_transient() {
         LoadClassification::Transient(_)
     ));
 }
-
-fn error_message(error: &ProbeError) -> String {
-    format!("{error:?}")
-}

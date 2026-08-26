@@ -17,18 +17,10 @@ const MAX_FONT_SIZE_PX: u32 = 72;
 const APP_SETTINGS_STORE_KEY: &str = "settings";
 
 /// User-facing Beadsmith settings.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, specta::Type)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, specta::Type, Default)]
 #[serde(rename_all = "camelCase")]
 pub struct AppSettings {
     pub markdown: MarkdownSettings,
-}
-
-impl Default for AppSettings {
-    fn default() -> Self {
-        Self {
-            markdown: MarkdownSettings::default(),
-        }
-    }
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, specta::Type)]

@@ -229,7 +229,9 @@ pub trait BeadsmithApi {
     async fn list_issues() -> Result<ListIssuesResponse, IssueListError>;
     async fn load_issue_explorer_data() -> Result<LoadIssueExplorerDataResponse, IssueListError>;
     async fn workspace_state() -> WorkspaceState;
-    async fn resolve_workspace(candidate_path: String) -> Result<WorkspaceResolution, WorkspaceError>;
+    async fn resolve_workspace(
+        candidate_path: String,
+    ) -> Result<WorkspaceResolution, WorkspaceError>;
     async fn switch_workspace(
         candidate_path: String,
     ) -> Result<WorkspaceSwitchResponse, WorkspaceError>;
