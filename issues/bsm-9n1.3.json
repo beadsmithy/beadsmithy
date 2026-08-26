@@ -1,5 +1,5 @@
 {
-  "assignee": "",
+  "assignee": "Tomas Thor Jonsson",
   "blocked_by": [
     "bsm-9n1.1",
     "bsm-9n1.2"
@@ -17,8 +17,8 @@
   ],
   "parent": "bsm-9n1",
   "priority": 1,
-  "status": "open",
+  "status": "in_progress",
   "title": "Add canonical mise toolchain and quality gate",
   "type": "task",
-  "updated_at": "2026-08-26T16:39:11Z"
+  "updated_at": "2026-08-26T21:19:45Z"
 }
