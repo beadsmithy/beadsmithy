@@ -1,0 +1,19 @@
+mise.toml
+  s_e2d29eb7a6aafa::t_350bd4f7329f84 109,111
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.24",
+  "base_commit_sha": "d0b9b47aee535b8dfeab5f40ff3bf139ccf56557",
+  "prompts": {},
+  "sessions": {
+    "s_e2d29eb7a6aafa": {
+      "agent_id": {
+        "tool": "pi",
+        "id": "01a04015-4cbd-7c3e-a6b4-4dac836d8cb6",
+        "model": "MiniMax-M3"
+      },
+      "human_author": "Tomas Thor Jonsson <benregn@gmail.com>"
+    }
+  }
+}
