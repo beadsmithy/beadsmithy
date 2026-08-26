@@ -1,0 +1,33 @@
+src-tauri/src/settings.rs
+  s_106b410db59e8a::t_327d453aec7a07 20
+src-tauri/src/dev_bridge.rs
+  s_106b410db59e8a::t_939b42f1292f18 629
+src-tauri/src/refresh.rs
+  s_106b410db59e8a::t_25d68edc64384a 90-95,97-99,107,111,125,1025-1026,1029-1031
+src-tauri/src/workspace/tests.rs
+  s_106b410db59e8a::t_3f27651f42803f 500-508
+src-tauri/src/issues/adapter.rs
+  s_106b410db59e8a::t_439a234c98762e 45-46
+src-tauri/src/refresh/health.rs
+  s_106b410db59e8a::t_d9cd2ef2cbe199 159,480,502,617
+src-tauri/src/refresh/health/tests.rs
+  s_106b410db59e8a::t_39fa2ebf733e67 33-36,82,86-90,132,227-230,437-440,488-491
+src-tauri/src/rpc.rs
+  s_106b410db59e8a::t_b40399ff072f26 232-234
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.24",
+  "base_commit_sha": "532c05f3afaef602d9399249503474150314921d",
+  "prompts": {},
+  "sessions": {
+    "s_106b410db59e8a": {
+      "agent_id": {
+        "tool": "pi",
+        "id": "01a03fd6-503d-7c2c-b500-e4cd3e4634ca",
+        "model": "k3-256k"
+      },
+      "human_author": "Tomas Thor Jonsson <benregn@gmail.com>"
+    }
+  }
+}
