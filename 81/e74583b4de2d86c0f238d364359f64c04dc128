@@ -1,0 +1,25 @@
+oxfmt.config.ts
+  s_6e243fac4461ee::t_dcaf5e99936bc9 4
+  s_6e243fac4461ee::t_c731d56a72ab27 8-12
+oxlint.config.ts
+  s_6e243fac4461ee::t_9974910954540b 9
+  s_6e243fac4461ee::t_991d9356a7bae5 5
+quality.ignores.ts
+  s_6e243fac4461ee::t_a0b2627ca67e6e 1-16
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.24",
+  "base_commit_sha": "81e74583b4de2d86c0f238d364359f64c04dc128",
+  "prompts": {},
+  "sessions": {
+    "s_6e243fac4461ee": {
+      "agent_id": {
+        "tool": "pi",
+        "id": "01a03fe6-1083-794e-90f7-99d82617d4af",
+        "model": "k3-256k"
+      },
+      "human_author": "Tomas Thor Jonsson <benregn@gmail.com>"
+    }
+  }
+}
