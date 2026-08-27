@@ -2,11 +2,15 @@ import { defineConfig } from "oxlint";
 import core from "ultracite/oxlint/core";
 import react from "ultracite/oxlint/react";
 
-import { VENDORED_IGNORES } from "./quality.ignores.ts";
+import { SCRATCH_IGNORES, VENDORED_IGNORES } from "./quality.ignores.ts";
 
 export default defineConfig({
   extends: [core, react],
-  ignorePatterns: [...(core.ignorePatterns ?? []), ...VENDORED_IGNORES],
+  ignorePatterns: [
+    ...(core.ignorePatterns ?? []),
+    ...VENDORED_IGNORES,
+    ...SCRATCH_IGNORES,
+  ],
   jsPlugins: [
     "oxlint-tailwindcss",
     {

@@ -1,15 +1,30 @@
-# Install dependencies when creating a new worktree. `pnpm install`
-# also runs the `prepare` lifecycle script (lefthook install), so each
-# worktree gets its own git hooks set up.
-pre-start = "pnpm install"
+# Provision a new worktree with the pinned mise toolchain before anything
+# else runs. The steps form a dependency chain, so they run as an ordered
+# pipeline: trust the worktree's mise.toml, install the pinned tools, then
+# install dependencies through that toolchain (`mise x` resolves node/pnpm
+# from mise.toml, not the ambient environment). `pnpm install` also runs
+# the `prepare` lifecycle script (lefthook install), so each worktree gets
+# its own git hooks set up.
+#
+# scripts/mise-exec.sh locates the mise binary without relying on
+# interactive shell activation, which worktrunk hook shells do not have.
+[[pre-start]]
+mise-trust = "scripts/mise-exec.sh trust"
 
+[[pre-start]]
+mise-install = "scripts/mise-exec.sh install"
+
+[[pre-start]]
+install = "scripts/mise-exec.sh x -- pnpm install --frozen-lockfile"
+
+# The toolchain is already provisioned by pre-start, so only ignored-file
+# copying remains as background work.
 [post-start]
 copy = "wt step copy-ignored"
-mise-trust = "mise trust"
 
-# Validate both halves of the app before merging back to the default
-# branch. These run concurrently — vitest covers React/TS,
-# `cargo check` covers the Tauri Rust workspace.
+# Validate the whole app before merging back to the default branch via the
+# canonical gate: frontend lint/format, typecheck, unit tests, Rust fmt
+# check, Clippy, and Rust tests. Task definitions live in mise.toml — do
+# not add quality commands here.
 [pre-merge]
-test = "pnpm test"
-rust = "cargo check --manifest-path src-tauri/Cargo.toml"
+gate = "scripts/mise-exec.sh run gate"
