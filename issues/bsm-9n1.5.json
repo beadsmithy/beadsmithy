@@ -6,6 +6,7 @@
   "blocks": [
     "bsm-9n1.7"
   ],
+  "closed_at": "2026-08-27T20:54:39Z",
   "created": "2026-08-26T16:39:08Z",
   "description": "## Background\n\n`.config/wt.toml` currently installs dependencies with ambient `pnpm` during `pre-start`, trusts mise only in a background `post-start` hook, and runs separate pre-merge commands for `pnpm test` and `cargo check`. This ordering leaves a new worktree’s dependency installation outside the pinned toolchain and allows merges to skip linting, typechecking, formatting checks, Clippy, and Rust tests.\n\n## What to build\n\nMake Worktrunk use the same mise-managed toolchain and canonical gate as manual and git-hook workflows.\n\n## Technical Approach\n\nUpdate `.config/wt.toml` so:\n\n- blocking `pre-start` runs `scripts/mise-exec.sh trust`, then `scripts/mise-exec.sh install`, then `scripts/mise-exec.sh x -- pnpm install --frozen-lockfile`;\n- `post-start` retains only ignored-file copying;\n- `[pre-merge]` has one `gate` command invoking `scripts/mise-exec.sh run gate`.\n\nRemove the old post-start trust hook and the separate test/Rust pre-merge commands.\n\nRefresh Worktrunk project-command approvals after changing the hook commands. The user must review and approve them through `wt config approvals add`; agents must not bypass this security decision.\n\n## Considerations\n\n- Verify Worktrunk runs `pre-start` from the newly created worktree root and that `mise.toml` is present before the hook starts.\n- `pnpm install --frozen-lockfile` still runs `prepare`, which installs Lefthook for the worktree.\n- `scripts/mise-exec.sh` must work from Worktrunk’s shell environment without relying on interactive mise activation.\n- `wt hook pre-merge` runs after rebase and before merge; the gate must therefore be read-only except for normal tool caches.\n- The project’s `pnpm-workspace.yaml` contains an override and build-script policy. Do not accidentally bypass it in the repository-owned setup.\n\n## Acceptance criteria\n\n- [ ] A new Worktrunk worktree trusts the config, provisions mise-managed tools, and installs dependencies with the pinned pnpm version before post-start work.\n- [ ] `.config/wt.toml` has one pre-merge gate command and no separate ambient `pnpm test` or `cargo check` commands.\n- [ ] `wt hook pre-merge` executes `mise run gate` and propagates failures.\n- [ ] Worktrunk command approval is refreshed and documented.\n- [ ] A fresh worktree does not depend on globally active Node, pnpm, Rust, rustfmt, or Clippy versions.\n\n## Test Plan\n\n- Create a disposable worktree with `wt switch --create` or the project’s normal workflow.\n- Verify dependency installation and the resulting Node/pnpm versions.\n- Run `wt hook pre-merge` and inspect its output/logs.\n- Make a deliberate failing change and confirm pre-merge blocks it.\n- Restore the change and confirm the same worktree passes.\n\n## Triage\n\nready-for-agent",
   "id": "bsm-9n1.5",
@@ -20,7 +21,7 @@
     }
   ],
   "priority": 2,
-  "status": "in_progress",
+  "status": "closed",
   "title": "Migrate Worktrunk lifecycle and pre-merge validation",
   "type": "task",
   "updated_at": "2026-08-27T20:54:39Z"
