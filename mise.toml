@@ -106,6 +106,11 @@ raw_args = true
 run = "pnpm exec react-doctor --staged --blocking warning"
 
 [tasks."hook:rust-fmt-staged"]
-description = "Pre-commit adapter: rustfmt on staged files (reads edition from the surrounding Cargo.toml; use rustfmt, not cargo fmt — cargo fmt always reformats the crate root too, which breaks staged-only)"
+# Standalone rustfmt does not read edition from Cargo.toml, so pass it
+# explicitly (keep in sync with src-tauri/Cargo.toml). skip_children=true stops
+# rustfmt from recursively formatting out-of-line modules, which would rewrite
+# unstaged files that lefthook's stage_fixed would then stage. (The option has
+# no stable CLI flag, so it goes through --config.)
+description = "Pre-commit adapter: rustfmt on staged files only (not cargo fmt — cargo fmt always reformats the crate root too, which breaks staged-only)"
 raw_args = true
-run = "rustfmt"
+run = "rustfmt --edition 2021 --config skip_children=true"
