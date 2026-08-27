@@ -14,6 +14,12 @@ export const VENDORED_IGNORES = [
   ".agents/skills/**",
 ] as const;
 
+// Gitignored agent/human working space. It is never committed, but
+// Worktrunk's post-start hook copies ignored files into every new
+// worktree, so without this exclusion the gate would fail on scratch
+// content that isn't part of the change under review.
+export const SCRATCH_IGNORES = ["scratch/**"] as const;
+
 // Files that must not be reformatted but are still linted (with targeted
 // rule overrides in oxlint.config.ts where needed).
 export const FORMAT_ONLY_IGNORES = ["src/rpc/bindings.ts"] as const;
