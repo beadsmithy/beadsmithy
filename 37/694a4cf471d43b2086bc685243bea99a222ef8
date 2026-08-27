@@ -1,0 +1,19 @@
+.config/wt.toml
+  s_332624cb61a537::t_18cd20f204bab8 1-16
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.0",
+  "base_commit_sha": "37694a4cf471d43b2086bc685243bea99a222ef8",
+  "prompts": {},
+  "sessions": {
+    "s_332624cb61a537": {
+      "agent_id": {
+        "tool": "pi",
+        "id": "01a044f2-a596-7df5-9a5e-5c666dd164ed",
+        "model": "k3-256k"
+      },
+      "human_author": "Tomas Thor Jonsson <benregn@gmail.com>"
+    }
+  }
+}
