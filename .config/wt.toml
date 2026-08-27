@@ -1,3 +1,19 @@
+# Worktrunk hooks for Beadsmith.
+#
+# SECURITY: every command in this file is arbitrary shell code that
+# Worktrunk executes on the developer's machine, so Worktrunk requires
+# per-project approval and re-prompts whenever a command template
+# changes. After editing any hook command below, tell the user to
+# review and re-approve the commands with:
+#
+#   wt config approvals add
+#
+# Agents must never run that command (or use --yes to skip the prompt)
+# on the user's behalf — approving repository-supplied commands is the
+# user's security decision. Current commands were last re-approved when
+# the mise-managed pre-start pipeline and pre-merge gate were
+# introduced (bsm-9n1.5).
+#
 # Provision a new worktree with the pinned mise toolchain before anything
 # else runs. The steps form a dependency chain, so they run as an ordered
 # pipeline: trust the worktree's mise.toml, install the pinned tools, then
