@@ -23,11 +23,15 @@
     {
       "text": "## Implementation plan\n\nStatus note: issue was in_progress with no branch/artifacts; treating as fresh run on branch bsm-9n1.4/lefthook-mise-adapters.\n\n1. Rewrite lefthook.yml: all three pre-commit jobs route through ./scripts/mise-exec.sh run \u003cadapter\u003e. Adapter names as landed in bsm-9n1.3: hook:react-doctor-staged (wrapper preserved: mktemp capture, advisory hint, exit 0 always; no {staged_files} — react-doctor reads the git index), hook:ultracite-staged -- {staged_files} (existing JS/TS/JSON/CSS glob + exclusions, stage_fixed: true), hook:rust-fmt-staged -- {staged_files} (existing rs glob/exclusion, stage_fixed: true).\n2. Verify: lefthook dump; lefthook run pre-commit with staged TS/CSS/JSON + Rust files; filename-with-spaces test; excluded-path test (docs/research/infra/**, .agents/skills/**); unstaged malformed file untouched; minimal-shell commit (mise not on PATH) after mise trust/install.\n3. Fallback per issue: if staged-only Ultracite proves incompatible, document and revise contract.",
       "timestamp": "2026-08-26T22:03:15Z"
+    },
+    {
+      "text": "CodeRabbit review on PR #68 addressed in a54c7281: mise-exec.sh exits 75 (EX_TEMPFAIL) on resolution failure so the advisory wrapper no longer confuses child-level 127 with a missing mise; hook:rust-fmt-staged now runs rustfmt --edition 2021 --config skip_children=true (edition not read from Cargo.toml by standalone rustfmt; skip_children protects unstaged out-of-line modules from stage_fixed). Full gate green including rust:test (178 passed).",
+      "timestamp": "2026-08-27T12:31:58Z"
     }
   ],
   "priority": 2,
   "status": "closed",
   "title": "Migrate Lefthook pre-commit to mise adapters",
   "type": "task",
-  "updated_at": "2026-08-26T22:24:23Z"
+  "updated_at": "2026-08-27T12:31:58Z"
 }
