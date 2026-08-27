@@ -1,0 +1,27 @@
+.pi/prompts/implement-bead.md
+  s_d4f59f19ff4c45::t_89bae88865b07a 112
+.pi/chains/implement-bead.chain.md
+  s_d4f59f19ff4c45::t_230ef6720920d0 43
+docs/agents/webdriver-e2e.md
+  s_d4f59f19ff4c45::t_9c0132577127dc 12-13
+AGENTS.md
+  s_d4f59f19ff4c45::t_917abfb35814d8 37-61,89-91
+.devin/config.json
+  s_d4f59f19ff4c45::t_ce64b162a70a4f 19
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.0",
+  "base_commit_sha": "200527e76eefbf79bba38e81a0e4fc6f1ab71f89",
+  "prompts": {},
+  "sessions": {
+    "s_d4f59f19ff4c45": {
+      "agent_id": {
+        "tool": "pi",
+        "id": "01a04519-1302-7630-bc9b-f74f533e00c6",
+        "model": "k3-256k"
+      },
+      "human_author": "Tomas Thor Jonsson <benregn@gmail.com>"
+    }
+  }
+}
