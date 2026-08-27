@@ -1,0 +1,25 @@
+quality.ignores.ts
+  s_332624cb61a537::t_559c005ad4567d 17-22
+oxlint.config.ts
+  s_332624cb61a537::t_04b9810691a0b4 5,9-13
+oxfmt.config.ts
+  s_332624cb61a537::t_bb965acf5f603e 4-8,16
+.config/wt.toml
+  s_332624cb61a537::t_8b028e74be989a 1-12,14-21,25-28,30
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.0",
+  "base_commit_sha": "42b64ce051d0bdd61136ebcc89b0efbcbecf9ab9",
+  "prompts": {},
+  "sessions": {
+    "s_332624cb61a537": {
+      "agent_id": {
+        "tool": "pi",
+        "id": "01a044f2-a596-7df5-9a5e-5c666dd164ed",
+        "model": "k3-256k"
+      },
+      "human_author": "Tomas Thor Jonsson <benregn@gmail.com>"
+    }
+  }
+}
