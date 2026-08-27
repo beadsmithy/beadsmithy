@@ -13,9 +13,15 @@
     "ready-for-agent"
   ],
   "parent": "bsm-9n1",
+  "comments": [
+    {
+      "text": "Implemented in PR #69. wt.toml: pre-start is now an ordered mise pipeline (trust → install → mise x pnpm install --frozen-lockfile), post-start keeps only copy-ignored, pre-merge is the single canonical 'scripts/mise-exec.sh run gate'. Also added scratch/** to the canonical ignore policy (quality.ignores.ts) because copy-ignored copies gitignored scratch/ into every new worktree and ultracite check failed the gate on it — this failure existed on main too. Gate verified passing end-to-end in the worktree (exit 0) and failing on a deliberate format error (exit 1). PENDING USER ACTION: run 'wt config approvals add' to review/approve the changed hook commands; until then wt switch --create and wt hook pre-merge stop at the approval prompt. After approval, run 'wt hook pre-merge' once to close out the last acceptance criterion.",
+      "timestamp": "2026-08-27T20:54:39Z"
+    }
+  ],
   "priority": 2,
   "status": "in_progress",
   "title": "Migrate Worktrunk lifecycle and pre-merge validation",
   "type": "task",
-  "updated_at": "2026-08-27T20:39:46Z"
+  "updated_at": "2026-08-27T20:54:39Z"
 }
