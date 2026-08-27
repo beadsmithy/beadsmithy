@@ -1,0 +1,24 @@
+mise.toml
+  s_a4cf3d07bbfee4::t_002e22c82b9bb6 110,112-113,116
+  s_a4cf3d07bbfee4::t_404382e8199803 109,111,114
+lefthook.yml
+  s_a4cf3d07bbfee4::t_f6dd63447a729d 12-15
+scripts/mise-exec.sh
+  s_a4cf3d07bbfee4::t_d8f4995380a4c9 13-16,28,33
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.24",
+  "base_commit_sha": "a54c728106f33c957df58aea94060ae7d7f893b1",
+  "prompts": {},
+  "sessions": {
+    "s_a4cf3d07bbfee4": {
+      "agent_id": {
+        "tool": "pi",
+        "id": "01a04017-d193-79bf-9f76-4a8a3964b2db",
+        "model": "k3-256k"
+      },
+      "human_author": "Tomas Thor Jonsson <benregn@gmail.com>"
+    }
+  }
+}
