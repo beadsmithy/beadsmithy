@@ -13,9 +13,15 @@
     "ready-for-agent"
   ],
   "parent": "bsm-9n1",
+  "comments": [
+    {
+      "text": "Implemented per the Technical Approach with one naming deviation: the issue text references `mise run doctor` and `mise run ultracite:doctor`, but bsm-9n1.3 shipped the canonical tasks as `doctor:react` and `doctor:ultracite` (verified via `mise tasks`). Documentation uses the real task names, which still satisfies the 'clearly distinguished' criterion.\n\nCaller inventory (command-shaped searches, manually classified):\n- Deleted gate definitions: package.json scripts check/fix/test/doctor.\n- Migrated callers: AGENTS.md (new Quality Gates section + Ultracite quick reference), .pi/chains/implement-bead.chain.md, .pi/prompts/implement-bead.md, docs/agents/webdriver-e2e.md (unit-test mentions only; e2e scenario commands untouched), .devin/config.json (added Exec(mise); existing entries kept as permission data).\n- Intentionally retained: .agents/skills/** (out of scope), mise.toml (canonical definitions), lefthook.yml and .config/wt.toml (already route through scripts/mise-exec.sh), e2e scripts/specs and the embedded-webdriver-port error message (e2e scenarios), vitest imports in src/e2e tests (source imports), src-tauri tests.rs doc comment (source comment).\n\nValidation: mise run check / typecheck / test / gate all pass (384 frontend tests green). package.json keys verified programmatically. e2e smoke (`pnpm e2e:issue-list:success`) fails identically on clean main in the primary checkout (Tauri app exits before embedded WebDriver is ready) — pre-existing, unrelated; this change does not touch e2e scripts.",
+      "timestamp": "2026-08-27T21:34:52Z"
+    }
+  ],
   "priority": 2,
   "status": "in_progress",
   "title": "Remove duplicate gate scripts and update repository callers",
   "type": "task",
-  "updated_at": "2026-08-27T21:22:45Z"
+  "updated_at": "2026-08-27T21:34:52Z"
 }
