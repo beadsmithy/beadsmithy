@@ -109,7 +109,7 @@ Commit the changes in a new, separate commit.
 
 ## Phase 7: Pre-PR rebase and checks
 
-**Step 1: Run the validation commands** the project uses. At minimum: `pnpm run check`, `pnpm exec tsc --noEmit`, `pnpm test`, and (for Tauri) `cargo check` in `src-tauri/` if Rust changed.
+**Step 1: Run the validation commands** the project uses. At minimum: `mise run gate` (frontend lint/format, typecheck, unit tests, Rust fmt check, Clippy, Rust tests). Individual mise tasks (`mise run check`, `mise run typecheck`, `mise run test`, `mise run rust:test`, …) can isolate a failure.
 
 **Step 2: Classify findings.**
 

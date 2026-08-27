@@ -16,6 +16,7 @@
       "Exec(git remote)",
       "Exec(jq)",
       "Exec(lsof)",
+      "Exec(mise)",
       "Exec(npx tsc)",
       "Exec(pnpm build)",
       "Exec(pnpm dlx)",
