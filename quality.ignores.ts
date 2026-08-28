@@ -16,8 +16,8 @@ export const VENDORED_IGNORES = [
 
 // Gitignored agent/human working space. It is never committed, but
 // Worktrunk's post-start hook copies ignored files into every new
-// worktree, so without this exclusion the gate would fail on scratch
-// content that isn't part of the change under review.
+// worktree, so without this exclusion the mergeability check would fail
+// on scratch content that isn't part of the change under review.
 export const SCRATCH_IGNORES = ["scratch/**"] as const;
 
 // Files that must not be reformatted but are still linted (with targeted

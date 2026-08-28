@@ -1,7 +1,8 @@
-# Canonical toolchain and quality-gate task graph for Beadsmith.
+# Canonical toolchain and quality task graph for Beadsmith.
 #
-# `mise run gate` is the single mergeability gate. Hooks, Worktrunk, agents,
-# and docs delegate to these tasks instead of redefining quality commands.
+# `mise run verify` is the single mergeability check. Hooks, Worktrunk,
+# agents, and docs delegate to these tasks instead of redefining quality
+# commands.
 # Toolchain provisioning: run `mise trust && mise install` once per checkout.
 min_version = "2026.8.12"
 
@@ -17,35 +18,38 @@ node = "24.13.0"
 # and cargo, so one entry provisions the whole Rust quality toolchain.
 rust = { version = "1.97.1", profile = "default" }
 
-# --- Frontend quality -------------------------------------------------------
+# --- TypeScript quality (src/) ----------------------------------------------
+#
+# Bare names (check, fix, typecheck, test) are whole-repo aggregates defined
+# below; the ts:/rust: prefixes select one stack for targeted iteration.
 
-[tasks.check]
-description = "Lint and format-check frontend sources (Ultracite)"
+[tasks."ts:check"]
+description = "Lint and format-check TypeScript/React sources (Ultracite)"
 run = "pnpm exec ultracite check"
 
-[tasks.fix]
-description = "Auto-fix frontend lint and format findings (Ultracite)"
+[tasks."ts:fix"]
+description = "Auto-fix TypeScript/React lint and format findings (Ultracite)"
 run = "pnpm exec ultracite fix"
 
-[tasks.typecheck]
-description = "Typecheck frontend sources without emitting"
+[tasks."ts:typecheck"]
+description = "Typecheck TypeScript sources without emitting"
 run = "pnpm exec tsc --noEmit"
 
-[tasks.test]
-description = "Run frontend unit tests (Vitest)"
+[tasks."ts:test"]
+description = "Run TypeScript unit tests (Vitest)"
 run = "pnpm exec vitest run"
 
 # React Doctor and Ultracite Doctor are distinct tools: the former audits
 # React code health, the latter verifies the Ultracite setup itself.
 [tasks."doctor:react"]
 description = "Audit React codebase health (React Doctor, advisory)"
-run = "pnpm exec react-doctor"
+run = "pnpm exec react-doctor --verbose"
 
 [tasks."doctor:ultracite"]
 description = "Verify Ultracite configuration health"
 run = "pnpm exec ultracite doctor"
 
-# --- Rust quality -----------------------------------------------------------
+# --- Rust quality (src-tauri/) ----------------------------------------------
 
 [tasks."rust:fmt"]
 description = "Format Rust sources"
@@ -67,18 +71,44 @@ run = "cargo clippy --manifest-path src-tauri/Cargo.toml --all-targets -- -D war
 description = "Run Rust tests"
 run = "cargo test --manifest-path src-tauri/Cargo.toml"
 
-# --- Gate -------------------------------------------------------------------
+# --- Whole-repo aggregates --------------------------------------------------
 #
-# The gate intentionally excludes the Vite/Tauri application build: it is a
-# code-quality gate, and application builds are covered by the e2e scenario
+# Bare names mean "this operation across every stack". Docs and agent
+# instructions point at these; the ts:/rust: variants iterate on one stack.
+
+[tasks.check]
+description = "Lint and format-check all sources (ts:check + rust:fmt-check + rust:clippy)"
+depends = ["ts:check", "rust:fmt-check", "rust:clippy"]
+
+[tasks.fix]
+description = "Auto-fix all sources (ts:fix + rust:fmt)"
+depends = ["ts:fix", "rust:fmt"]
+
+[tasks.typecheck]
+description = "Typecheck all sources (ts:typecheck + rust:check)"
+depends = ["ts:typecheck", "rust:check"]
+
+[tasks.test]
+description = "Run all unit tests (ts:test + rust:test)"
+depends = ["ts:test", "rust:test"]
+
+# --- Verify -----------------------------------------------------------------
+#
+# verify intentionally excludes the Vite/Tauri application build: it is a
+# code-quality check, and application builds are covered by the e2e scenario
 # pipelines (e2e:build) and packaging. Decision recorded in bsm-9n1.3.
 
-[tasks.gate]
-description = "Mergeability gate: frontend lint/format, typecheck, unit tests, Rust fmt check, Clippy, Rust tests"
+[tasks.verify]
+description = "Verify mergeability: frontend lint/format, typecheck, unit tests, Rust fmt check, Clippy, Rust tests"
+# Composes leaf tasks rather than the bare aggregates: the typecheck
+# aggregate's rust:check duplicates what rust:clippy already compiles
+# (clippy --all-targets typechecks the crate, tests included), so verify
+# takes ts:typecheck directly and lets rust:clippy stand as the Rust
+# typecheck.
 depends = [
-  "check",
-  "typecheck",
-  "test",
+  "ts:check",
+  "ts:typecheck",
+  "ts:test",
   "rust:fmt-check",
   "rust:clippy",
   "rust:test",
@@ -87,13 +117,14 @@ depends = [
 # --- Hook adapters ----------------------------------------------------------
 #
 # raw_args passes caller-supplied file arguments straight through so Lefthook
-# can append {staged_files}. Lefthook wiring lives in a follow-up issue; these
+# can append {staged_files}. The Lefthook wiring lives in lefthook.yml; these
 # tasks only define the repo-owned commands.
 #
-# WARNING: hook:react-doctor-staged keeps raw_args = true per spec, but
-# react-doctor --staged reads the git index itself and takes no file operands.
-# Wire it WITHOUT a {staged_files} glob — any appended path would be treated
-# as a directory argument and fail.
+# WARNING: react-doctor --staged reads the git index itself and takes no file
+# operands — an appended path is treated as a project directory and fails. mise
+# appends extra args to a simple run command regardless of raw_args, so the
+# protection is in the wiring: the lefthook job must NOT use a {staged_files}
+# glob for this task.
 
 [tasks."hook:ultracite-staged"]
 description = "Pre-commit adapter: Ultracite fix on staged files"
@@ -103,7 +134,7 @@ run = "pnpm exec ultracite fix"
 [tasks."hook:react-doctor-staged"]
 description = "Pre-commit adapter: React Doctor staged scan (reads the git index; pass no file args)"
 raw_args = true
-run = "pnpm exec react-doctor --staged --blocking warning"
+run = "pnpm exec react-doctor --verbose --staged --blocking warning"
 
 [tasks."hook:rust-fmt-staged"]
 # Standalone rustfmt does not read edition from Cargo.toml, so pass it

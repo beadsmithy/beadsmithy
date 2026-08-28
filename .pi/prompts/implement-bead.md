@@ -109,7 +109,7 @@ Commit the changes in a new, separate commit.
 
 ## Phase 7: Pre-PR rebase and checks
 
-**Step 1: Run the validation commands** the project uses. At minimum: `mise run gate` (frontend lint/format, typecheck, unit tests, Rust fmt check, Clippy, Rust tests). Individual mise tasks (`mise run check`, `mise run typecheck`, `mise run test`, `mise run rust:test`, …) can isolate a failure.
+**Step 1: Run the validation commands** the project uses. At minimum: `mise run verify` (frontend lint/format, typecheck, unit tests, Rust fmt check, Clippy, Rust tests). Individual mise tasks can isolate a failure: bare names (`mise run check`, `mise run typecheck`, `mise run test`) cover both stacks, and `ts:`/`rust:` prefixes (`mise run ts:check`, `mise run rust:test`, …) select one stack.
 
 **Step 2: Classify findings.**
 

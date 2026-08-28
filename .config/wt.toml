@@ -39,8 +39,8 @@ install = "scripts/mise-exec.sh x -- pnpm install --frozen-lockfile"
 copy = "wt step copy-ignored"
 
 # Validate the whole app before merging back to the default branch via the
-# canonical gate: frontend lint/format, typecheck, unit tests, Rust fmt
-# check, Clippy, and Rust tests. Task definitions live in mise.toml — do
+# canonical verify task: frontend lint/format, typecheck, unit tests, Rust
+# fmt check, Clippy, and Rust tests. Task definitions live in mise.toml — do
 # not add quality commands here.
 [pre-merge]
-gate = "scripts/mise-exec.sh run gate"
+verify = "scripts/mise-exec.sh run verify"

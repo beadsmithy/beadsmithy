@@ -6,13 +6,21 @@
 # mise.toml (hook:*-staged), so the pinned toolchain and the canonical quality
 # command definitions stay in one place. Do not add raw ultracite,
 # react-doctor, or cargo invocations here.
+# `**/*.ts` must also match files at the repository root. Lefthook's default
+# gobwas engine treats the `/` in `**/` literally, so root-level staged files
+# silently skip every job. doublestar gives standard glob semantics where `**`
+# matches zero or more directories. Found during bsm-9n1.7 acceptance.
+glob_matcher: doublestar
+
 pre-commit:
   jobs:
-    # Advisory only: capture output, print a hint on findings, never block the
-    # commit — even if mise itself fails. Exit 75 from mise-exec.sh means the
-    # launcher could not resolve mise (distinct from task failures). No
-    # {staged_files}: react-doctor --staged reads the git index itself.
-    - run: react_doctor_output=$(mktemp "${TMPDIR:-/tmp}/react-doctor-hook.XXXXXX"); if ./scripts/mise-exec.sh run hook:react-doctor-staged > "$react_doctor_output" 2>&1; then rm -f "$react_doctor_output"; else react_doctor_status=$?; rm -f "$react_doctor_output"; if [ "$react_doctor_status" -eq 75 ]; then printf "%s\n" "React Doctor skipped — mise is unavailable (checked MISE_BIN, PATH, and $HOME/.local/bin/mise)." "Run mise trust && mise install, then inspect with mise run hook:react-doctor-staged" >&2; else printf "%s\n" "React Doctor found staged regressions." "Run mise run hook:react-doctor-staged to inspect." "Want them fixed? Ask your agent to run that command and resolve the findings." >&2; fi; fi
+    # Advisory only: stream the staged scan on every commit — success is ~3
+    # lines, and findings print their own feedback. Never blocks the commit,
+    # even if mise itself fails (mise-exec.sh's resolution error is
+    # explanation enough). Lefthook has no per-job allow-failure option, so
+    # `|| true` is what keeps this advisory. No {staged_files}:
+    # react-doctor --staged reads the git index itself.
+    - run: ./scripts/mise-exec.sh run hook:react-doctor-staged || true
       exclude: "docs/research/infra/**"
     - run: ./scripts/mise-exec.sh run hook:ultracite-staged -- {staged_files}
       glob:
