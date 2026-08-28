@@ -13,9 +13,16 @@
     "ready-for-human"
   ],
   "parent": "bsm-9n1",
+  "comments": [
+    {
+      "text": "Implementation plan:\n\n1. **Acceptance matrix** (run from this clean worktree, which the Worktrunk pre-start pipeline already provisioned via mise trust/install + frozen-lockfile pnpm install):\n   - Tool identity: verify mise-selected node 24.13.0, pnpm 11.23.0, rust 1.97.1 + rustfmt/clippy components.\n   - Full `mise run gate` pass.\n   - Minimal-shell commit: `env -i HOME=\"$HOME\" PATH=\"/usr/bin:/bin\" git commit` with a staged file, verifying mise-exec.sh resolves mise without PATH and hooks run.\n   - Staged behavior: malformed staged file gets fixed + re-staged; malformed UNSTAGED file untouched.\n   - Worktrunk: disposable worktree, pre-start setup, `wt hook pre-merge`.\n   - Failure propagation: deliberate lint failure blocks both `mise run gate` and `wt hook pre-merge`.\n2. **Devin handoff**: Devin's environment config is external to the repo (`.devin/config.json` here is only a permissions allowlist, already carrying `Exec(mise)`). Record owner, required settings (mise \u003e= 2026.8.12, mise trust \u0026\u0026 mise install in setup, test command = `mise run gate`, drop separate Rust test command, keep build per bsm-9n1.3 decision, no `pnpm --ignore-workspace`), and pending action in the issue + PR.\n3. **Acceptance receipt**: committed doc under docs/research/ plus issue comment, recording tool versions, clippy decision (-D warnings), build decision (gate excludes app build, per bsm-9n1.3), and platform limitations (macOS arm64 only).",
+      "author": "pi",
+      "timestamp": "2026-08-28T07:30:34Z"
+    }
+  ],
   "priority": 2,
   "status": "in_progress",
   "title": "Complete cross-environment gate acceptance and Devin handoff",
   "type": "task",
-  "updated_at": "2026-08-28T07:28:19Z"
+  "updated_at": "2026-08-28T07:30:34Z"
 }
