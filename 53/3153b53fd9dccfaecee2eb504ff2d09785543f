@@ -1,0 +1,30 @@
+AGENTS.md
+  s_bc6554c8348186::t_1d753f2cf9d5be 56-58
+mise.toml
+  s_bc6554c8348186::t_60c008a46f4e9f 20-23,25-26,29-30,33-34,37-38,51,73-93,102-106,108-110,119
+docs/agents/webdriver-e2e.md
+  s_bc6554c8348186::t_34a0650742d0b1 12-14
+.pi/prompts/implement-bead.md
+  s_bc6554c8348186::t_2301a0fb98a23a 112
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.0",
+  "base_commit_sha": "533153b53fd9dccfaecee2eb504ff2d09785543f",
+  "prompts": {},
+  "humans": {
+    "h_9889e896d9694b": {
+      "author": "Tomas Thor Jonsson <benregn@gmail.com>"
+    }
+  },
+  "sessions": {
+    "s_bc6554c8348186": {
+      "agent_id": {
+        "tool": "pi",
+        "id": "01a04744-175e-73f0-a1bf-23ce394e3761",
+        "model": "k3-256k"
+      },
+      "human_author": "Tomas Thor Jonsson <benregn@gmail.com>"
+    }
+  }
+}
