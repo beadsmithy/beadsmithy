@@ -1,0 +1,24 @@
+docs/research/cross-environment-gate-acceptance.md
+  s_bc6554c8348186::t_413b7e83298cb9 1-135
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.0",
+  "base_commit_sha": "31c5a652fbf90a9c771424791304c277362e1c2e",
+  "prompts": {},
+  "humans": {
+    "h_9889e896d9694b": {
+      "author": "Tomas Thor Jonsson <benregn@gmail.com>"
+    }
+  },
+  "sessions": {
+    "s_bc6554c8348186": {
+      "agent_id": {
+        "tool": "pi",
+        "id": "01a04744-175e-73f0-a1bf-23ce394e3761",
+        "model": "k3-256k"
+      },
+      "human_author": "Tomas Thor Jonsson <benregn@gmail.com>"
+    }
+  }
+}
