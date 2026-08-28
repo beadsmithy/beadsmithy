@@ -1,0 +1,14 @@
+mise.toml
+  h_9889e896d9694b 132
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.0",
+  "base_commit_sha": "96f44f0cf0042ac6119f08682064d4195391c6d1",
+  "prompts": {},
+  "humans": {
+    "h_9889e896d9694b": {
+      "author": "Tomas Thor Jonsson <benregn@gmail.com>"
+    }
+  }
+}
