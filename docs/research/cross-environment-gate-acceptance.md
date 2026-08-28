@@ -85,8 +85,10 @@ nested staged files plus the `docs/research/infra/**` and
   2. Export `LEFTHOOK_BIN` pointing at the repository binary.
   3. Rely on the merge backstop: Worktrunk's pre-merge gate runs the full
      `mise run gate` regardless of what happened at commit time.
-     Minimal shells (git GUIs, `env -i`) are unaffected — they fall through to
-     the pinned binary.
+
+  Minimal shells (git GUIs, `env -i`) are unaffected by the shadowing —
+  they fall through to the pinned binary.
+
 - **Single platform.** All evidence above is macOS arm64. mise, lefthook,
   and Worktrunk are cross-platform, but no Linux or Windows run was
   performed; treat those as unverified rather than broken.
