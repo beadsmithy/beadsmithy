@@ -1,0 +1,16 @@
+package.json
+  h_9889e896d9694b 77
+pnpm-lock.yaml
+  h_9889e896d9694b 142-143,2193-2312,5042-5046,7003-7062,9923,10441-10463
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.0",
+  "base_commit_sha": "5753b3e5a52fd0167942f6e25f604ac0fe2a4449",
+  "prompts": {},
+  "humans": {
+    "h_9889e896d9694b": {
+      "author": "Tomas Thor Jonsson <benregn@gmail.com>"
+    }
+  }
+}
