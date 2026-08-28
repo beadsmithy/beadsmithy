@@ -1,0 +1,32 @@
+.agents/skills/codebase-design/DEEPENING.md
+  h_9889e896d9694b 3,11,34,37
+.agents/skills/codebase-design/DESIGN-IT-TWICE.md
+  h_9889e896d9694b 3,5,15,21,25-27,34,38,44
+.agents/skills/codebase-design/SKILL.md
+  h_9889e896d9694b 12,14,16,18,20,22,24,26,28,62,108,113-114
+.agents/skills/domain-modeling/ADR-FORMAT.md
+  h_9889e896d9694b 5,15,21-23,33-35,37,43,47
+.agents/skills/domain-modeling/CONTEXT-FORMAT.md
+  h_9889e896d9694b 43-45
+.agents/skills/domain-modeling/SKILL.md
+  h_9889e896d9694b 3,8,40,46,50,58,62,70-72
+.agents/skills/grill-with-docs/SKILL.md
+  h_9889e896d9694b 7
+.agents/skills/grilling/SKILL.md
+  h_9889e896d9694b 3,6,8,10,12-28
+.agents/skills/tdd/SKILL.md
+  h_9889e896d9694b 8,10,12,14,18,20,22,24,26,28,40-46,48-49
+.agents/skills/tdd/tests.md
+  h_9889e896d9694b 62-77
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.0",
+  "base_commit_sha": "bb21b8f9a899960e454d998fed4362609cf5d6b3",
+  "prompts": {},
+  "humans": {
+    "h_9889e896d9694b": {
+      "author": "Tomas Thor Jonsson <benregn@gmail.com>"
+    }
+  }
+}
