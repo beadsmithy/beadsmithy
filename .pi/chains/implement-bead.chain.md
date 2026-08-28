@@ -40,6 +40,6 @@ outputMode: file-only
 Implement Beadwork issue `{task}`.
 Read the plan and context, paths are supplied at runtime.
 Use TDD.
-Validate with `pnpm run check`, `pnpm exec tsc --noEmit`, and `pnpm test` where feasible.
+Validate with `mise run gate` (frontend lint/format, typecheck, unit tests, Rust fmt check, Clippy, Rust tests) where feasible.
 Write to output: changed files, validation commands with exit codes, what was left undone, and open risks.
 Hard constraints: do not commit; do not edit files unrelated to this issue; surface, don't fix, pre-existing repo lint/format failures; escalate unapproved product/architecture decisions via `contact_supervisor`.

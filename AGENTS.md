@@ -34,6 +34,31 @@ done without priming often conflicts with in-progress changes.
 
 Committing, closing issues, and syncing are part of completing a task — not separate actions requiring additional permission.
 
+## Quality Gates
+
+All quality commands run through the canonical mise task graph in `mise.toml`. Do not invoke package scripts or raw
+tool commands (`pnpm test`, `pnpm dlx ultracite …`, `cargo test`, …) for lint, format, typecheck, or tests — the mise
+tasks are the single source of truth.
+
+Bootstrap the toolchain once per checkout:
+
+```sh
+mise trust && mise install
+```
+
+The mergeability gate must pass before committing:
+
+```sh
+mise run gate
+```
+
+The gate runs frontend lint/format, typecheck, and unit tests, plus Rust format check, Clippy, and Rust tests.
+Individual tasks when you need them: `mise run check`, `mise run fix`, `mise run typecheck`, `mise run test`,
+`mise run rust:test`. E2E desktop scenarios are intentionally separate — see `docs/agents/webdriver-e2e.md`.
+
+The two doctor tools are distinct: **React Doctor** (`mise run doctor:react`) audits React code health; **Ultracite
+Doctor** (`mise run doctor:ultracite`) verifies the Ultracite setup itself.
+
 ## Agent skills
 
 ### Issue tracker
@@ -61,9 +86,9 @@ This project uses **Ultracite**, a zero-config preset that enforces strict code 
 
 ### Quick Reference
 
-- **Format code**: `pnpm dlx ultracite fix`
-- **Check for issues**: `pnpm dlx ultracite check`
-- **Diagnose setup**: `pnpm dlx ultracite doctor`
+- **Format code**: `mise run fix`
+- **Check for issues**: `mise run check`
+- **Diagnose setup**: `mise run doctor:ultracite` (Ultracite setup health — not React Doctor)
 
 Oxlint + Oxfmt (the underlying engine) provides robust linting and formatting. Most issues are automatically fixable.
 

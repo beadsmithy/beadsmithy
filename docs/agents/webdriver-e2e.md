@@ -9,7 +9,8 @@ restoration, atomic switching, invalid-target preservation, isolated store
 hygiene, and the typed `TauRPC__switch_workspace` / `TauRPC__cancel_workspace`
 paths against the assembled binary.
 
-Unit tests (`cargo test`, `pnpm test`) already cover each layer in isolation.
+Unit tests (`mise run test` for the frontend, `mise run rust:test` for the
+Tauri crate) already cover each layer in isolation.
 This suite exists because those can all pass while the actual desktop launch
 still fails -- e.g. a missing capability permission, a broken TauRPC binding,
 a workspace resolution bug that only shows up when the app is actually
