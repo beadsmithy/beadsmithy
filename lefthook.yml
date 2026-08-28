@@ -6,6 +6,12 @@
 # mise.toml (hook:*-staged), so the pinned toolchain and the canonical quality
 # command definitions stay in one place. Do not add raw ultracite,
 # react-doctor, or cargo invocations here.
+# `**/*.ts` must also match files at the repository root. Lefthook's default
+# gobwas engine treats the `/` in `**/` literally, so root-level staged files
+# silently skip every job. doublestar gives standard glob semantics where `**`
+# matches zero or more directories. Found during bsm-9n1.7 acceptance.
+glob_matcher: doublestar
+
 pre-commit:
   jobs:
     # Advisory only: capture output, print a hint on findings, never block the
