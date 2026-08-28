@@ -133,7 +133,7 @@ run = "pnpm exec ultracite fix"
 [tasks."hook:react-doctor-staged"]
 description = "Pre-commit adapter: React Doctor staged scan (reads the git index; pass no file args)"
 raw_args = true
-run = "pnpm exec react-doctor --verbose --staged"
+run = "pnpm exec react-doctor --verbose --staged --blocking warning"
 
 [tasks."hook:rust-fmt-staged"]
 # Standalone rustfmt does not read edition from Cargo.toml, so pass it
