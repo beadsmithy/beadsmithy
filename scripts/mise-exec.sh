@@ -6,7 +6,7 @@
 # per-user install at $HOME/.local/bin/mise. All arguments are forwarded to
 # mise unchanged, e.g.:
 #
-#   scripts/mise-exec.sh run gate
+#   scripts/mise-exec.sh run verify
 #
 # This script only locates the mise executable. Quality command definitions
 # live in mise.toml — do not add them here.

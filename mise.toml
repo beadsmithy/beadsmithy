@@ -1,7 +1,8 @@
-# Canonical toolchain and quality-gate task graph for Beadsmith.
+# Canonical toolchain and quality task graph for Beadsmith.
 #
-# `mise run gate` is the single mergeability gate. Hooks, Worktrunk, agents,
-# and docs delegate to these tasks instead of redefining quality commands.
+# `mise run verify` is the single mergeability check. Hooks, Worktrunk,
+# agents, and docs delegate to these tasks instead of redefining quality
+# commands.
 # Toolchain provisioning: run `mise trust && mise install` once per checkout.
 min_version = "2026.8.12"
 
@@ -91,17 +92,17 @@ depends = ["ts:typecheck", "rust:check"]
 description = "Run all unit tests (ts:test + rust:test)"
 depends = ["ts:test", "rust:test"]
 
-# --- Gate -------------------------------------------------------------------
+# --- Verify -----------------------------------------------------------------
 #
-# The gate intentionally excludes the Vite/Tauri application build: it is a
-# code-quality gate, and application builds are covered by the e2e scenario
+# verify intentionally excludes the Vite/Tauri application build: it is a
+# code-quality check, and application builds are covered by the e2e scenario
 # pipelines (e2e:build) and packaging. Decision recorded in bsm-9n1.3.
 
-[tasks.gate]
-description = "Mergeability gate: frontend lint/format, typecheck, unit tests, Rust fmt check, Clippy, Rust tests"
+[tasks.verify]
+description = "Verify mergeability: frontend lint/format, typecheck, unit tests, Rust fmt check, Clippy, Rust tests"
 # Composes leaf tasks rather than the bare aggregates: the typecheck
 # aggregate's rust:check duplicates what rust:clippy already compiles
-# (clippy --all-targets typechecks the crate, tests included), so the gate
+# (clippy --all-targets typechecks the crate, tests included), so verify
 # takes ts:typecheck directly and lets rust:clippy stand as the Rust
 # typecheck.
 depends = [

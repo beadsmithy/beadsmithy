@@ -5,9 +5,15 @@
 **Platform:** macOS arm64 (Apple Silicon). No other platform was verified; see
 [Limitations](#limitations).
 
+> **Rename note:** the mergeability task was named `gate` when these runs
+> were executed and renamed to `verify` afterwards; command references below
+> use the current name. The quoted Worktrunk log line in item 6
+> (`pre-merge command failed: gate`) is verbatim from the run and would now
+> read `verify`.
+
 ## Verdict
 
-`mise run gate` is the single mergeability gate and every repository-owned
+`mise run verify` is the single mergeability gate and every repository-owned
 execution surface (interactive shell, minimal git-hook shell, Lefthook,
 Worktrunk pre-merge) reaches the same mise task graph. One configuration bug
 was found and fixed during acceptance (lefthook glob engine); one
@@ -33,7 +39,7 @@ Worktrunk pre-start pipeline (`mise trust` → `mise install` →
 
 1. **Clean checkout — PASS.** A fresh Worktrunk worktree ran the pre-start
    pipeline (trust, install, frozen-lockfile `pnpm install`) with no manual
-   steps, and `mise run gate` exited 0 (frontend check, typecheck, unit
+   steps, and `mise run verify` exited 0 (frontend check, typecheck, unit
    tests, rustfmt check, clippy, rust tests).
 2. **Tool identity — PASS.** See the matrix above; every binary resolved
    from mise-managed paths.
@@ -56,7 +62,7 @@ Worktrunk pre-start pipeline (`mise trust` → `mise install` →
    ran the pre-start setup unattended, and `wt hook pre-merge` executed the
    canonical gate to exit 0.
 6. **Failure propagation — PASS.** With a deliberate type/lint error
-   injected into the disposable worktree, `mise run gate` exited 2 and
+   injected into the disposable worktree, `mise run verify` exited 2 and
    `wt hook pre-merge` exited 2 with `pre-merge command failed: gate`,
    blocking the merge. The disposable worktree and branch were removed
    afterwards.
@@ -84,7 +90,7 @@ nested staged files plus the `docs/research/infra/**` and
   1. Remove or upgrade the global lefthook to 2.x (`brew upgrade lefthook`).
   2. Export `LEFTHOOK_BIN` pointing at the repository binary.
   3. Rely on the merge backstop: Worktrunk's pre-merge gate runs the full
-     `mise run gate` regardless of what happened at commit time.
+     `mise run verify` regardless of what happened at commit time.
 
   Minimal shells (git GUIs, `env -i`) are unaffected by the shadowing —
   they fall through to the pinned binary.
@@ -126,12 +132,12 @@ already contains `Exec(mise)`). It could not be changed from this issue.
     `pnpm --ignore-workspace` — `pnpm-workspace.yaml` carries the
     `@wdio/native-utils` override and the build-script allow policy that
     the workspace install depends on.
-  - Test command: `mise run gate`.
+  - Test command: `mise run verify`.
   - Remove the separate Rust test command — `rust:test` is in the gate.
   - Build command: keep or drop per Devin's needs; per the build decision
     above the gate does not build the app, so a separate build command is
     not redundant with the test command.
   - Keep the startup `bw prime`.
 - **Pending action:** Tomas applies the settings above in the Devin
-  environment and re-runs one session to confirm `mise run gate` executes
+  environment and re-runs one session to confirm `mise run verify` executes
   there. Tracked on issue bsm-9n1.7 until done.

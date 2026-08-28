@@ -46,13 +46,13 @@ Bootstrap the toolchain once per checkout:
 mise trust && mise install
 ```
 
-The mergeability gate must pass before committing:
+The mergeability check must pass before committing:
 
 ```sh
-mise run gate
+mise run verify
 ```
 
-The gate runs frontend lint/format, typecheck, and unit tests, plus Rust format check, Clippy, and Rust tests.
+`verify` runs frontend lint/format, typecheck, and unit tests, plus Rust format check, Clippy, and Rust tests.
 Individual tasks when you need them: bare names (`mise run check`, `mise run fix`, `mise run typecheck`, `mise run
 test`) run that operation across both stacks; `ts:`/`rust:` prefixes select one stack (`mise run ts:test`,
 `mise run rust:clippy`, …). E2E desktop scenarios are intentionally separate — see `docs/agents/webdriver-e2e.md`.
