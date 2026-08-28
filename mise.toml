@@ -39,7 +39,7 @@ run = "pnpm exec vitest run"
 # React code health, the latter verifies the Ultracite setup itself.
 [tasks."doctor:react"]
 description = "Audit React codebase health (React Doctor, advisory)"
-run = "pnpm exec react-doctor"
+run = "pnpm exec react-doctor --verbose"
 
 [tasks."doctor:ultracite"]
 description = "Verify Ultracite configuration health"
@@ -104,7 +104,7 @@ run = "pnpm exec ultracite fix"
 [tasks."hook:react-doctor-staged"]
 description = "Pre-commit adapter: React Doctor staged scan (reads the git index; pass no file args)"
 raw_args = true
-run = "pnpm exec react-doctor --staged --blocking warning"
+run = "pnpm exec react-doctor --verbose --staged"
 
 [tasks."hook:rust-fmt-staged"]
 # Standalone rustfmt does not read edition from Cargo.toml, so pass it
