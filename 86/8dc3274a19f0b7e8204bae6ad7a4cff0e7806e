@@ -1,0 +1,40 @@
+.pi/prompts/implement-bead.md
+  s_bc6554c8348186::t_3dfb146d16d65e 112
+.pi/chains/implement-bead.chain.md
+  s_bc6554c8348186::t_2bb9588087ee5b 43
+scripts/mise-exec.sh
+  s_bc6554c8348186::t_f5744607f947b7 9
+docs/research/cross-environment-gate-acceptance.md
+  s_bc6554c8348186::t_84bab7e53d965f 8-13
+  s_bc6554c8348186::t_b08bb8c63b310d 16,42,65,93,135,142
+.config/wt.toml
+  s_bc6554c8348186::t_cb675eb81d567c 42-43,46
+mise.toml
+  s_bc6554c8348186::t_517acd6c2d53bb 1,3-5,95,97-98,101-102
+  s_bc6554c8348186::t_5a251d6de2c810 105
+AGENTS.md
+  s_bc6554c8348186::t_0caacb51550c65 49,52,55
+quality.ignores.ts
+  s_bc6554c8348186::t_1f9a1b3cf84f22 19-20
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.0",
+  "base_commit_sha": "868dc3274a19f0b7e8204bae6ad7a4cff0e7806e",
+  "prompts": {},
+  "humans": {
+    "h_9889e896d9694b": {
+      "author": "Tomas Thor Jonsson <benregn@gmail.com>"
+    }
+  },
+  "sessions": {
+    "s_bc6554c8348186": {
+      "agent_id": {
+        "tool": "pi",
+        "id": "01a04744-175e-73f0-a1bf-23ce394e3761",
+        "model": "k3-256k"
+      },
+      "human_author": "Tomas Thor Jonsson <benregn@gmail.com>"
+    }
+  }
+}
