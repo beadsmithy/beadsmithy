@@ -1,0 +1,17 @@
+acceptance-probe.ts
+  h_9889e896d9694b 1
+  h_9889e896d9694b 2
+src/__acceptance__/probe.ts
+  h_9889e896d9694b 1
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.0",
+  "base_commit_sha": "1e976051df2e8114e95d9201aad056fba3079c2f",
+  "prompts": {},
+  "humans": {
+    "h_9889e896d9694b": {
+      "author": "Tomas Thor Jonsson <benregn@gmail.com>"
+    }
+  }
+}
