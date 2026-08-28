@@ -1,0 +1,14 @@
+.pi/settings.json
+  h_9889e896d9694b 7,11-12
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.0",
+  "base_commit_sha": "56a8fb2ccc35cbe3b87bc0dc130ecafeac0dc026",
+  "prompts": {},
+  "humans": {
+    "h_9889e896d9694b": {
+      "author": "Tomas Thor Jonsson <benregn@gmail.com>"
+    }
+  }
+}
