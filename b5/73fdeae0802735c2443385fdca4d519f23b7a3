@@ -1,0 +1,24 @@
+mise.toml
+  s_bc6554c8348186::t_88443b555f144f 93-97
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.0",
+  "base_commit_sha": "b573fdeae0802735c2443385fdca4d519f23b7a3",
+  "prompts": {},
+  "humans": {
+    "h_9889e896d9694b": {
+      "author": "Tomas Thor Jonsson <benregn@gmail.com>"
+    }
+  },
+  "sessions": {
+    "s_bc6554c8348186": {
+      "agent_id": {
+        "tool": "pi",
+        "id": "01a04744-175e-73f0-a1bf-23ce394e3761",
+        "model": "k3-256k"
+      },
+      "human_author": "Tomas Thor Jonsson <benregn@gmail.com>"
+    }
+  }
+}
