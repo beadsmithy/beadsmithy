@@ -94,13 +94,13 @@ export const RefreshFailureBanner = ({
   }
   return (
     <output
-      className="flex items-start gap-3 border-b border-border-main bg-danger/10 p-3"
+      className="border-border-main bg-danger/10 flex items-start gap-3 border-b p-3"
       data-failure-kind={failure.errorKind}
       data-failure-revision={failure.failureRevision}
       data-testid="refresh-failure-banner"
     >
-      <AlertTriangle className="mt-0.5 size-4 shrink-0 text-danger" />
-      <p className="text-sm font-medium text-danger">
+      <AlertTriangle className="text-danger mt-0.5 size-4 shrink-0" />
+      <p className="text-danger text-sm font-medium">
         {BANNER_COPY[failure.errorKind]}
       </p>
     </output>

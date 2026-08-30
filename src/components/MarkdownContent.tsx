@@ -2,6 +2,7 @@ import type { Element } from "hast";
 import type {
   AnchorHTMLAttributes,
   ComponentPropsWithoutRef,
+  FC,
   ReactNode,
 } from "react";
 import Markdown from "react-markdown";
@@ -191,9 +192,12 @@ const renderInput = ({
   <input className={CHECKBOX_CLASSES} type="checkbox" {...inputProps} />
 );
 
-const renderLink =
-  (openExternalLink: ExternalLinkOpener) =>
-  ({ children, href, ...rest }: LinkProps): React.ReactElement => {
+const renderLink = (openExternalLink: ExternalLinkOpener) => {
+  const Link: FC<LinkProps> = ({
+    children,
+    href,
+    ...rest
+  }): React.ReactElement => {
     if (!isExternalHttpLink(href)) {
       return <span data-inert-link="true">{children}</span>;
     }
@@ -216,6 +220,9 @@ const renderLink =
       </a>
     );
   };
+  Link.displayName = "MarkdownLink";
+  return Link;
+};
 
 interface MarkdownContentProps {
   ariaLabel?: string;

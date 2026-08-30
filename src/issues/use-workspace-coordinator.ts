@@ -101,8 +101,8 @@ export const useWorkspaceCoordinator = ({
   const runProgram = useCallback(
     <A>(
       program: EffectType.Effect<A, WorkspaceServiceFailure, WorkspaceService>,
-      onFailure: (error: WorkspaceServiceFailure) => void,
-      onSuccess: (value: A) => void,
+      onFailure: (error: WorkspaceServiceFailure) => void | Promise<void>,
+      onSuccess: (value: A) => void | Promise<void>,
       supersedeActive = true
     ): Promise<void> => {
       if (supersedeActive) {
@@ -112,13 +112,13 @@ export const useWorkspaceCoordinator = ({
       activeProgramsRef.current.add(fiber);
       return observeWorkspaceProgram(
         fiber,
-        (error) => {
+        async (error) => {
           activeProgramsRef.current.delete(fiber);
-          onFailure(error);
+          await onFailure(error);
         },
-        (value) => {
+        async (value) => {
           activeProgramsRef.current.delete(fiber);
-          onSuccess(value);
+          await onSuccess(value);
         }
       );
     },
@@ -138,25 +138,34 @@ export const useWorkspaceCoordinator = ({
     const expectedGeneration = transitionGateRef.current.acceptedGeneration + 1;
     const intentGeneration = beginNavigationIntent(navigationIntentRef, path);
     setDismissedSwitchErrorGeneration(null);
-    await runProgram(
-      selectWorkspace(path),
-      () => {
-        if (isCurrentNavigationIntent(navigationIntentRef, intentGeneration)) {
+    try {
+      await runProgram(
+        selectWorkspace(path),
+        async () => {
+          if (
+            isCurrentNavigationIntent(navigationIntentRef, intentGeneration)
+          ) {
+            finishNavigationIntent(navigationIntentRef, intentGeneration);
+            await refreshWorkspaceState();
+          }
+        },
+        (result) => {
+          if (
+            !isCurrentNavigationIntent(navigationIntentRef, intentGeneration)
+          ) {
+            return;
+          }
+          applyTransition(
+            { issueData: result.issueData, state: result.state },
+            expectedGeneration
+          );
           finishNavigationIntent(navigationIntentRef, intentGeneration);
-          void refreshWorkspaceState();
         }
-      },
-      (result) => {
-        if (!isCurrentNavigationIntent(navigationIntentRef, intentGeneration)) {
-          return;
-        }
-        applyTransition(
-          { issueData: result.issueData, state: result.state },
-          expectedGeneration
-        );
-        finishNavigationIntent(navigationIntentRef, intentGeneration);
-      }
-    );
+      );
+    } catch {
+      // Workspace service failures are handled by runProgram; this protects
+      // the navigation handler from unexpected callback failures.
+    }
   };
 
   const chooseWorkspace = async (): Promise<void> => {
@@ -174,54 +183,86 @@ export const useWorkspaceCoordinator = ({
     }
   };
 
-  const removeSelectedWorkspace = (path: string): void => {
-    void runProgram(
-      removeWorkspace(path),
-      () => void refreshWorkspaceState(),
-      (state) => applyTransition({ issueData: null, state }, null)
-    );
+  const removeSelectedWorkspace = async (path: string): Promise<void> => {
+    try {
+      await runProgram(
+        removeWorkspace(path),
+        async () => {
+          await refreshWorkspaceState();
+        },
+        (state) => {
+          applyTransition({ issueData: null, state }, null);
+        }
+      );
+    } catch {
+      // Workspace service failures are handled by runProgram; this protects
+      // the event handler from unexpected callback failures.
+    }
   };
 
-  const retryMemory = (): void => {
-    void runProgram(
-      retryWorkspaceMemory,
-      () => void refreshWorkspaceState(),
-      (result) =>
-        applyTransition(
-          { issueData: result.issueData, state: result.state },
-          null
-        )
-    );
+  const retryMemory = async (): Promise<void> => {
+    try {
+      await runProgram(
+        retryWorkspaceMemory,
+        async () => {
+          await refreshWorkspaceState();
+        },
+        (result) => {
+          applyTransition(
+            { issueData: result.issueData, state: result.state },
+            null
+          );
+        }
+      );
+    } catch {
+      // Workspace service failures are handled by runProgram; this protects
+      // the event handler from unexpected callback failures.
+    }
   };
 
-  const resetMemory = (): void => {
-    void runProgram(
-      resetWorkspaceMemory,
-      () => void refreshWorkspaceState(),
-      (state) => {
-        applyTransition({ issueData: null, state }, null);
-        applyNoWorkspacePresentation(setIssueState, setWorkspaceKey);
-      }
-    );
+  const resetMemory = async (): Promise<void> => {
+    try {
+      await runProgram(
+        resetWorkspaceMemory,
+        async () => {
+          await refreshWorkspaceState();
+        },
+        (state) => {
+          applyTransition({ issueData: null, state }, null);
+          applyNoWorkspacePresentation(setIssueState, setWorkspaceKey);
+        }
+      );
+    } catch {
+      // Workspace service failures are handled by runProgram; this protects
+      // the event handler from unexpected callback failures.
+    }
   };
 
-  const cancelPendingWorkspace = (): void => {
-    void runProgram(
-      cancelWorkspaceSelection,
-      () => void refreshWorkspaceState(),
-      (result) =>
-        applyTransition(
-          { issueData: result.issueData, state: result.state },
-          null
-        ),
-      false
-    );
+  const cancelPendingWorkspace = async (): Promise<void> => {
+    try {
+      await runProgram(
+        cancelWorkspaceSelection,
+        async () => {
+          await refreshWorkspaceState();
+        },
+        (result) => {
+          applyTransition(
+            { issueData: result.issueData, state: result.state },
+            null
+          );
+        },
+        false
+      );
+    } catch {
+      // Workspace service failures are handled by runProgram; this protects
+      // the event handler from unexpected callback failures.
+    }
   };
 
-  const retryLastSwitch = (): void => {
+  const retryLastSwitch = async (): Promise<void> => {
     const retryPath = workspaceState?.retryWorkspace?.path;
     if (retryPath !== null && retryPath !== undefined && retryPath !== "") {
-      void selectWorkspacePath(retryPath);
+      await selectWorkspacePath(retryPath);
     }
   };
 
@@ -246,18 +287,32 @@ export const useWorkspaceCoordinator = ({
         workspaceState?.pendingWorkspace === null ||
         workspaceState?.pendingWorkspace === undefined
           ? undefined
-          : () => cancelPendingWorkspace(),
-      onChoose: () => void chooseWorkspace(),
+          : async () => {
+              await cancelPendingWorkspace();
+            },
+      onChoose: async () => {
+        await chooseWorkspace();
+      },
       onDismissSwitchError: dismissSwitchError,
-      onRemove: (path: string) => removeSelectedWorkspace(path),
-      onResetMemory: () => resetMemory(),
+      onRemove: async (path: string) => {
+        await removeSelectedWorkspace(path);
+      },
+      onResetMemory: async () => {
+        await resetMemory();
+      },
       onRetryLastSwitch:
         workspaceState?.retryWorkspace === null ||
         workspaceState?.retryWorkspace === undefined
           ? undefined
-          : () => retryLastSwitch(),
-      onRetryMemory: () => retryMemory(),
-      onSelect: (path: string) => void selectWorkspacePath(path),
+          : async () => {
+              await retryLastSwitch();
+            },
+      onRetryMemory: async () => {
+        await retryMemory();
+      },
+      onSelect: async (path: string) => {
+        await selectWorkspacePath(path);
+      },
     },
   };
 };

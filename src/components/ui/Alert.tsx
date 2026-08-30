@@ -34,7 +34,7 @@ export const Alert = ({ className, variant, ...props }: AlertProps) => (
 export const AlertTitle = ({ className, ...props }: ComponentProps<"div">) => (
   <div
     className={cn(
-      "font-medium group-has-[>svg]/alert:col-start-2 [&_a]:underline [&_a]:underline-offset-3 [&_a]:hover:text-foreground",
+      "[&_a]:hover:text-foreground font-medium group-has-[>svg]/alert:col-start-2 [&_a]:underline [&_a]:underline-offset-3",
       className
     )}
     data-slot="alert-title"
@@ -48,7 +48,7 @@ export const AlertDescription = ({
 }: ComponentProps<"div">) => (
   <div
     className={cn(
-      "text-sm text-balance text-muted-foreground md:text-pretty [&_a]:underline [&_a]:underline-offset-3 [&_a]:hover:text-foreground [&_p:not(:last-child)]:mb-4",
+      "text-muted-foreground [&_a]:hover:text-foreground text-sm text-balance md:text-pretty [&_a]:underline [&_a]:underline-offset-3 [&_p:not(:last-child)]:mb-4",
       className
     )}
     data-slot="alert-description"

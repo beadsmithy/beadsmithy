@@ -1,4 +1,4 @@
-import { useCallback, useRef } from "react";
+import { useCallback, useMemo, useState } from "react";
 
 import { useExternalLifecycle } from "../lib/use-external-lifecycle";
 import type { IssueExplorerRouteState } from "./issue-navigation";
@@ -6,16 +6,12 @@ import { serializeIssueExplorerRoute } from "./issue-navigation";
 import {
   createIssueNavigationEntry,
   createIssueNavigationLedger,
-  issueNavigationDestinationLabel,
   readIssueNavigationEntry,
   recordIssueNavigationEntry,
   truncateForwardIssueNavigationEntries,
   writeIssueNavigationState,
 } from "./issue-navigation-coordinator";
-import type {
-  IssueNavigationEntry,
-  IssueNavigationLedger,
-} from "./issue-navigation-coordinator";
+import type { IssueNavigationEntry } from "./issue-navigation-coordinator";
 
 interface NavigationOptions {
   replace?: boolean;
@@ -53,21 +49,25 @@ export const useIssueNavigationCoordinator = ({
   issueRoute,
   navigate,
 }: IssueNavigationCoordinatorOptions): IssueNavigationCoordinatorResult => {
-  const underlyingIssueRouteRef = useRef(issueRoute);
+  const [underlyingIssueRoute, setUnderlyingIssueRoute] = useState(issueRoute);
   useExternalLifecycle(() => {
-    if (!isSettingsRoute) {
-      underlyingIssueRouteRef.current = issueRoute;
+    if (isSettingsRoute) {
+      return;
     }
+    setUnderlyingIssueRoute((currentRoute) => {
+      if (
+        currentRoute.issueId === issueRoute.issueId &&
+        currentRoute.search === issueRoute.search &&
+        currentRoute.viewId === issueRoute.viewId
+      ) {
+        return currentRoute;
+      }
+      return issueRoute;
+    });
   }, [isSettingsRoute, issueRoute]);
 
-  const explorerRoute = isSettingsRoute
-    ? underlyingIssueRouteRef.current
-    : issueRoute;
-  const navigationLedgerRef = useRef<IssueNavigationLedger | null>(null);
-  if (navigationLedgerRef.current === null) {
-    navigationLedgerRef.current = createIssueNavigationLedger();
-  }
-  const navigationLedger = navigationLedgerRef.current;
+  const explorerRoute = isSettingsRoute ? underlyingIssueRoute : issueRoute;
+  const navigationLedger = useMemo(() => createIssueNavigationLedger(), []);
   const currentNavigationEntry = readIssueNavigationEntry(currentHistoryState);
   const currentNavigationIndex = currentNavigationEntry?.index ?? 0;
 
@@ -226,4 +226,4 @@ export const useIssueNavigationCoordinator = ({
   };
 };
 
-export { issueNavigationDestinationLabel };
+export { issueNavigationDestinationLabel } from "./issue-navigation-coordinator";

@@ -67,8 +67,7 @@ In this order:
 
 The reviewer is a separate single-agent run, not part of the implementation chain. It reviews the committed diff, not the worktree.
 
-Reviewer task instruction to pass to subagent:
-Review the committed change for Beadwork issue `$1`. Run `bw show $1 --json` to read the implemented issue. Run a diff of the branch (`git diff <commit-sha>~1..HEAD`). The implementation is already committed; do not amend, do not push.
+Reviewer task instruction to pass to subagent: Review the committed change for Beadwork issue `$1`. Run `bw show $1 --json` to read the implemented issue. Run a diff of the branch (`git diff <commit-sha>~1..HEAD`). The implementation is already committed; do not amend, do not push.
 
 ```js
 const reviewerRun = subagent({

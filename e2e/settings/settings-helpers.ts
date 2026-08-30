@@ -46,7 +46,7 @@ export const computedFontSize = async (selector: string): Promise<string> =>
 
 export const computedFontSizeNumber = async (
   selector: string
-): Promise<number> => Number.parseFloat(await computedFontSize(selector));
+): Promise<number> => Number(await computedFontSize(selector));
 
 export const waitForSaved = async (): Promise<void> => {
   const status = await browser.$("#markdown-font-size-status");

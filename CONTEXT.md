@@ -4,74 +4,38 @@ Beadsmith is a desktop client for browsing and managing Beadwork projects withou
 
 ## Language
 
-**Issue**:
-A Beadwork issue loaded from the current workspace. Beadsmith may present an Issue through different views, but Beadwork remains the source of truth.
-_Avoid_: Local issue, cached issue, Beadsmith issue
+**Issue**: A Beadwork issue loaded from the current workspace. Beadsmith may present an Issue through different views, but Beadwork remains the source of truth. _Avoid_: Local issue, cached issue, Beadsmith issue
 
-**Issue List**:
-A live collection of Issues read from the current workspace. Beadsmith may reshape it for presentation, but Beadwork remains the source of truth.
-_Avoid_: Local issue store, fixture list, cached database
+**Issue List**: A live collection of Issues read from the current workspace. Beadsmith may reshape it for presentation, but Beadwork remains the source of truth. _Avoid_: Local issue store, fixture list, cached database
 
-**Issue Location**:
-The identity of an Issue together with the Workspace that contains it. An Issue ID alone is not an Issue Location because the same ID may exist in multiple Workspaces.
-_Avoid_: Global issue, issue URL
+**Issue Location**: The identity of an Issue together with the Workspace that contains it. An Issue ID alone is not an Issue Location because the same ID may exist in multiple Workspaces. _Avoid_: Global issue, issue URL
 
-**Issue Reference**:
-A Beadwork-stored Issue ID shown as context on another Issue, such as its Parent or dependency. An Issue Reference is navigable to its Issue Location when that Issue exists in the Current Workspace.
-_Avoid_: Issue link, foreign key
+**Issue Reference**: A Beadwork-stored Issue ID shown as context on another Issue, such as its Parent or dependency. An Issue Reference is navigable to its Issue Location when that Issue exists in the Current Workspace. _Avoid_: Issue link, foreign key
 
-**Issue Navigation Entry**:
-A session-only destination containing a Workspace, Issue List View, search query, and optional selected Issue. Back and Forward traverse Issue Navigation Entries; search edits replace the current entry instead of adding one.
-_Avoid_: Page, browser history item, route state
+**Issue Navigation Entry**: A session-only destination containing a Workspace, Issue List View, search query, and optional selected Issue. Back and Forward traverse Issue Navigation Entries; search edits replace the current entry instead of adding one. _Avoid_: Page, browser history item, route state
 
-**Issue Detail**:
-The selected Issue's readable view: title, concise metadata, Markdown description, hierarchy and dependency context, and read-only comments when present. It is a view of Beadwork issue data, not a separate Beadsmith document.
-_Avoid_: Detail document, local issue page, cached issue body
+**Issue Detail**: The selected Issue's readable view: title, concise metadata, Markdown description, hierarchy and dependency context, and read-only comments when present. It is a view of Beadwork issue data, not a separate Beadsmith document. _Avoid_: Detail document, local issue page, cached issue body
 
-**Child Issue**:
-An Issue whose Beadwork-stored `parent` references another Issue. The relationship is derived from the current Workspace's loaded Issue List, not stored separately on the parent Issue.
-_Avoid_: Subtask, nested issue
+**Child Issue**: An Issue whose Beadwork-stored `parent` references another Issue. The relationship is derived from the current Workspace's loaded Issue List, not stored separately on the parent Issue. _Avoid_: Subtask, nested issue
 
-**Issue Search**:
-A local, case-insensitive token search over Issue ID, title, and description within the selected Issue List View. Every search token must match for an Issue to remain visible.
-_Avoid_: Global search, comment search, server search
+**Issue Search**: A local, case-insensitive token search over Issue ID, title, and description within the selected Issue List View. Every search token must match for an Issue to remain visible. _Avoid_: Global search, comment search, server search
 
-**Issue List View**:
-A selectable lens that chooses which Issues the Issue List shows. Issue List Views include All Issues, Ready, Blocked, and status-specific views; they may overlap because they answer different Beadwork questions.
-_Avoid_: Combined filter, faceted filter, tab
+**Issue List View**: A selectable lens that chooses which Issues the Issue List shows. Issue List Views include All Issues, Ready, Blocked, and status-specific views; they may overlap because they answer different Beadwork questions. _Avoid_: Combined filter, faceted filter, tab
 
-**Issue Status**:
-A Beadwork-stored lifecycle value for an Issue, such as `open`, `in_progress`, `closed`, or `deferred`. Beadsmith may display humanized labels such as "In Progress", but status-specific Issue List Views match the stored Beadwork status value.
-_Avoid_: State, view state, readiness
+**Issue Status**: A Beadwork-stored lifecycle value for an Issue, such as `open`, `in_progress`, `closed`, or `deferred`. Beadsmith may display humanized labels such as "In Progress", but status-specific Issue List Views match the stored Beadwork status value. _Avoid_: State, view state, readiness
 
-**All Issues**:
-Every Beadwork issue in the current workspace across Beadwork's stored statuses.
-_Avoid_: Actionable issues, default list, open issues, ready issues, blocked issues
+**All Issues**: Every Beadwork issue in the current workspace across Beadwork's stored statuses. _Avoid_: Actionable issues, default list, open issues, ready issues, blocked issues
 
-**Ready**:
-The Beadwork-authored view of Issues available to work next. Membership is computed from stored data and the current time — a deferred Issue becomes Ready when its `defer_until` boundary passes, without a new Beadwork commit. Beadsmith treats Beadwork's ready calculation as authoritative instead of reimplementing readiness rules.
-_Avoid_: Locally ready, unblocked open issue
+**Ready**: The Beadwork-authored view of Issues available to work next. Membership is computed from stored data and the current time — a deferred Issue becomes Ready when its `defer_until` boundary passes, without a new Beadwork commit. Beadsmith treats Beadwork's ready calculation as authoritative instead of reimplementing readiness rules. _Avoid_: Locally ready, unblocked open issue
 
-**Blocked**:
-The Beadwork-authored view of Issues that cannot proceed because of unresolved blockers. Beadsmith treats Beadwork's blocked calculation as authoritative instead of reimplementing blocking rules.
-_Avoid_: Locally blocked, has dependencies
+**Blocked**: The Beadwork-authored view of Issues that cannot proceed because of unresolved blockers. Beadsmith treats Beadwork's blocked calculation as authoritative instead of reimplementing blocking rules. _Avoid_: Locally blocked, has dependencies
 
-**Workspace**:
-The root directory of a local Git repository initialized as a Beadwork workspace that Beadsmith has been configured to show. Each Workspace has a user-visible name and a filesystem path. Beadsmith remembers Workspaces across restarts.
-_Avoid_: Project, repository, folder, directory (when referring to the Beadsmith concept)
+**Workspace**: The root directory of a local Git repository initialized as a Beadwork workspace that Beadsmith has been configured to show. Each Workspace has a user-visible name and a filesystem path. Beadsmith remembers Workspaces across restarts. _Avoid_: Project, repository, folder, directory (when referring to the Beadsmith concept)
 
-**Current Workspace**:
-The Workspace whose Beadwork issues Beadsmith is currently showing. The user selects the Current Workspace from their known Workspaces.
-_Avoid_: Active workspace, selected folder
+**Current Workspace**: The Workspace whose Beadwork issues Beadsmith is currently showing. The user selects the Current Workspace from their known Workspaces. _Avoid_: Active workspace, selected folder
 
-**Workspace Catalog**:
-The locally persisted, MRU-ordered collection of remembered Workspaces. It may contain both available and Unavailable Workspaces. Removing an entry affects only this collection, never its Git repository or Beadwork data.
-_Avoid_: Recent-files list, local repository registry
+**Workspace Catalog**: The locally persisted, MRU-ordered collection of remembered Workspaces. It may contain both available and Unavailable Workspaces. Removing an entry affects only this collection, never its Git repository or Beadwork data. _Avoid_: Recent-files list, local repository registry
 
-**Pending Workspace**:
-A candidate Workspace being validated and loaded before it may become Current Workspace. Only the most recently selected Pending Workspace may commit; a newer selection supersedes the earlier attempt.
-_Avoid_: Current Workspace, active Workspace
+**Pending Workspace**: A candidate Workspace being validated and loaded before it may become Current Workspace. Only the most recently selected Pending Workspace may commit; a newer selection supersedes the earlier attempt. _Avoid_: Current Workspace, active Workspace
 
-**Unavailable Workspace**:
-A remembered Workspace whose saved path is currently missing or unreadable. It remains in the catalog until the user explicitly removes it, but cannot become the Current Workspace until validation and loading succeed.
-_Avoid_: Deleted workspace, invalid workspace (unless validation has established that it is not a Beadwork Workspace)
+**Unavailable Workspace**: A remembered Workspace whose saved path is currently missing or unreadable. It remains in the catalog until the user explicitly removes it, but cannot become the Current Workspace until validation and loading succeed. _Avoid_: Deleted workspace, invalid workspace (unless validation has established that it is not a Beadwork Workspace)
