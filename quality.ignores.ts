@@ -22,4 +22,7 @@ export const SCRATCH_IGNORES = ["scratch/**"] as const;
 
 // Files that must not be reformatted but are still linted (with targeted
 // rule overrides in oxlint.config.ts where needed).
-export const FORMAT_ONLY_IGNORES = ["src/rpc/bindings.ts"] as const;
+export const FORMAT_ONLY_IGNORES = [
+  "src/rpc/bindings.ts",
+  ".pi/chains/implement-bead.chain.md",
+] as const;

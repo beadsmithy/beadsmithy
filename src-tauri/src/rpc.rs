@@ -212,7 +212,7 @@ fn execute_switch_workspace<S: WorkspaceStore>(
 pub fn router<R: tauri::Runtime>(api: BeadsmithApiImpl) -> taurpc::Router<R> {
     let router = taurpc::Router::new()
         .export_config(specta_typescript::Typescript::default().header(
-            "// oxlint-disable no-unused-vars typescript/ban-ts-comment import/consistent-type-specifier-style import/newline-after-import typescript/consistent-type-definitions\n// @ts-nocheck\n",
+            "// oxlint-disable no-unused-vars typescript/ban-ts-comment import/consistent-type-specifier-style import/newline-after-import typescript/consistent-type-definitions unicorn/prefer-export-from\n// @ts-nocheck\n",
         ))
         .merge(api.into_handler());
 
