@@ -1,5 +1,5 @@
 {
-  "assignee": "",
+  "assignee": "Tomas Thor Jonsson",
   "blocked_by": [],
   "blocks": [
     "bsm-xii.3"
@@ -10,8 +10,8 @@
   "labels": [],
   "parent": "bsm-xii",
   "priority": 2,
-  "status": "open",
+  "status": "in_progress",
   "title": "Lock Issue Explorer orchestration contracts before extraction",
   "type": "task",
-  "updated_at": "2026-08-30T07:53:11Z"
+  "updated_at": "2026-08-30T08:05:32Z"
 }
