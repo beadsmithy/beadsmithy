@@ -1,0 +1,23 @@
+quality.ignores.ts
+  s_2447731f932fb7::t_0a3e5fc2297109 25-28
+src-tauri/src/rpc.rs
+  s_2447731f932fb7::t_9a262bd2905036 215
+.pi/chains/implement-bead.chain.md
+  s_2447731f932fb7::t_496aa936d66b2e 8-12,14-17,21-25,27-29,33-45
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.0",
+  "base_commit_sha": "8abaacd1b5e4d4be0f2025db1dd17e10d2a899d6",
+  "prompts": {},
+  "sessions": {
+    "s_2447731f932fb7": {
+      "agent_id": {
+        "tool": "pi",
+        "id": "01a051d6-7bee-7a8a-8db7-40afbf7b9e7a",
+        "model": "gpt-5.6-luna"
+      },
+      "human_author": "Tomas Thor Jonsson <benregn@gmail.com>"
+    }
+  }
+}
