@@ -1,0 +1,14 @@
+{
+  "assignee": "",
+  "blocked_by": [],
+  "blocks": [],
+  "created": "2026-08-30T08:30:52Z",
+  "description": "## Background\n\nThe repository's canonical quality gate, `mise run verify`, currently fails on the clean `main` branch even though the TypeScript and Rust test suites pass. The failures prevent the repository from establishing a green baseline and will make the planned PR-triggered CI workflow report failure for every change.\n\nThe failures fall into two independently implementable areas:\n\n1. TypeScript 7 rejects the obsolete `baseUrl` compiler option in `tsconfig.json`.\n2. Ultracite reports formatting and lint violations across existing source, test, E2E, and documentation files.\n\nRust formatting, Clippy, Rust tests, and Vitest currently pass.\n\n## What to build\n\nRestore a green repository quality gate through two child tasks:\n\n- Migrate the TypeScript configuration to the TypeScript 7-compatible shape.\n- Resolve the current Ultracite formatting and lint findings without weakening the configured rules.\n\nThe completed epic is verified by a successful `mise run verify`.\n\n## Technical Approach\n\nThe child tasks are independent and may be implemented in either order. Keep the TypeScript compiler configuration migration separate from the formatting/lint cleanup so each change has a focused cause and verification path.\n\n```mermaid\ngraph LR\n    A[\"Migrate TypeScript 7 configuration\"] --\u003e V[\"mise run verify passes\"]\n    B[\"Resolve Ultracite violations\"] --\u003e V\n```\n\n## Considerations\n\n- `mise.toml` is the canonical quality-task graph; use `mise run` tasks rather than invoking package scripts or raw tools directly for validation.\n- Preserve application behavior, generated RPC contracts, and test intent.\n- Do not silence lint rules or broadly disable checks merely to obtain a green result.\n- The existing Rust and test suites are passing and should remain passing.\n\n## Acceptance criteria\n\n- [ ] Both child tasks are complete.\n- [ ] `mise run verify` passes without suppressing the reported TypeScript or Ultracite failures.\n- [ ] Existing TypeScript, Rust, and E2E test intent remains unchanged.\n\n## Test Plan\n\n- Run the focused verification command for each child task.\n- Run the full canonical gate: `mise run verify`.\n- Confirm the working tree contains only the intended quality-compliance changes.\n\n## Triage\n\nready-for-agent",
+  "id": "bsm-6c8",
+  "labels": [],
+  "priority": 2,
+  "status": "open",
+  "title": "Restore repository quality gate compliance",
+  "type": "epic",
+  "updated_at": "2026-08-30T08:30:52Z"
+}
