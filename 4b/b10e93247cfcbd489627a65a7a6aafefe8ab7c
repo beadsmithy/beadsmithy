@@ -1,0 +1,18 @@
+.pi/agents/worker.md
+  h_9889e896d9694b 60-66
+.pi/prompts/implement-bead.md
+  h_9889e896d9694b 70-72
+docs/research/cross-environment-gate-acceptance.md
+  h_9889e896d9694b 3-5
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.0",
+  "base_commit_sha": "4bb10e93247cfcbd489627a65a7a6aafefe8ab7c",
+  "prompts": {},
+  "humans": {
+    "h_9889e896d9694b": {
+      "author": "Tomas Thor Jonsson <benregn@gmail.com>"
+    }
+  }
+}
