@@ -48,7 +48,6 @@ import {
   applyIssueExplorerRefresh,
   applyStartupIssueLoad,
   applyWorkspaceTransition,
-  clearRefreshHealth,
   INITIAL_WORKSPACE_REMOUNT_KEY,
   INITIAL_WORKSPACE_TRANSITION_GATE_STATE,
 } from "./workspaces/transition-gate";
@@ -357,7 +356,6 @@ const App = () => {
         transition,
         expectedGeneration
       );
-      const isClearSnapshot = decision.kind === "clearSnapshot";
       transitionGateRef.current = next;
       setConfirmedWorkspacePath(next.confirmedWorkspacePath);
 
@@ -365,16 +363,11 @@ const App = () => {
         return decision;
       }
 
-      // A confirmed path change / chooser transition must clear the
-      // renderer's refresh health so the prior Workspace's banner
-      // cannot linger behind the chooser.
-      if (isClearSnapshot) {
-        transitionGateRef.current = clearRefreshHealth(
-          transitionGateRef.current
-        );
-        setRefreshHealth(null);
-      }
-
+      // The gate resets health when the confirmed Workspace identity
+      // changes and retains it for in-place transitions. Mirror that
+      // computed presentation state for every admitted transition so
+      // a prior Workspace's banner cannot linger over a new snapshot.
+      setRefreshHealth(next.refreshHealth);
       setWorkspaceState(transition.state);
       applyTransitionDecision(decision, setIssueState, setWorkspaceKey);
       applyDeferredRefresh();
