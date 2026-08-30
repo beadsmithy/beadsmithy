@@ -22,7 +22,7 @@ export const Titlebar = ({
   onToggleSidebar,
   sidebarCollapsed,
 }: TitlebarProps) => (
-  <header className="flex h-10 shrink-0 items-center border-b border-border-main bg-surface select-none">
+  <header className="border-border-main bg-surface flex h-10 shrink-0 items-center border-b select-none">
     <div className="flex items-center gap-2 pr-2 pl-3">
       <button
         aria-label="Close"
@@ -53,7 +53,7 @@ export const Titlebar = ({
     <div className="ml-3 flex items-center gap-1" data-issue-navigation>
       <button
         aria-label={backLabel === null ? "Back" : `Back to ${backLabel}`}
-        className="flex size-7 items-center justify-center rounded text-muted transition-colors hover:bg-white/5 hover:text-text-main disabled:cursor-not-allowed disabled:opacity-40"
+        className="text-muted hover:text-text-main flex size-7 items-center justify-center rounded transition-colors hover:bg-white/5 disabled:cursor-not-allowed disabled:opacity-40"
         disabled={backDisabled}
         onClick={onBack}
         title={backLabel === null ? "Back" : `Back to ${backLabel}`}
@@ -65,7 +65,7 @@ export const Titlebar = ({
         aria-label={
           forwardLabel === null ? "Forward" : `Forward to ${forwardLabel}`
         }
-        className="flex size-7 items-center justify-center rounded text-muted transition-colors hover:bg-white/5 hover:text-text-main disabled:cursor-not-allowed disabled:opacity-40"
+        className="text-muted hover:text-text-main flex size-7 items-center justify-center rounded transition-colors hover:bg-white/5 disabled:cursor-not-allowed disabled:opacity-40"
         disabled={forwardDisabled}
         onClick={onForward}
         title={forwardLabel === null ? "Forward" : `Forward to ${forwardLabel}`}
@@ -78,7 +78,7 @@ export const Titlebar = ({
     <button
       aria-label={sidebarCollapsed ? "Expand sidebar" : "Collapse sidebar"}
       aria-pressed={!sidebarCollapsed}
-      className="ml-4 flex size-7 items-center justify-center rounded text-muted transition-colors hover:bg-white/5 hover:text-text-main"
+      className="text-muted hover:text-text-main ml-4 flex size-7 items-center justify-center rounded transition-colors hover:bg-white/5"
       onClick={onToggleSidebar}
       type="button"
     >

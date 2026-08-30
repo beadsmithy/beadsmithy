@@ -92,16 +92,16 @@ export const SettingsPage = ({
   return (
     <main
       aria-label="Settings"
-      className={`flex-1 overflow-y-auto bg-background ${className ?? ""}`}
+      className={`bg-background flex-1 overflow-y-auto ${className ?? ""}`}
     >
       <div className="mx-auto max-w-100 px-6 py-8">
-        <h1 className="text-lg font-semibold text-primary">Settings</h1>
+        <h1 className="text-primary text-lg font-semibold">Settings</h1>
 
         <section className="mt-6">
-          <h2 className="font-mono text-[10px] tracking-wider text-muted uppercase">
+          <h2 className="text-muted font-mono text-[10px] tracking-wider uppercase">
             Markdown Typography
           </h2>
-          <p className="mt-1 text-sm text-muted">
+          <p className="text-muted mt-1 text-sm">
             The base size for issue descriptions and comments across all
             workspaces.
           </p>
@@ -115,7 +115,7 @@ export const SettingsPage = ({
                 <input
                   aria-describedby={describedBy.join(" ")}
                   aria-invalid={state.validationError !== null}
-                  className="h-10 w-full [appearance:textfield] rounded-md border border-border-main bg-surface px-3 py-2 pr-10 text-sm text-text-main focus:border-accent focus:outline-none disabled:opacity-50 [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
+                  className="border-border-main bg-surface text-text-main focus:border-accent h-10 w-full [appearance:textfield] rounded-md border px-3 py-2 pr-10 text-sm focus:outline-none disabled:opacity-50 [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
                   disabled={state.loadStatus === "loading"}
                   id={inputId}
                   max={72}
@@ -127,14 +127,14 @@ export const SettingsPage = ({
                 />
                 <span
                   aria-hidden="true"
-                  className="absolute top-1/2 right-3 -translate-y-1/2 text-sm text-muted"
+                  className="text-muted absolute top-1/2 right-3 -translate-y-1/2 text-sm"
                 >
                   px
                 </span>
               </div>
               <button
                 aria-label="Reset font size to 14 px"
-                className="inline-flex h-10 items-center gap-1 rounded-md border border-border-main bg-surface px-3 text-sm text-text-main hover:bg-white/5 disabled:opacity-50"
+                className="border-border-main bg-surface text-text-main inline-flex h-10 items-center gap-1 rounded-md border px-3 text-sm hover:bg-white/5 disabled:opacity-50"
                 disabled={isResetDisabled}
                 onClick={onReset}
                 type="button"
@@ -144,7 +144,7 @@ export const SettingsPage = ({
               </button>
             </div>
 
-            <p className="mt-2 text-xs text-muted" id={helpId}>
+            <p className="text-muted mt-2 text-xs" id={helpId}>
               Enter a whole number from 8 to 72 px.
             </p>
 
@@ -156,7 +156,7 @@ export const SettingsPage = ({
 
             <output
               aria-live="polite"
-              className="mt-2 flex min-h-5 items-center gap-2 text-xs text-muted"
+              className="text-muted mt-2 flex min-h-5 items-center gap-2 text-xs"
               id={statusId}
             >
               <span>{statusText}</span>
@@ -176,7 +176,7 @@ export const SettingsPage = ({
           {loadWarning ? (
             <output
               aria-live="polite"
-              className="mt-4 block rounded border border-danger/40 bg-danger/10 p-2 text-xs text-text-main"
+              className="border-danger/40 bg-danger/10 text-text-main mt-4 block rounded border p-2 text-xs"
             >
               {loadWarning.message} Enter a valid value or Reset to repair.
             </output>
@@ -184,7 +184,7 @@ export const SettingsPage = ({
 
           <div
             aria-label="Typography preview"
-            className="mt-6 rounded-md border border-border-main bg-surface p-4"
+            className="border-border-main bg-surface mt-6 rounded-md border p-4"
           >
             <MarkdownContent
               ariaLabel="Markdown typography preview"
