@@ -218,8 +218,8 @@ export const interruptWorkspaceProgram = (
 /** Convert one complete application program into React actions. */
 export const observeWorkspaceProgram = async <A>(
   fiber: Fiber.RuntimeFiber<A, WorkspaceServiceFailure>,
-  onFailure: (error: WorkspaceServiceFailure) => void,
-  onSuccess: (value: A) => void
+  onFailure: (error: WorkspaceServiceFailure) => void | Promise<void>,
+  onSuccess: (value: A) => void | Promise<void>
 ): Promise<void> => {
   try {
     const result = await Effect.runPromise(
@@ -229,10 +229,10 @@ export const observeWorkspaceProgram = async <A>(
       })
     );
     if (result.kind === "failure") {
-      onFailure(result.error);
+      await onFailure(result.error);
       return;
     }
-    onSuccess(result.value);
+    await onSuccess(result.value);
   } catch {
     // An interrupted Fiber has no React result to commit. Callback errors are
     // deliberately outside this catch so programming errors remain visible.

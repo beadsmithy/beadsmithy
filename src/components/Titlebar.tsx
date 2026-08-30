@@ -27,24 +27,36 @@ export const Titlebar = ({
       <button
         aria-label="Close"
         className="size-3 rounded-full bg-red-500 hover:bg-red-400"
-        onClick={() => {
-          getCurrentWindow().close();
+        onClick={async () => {
+          try {
+            await getCurrentWindow().close();
+          } catch {
+            // The window may already be closing; no UI recovery is possible.
+          }
         }}
         type="button"
       />
       <button
         aria-label="Minimize"
         className="size-3 rounded-full bg-yellow-500 hover:bg-yellow-400"
-        onClick={() => {
-          getCurrentWindow().minimize();
+        onClick={async () => {
+          try {
+            await getCurrentWindow().minimize();
+          } catch {
+            // A native window failure has no recoverable UI state.
+          }
         }}
         type="button"
       />
       <button
         aria-label="Maximize"
         className="size-3 rounded-full bg-green-500 hover:bg-green-400"
-        onClick={() => {
-          getCurrentWindow().toggleMaximize();
+        onClick={async () => {
+          try {
+            await getCurrentWindow().toggleMaximize();
+          } catch {
+            // A native window failure has no recoverable UI state.
+          }
         }}
         type="button"
       />
