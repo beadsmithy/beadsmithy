@@ -1,0 +1,21 @@
+src/App.tsx
+  s_3e12188341a367::t_f11f24ec1be777 362-366
+src/App.issue-refresh.test.tsx
+  s_3e12188341a367::t_22647cf8cc07f4 606-686
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.0",
+  "base_commit_sha": "e67bc29ea917c7c2cada232ba054b6f4501d62d2",
+  "prompts": {},
+  "sessions": {
+    "s_3e12188341a367": {
+      "agent_id": {
+        "tool": "pi",
+        "id": "01a051ac-a8e8-7d46-99e1-49f3a34f1a3f",
+        "model": "gpt-5.6-luna"
+      },
+      "human_author": "Tomas Thor Jonsson <benregn@gmail.com>"
+    }
+  }
+}
