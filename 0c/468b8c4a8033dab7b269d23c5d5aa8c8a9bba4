@@ -1,0 +1,33 @@
+src/App.tsx
+  s_2447731f932fb7::t_a2a140597bc659 647,661,667,709,712,715,719
+src/components/Sidebar.tsx
+  s_2447731f932fb7::t_4bba28e013cebb 52,88,103,153,158,178,199,208,211
+src/components/Titlebar.tsx
+  s_2447731f932fb7::t_859a34bdfebc71 25,56,68,81
+src/components/WorkspaceSelector.tsx
+  s_2447731f932fb7::t_034d5db94d90ec 56,61,70,91,96,99,108,128,131,134,141,169,207,209,212,215,285-286
+src/components/ui/Alert.tsx
+  s_2447731f932fb7::t_6eb87892aad0ac 37,51
+src/issues/IssueExplorer.tsx
+  s_2447731f932fb7::t_5f43631679cc91 128,132,135-136,139,143,155,162,184,187-188,224-226,237,242,245,288,290-291,294,300,314,316-317,320,326,335,338-339,342-343,362,365,369,396,419,438,447,455,458,483,495,501,521,573,579,585,598,604,609,612,625,628,633,636,643,649,659,676,679,708,733,1003,1007,1012,1014,1022
+src/issues/RefreshFailureBanner.tsx
+  s_2447731f932fb7::t_5bd00411436f35 97,102-103
+src/settings/SettingsPage.tsx
+  s_2447731f932fb7::t_0d3adcdda71795 95,98,101,104,118,130,137,147,159,179,187
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.0",
+  "base_commit_sha": "0c468b8c4a8033dab7b269d23c5d5aa8c8a9bba4",
+  "prompts": {},
+  "sessions": {
+    "s_2447731f932fb7": {
+      "agent_id": {
+        "tool": "pi",
+        "id": "01a051d6-7bee-7a8a-8db7-40afbf7b9e7a",
+        "model": "gpt-5.6-luna"
+      },
+      "human_author": "Tomas Thor Jonsson <benregn@gmail.com>"
+    }
+  }
+}
