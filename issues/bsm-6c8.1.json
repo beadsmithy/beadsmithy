@@ -2,14 +2,15 @@
   "assignee": "Tomas Thor Jonsson",
   "blocked_by": [],
   "blocks": [],
+  "closed_at": "2026-08-30T08:36:54Z",
   "created": "2026-08-30T08:30:52Z",
   "description": "## Background\n\nThe repository's TypeScript typecheck currently fails before checking application code because TypeScript 7 removed the `baseUrl` compiler option. The failure is reported by `mise run verify` as:\n\n`tsconfig.json(20,5): error TS5102: Option 'baseUrl' has been removed. Please remove it from your configuration. Use '\"paths\": {\"*\": [\"./*\"]}' instead.`\n\nUntil the configuration is migrated, the canonical repository quality gate cannot pass and TypeScript changes cannot be validated.\n\n## What to build\n\nUpdate the TypeScript configuration to the TypeScript 7-compatible equivalent while preserving the repository's current module-resolution and import behavior. The user's application behavior and source layout must not change as part of this configuration-only migration.\n\n## Technical Approach\n\n- Inspect `tsconfig.json` and the current import/path usage before editing.\n- Remove the obsolete `baseUrl` setting.\n- If the former base-directory behavior is needed by existing imports, express the supported equivalent through an appropriate `paths` configuration, following TypeScript 7's diagnostic guidance, and verify that it does not introduce a new alias or alter runtime bundler resolution.\n- Keep unrelated compiler options unchanged.\n- Use the mise task graph for verification.\n\n## Considerations\n\n- TypeScript configuration affects editor tooling, type resolution, bundling assumptions, and generated declarations; do not treat this as a blind deletion if existing imports rely on the old behavior.\n- Do not upgrade or downgrade TypeScript to avoid the error.\n- Do not modify application code solely to hide a configuration-resolution problem.\n- Preserve the existing generated RPC binding workflow.\n\n## Acceptance criteria\n\n- [ ] `tsconfig.json` contains no unsupported `baseUrl` option.\n- [ ] Existing source imports continue to resolve without broad path or module-resolution regressions.\n- [ ] `mise run ts:typecheck` passes.\n- [ ] The change does not alter application behavior or generated RPC contracts.\n\n## Test Plan\n\n- Run `mise run ts:typecheck`.\n- Run `mise run ts:test` to guard the renderer behavior.\n- After both quality-compliance child tasks land, run `mise run verify`.\n\n## Triage\n\nready-for-agent",
   "id": "bsm-6c8.1",
   "labels": [],
   "parent": "bsm-6c8",
   "priority": 2,
-  "status": "in_progress",
+  "status": "closed",
   "title": "Migrate TypeScript configuration for TypeScript 7",
   "type": "task",
-  "updated_at": "2026-08-30T08:32:18Z"
+  "updated_at": "2026-08-30T08:36:54Z"
 }
