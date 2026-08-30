@@ -129,7 +129,7 @@ depends = [
 [tasks."hook:ultracite-staged"]
 description = "Pre-commit adapter: Ultracite fix on staged files"
 raw_args = true
-run = "pnpm exec ultracite fix"
+run = 'pnpm exec ultracite fix --no-error-on-unmatched-pattern "$@"'
 
 [tasks."hook:react-doctor-staged"]
 description = "Pre-commit adapter: React Doctor staged scan (reads the git index; pass no file args)"
