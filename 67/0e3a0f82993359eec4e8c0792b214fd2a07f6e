@@ -1,0 +1,31 @@
+src/workspaces/workspace-service.ts
+  s_2447731f932fb7::t_10d396030e547b 221-222
+  s_2447731f932fb7::t_a03873f1281786 232,235
+src/components/Titlebar.tsx
+  s_2447731f932fb7::t_502916b7a754c3 30-35,42-47,54-58
+  s_2447731f932fb7::t_bd5a1b894e7152 59
+src/issues/use-workspace-coordinator.ts
+  s_2447731f932fb7::t_b524a728d1d52b 104-105
+  s_2447731f932fb7::t_c18fdfb9cf50f1 290-294,297-302,307-314
+  s_2447731f932fb7::t_8cddfc7f51981d 186-192,196-200,203-209,211-213,216-220,223-238,241-247,249-251,254-259
+  s_2447731f932fb7::t_be250c1be89d17 115,117,119,121
+  s_2447731f932fb7::t_772465c2a4f14b 193-195,210,214-215,248,252-253
+  s_2447731f932fb7::t_e1a650d505d6ab 262,265
+  s_2447731f932fb7::t_ee560d5bbbdb9e 141-161,164-168
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.0",
+  "base_commit_sha": "670e3a0f82993359eec4e8c0792b214fd2a07f6e",
+  "prompts": {},
+  "sessions": {
+    "s_2447731f932fb7": {
+      "agent_id": {
+        "tool": "pi",
+        "id": "01a051d6-7bee-7a8a-8db7-40afbf7b9e7a",
+        "model": "gpt-5.6-luna"
+      },
+      "human_author": "Tomas Thor Jonsson <benregn@gmail.com>"
+    }
+  }
+}
