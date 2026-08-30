@@ -1,0 +1,15 @@
+{
+  "assignee": "",
+  "blocked_by": [],
+  "blocks": [],
+  "created": "2026-08-30T07:52:51Z",
+  "description": "## Background\n\nRefresh health belongs to the confirmed Current Workspace identity. The transition gate already clears its stored refresh health when that identity changes, but `App` mirrors health in separate React state and clears that mirror only for a `clearSnapshot` decision. A normal Workspace A → Workspace B `commitSnapshot` can therefore leave Workspace A's refresh warning visible over Workspace B.\n\nThis behavior must be fixed before the Issue Explorer coordinator refactor establishes its baseline; otherwise the refactor may hide an accidental behavior change.\n\nTriage: `ready-for-agent`.\n\n## What to build\n\nWhen a successful Workspace transition commits a different Current Workspace identity, clear the prior Workspace's refresh-health presentation. Preserve refresh health for in-place refreshes of the same Workspace.\n\n## Technical Approach\n\n- Add an App-level regression test that loads Workspace A, publishes a Health refresh warning for A, and commits Workspace B.\n- Assert that A's warning disappears when B's Issue Explorer snapshot becomes current.\n- Apply the transition gate's computed health reset to the React presentation on every admitted identity change rather than only on `clearSnapshot`.\n- Keep the change narrowly scoped; do not begin the coordinator extraction or consolidate unrelated presentation state in this issue.\n\n## Considerations\n\n- A same-Workspace Snapshot refresh must not clear a current Health warning unless a Health event does so.\n- Pending Workspace presentation must continue retaining the previous successful snapshot for cancellation.\n- Current Workspace and its matching Issue Explorer snapshot must still publish atomically.\n- Do not change `data-workspace-key` behavior beyond the existing committed-identity rules.\n\n## Acceptance criteria\n\n- [ ] A Health warning for Workspace A is removed when Workspace B becomes Current.\n- [ ] An in-place refresh for the same Workspace retains marker, Issue List View, search, selected Issue, and applicable refresh health.\n- [ ] The regression is covered through the rendered App interface.\n- [ ] No coordinator extraction or unrelated state restructuring is included.\n- [ ] `mise run verify` passes.\n\n## Test Plan\n\n- Add the A-health → B-commit regression case to `src/App.issue-refresh.test.tsx` or the most focused existing App Workspace-switching suite.\n- Run `mise run ts:test` while iterating.\n- Run `mise run verify` before completion.\n- No new desktop E2E scenario is required; the renderer integration test covers this presentation rule.",
+  "id": "bsm-xii.1",
+  "labels": [],
+  "parent": "bsm-xii",
+  "priority": 2,
+  "status": "open",
+  "title": "Clear refresh health when Current Workspace identity changes",
+  "type": "bug",
+  "updated_at": "2026-08-30T07:52:51Z"
+}
