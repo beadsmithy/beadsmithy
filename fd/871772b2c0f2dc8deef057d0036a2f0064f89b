@@ -1,0 +1,71 @@
+src/components/MarkdownContent.tsx
+  s_2447731f932fb7::t_8bd60f88757f95 5,196,200
+  s_2447731f932fb7::t_e67f7eeb36fedc 195,197-199,223-225
+src/components/mermaid/MermaidDiagram.tsx
+  s_2447731f932fb7::t_9256808aa9282d 205,302-305
+src/issues/IssueExplorer.tsx
+  s_2447731f932fb7::t_da5890b4b6125b 290,316,338,1056-1060
+src/App.css
+  s_2447731f932fb7::t_2e7cfa9b0528b8 14
+src/App.tsx
+  s_2447731f932fb7::t_efbb6d34b6c16d 720,739-741
+  s_2447731f932fb7::t_0dd9f4b6f9f7f0 201
+  s_2447731f932fb7::t_f0a2b1c80104e8 209,271-273,362,409
+  s_2447731f932fb7::t_433a166cd6dadc 578,592,750-752
+e2e/settings/settings-helpers.ts
+  s_2447731f932fb7::t_5ba55fe0649192 49
+src/lib/use-external-lifecycle.ts
+  s_2447731f932fb7::t_2e8aaba055dfc4 1,30
+src/issues/use-issue-navigation-coordinator.ts
+  s_2447731f932fb7::t_8cbed5bece548d 70
+  s_2447731f932fb7::t_48c40311e49566 54-55,57-66
+  s_2447731f932fb7::t_c34c69434a2eb0 14
+  s_2447731f932fb7::t_4a55697c317c81 1
+  s_2447731f932fb7::t_75774f90145475 52,69,229
+src/issues/use-workspace-coordinator.ts
+  s_2447731f932fb7::t_aeb4d83ceade03 146,178,180,186,188,198,200,209,211,250-252,262-264
+src/components/Titlebar.tsx
+  s_2447731f932fb7::t_37c717e51c7024 30-32,38-40,46-48
+.pi/agents/worker.md
+  s_2447731f932fb7::t_85abed6c8eba3c 60
+.pi/chains/implement-bead.chain.md
+  s_2447731f932fb7::t_b041ee7ef24075 8,10,14,16,20-22
+.pi/prompts/implement-bead.md
+  s_2447731f932fb7::t_67039f4dd198b2 70
+AGENTS.md
+  s_2447731f932fb7::t_c66b1aec64ba1c 9,28,30,36,50,52,70,184
+CONTEXT.md
+  s_2447731f932fb7::t_6891baed04b3b0 7,9,11,13,15,17,19,21,23,25,27,29,31,33,35,37,39,41
+docs/adr/0007-refresh-issue-list-by-polling-beadwork-ref.md
+  s_2447731f932fb7::t_562715334f25e6 27-34
+docs/agents/triage-labels.md
+  s_2447731f932fb7::t_1bcb98801267fd 5-11
+docs/agents/webdriver-e2e.md
+  s_2447731f932fb7::t_1ad7550529146e 3-5,41,45,56-65,69,82-86,90-98,102-107,111-115,119,125-126,130-132,136-138,142
+docs/research/cross-environment-gate-acceptance.md
+  s_2447731f932fb7::t_6b2a789f7c8f56 3,5,9,13,15-22,26-31,35,39,42,44,46-47,51-54,58,60,63,66,68
+docs/research/workspace-management-verification-and-migration.md
+  s_2447731f932fb7::t_4d9b1ea6947d6a 3,7,11-15,19-23,27,29-38,40,44-47,51-53
+src/components/MarkdownContent.test.tsx
+  s_2447731f932fb7::t_0f7a0b8c616926 233,252
+src/components/Sidebar.tsx
+  s_2447731f932fb7::t_74fc4556171e83 54,90
+src/settings/SettingsPage.tsx
+  s_2447731f932fb7::t_5d09a053a5093f 147-149
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.0",
+  "base_commit_sha": "fd871772b2c0f2dc8deef057d0036a2f0064f89b",
+  "prompts": {},
+  "sessions": {
+    "s_2447731f932fb7": {
+      "agent_id": {
+        "tool": "pi",
+        "id": "01a051d6-7bee-7a8a-8db7-40afbf7b9e7a",
+        "model": "gpt-5.6-luna"
+      },
+      "human_author": "Tomas Thor Jonsson <benregn@gmail.com>"
+    }
+  }
+}
