@@ -287,7 +287,7 @@ const IssueDetailNotFound = ({
     aria-label="Issue detail"
     className="flex flex-1 flex-col items-center justify-center bg-background p-8"
   >
-    <div className="mb-6 flex size-16 items-center justify-center rounded-2xl border border-danger/40 bg-danger/10 shadow-[inset_0_1px_0_rgba(255,255,255,0.05)]">
+    <div className="mb-6 flex size-16 items-center justify-center rounded-2xl border border-danger/40 bg-danger/10 shadow-[inset_0_1px_0_var(--color-surface-highlight)]">
       <AlertTriangle className="size-8 text-danger" strokeWidth={1.5} />
     </div>
     <h2
@@ -313,7 +313,7 @@ const IssueDetailEmpty = ({
     aria-label="Issue detail"
     className="flex flex-1 flex-col items-center justify-center bg-background p-8"
   >
-    <div className="mb-6 flex size-16 items-center justify-center rounded-2xl border border-border-main bg-surface shadow-[inset_0_1px_0_rgba(255,255,255,0.05)]">
+    <div className="mb-6 flex size-16 items-center justify-center rounded-2xl border border-border-main bg-surface shadow-[inset_0_1px_0_var(--color-surface-highlight)]">
       <FileText className="size-8 text-muted" strokeWidth={1.5} />
     </div>
     <h2
@@ -335,7 +335,7 @@ const IssueDetailDescriptionEmpty = () => (
     className="mt-2 flex items-center gap-3 rounded-lg border border-border-main bg-surface p-4"
     role="note"
   >
-    <div className="flex size-10 shrink-0 items-center justify-center rounded-xl border border-border-main bg-background shadow-[inset_0_1px_0_rgba(255,255,255,0.05)]">
+    <div className="flex size-10 shrink-0 items-center justify-center rounded-xl border border-border-main bg-background shadow-[inset_0_1px_0_var(--color-surface-highlight)]">
       <FileText className="size-5 text-muted" strokeWidth={1.5} />
     </div>
     <div>
@@ -1053,7 +1053,11 @@ export const IssueExplorer = ({
         openExternalLink={openExternalLink}
         selectedIssue={selectedIssue}
         onCopyDeepLink={
-          selectedIssue === null ? undefined : () => void handleCopyDeepLink()
+          selectedIssue === null
+            ? undefined
+            : () => {
+                handleCopyDeepLink();
+              }
         }
         copySucceeded={copySucceeded}
         missingIssueId={

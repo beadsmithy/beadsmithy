@@ -1,4 +1,4 @@
-import { useEffect } from "react";
+import { useEffect as useReactEffect } from "react";
 import type { DependencyList } from "react";
 
 export type EffectCleanup = () => void;
@@ -27,11 +27,8 @@ export const useExternalLifecycle = (
   // The helper intentionally forwards the caller's dependency contract. The
   // exhaustive-deps rule cannot infer dependencies captured by a callback
   // parameter, so the helper's interface makes that contract explicit.
-  // oxlint-disable react-hooks/exhaustive-deps
-  // oxlint-disable-next-line eslint-js/no-restricted-syntax
-  useEffect(() => {
+  useReactEffect(() => {
     const result = effect();
     return isEffectCleanup(result) ? result : undefined;
   }, dependencies);
-  // oxlint-enable react-hooks/exhaustive-deps
 };

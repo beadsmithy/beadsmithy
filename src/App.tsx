@@ -198,7 +198,7 @@ const applyRefreshDecision = (
     case "commitRefreshHealth": {
       gateRef.current = next;
       setRefreshHealth(decision.health);
-      return;
+      break;
     }
     default: {
       break;
@@ -206,7 +206,7 @@ const applyRefreshDecision = (
   }
 };
 
-export default function App() {
+const App = () => {
   const [issueState, setIssueState] = useState<IssueExplorerLoadState>(
     ISSUE_EXPLORER_LOADING_STATE
   );
@@ -268,6 +268,9 @@ export default function App() {
   const transitionGateRef = useRef<WorkspaceTransitionGateState>(
     INITIAL_WORKSPACE_TRANSITION_GATE_STATE
   );
+  const [confirmedWorkspacePath, setConfirmedWorkspacePath] = useState<
+    string | null
+  >(INITIAL_WORKSPACE_TRANSITION_GATE_STATE.confirmedWorkspacePath);
   /**
    * Per-variant deferred buffer for `beadwork://issue-explorer-state-changed`
    * events whose selection generation is newer than the gate's confirmed
@@ -356,6 +359,7 @@ export default function App() {
       );
       const isClearSnapshot = decision.kind === "clearSnapshot";
       transitionGateRef.current = next;
+      setConfirmedWorkspacePath(next.confirmedWorkspacePath);
 
       if (decision.kind === "ignore") {
         return decision;
@@ -402,7 +406,7 @@ export default function App() {
 
   useIssueWorkspaceTraversal({
     applyTransition,
-    confirmedWorkspacePath: transitionGateRef.current.confirmedWorkspacePath,
+    confirmedWorkspacePath,
     currentNavigationEntry,
     currentNavigationIndex,
     issueState,
@@ -571,6 +575,7 @@ export default function App() {
             dispatchedAtCommittedGeneration
           );
           transitionGateRef.current = next;
+          setConfirmedWorkspacePath(next.confirmedWorkspacePath);
           if (decision.kind === "ignore") {
             return;
           }
@@ -584,6 +589,7 @@ export default function App() {
             dispatchedAtCommittedGeneration
           );
           transitionGateRef.current = next;
+          setConfirmedWorkspacePath(next.confirmedWorkspacePath);
           if (decision.kind === "ignore") {
             return;
           }
@@ -711,7 +717,7 @@ export default function App() {
                   </p>
                   <button
                     className="mt-4 rounded border border-border-main px-3 py-2 text-sm hover:bg-white/5"
-                    onClick={workspaceHandlers.onChoose}
+                    onClick={() => workspaceHandlers.onChoose()}
                     type="button"
                   >
                     Choose folder
@@ -730,9 +736,9 @@ export default function App() {
             <Route path="/settings">
               <SettingsPage
                 className="absolute inset-0 z-10"
-                onDraftChange={settings.setDraft}
-                onReset={settings.reset}
-                onRetry={settings.retry}
+                onDraftChange={(value) => settings.setDraft(value)}
+                onReset={() => settings.reset()}
+                onRetry={() => settings.retry()}
                 state={settings.state}
               />
             </Route>
@@ -741,4 +747,6 @@ export default function App() {
       </div>
     </div>
   );
-}
+};
+
+export default App;

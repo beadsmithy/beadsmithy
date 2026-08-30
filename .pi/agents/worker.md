@@ -57,8 +57,4 @@ When running in a chain, expect instructions about:
 
 Your final response should follow this shape:
 
-Implemented X.
-Changed files: Y.
-Validation: Z.
-Open risks/questions: R.
-Recommended next step: N.
+Implemented X. Changed files: Y. Validation: Z. Open risks/questions: R. Recommended next step: N.

@@ -51,7 +51,7 @@ const SidebarSettingsButton = ({
     aria-label="Settings"
     className={`flex w-full items-center rounded-md px-2 py-1.5 text-sm transition-colors hover:bg-white/5 hover:text-text-main ${
       collapsed ? "justify-center" : ""
-    } ${current ? "bg-white/5 text-primary" : "text-muted"}`}
+    } ${current ? "text-primary bg-white/5" : "text-muted"}`}
     onClick={onClick}
     title="Settings"
     type="button"
@@ -87,7 +87,7 @@ const SidebarNavButton = ({
       }
       className={`flex w-full items-center rounded-md px-2 py-1.5 text-sm transition-colors hover:bg-white/5 hover:text-text-main hover:disabled:bg-transparent hover:disabled:text-muted ${
         collapsed ? "justify-center" : ""
-      } ${current ? "bg-white/5 text-primary" : "text-muted"}`}
+      } ${current ? "text-primary bg-white/5" : "text-muted"}`}
       disabled={disabled}
       onClick={() => {
         onSelect(item.id);

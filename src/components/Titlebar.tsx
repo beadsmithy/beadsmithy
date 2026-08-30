@@ -27,19 +27,25 @@ export const Titlebar = ({
       <button
         aria-label="Close"
         className="size-3 rounded-full bg-red-500 hover:bg-red-400"
-        onClick={() => void getCurrentWindow().close()}
+        onClick={() => {
+          getCurrentWindow().close();
+        }}
         type="button"
       />
       <button
         aria-label="Minimize"
         className="size-3 rounded-full bg-yellow-500 hover:bg-yellow-400"
-        onClick={() => void getCurrentWindow().minimize()}
+        onClick={() => {
+          getCurrentWindow().minimize();
+        }}
         type="button"
       />
       <button
         aria-label="Maximize"
         className="size-3 rounded-full bg-green-500 hover:bg-green-400"
-        onClick={() => void getCurrentWindow().toggleMaximize()}
+        onClick={() => {
+          getCurrentWindow().toggleMaximize();
+        }}
         type="button"
       />
     </div>

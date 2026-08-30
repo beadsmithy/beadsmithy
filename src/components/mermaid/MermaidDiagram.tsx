@@ -202,23 +202,14 @@ interface MermaidDiagramProps {
   source: string;
 }
 
-export const MermaidDiagram = ({ source }: MermaidDiagramProps) => {
+const MermaidDiagramContent = ({ source }: MermaidDiagramProps) => {
   const [render, setRender] = useState<RenderState>({ status: "loading" });
   const [activeTab, setActiveTab] = useState<DiagramTab>("diagram");
-  const renderedSourceRef = useRef(source);
   const baseId = useId();
   const diagramTabId = `${baseId}-diagram-tab`;
   const sourceTabId = `${baseId}-source-tab`;
   const diagramPanelId = `${baseId}-diagram-panel`;
   const sourcePanelId = `${baseId}-source-panel`;
-
-  // Reset to the loading view synchronously when the source changes so the
-  // reader never sees the previous diagram flash against the new source.
-  if (source !== renderedSourceRef.current) {
-    renderedSourceRef.current = source;
-    setRender({ status: "loading" });
-    setActiveTab("diagram");
-  }
 
   const handleRendered = useCallback((svg: string) => {
     setRender({ status: "success", svg });
@@ -308,3 +299,7 @@ export const MermaidDiagram = ({ source }: MermaidDiagramProps) => {
     </div>
   );
 };
+
+export const MermaidDiagram = ({ source }: MermaidDiagramProps) => (
+  <MermaidDiagramContent key={source} source={source} />
+);

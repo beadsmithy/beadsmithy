@@ -230,7 +230,7 @@ describe("MarkdownContent", () => {
 
     render(
       <MarkdownContent
-        markdown={"Visit https://example.com today."}
+        markdown="Visit https://example.com today."
         openExternalLink={openExternalLink}
       />
     );
@@ -249,7 +249,7 @@ describe("MarkdownContent", () => {
 
     render(
       <MarkdownContent
-        markdown={"See http://example.com/plain."}
+        markdown="See http://example.com/plain."
         openExternalLink={openExternalLink}
       />
     );

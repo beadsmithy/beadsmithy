@@ -6,8 +6,7 @@ This project is building a desktop client for [beadwork](https://github.com/jall
 
 # Repo Structure
 
-This repo is structured with the decisions in `docs/adr/`, the thinking/planning/research in `docs/research/`,
-and the building in `src/` and `scr-tauri/`.
+This repo is structured with the decisions in `docs/adr/`, the thinking/planning/research in `docs/research/`, and the building in `src/` and `scr-tauri/`.
 
 ```
 beadsmith/                              # meta-operating layer (you are here)
@@ -26,19 +25,15 @@ beadsmith/                              # meta-operating layer (you are here)
 
 ## Work Management
 
-This project also uses `bw` (beadwork) for tracking work, which persists to git — plans, progress, and decisions survive compaction, session
-boundaries, and context loss.
+This project also uses `bw` (beadwork) for tracking work, which persists to git — plans, progress, and decisions survive compaction, session boundaries, and context loss.
 
-ALWAYS run `bw prime` before starting work. Without it, you're missing workflow context, current state, and repo hygiene warnings. Work
-done without priming often conflicts with in-progress changes.
+ALWAYS run `bw prime` before starting work. Without it, you're missing workflow context, current state, and repo hygiene warnings. Work done without priming often conflicts with in-progress changes.
 
 Committing, closing issues, and syncing are part of completing a task — not separate actions requiring additional permission.
 
 ## Quality Gates
 
-All quality commands run through the canonical mise task graph in `mise.toml`. Do not invoke package scripts or raw
-tool commands (`pnpm test`, `pnpm dlx ultracite …`, `cargo test`, …) for lint, format, typecheck, or tests — the mise
-tasks are the single source of truth.
+All quality commands run through the canonical mise task graph in `mise.toml`. Do not invoke package scripts or raw tool commands (`pnpm test`, `pnpm dlx ultracite …`, `cargo test`, …) for lint, format, typecheck, or tests — the mise tasks are the single source of truth.
 
 Bootstrap the toolchain once per checkout:
 
@@ -52,13 +47,9 @@ The mergeability check must pass before committing:
 mise run verify
 ```
 
-`verify` runs frontend lint/format, typecheck, and unit tests, plus Rust format check, Clippy, and Rust tests.
-Individual tasks when you need them: bare names (`mise run check`, `mise run fix`, `mise run typecheck`, `mise run
-test`) run that operation across both stacks; `ts:`/`rust:` prefixes select one stack (`mise run ts:test`,
-`mise run rust:clippy`, …). E2E desktop scenarios are intentionally separate — see `docs/agents/webdriver-e2e.md`.
+`verify` runs frontend lint/format, typecheck, and unit tests, plus Rust format check, Clippy, and Rust tests. Individual tasks when you need them: bare names (`mise run check`, `mise run fix`, `mise run typecheck`, `mise run test`) run that operation across both stacks; `ts:`/`rust:` prefixes select one stack (`mise run ts:test`, `mise run rust:clippy`, …). E2E desktop scenarios are intentionally separate — see `docs/agents/webdriver-e2e.md`.
 
-The two doctor tools are distinct: **React Doctor** (`mise run doctor:react`) audits React code health; **Ultracite
-Doctor** (`mise run doctor:ultracite`) verifies the Ultracite setup itself.
+The two doctor tools are distinct: **React Doctor** (`mise run doctor:react`) audits React code health; **Ultracite Doctor** (`mise run doctor:ultracite`) verifies the Ultracite setup itself.
 
 ## Agent skills
 
@@ -76,9 +67,7 @@ This is a single-context repo with domain context at root `CONTEXT.md` when pres
 
 ### WebDriver end-to-end testing
 
-Slice-level user-path proof (launches the real built desktop binary, not a renderer-only or mocked test) lives in
-per-slice `wdio.*.conf.ts` files at the repo root plus `e2e/`. See `docs/agents/webdriver-e2e.md` for the Issue
-List slice's suite, how to run it, and its known upstream caveats.
+Slice-level user-path proof (launches the real built desktop binary, not a renderer-only or mocked test) lives in per-slice `wdio.*.conf.ts` files at the repo root plus `e2e/`. See `docs/agents/webdriver-e2e.md` for the Issue List slice's suite, how to run it, and its known upstream caveats.
 
 <important if="writing frontend react or typescript code">
 ## Ultracite Code Standards
@@ -192,5 +181,4 @@ Oxlint + Oxfmt's linter will catch most issues automatically. Focus your attenti
 3. **Architecture decisions** - Component structure, data flow, and API design
 4. **Edge cases** - Handle boundary conditions and error states
 5. **User experience** - Accessibility, performance, and usability considerations
-6. **Documentation** - Add comments for complex logic, but prefer self-documenting code
-   </important>
+6. **Documentation** - Add comments for complex logic, but prefer self-documenting code </important>

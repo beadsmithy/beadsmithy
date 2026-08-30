@@ -144,10 +144,9 @@ export const SettingsPage = ({
               </button>
             </div>
 
-            <p
-              className="mt-2 text-xs text-muted"
-              id={helpId}
-            >{`Enter a whole number from 8 to 72 px.`}</p>
+            <p className="mt-2 text-xs text-muted" id={helpId}>
+              Enter a whole number from 8 to 72 px.
+            </p>
 
             {validationError ? (
               <p className="mt-2 text-xs text-red-200" id={errorId}>

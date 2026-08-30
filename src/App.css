@@ -11,6 +11,7 @@
   --color-border-main: #27272a;
   --color-success: #10b981;
   --color-danger: #ef4444;
+  --color-surface-highlight: rgb(255 255 255 / 5%);
 
   /* shadcn/ui token aliases mapped onto the Beadsmith palette so shared UI
      primitives (e.g. Alert) inherit the existing design tokens. */

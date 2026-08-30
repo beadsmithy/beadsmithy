@@ -143,7 +143,7 @@ export const useWorkspaceCoordinator = ({
       () => {
         if (isCurrentNavigationIntent(navigationIntentRef, intentGeneration)) {
           finishNavigationIntent(navigationIntentRef, intentGeneration);
-          void refreshWorkspaceState();
+          refreshWorkspaceState();
         }
       },
       (result) => {
@@ -175,17 +175,17 @@ export const useWorkspaceCoordinator = ({
   };
 
   const removeSelectedWorkspace = (path: string): void => {
-    void runProgram(
+    runProgram(
       removeWorkspace(path),
-      () => void refreshWorkspaceState(),
+      () => refreshWorkspaceState(),
       (state) => applyTransition({ issueData: null, state }, null)
     );
   };
 
   const retryMemory = (): void => {
-    void runProgram(
+    runProgram(
       retryWorkspaceMemory,
-      () => void refreshWorkspaceState(),
+      () => refreshWorkspaceState(),
       (result) =>
         applyTransition(
           { issueData: result.issueData, state: result.state },
@@ -195,9 +195,9 @@ export const useWorkspaceCoordinator = ({
   };
 
   const resetMemory = (): void => {
-    void runProgram(
+    runProgram(
       resetWorkspaceMemory,
-      () => void refreshWorkspaceState(),
+      () => refreshWorkspaceState(),
       (state) => {
         applyTransition({ issueData: null, state }, null);
         applyNoWorkspacePresentation(setIssueState, setWorkspaceKey);
@@ -206,9 +206,9 @@ export const useWorkspaceCoordinator = ({
   };
 
   const cancelPendingWorkspace = (): void => {
-    void runProgram(
+    runProgram(
       cancelWorkspaceSelection,
-      () => void refreshWorkspaceState(),
+      () => refreshWorkspaceState(),
       (result) =>
         applyTransition(
           { issueData: result.issueData, state: result.state },
@@ -247,7 +247,9 @@ export const useWorkspaceCoordinator = ({
         workspaceState?.pendingWorkspace === undefined
           ? undefined
           : () => cancelPendingWorkspace(),
-      onChoose: () => void chooseWorkspace(),
+      onChoose: () => {
+        chooseWorkspace();
+      },
       onDismissSwitchError: dismissSwitchError,
       onRemove: (path: string) => removeSelectedWorkspace(path),
       onResetMemory: () => resetMemory(),
@@ -257,7 +259,9 @@ export const useWorkspaceCoordinator = ({
           ? undefined
           : () => retryLastSwitch(),
       onRetryMemory: () => retryMemory(),
-      onSelect: (path: string) => void selectWorkspacePath(path),
+      onSelect: (path: string) => {
+        selectWorkspacePath(path);
+      },
     },
   };
 };
