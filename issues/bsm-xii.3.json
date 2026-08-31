@@ -1,5 +1,5 @@
 {
-  "assignee": "",
+  "assignee": "Tomas Thor Jonsson",
   "blocked_by": [
     "bsm-xii.1",
     "bsm-xii.2"
@@ -13,8 +13,8 @@
   "labels": [],
   "parent": "bsm-xii",
   "priority": 2,
-  "status": "open",
+  "status": "in_progress",
   "title": "Extract the Issue Explorer coordinator from App",
   "type": "task",
-  "updated_at": "2026-08-30T07:53:12Z"
+  "updated_at": "2026-08-31T12:20:40Z"
 }
