@@ -603,6 +603,87 @@ describe("App issue explorer refresh", () => {
     ).toBeNull();
   });
 
+  it("clears refresh health when a different Workspace becomes current", async () => {
+    const { listeners, implementation } = createBothListenersMock();
+    listen.mockImplementation(implementation);
+
+    const initialIssue = buildIssue({ id: "a-issue", title: "Workspace A" });
+    loadIssueExplorerStateFromTauRpc.mockResolvedValue(
+      successState({
+        allIssues: [initialIssue],
+        workspaceGeneration: 1,
+        workspacePath: "/work/a",
+      })
+    );
+    workspaceState.mockResolvedValue(
+      workspace({
+        catalog: [
+          { availability: "available", path: "/work/a" },
+          { availability: "available", path: "/work/b" },
+        ],
+        currentWorkspace: { availability: "available", path: "/work/a" },
+        generation: 1,
+      })
+    );
+
+    render(<App />);
+    await waitFor(() => {
+      expect(listeners.refresh).toBeDefined();
+      expect(listeners.transition).toBeDefined();
+    });
+    expect(await screen.findByText("Workspace A")).toBeInTheDocument();
+
+    act(() => {
+      listeners.refresh?.({
+        payload: {
+          eventType: "health",
+          health: {
+            loader: {
+              errorKind: "missingBw",
+              failureRevision: 1,
+              message: "bw missing",
+              transient: false,
+            },
+            refProbe: null,
+          },
+          refreshRevision: 5,
+          workspacePath: "/work/a",
+          workspaceSelectionGeneration: 1,
+        },
+      });
+    });
+    expect(
+      await screen.findByTestId("refresh-failure-banner")
+    ).toBeInTheDocument();
+
+    act(() => {
+      listeners.transition?.({
+        payload: {
+          issueData: {
+            allIssues: [buildIssue({ id: "b-issue", title: "Workspace B" })],
+            blockedIssues: [],
+            readyIssues: [],
+            workspaceGeneration: 2,
+            workspacePath: "/work/b",
+          },
+          state: workspace({
+            catalog: [
+              { availability: "available", path: "/work/a" },
+              { availability: "available", path: "/work/b" },
+            ],
+            currentWorkspace: { availability: "available", path: "/work/b" },
+            generation: 2,
+          }),
+        },
+      });
+    });
+
+    expect(await screen.findByText("Workspace B")).toBeInTheDocument();
+    await waitFor(() => {
+      expect(screen.queryByTestId("refresh-failure-banner")).toBeNull();
+    });
+  });
+
   it("clears the banner when a Health event with empty slots arrives", async () => {
     const { listeners, implementation } = createBothListenersMock();
     listen.mockImplementation(implementation);
