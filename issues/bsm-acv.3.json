@@ -1,0 +1,15 @@
+{
+  "assignee": "",
+  "blocked_by": [],
+  "blocks": [],
+  "created": "2026-08-31T11:47:32Z",
+  "description": "## Background\n\n`RefreshFailureBanner.tsx` exports both a React component and `selectBannerFailure`, so Fast Refresh cannot treat it as a component-only module. Separately, `isRefreshHealth` is exported from `refresh-health.ts` even though it only supports the module's public event guard. The current interfaces expose implementation details without giving independent callers useful leverage.\n\n## What to build\n\nSeparate refresh-failure selection from React presentation and narrow the refresh-health interface while preserving the banner a user sees for every health state.\n\n## Technical Approach\n\n- Move `selectBannerFailure` out of `RefreshFailureBanner.tsx` into `refresh-health.ts` or a focused non-React sibling module.\n- Keep the selection rule unchanged: structural failures outrank transient failures; within the chosen category, the greatest `failureRevision` wins.\n- Update `IssueExplorer` and focused tests to consume the non-React module.\n- Remove the public export from `isRefreshHealth` while retaining its use inside `isIssueExplorerRefreshEvent`.\n- Leave `RefreshFailureBanner.tsx` exporting React presentation only.\n\n## Considerations\n\n- Do not move banner copy or visual markup unless required by the new seam.\n- Preserve the `null` health case and behavior when both health slots are populated.\n- Keep malformed event payload rejection inside the refresh-health module.\n- Avoid a barrel file; callers should import directly from the module that owns the behavior.\n\n## Acceptance criteria\n\n- [ ] `RefreshFailureBanner.tsx` exports React presentation only.\n- [ ] Banner-failure selection has a focused non-React interface.\n- [ ] `isRefreshHealth` is private while `isIssueExplorerRefreshEvent` remains the public payload guard.\n- [ ] Structural/transient priority and revision ordering remain unchanged.\n- [ ] Both targeted React Doctor diagnostics are absent without disabling their rules.\n\n## Test Plan\n\n- Run and preserve `src/issues/RefreshFailureBanner.test.tsx` selection and rendering cases.\n- Preserve transition-gate payload-guard tests that cover malformed health events.\n- Run `mise run ts:test`, `mise run doctor:react`, and `mise run verify`.\n- No desktop E2E scenario is required because the rendered user path is unchanged.\n\n## Triage\n\nready-for-agent\n",
+  "id": "bsm-acv.3",
+  "labels": [],
+  "parent": "bsm-acv",
+  "priority": 2,
+  "status": "open",
+  "title": "Isolate refresh banner selection from React presentation",
+  "type": "task",
+  "updated_at": "2026-08-31T11:47:32Z"
+}
