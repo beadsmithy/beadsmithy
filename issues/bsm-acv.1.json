@@ -1,0 +1,15 @@
+{
+  "assignee": "",
+  "blocked_by": [],
+  "blocks": [],
+  "created": "2026-08-31T11:47:31Z",
+  "description": "## Background\n\nReact Doctor reports two security warnings because `pnpm-workspace.yaml` does not delay newly published packages and does not prevent trust-signal downgrades between package versions. These controls reduce exposure to short-lived malicious releases and provenance weakening without changing application runtime behavior.\n\n## What to build\n\nHarden every repository install by configuring pnpm's release-age and trust-downgrade policies while preserving the existing native-build allowlist and `@wdio/native-utils` compatibility override.\n\n## Technical Approach\n\n- Add `minimumReleaseAge: 10080` to `pnpm-workspace.yaml`, representing seven days in minutes.\n- Add `trustPolicy: no-downgrade`.\n- Keep the existing `allowBuilds` and `overrides` semantics intact.\n- Validate the settings with the repository-pinned pnpm version rather than weakening them when an existing lockfile entry lacks newly published metadata.\n\n## Considerations\n\n- A release-age policy can make an emergency dependency release temporarily unavailable; document any future exception narrowly rather than reducing the repository-wide delay.\n- The existing lockfile should remain stable unless pnpm requires a metadata update. Do not perform unrelated dependency upgrades.\n- This issue covers install-time supply-chain behavior only; it must not change application code.\n\n## Acceptance criteria\n\n- [ ] `pnpm-workspace.yaml` sets `minimumReleaseAge` to seven days.\n- [ ] `pnpm-workspace.yaml` sets `trustPolicy` to `no-downgrade`.\n- [ ] Existing build allowlists and dependency overrides remain effective.\n- [ ] React Doctor no longer reports either `require-pnpm-hardening` warning.\n- [ ] The canonical repository verification remains green.\n\n## Test Plan\n\n- Run `mise run doctor:react` and confirm both pnpm-hardening diagnostics are gone.\n- Exercise a frozen install with the repository-pinned toolchain if lockfile validation is needed.\n- Run `mise run verify`.\n- No desktop E2E scenario is required because runtime behavior is unchanged.\n\n## Triage\n\nready-for-agent\n",
+  "id": "bsm-acv.1",
+  "labels": [],
+  "parent": "bsm-acv",
+  "priority": 2,
+  "status": "open",
+  "title": "Harden pnpm dependency trust for repository installs",
+  "type": "task",
+  "updated_at": "2026-08-31T11:47:31Z"
+}
