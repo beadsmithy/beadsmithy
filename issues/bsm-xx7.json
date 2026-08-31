@@ -1,5 +1,5 @@
 {
-  "assignee": "",
+  "assignee": "Tomas Thor Jonsson",
   "blocked_by": [],
   "blocks": [],
   "created": "2026-08-28T12:38:49Z",
@@ -7,8 +7,8 @@
   "id": "bsm-xx7",
   "labels": [],
   "priority": 2,
-  "status": "open",
+  "status": "in_progress",
   "title": "Add PR-triggered CI workflow running mise verify",
   "type": "task",
-  "updated_at": "2026-08-28T12:38:49Z"
+  "updated_at": "2026-08-31T12:18:09Z"
 }
