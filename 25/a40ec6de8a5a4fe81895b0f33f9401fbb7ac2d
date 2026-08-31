@@ -1,0 +1,19 @@
+.github/workflows/ci.yml
+  s_5ae9b5ae7f5fdf::t_a44c3a8983808b 31-37
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.0",
+  "base_commit_sha": "25a40ec6de8a5a4fe81895b0f33f9401fbb7ac2d",
+  "prompts": {},
+  "sessions": {
+    "s_5ae9b5ae7f5fdf": {
+      "agent_id": {
+        "tool": "pi",
+        "id": "01a057c0-fe93-7433-a663-1096df557b69",
+        "model": "k3-256k"
+      },
+      "human_author": "Tomas Thor Jonsson <benregn@gmail.com>"
+    }
+  }
+}
