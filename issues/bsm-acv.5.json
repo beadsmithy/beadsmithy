@@ -7,9 +7,15 @@
   "id": "bsm-acv.5",
   "labels": [],
   "parent": "bsm-acv",
+  "comments": [
+    {
+      "text": "User confirmed tauri-agent-tools is a manually invoked developer tool. Do not remove it. React Doctor/deslop 0.5.8 cannot model per-dependency allowlists through the Knip settings it consumes, so record this as an intentional residual diagnostic.",
+      "timestamp": "2026-08-31T12:08:37Z"
+    }
+  ],
   "priority": 2,
   "status": "open",
   "title": "Model non-bundled tooling entrypoints for dead-code analysis",
   "type": "task",
-  "updated_at": "2026-08-31T11:47:32Z"
+  "updated_at": "2026-08-31T12:08:37Z"
 }
