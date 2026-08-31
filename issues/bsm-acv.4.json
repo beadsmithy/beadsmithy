@@ -1,0 +1,15 @@
+{
+  "assignee": "",
+  "blocked_by": [],
+  "blocks": [],
+  "created": "2026-08-31T11:47:32Z",
+  "description": "## Background\n\nReact Doctor's dead-code analysis found five renderer exports that no module imports. Some are unused declarations; others are helpers used only inside their declaring module. Keeping them public enlarges interfaces, suggests unsupported reuse, and makes future refactors harder to navigate.\n\nThis is a mechanical interface contraction. No expand phase is needed because repository-wide search confirms there are no external callers.\n\n## What to build\n\nRemove declarations with no behavior owner and make internally used helpers private, leaving each renderer module with only interfaces that real callers consume.\n\n## Technical Approach\n\n- Delete the unused `AlertAction` React declaration.\n- Delete the unused `issueNavigationHref` wrapper.\n- Make `normalizeIssueListViewId` private to `issue-navigation.ts`.\n- Delete the unused `routeFromLocation` wrapper while retaining `parseIssueExplorerRoute`.\n- Make `tokenizeIssueSearchQuery` private to `issue-search.ts`.\n- Update tests only when they currently cross an interface being intentionally contracted; prefer testing through the remaining public behavior.\n\n## Considerations\n\n- Search source, tests, E2E support, and tooling before deletion so string-based or test-only callers are not overlooked.\n- Do not replace a deleted wrapper with a differently named pass-through interface.\n- Preserve route decoding, invalid-view normalization, search tokenization, and Alert styling used by remaining callers.\n- Type-only and test-only callers count as real callers and must be handled explicitly.\n\n## Acceptance criteria\n\n- [ ] `AlertAction` and `issueNavigationHref` are removed.\n- [ ] `normalizeIssueListViewId` and `tokenizeIssueSearchQuery` remain available internally but are no longer exported.\n- [ ] `routeFromLocation` is removed without changing route parsing behavior.\n- [ ] No supported renderer or test interface loses required behavior.\n- [ ] React Doctor no longer reports the five targeted unused exports.\n\n## Test Plan\n\n- Run focused Issue Navigation and Issue Search unit tests.\n- Run TypeScript typechecking to prove no caller remains.\n- Run `mise run ts:test`, `mise run doctor:react`, and `mise run verify`.\n- No desktop E2E scenario is required because this is a behavior-neutral interface contraction.\n\n## Triage\n\nready-for-agent\n",
+  "id": "bsm-acv.4",
+  "labels": [],
+  "parent": "bsm-acv",
+  "priority": 2,
+  "status": "open",
+  "title": "Contract confirmed-dead renderer interfaces",
+  "type": "task",
+  "updated_at": "2026-08-31T11:47:32Z"
+}
