@@ -28,6 +28,13 @@ jobs:
 
       - uses: jdx/mise-action@v3
 
+      # mise-action's cache restores mise's install records but not the rustup
+      # toolchain home, so a cache hit can leave rustfmt/clippy missing from the
+      # toolchain (jdx/mise-action#382). Ensure the components exist — this is
+      # idempotent and pins nothing (RUSTUP_TOOLCHAIN comes from mise-action).
+      - name: Ensure rustfmt and clippy components
+        run: rustup component add rustfmt clippy
+
       - uses: Swatinem/rust-cache@v2
         with:
           workspaces: src-tauri
