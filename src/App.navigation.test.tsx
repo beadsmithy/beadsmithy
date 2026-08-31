@@ -82,13 +82,29 @@ describe("App navigation", () => {
   });
 
   it("replaces an invalid view query parameter with the canonical All route", async () => {
-    window.history.replaceState(null, "", "/issues?view=not-a-view");
+    window.history.replaceState(
+      { unrelated: "preserve" },
+      "",
+      "/issues?view=not-a-view"
+    );
     loadIssueExplorerStateFromTauRpc.mockResolvedValue(successState({}));
 
     render(<App />);
 
     await screen.findByRole("button", { name: "All, 0 issues" });
-    await waitFor(() => expect(window.location.search).toBe(""));
+    await waitFor(() => {
+      expect(window.location.search).toBe("");
+      expect(window.history.state).toMatchObject({
+        beadsmithNavigation: {
+          index: 0,
+          issueId: null,
+          search: "",
+          viewId: "all",
+          workspacePath: "/Users/dev/work/beads",
+        },
+        unrelated: "preserve",
+      });
+    });
   });
 
   it("keeps sidebar view controls unavailable with hidden counts while issues are loading", () => {

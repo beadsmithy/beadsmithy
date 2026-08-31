@@ -56,6 +56,8 @@ interface Registration {
   callback: ListenerCallback;
   eventName: string;
   name: RegistrationName;
+  reject: () => void;
+  rejected: boolean;
   requested: boolean;
   resolved: boolean;
   resolve: () => void;
@@ -71,6 +73,7 @@ interface ListenerController {
     (eventName: string, callback: ListenerCallback) => Promise<UnlistenFn>
   >;
   registration: (name: RegistrationName) => Registration;
+  reject: (name: RegistrationName) => void;
   resolve: (name: RegistrationName) => void;
 }
 
@@ -115,12 +118,16 @@ const createListenerController = (): ListenerController => {
       refreshOwners.add(owner);
       name = owner === "T1" ? "R1" : "R2";
     }
+    let rejectPromise: (reason: Error) => void = () => {
+      throw new Error(`Registration ${name} was rejected twice`);
+    };
     let resolvePromise: (unlisten: UnlistenFn) => void = () => {
       throw new Error(`Registration ${name} was resolved twice`);
     };
     // eslint-disable-next-line promise/avoid-new, promise/prefer-await-to-callbacks
     // oxlint-disable-next-line promise/avoid-new, promise/prefer-await-to-callbacks
-    const promise = new Promise<UnlistenFn>((resolve) => {
+    const promise = new Promise<UnlistenFn>((resolve, reject) => {
+      rejectPromise = reject;
       resolvePromise = resolve;
     });
 
@@ -129,6 +136,11 @@ const createListenerController = (): ListenerController => {
       callback,
       eventName,
       name,
+      reject: () => {
+        registration.rejected = true;
+        rejectPromise(new Error(`Registration ${name} rejected`));
+      },
+      rejected: false,
       requested: true,
       resolve: () => {
         registration.active = true;
@@ -156,6 +168,13 @@ const createListenerController = (): ListenerController => {
         throw new Error(`Registration ${name} has not been requested yet`);
       }
       return registration;
+    },
+    reject: (name) => {
+      const registration = registrations.get(name);
+      if (!registration) {
+        throw new Error(`Registration ${name} has not been requested yet`);
+      }
+      registration.reject();
     },
     resolve: (name) => {
       const registration = registrations.get(name);
@@ -305,6 +324,87 @@ describe("App StrictMode listener lifecycle", () => {
       expect(workspaceState).toHaveBeenCalledTimes(1);
     }
   );
+
+  it("falls back to startup loading when the first listener registration rejects", async () => {
+    render(
+      <StrictMode>
+        <App />
+      </StrictMode>
+    );
+
+    expect(listenerController.listen).toHaveBeenCalledTimes(2);
+    listenerController.reject("T1");
+    listenerController.reject("T2");
+
+    await act(async () => {
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+
+    expect(loadIssueExplorerStateFromTauRpc).toHaveBeenCalledTimes(1);
+    expect(workspaceState).toHaveBeenCalledTimes(1);
+    expect(listenerController.registration("T1").rejected).toBe(true);
+    expect(listenerController.registration("T2").rejected).toBe(true);
+    expect(listenerController.listen).toHaveBeenCalledTimes(2);
+    expect(consoleWarnSpy).toHaveBeenCalledTimes(2);
+    consoleWarnSpy.mockClear();
+  });
+
+  it("starts up and cleans up the transition listener when refresh registration rejects", async () => {
+    const { unmount } = render(
+      <StrictMode>
+        <App />
+      </StrictMode>
+    );
+
+    expect(listenerController.listen).toHaveBeenCalledTimes(2);
+
+    const resolveRegistration = async (
+      name: RegistrationName
+    ): Promise<void> => {
+      await act(async () => {
+        listenerController.resolve(name);
+        await Promise.resolve();
+        await Promise.resolve();
+      });
+    };
+
+    await resolveRegistration("T1");
+    await resolveRegistration("T2");
+
+    act(() => {
+      listenerController.reject("R1");
+      listenerController.reject("R2");
+    });
+
+    await act(async () => {
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+
+    expect(listenerController.registration("R1").rejected).toBe(true);
+    expect(listenerController.registration("R2").rejected).toBe(true);
+    expect(loadIssueExplorerStateFromTauRpc).toHaveBeenCalledTimes(1);
+    expect(workspaceState).toHaveBeenCalledTimes(1);
+    expect(
+      listenerController.registration("T1").unlisten
+    ).toHaveBeenCalledTimes(1);
+    expect(
+      listenerController.registration("T2").unlisten
+    ).not.toHaveBeenCalled();
+    expect(consoleWarnSpy).toHaveBeenCalledTimes(2);
+    consoleWarnSpy.mockClear();
+
+    act(() => {
+      unmount();
+    });
+
+    // The second StrictMode lifecycle's successful transition registration is
+    // disposed exactly once when the App is finally unmounted.
+    expect(
+      listenerController.registration("T2").unlisten
+    ).toHaveBeenCalledTimes(1);
+  });
 
   it("unregisters every listener when unmounted with registrations pending", async () => {
     const { unmount } = render(

@@ -118,6 +118,47 @@ describe("App settings", () => {
     ).toBeInTheDocument();
   });
 
+  it("retains the underlying Issue navigation entry while Settings replaces the route", async () => {
+    const user = userEvent.setup();
+    const issue = buildIssue({
+      id: "bsm-settings-retained",
+      title: "Retained Issue",
+    });
+    loadIssueExplorerStateFromTauRpc.mockResolvedValue(
+      successState({ allIssues: [issue], workspacePath: "/work" })
+    );
+    workspaceState.mockResolvedValue(
+      workspace({
+        currentWorkspace: { availability: "available", path: "/work" },
+      })
+    );
+
+    render(<App />);
+
+    await user.click(
+      await screen.findByRole("link", { name: /Retained Issue/iu })
+    );
+    await waitFor(() =>
+      expect(
+        within(issueDetailMain()).getByRole("heading", {
+          name: "Retained Issue",
+        })
+      ).toBeInTheDocument()
+    );
+
+    await user.click(settingsButton());
+
+    expect(window.location.pathname).toBe("/settings");
+    expect(window.history.state.beadsmithNavigation).toEqual({
+      index: 1,
+      issueId: "bsm-settings-retained",
+      search: "",
+      viewId: "all",
+      workspacePath: "/work",
+    });
+    expect(screen.getByRole("main", { name: "Settings" })).toBeInTheDocument();
+  });
+
   it("traverses Back from Settings to the prior Issue and keeps the later Issue Forward", async () => {
     const user = userEvent.setup();
     const issueA = buildIssue({ id: "bsm-settings-a", title: "Issue A" });
