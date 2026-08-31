@@ -46,6 +46,7 @@ import type { WorkspaceCoordinatorResult } from "./use-workspace-coordinator";
 
 const WORKSPACE_TRANSITION_EVENT = "workspace-transition";
 const ISSUE_EXPLORER_REFRESH_EVENT = "beadwork://issue-explorer-state-changed";
+const DEFERRED_REFRESH_REPLAY_LIMIT = 2;
 
 type Navigate = (
   path: string,
@@ -189,7 +190,6 @@ export interface IssueExplorerCoordinatorOptions {
 
 export interface IssueExplorerCoordinatorResult {
   explorer: {
-    issueState: IssueExplorerLoadState;
     onIssueListViewSelect: (viewId: IssueListViewId) => void;
     onIssueReferenceSelect: (issueId: string) => void;
     onIssueSearchChange: (search: string) => void;
@@ -279,7 +279,11 @@ export const useIssueExplorerCoordinator = ({
     // Replay the Snapshot first so its confirmed identity is available
     // before a deferred Health event runs through the gate.
     let applied = false;
-    for (const _ of [0, 1]) {
+    for (
+      let replayAttempt = 0;
+      replayAttempt < DEFERRED_REFRESH_REPLAY_LIMIT;
+      replayAttempt += 1
+    ) {
       const deferredSnapshot = deferredSnapshotRef.current;
       if (deferredSnapshot !== null) {
         deferredSnapshotRef.current = null;
@@ -582,7 +586,6 @@ export const useIssueExplorerCoordinator = ({
 
   return {
     explorer: {
-      issueState,
       onIssueListViewSelect: handleIssueListViewSelect,
       onIssueReferenceSelect: handleIssueReferenceSelect,
       onIssueSearchChange: handleIssueSearchChange,
