@@ -1,0 +1,28 @@
+docs/research/graph-mode.md
+  s_baee95be90d732::t_8a2bd2a3d20467 10,12
+  s_baee95be90d732::t_d15ee8eef347d3 11
+  s_baee95be90d732::t_b9a69f71667850 20
+  s_baee95be90d732::t_0b2126e8f3d992 5-9,13
+  s_baee95be90d732::t_dfcf85fe338e05 1-4,14-19,21-28
+CONTEXT.md
+  s_baee95be90d732::t_8a2bd2a3d20467 31-32
+  s_baee95be90d732::t_0b2126e8f3d992 17
+  s_baee95be90d732::t_55a7ad2b67fafc 11-12,23
+  s_baee95be90d732::t_6c5107786bafaf 24
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.4",
+  "base_commit_sha": "ab9ad0b46c033313d5ba4580aa5c842bc85a1f88",
+  "prompts": {},
+  "sessions": {
+    "s_baee95be90d732": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a09a8f-325e-7262-8040-3c0bd4d9efa0",
+        "model": "gpt-5.6-sol"
+      },
+      "human_author": "Tomas Thor Jonsson <benregn@gmail.com>"
+    }
+  }
+}
