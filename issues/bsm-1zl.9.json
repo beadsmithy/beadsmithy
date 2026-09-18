@@ -1,5 +1,5 @@
 {
-  "assignee": "",
+  "assignee": "Tomas Thor Jonsson",
   "blocked_by": [
     "bsm-1zl.5",
     "bsm-1zl.8"
@@ -11,8 +11,8 @@
   "labels": [],
   "parent": "bsm-1zl",
   "priority": 2,
-  "status": "open",
+  "status": "in_progress",
   "title": "Prove Graph Mode in the real desktop application",
   "type": "task",
-  "updated_at": "2026-09-18T15:10:49Z"
+  "updated_at": "2026-09-18T21:11:56Z"
 }
