@@ -21,6 +21,7 @@ pnpm e2e:issue-list:success
 pnpm e2e:issue-list:empty
 pnpm e2e:issue-list:atomic-switch
 pnpm e2e:issue-list:child-issues
+pnpm e2e:issue-list:graph
 pnpm e2e:issue-list:restoration
 
 # Focused refresh-trigger proofs (bsm-wj1.4), deliberately outside the
@@ -140,3 +141,7 @@ The `atomic-switch` scenario needs to observe the renderer's Pending phase betwe
 ## Workspace management is not coupled to launch
 
 Workspace selection lives in the typed `switch_workspace` / `cancel_workspace` boundary. The binary never reads the launch working directory, never receives a `--workspace` flag, and never mutates process `cwd`. Desktop acceptance must always start from a fresh, scenario-owned, supported store location; the harness only configures where the binary resolves its store, never seeds behavior by hand-editing it. ADR 0006 documents the historical rationale; the verification specification lives in `docs/research/workspace-management-verification-and-migration.md`.
+
+## Graph Mode desktop scenario
+
+Run `pnpm e2e:issue-list:graph` to launch the real built Beadsmith binary with a disposable fixture authored by `createGraphWorkspace()`. The fixture contains an open Current Work Issue, its closed direct parent, its open direct blocker, and an unrelated closed Issue. The scenario selects the workspace through typed TauRPC, proves Focused Graph membership and directed Parent/Blocker relationship semantics, switches to Show all, and drives Graph card → shared Issue Detail overlay → Close → browser Back. It uses the same embedded WebDriver port, isolated store, cleanup, and normal-catalog fingerprint checks as the other Issue List scenarios.

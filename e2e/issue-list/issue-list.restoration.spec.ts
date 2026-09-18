@@ -20,7 +20,7 @@
 import path from "node:path";
 
 import { browser, expect } from "@wdio/globals";
-import { describe, it } from "vitest";
+import { describe, it } from "mocha";
 
 import {
   FIXTURE_BLOCKER_TITLE,
@@ -171,7 +171,7 @@ describe(`Workspace restoration (WebDriver e2e) [${phaseTag}]`, () => {
     // the rendered description contains the inline-code token captured in
     // the fixture.
     const issueRow = await expectIssueVisible(FIXTURE_ISSUE_TITLE);
-    const issueButton = await issueRow.$("button[data-issue-id]");
+    const issueButton = await issueRow.$("a[data-issue-id]");
     await issueButton.click();
 
     const detail = await browser.$('main[aria-label="Issue detail"]');
