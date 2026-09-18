@@ -1,10 +1,18 @@
 import { AlertTriangle, LoaderCircle, Network } from "lucide-react";
+import { useMemo, useRef, useState } from "react";
 
+import type { ExternalLinkOpener } from "../components/external-link-opener";
+import { openExternalLink as defaultOpenExternalLink } from "../components/external-link-opener";
 import { useExternalLifecycle } from "../lib/use-external-lifecycle";
 import type { RefreshHealth } from "../refresh-health";
+import type { Issue } from "../rpc/bindings";
 import { buildFocusedIssueGraph } from "./issue-graph";
+import { getChildIssues } from "./issue-hierarchy";
 import type { IssueExplorerLoadState } from "./issue-loader";
+import { generateIssueLocationUri } from "./issue-location-uri";
+import { serializeIssueExplorerRoute } from "./issue-navigation";
 import type { IssueGraphRouteState } from "./issue-navigation";
+import { IssueDetailPane } from "./IssueDetail";
 import { IssueGraphCanvas } from "./IssueGraphCanvas";
 import {
   RefreshFailureBanner,
@@ -13,15 +21,25 @@ import {
 
 export const IssueGraph = ({
   issueState,
+  markdownFontSizePx,
+  onIssueClose,
+  onIssueSelect,
+  openExternalLink = defaultOpenExternalLink,
   refreshHealth,
   route,
   titleOverride,
 }: {
   issueState: IssueExplorerLoadState;
+  markdownFontSizePx?: number;
+  onIssueClose: () => void;
+  onIssueSelect: (issueId: string) => void;
+  openExternalLink?: ExternalLinkOpener;
   refreshHealth: RefreshHealth | null;
   route: IssueGraphRouteState;
   titleOverride?: string | null;
 }) => {
+  const [copySucceeded, setCopySucceeded] = useState(false);
+  const detailHeadingRef = useRef<HTMLHeadingElement>(null);
   useExternalLifecycle(() => {
     document.title = titleOverride ?? "Graph · Beadsmithy";
   }, [titleOverride]);
@@ -36,6 +54,51 @@ export const IssueGraph = ({
           selectedIssueId: route.issueId,
         })
       : null;
+  const selectedIssue = useMemo(() => {
+    if (issueState.status !== "success" || route.issueId === null) {
+      return null;
+    }
+    return (
+      issueState.allIssues.find((issue) => issue.id === route.issueId) ?? null
+    );
+  }, [issueState, route.issueId]);
+  const issueMap = useMemo<Record<string, Issue>>(() => {
+    if (issueState.status !== "success") {
+      return {};
+    }
+    return Object.fromEntries(
+      issueState.allIssues.map((issue) => [issue.id, issue])
+    );
+  }, [issueState]);
+  const childIssues = useMemo(() => {
+    if (selectedIssue === null || issueState.status !== "success") {
+      return [];
+    }
+    return getChildIssues(issueState.allIssues, selectedIssue.id);
+  }, [issueState, selectedIssue]);
+  const handleCopyDeepLink = async (): Promise<void> => {
+    if (
+      issueState.status !== "success" ||
+      route.issueId === null ||
+      navigator.clipboard === undefined
+    ) {
+      return;
+    }
+    const result = generateIssueLocationUri({
+      issueId: route.issueId,
+      workspacePath: issueState.workspacePath,
+    });
+    if (!result.ok) {
+      return;
+    }
+    try {
+      await navigator.clipboard.writeText(result.value);
+      setCopySucceeded(true);
+      window.setTimeout(() => setCopySucceeded(false), 1500);
+    } catch {
+      setCopySucceeded(false);
+    }
+  };
 
   if (issueState.status === "loading") {
     return (
@@ -144,10 +207,49 @@ export const IssueGraph = ({
           {issueState.allIssues.length} total Issues
         </span>
       </div>
-      <IssueGraphCanvas
-        allIssues={issueState.allIssues}
-        selectedIssueId={route.issueId}
-      />
+      <div className="relative min-h-0 flex-1">
+        <IssueGraphCanvas
+          allIssues={issueState.allIssues}
+          onIssueSelect={onIssueSelect}
+          selectedIssueId={route.issueId}
+        />
+        {route.issueId === null ? null : (
+          <aside
+            aria-label="Graph Issue detail panel"
+            className="border-border-main bg-background absolute inset-y-0 right-0 z-20 flex w-[min(520px,calc(100%-48px))] flex-col border-l shadow-2xl"
+            data-graph-detail-panel="true"
+          >
+            <div className="border-border-main flex h-10 shrink-0 items-center justify-end border-b px-3">
+              <button
+                aria-label="Close Issue detail"
+                className="border-border-main text-muted hover:text-text-main rounded border px-2 py-1 text-xs hover:bg-white/5"
+                data-graph-detail-close="true"
+                onClick={onIssueClose}
+                type="button"
+              >
+                Close
+              </button>
+            </div>
+            <IssueDetailPane
+              childIssues={childIssues}
+              copySucceeded={copySucceeded}
+              issueMap={issueMap}
+              missingIssueId={selectedIssue === null ? route.issueId : null}
+              navigation={{
+                hrefForIssue: (issueId) =>
+                  serializeIssueExplorerRoute({ ...route, issueId }),
+              }}
+              onCopyDeepLink={
+                selectedIssue === null ? undefined : handleCopyDeepLink
+              }
+              openExternalLink={openExternalLink}
+              markdownFontSizePx={markdownFontSizePx}
+              selectedIssue={selectedIssue}
+              titleRef={detailHeadingRef}
+            />
+          </aside>
+        )}
+      </div>
     </main>
   );
 };

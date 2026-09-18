@@ -106,11 +106,12 @@ export const serializeIssueExplorerRoute = (
     if (route.scope !== "focused") {
       params.set("scope", route.scope);
     }
-    if (route.issueId !== null) {
-      params.set("issue", route.issueId);
-    }
+    const path =
+      route.issueId === null
+        ? "/graph"
+        : `/graph/${encodeURIComponent(route.issueId)}`;
     const query = params.toString();
-    return query.length > 0 ? `/graph?${query}` : "/graph";
+    return query.length > 0 ? `${path}?${query}` : path;
   }
 
   const path = route.issueId
