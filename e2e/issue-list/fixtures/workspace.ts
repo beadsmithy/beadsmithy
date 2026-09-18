@@ -233,6 +233,12 @@ export const createIssueListWorkspace = (): BeadworkWorkspace => {
     title: FIXTURE_BLOCKER_TITLE,
     workspacePath,
   });
+  const readyIssueId = createTaskIssue({
+    description: FIXTURE_READY_DESCRIPTION,
+    priority: "2",
+    title: FIXTURE_READY_TITLE,
+    workspacePath,
+  });
   const issueId = runBw(
     [
       "create",
@@ -241,18 +247,14 @@ export const createIssueListWorkspace = (): BeadworkWorkspace => {
       "feature",
       "--priority",
       "1",
+      "--parent",
+      readyIssueId,
       "--description",
       FIXTURE_ISSUE_DESCRIPTION,
       "--silent",
     ],
     workspacePath
   );
-  const readyIssueId = createTaskIssue({
-    description: FIXTURE_READY_DESCRIPTION,
-    priority: "2",
-    title: FIXTURE_READY_TITLE,
-    workspacePath,
-  });
   const closedIssueId = createTaskIssue({
     description: FIXTURE_CLOSED_DESCRIPTION,
     priority: "3",
@@ -277,6 +279,8 @@ export const createIssueListWorkspace = (): BeadworkWorkspace => {
     `[e2e:fixture] created issues: blocker=${blockerId}, blocked=${issueId}, ready=${readyIssueId}, closed=${closedIssueId}, deferred=${deferredIssueId}, shared=${sharedIssueId}`
   );
   runBw(["label", issueId, "+e2e-fixture", "+ready-for-agent"], workspacePath);
+  // Keep the blocker in its own root component while the target belongs to
+  // the Ready parent tree so Graph Mode exercises a cross-tree dependency.
   runBw(["dep", "add", blockerId, "blocks", issueId], workspacePath);
   runBw(
     ["close", closedIssueId, "--reason", "e2e closed fixture"],
