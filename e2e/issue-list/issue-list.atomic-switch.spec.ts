@@ -27,7 +27,7 @@
  * suite.
  */
 import { browser, expect } from "@wdio/globals";
-import { describe, it } from "vitest";
+import { describe, it } from "mocha";
 
 import {
   applyExternalMutation,
@@ -118,7 +118,7 @@ describe("Atomic workspace switch (WebDriver e2e): two disposable Beadwork repos
     // selection/search context cannot leak across a committed switch.
     await selectIssueListView("All", "all");
     const sharedRow = await expectIssueVisible(FIXTURE_SHARED_TITLE_A);
-    const sharedButton = await sharedRow.$("button[data-issue-id]");
+    const sharedButton = await sharedRow.$("a[data-issue-id]");
     const sharedIssueId = await sharedButton.getAttribute("data-issue-id");
     if (sharedIssueId !== FIXTURE_SHARED_ID) {
       throw new Error(

@@ -13,6 +13,7 @@ describe(parseScenario, () => {
     "issues",
     "atomic-switch",
     "focus-refresh",
+    "graph",
     "restoration",
     "time-refresh",
   ] as const)("accepts the %s scenario", (scenario) => {
@@ -21,7 +22,7 @@ describe(parseScenario, () => {
 
   it("rejects an unknown scenario with the received value", () => {
     expect(() => parseScenario("unknown-scenario")).toThrow(
-      'BEADSMITH_E2E_SCENARIO must be one of child-issues|empty|focus-refresh|issues|atomic-switch|restoration|time-refresh; received "unknown-scenario"'
+      'BEADSMITH_E2E_SCENARIO must be one of child-issues|empty|focus-refresh|graph|issues|atomic-switch|restoration|time-refresh; received "unknown-scenario"'
     );
   });
 });
@@ -47,7 +48,7 @@ describe(parseHarnessEnvironment, () => {
         BEADSMITH_WORKSPACE_STORE_PATH: "/stores/workspaces.json",
       })
     ).toThrow(
-      '- BEADSMITH_E2E_SCENARIO must be one of child-issues|empty|focus-refresh|issues|atomic-switch|restoration|time-refresh; received "<missing>"'
+      '- BEADSMITH_E2E_SCENARIO must be one of child-issues|empty|focus-refresh|graph|issues|atomic-switch|restoration|time-refresh; received "<missing>"'
     );
   });
 
@@ -106,7 +107,7 @@ describe(parseHarnessEnvironment, () => {
     ).toThrow(
       [
         "Invalid Issue List E2E harness environment:",
-        '- BEADSMITH_E2E_SCENARIO must be one of child-issues|empty|focus-refresh|issues|atomic-switch|restoration|time-refresh; received "unknown-scenario"',
+        '- BEADSMITH_E2E_SCENARIO must be one of child-issues|empty|focus-refresh|graph|issues|atomic-switch|restoration|time-refresh; received "unknown-scenario"',
         '- BEADSMITH_E2E_PHASE must be one of 1|2; received "3"',
         "- BEADSMITH_E2E_WORKSPACE_A is required",
         "- BEADSMITH_E2E_WORKSPACE_B is required",

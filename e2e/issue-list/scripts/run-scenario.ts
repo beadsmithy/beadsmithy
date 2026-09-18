@@ -18,6 +18,7 @@
  *   - `empty`          one binary, true-empty B fixture
  *   - `atomic-switch`  one binary, populated A + populated B fixtures, delayed wrappers
  *   - `child-issues`   one binary, dedicated closed-parent fixture A only
+ *   - `graph`          one binary, dedicated graph relationship fixture A only
  *   - `restoration`    two binaries against one shared scenario-owned store,
  *                      same fixture A reused; phase 1 selects A, phase 2
  *                      asserts the next binary restored A from persistence
@@ -42,6 +43,7 @@ import path from "node:path";
 import {
   createChildIssuesWorkspace,
   createEmptyWorkspace,
+  createGraphWorkspace,
   createIssueListWorkspace,
   createSecondIssueListWorkspace,
   createTimeRefreshWorkspace,
@@ -96,6 +98,10 @@ const SCENARIO_PLANS: Record<Scenario, ScenarioPlan> = {
     refreshTimeIntervalMs: "3600000",
     sharesStoreAcrossPhases: false,
   },
+  graph: {
+    phases: ["1"],
+    sharesStoreAcrossPhases: false,
+  },
   issues: {
     phases: ["1"],
     sharesStoreAcrossPhases: false,
@@ -122,7 +128,7 @@ const parseArgs = (argv: readonly string[]): ParsedArgs => {
   const [scenarioArg, ...rest] = argv;
   if (!isScenario(scenarioArg)) {
     console.error(
-      "Usage: run-scenario.ts <child-issues|empty|focus-refresh|issues|atomic-switch|restoration|time-refresh> [--phase 1|2]"
+      "Usage: run-scenario.ts <child-issues|empty|focus-refresh|graph|issues|atomic-switch|restoration|time-refresh> [--phase 1|2]"
     );
     process.exit(1);
   }
@@ -312,13 +318,17 @@ const provisionResources = (phases: readonly Phase[]): ScenarioResources => {
     if (scenario === "time-refresh" || scenario === "focus-refresh") {
       return createTimeRefreshWorkspace();
     }
+    if (scenario === "graph") {
+      return createGraphWorkspace();
+    }
     return createIssueListWorkspace();
   })();
   const provisionsB =
     scenario !== "child-issues" &&
     scenario !== "time-refresh" &&
     scenario !== "focus-refresh" &&
-    scenario !== "restoration";
+    scenario !== "restoration" &&
+    scenario !== "graph";
   const workspaceBEmpty = provisionsB ? createEmptyWorkspace() : undefined;
   const workspaceBSecond =
     scenario === "atomic-switch" ? createSecondIssueListWorkspace() : undefined;
@@ -326,7 +336,7 @@ const provisionResources = (phases: readonly Phase[]): ScenarioResources => {
   // does not exercise the true-empty fixture but the harness still
   // publishes BEADSMITH_E2E_WORKSPACE_B as the empty fixture path so the
   // scenario-level input validator passes. `restoration`,
-  // `child-issues`, `time-refresh`, and `focus-refresh` only provision
+  // `child-issues`, `time-refresh`, `focus-refresh`, and `graph` only provision
   // A; the one-Workspace shape mirrors the documented scenario
   // contract.
   const workspaceB = provisionsB ? workspaceBEmpty : undefined;
