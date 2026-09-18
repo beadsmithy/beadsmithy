@@ -6,12 +6,15 @@ import "./App.css";
 import { Sidebar } from "./components/Sidebar";
 import { Titlebar } from "./components/Titlebar";
 import {
-  createIssueExplorerRoute,
+  isIssueGraphRoute,
+  isIssueListRoute,
   isIssueListViewId,
+  parseIssueExplorerRoute,
   serializeIssueExplorerRoute,
 } from "./issues/issue-navigation";
 import { issueNavigationDestinationLabel } from "./issues/issue-navigation-coordinator";
 import { IssueExplorer } from "./issues/IssueExplorer";
+import { IssueGraph } from "./issues/IssueGraph";
 import { useIssueExplorerCoordinator } from "./issues/use-issue-explorer-coordinator";
 import { useExternalLifecycle } from "./lib/use-external-lifecycle";
 import { useAppSettings } from "./settings/app-settings";
@@ -23,28 +26,36 @@ const App = () => {
   const [location, navigate] = useLocation();
   const currentHistoryState = useHistoryState<unknown>();
   const [settingsMatch] = useRoute("/settings");
-  const [issueDetailMatch, issueDetailParams] = useRoute<{
-    issueId?: string;
-  }>("/issues/:issueId");
   const [searchParams] = useSearchParams();
-  const issueRoute = createIssueExplorerRoute(
-    issueDetailMatch ? (issueDetailParams.issueId ?? null) : null,
-    searchParams
-  );
+  const locationWithSearch = searchParams.toString().length
+    ? `${location}?${searchParams.toString()}`
+    : location;
+  const issueRoute = parseIssueExplorerRoute(locationWithSearch);
   const isSettingsRoute = settingsMatch;
   const rawViewParam = searchParams.get("view");
   useExternalLifecycle(() => {
-    if (rawViewParam !== null && !isIssueListViewId(rawViewParam)) {
+    const isInvalidListView =
+      isIssueListRoute(issueRoute) &&
+      rawViewParam !== null &&
+      !isIssueListViewId(rawViewParam);
+    const graphScope = searchParams.get("scope");
+    const isInvalidGraphScope =
+      isIssueGraphRoute(issueRoute) &&
+      graphScope !== null &&
+      graphScope !== "focused" &&
+      graphScope !== "all";
+    if (isInvalidListView || isInvalidGraphScope) {
       navigate(serializeIssueExplorerRoute(issueRoute), {
         replace: true,
         state: currentHistoryState,
       });
     }
-  }, [currentHistoryState, issueRoute, navigate, rawViewParam]);
+  }, [currentHistoryState, issueRoute, navigate, rawViewParam, searchParams]);
 
   const {
     explorer: {
       onIssueListViewSelect,
+      onGraphSelect,
       onIssueReferenceSelect,
       onIssueSearchChange,
       onIssueSelect,
@@ -81,7 +92,7 @@ const App = () => {
   const backDisabled = isSettingsRoute
     ? false
     : previousNavigationEntry === null;
-  const issueExplorerView = (
+  const issueExplorerView = isIssueListRoute(explorerRoute) ? (
     <IssueExplorer
       activeIssueListViewId={explorerRoute.viewId}
       focusRouteChanges={!isSettingsRoute}
@@ -90,6 +101,13 @@ const App = () => {
       onIssueReferenceSelect={onIssueReferenceSelect}
       onIssueSearchChange={onIssueSearchChange}
       onIssueSelect={onIssueSelect}
+      refreshHealth={refreshHealth}
+      route={explorerRoute}
+      titleOverride={isSettingsRoute ? "Settings · Beadsmithy" : null}
+    />
+  ) : (
+    <IssueGraph
+      issueState={presentedIssueState}
       refreshHealth={refreshHealth}
       route={explorerRoute}
       titleOverride={isSettingsRoute ? "Settings · Beadsmithy" : null}
@@ -127,13 +145,19 @@ const App = () => {
       )}
       <div className="flex flex-1 overflow-hidden">
         <Sidebar
-          activeIssueListViewId={explorerRoute.viewId}
+          activeIssueNavigationDestination={
+            isIssueGraphRoute(explorerRoute) ? "graph" : "list"
+          }
+          activeIssueListViewId={
+            isIssueListRoute(explorerRoute) ? explorerRoute.viewId : "all"
+          }
           appDestination={appDestination}
           collapsed={sidebarCollapsed}
           disabled={sidebarDisabled}
           dismissedSwitchErrorGeneration={dismissedSwitchErrorGeneration}
           issueState={presentedIssueState}
           onCollapseToggle={setSidebarCollapsed}
+          onGraphSelect={onGraphSelect}
           onIssueListViewSelect={onIssueListViewSelect}
           onSettingsClick={() => {
             navigate("/settings", {

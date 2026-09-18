@@ -13,6 +13,11 @@ import {
 import type { WorkspaceProgramFiber } from "../workspaces/workspace-service";
 import type { IssueExplorerLoadState } from "./issue-loader";
 import type { IssueExplorerRouteState } from "./issue-navigation";
+import {
+  createIssueExplorerRoute,
+  createIssueGraphRoute,
+  isIssueGraphRoute,
+} from "./issue-navigation";
 import type { IssueNavigationEntry } from "./issue-navigation-coordinator";
 import {
   beginNavigationIntent,
@@ -76,11 +81,12 @@ export const useIssueWorkspaceTraversal = ({
       workspaceTraversalRef.current = `${index}:${workspacePath}`;
     }
     manualWorkspaceSwitchRef.current = false;
-    navigateIssueRoute(
-      { issueId: null, search: "", viewId: "all" },
-      true,
-      issueState.workspacePath
-    );
+    const nextRoute =
+      currentNavigationEntry !== null &&
+      isIssueGraphRoute(currentNavigationEntry)
+        ? createIssueGraphRoute(null, new URLSearchParams())
+        : createIssueExplorerRoute(null, new URLSearchParams());
+    navigateIssueRoute(nextRoute, true, issueState.workspacePath);
   }, [
     confirmedWorkspacePath,
     currentNavigationEntry,

@@ -310,4 +310,87 @@ describe("App navigation", () => {
     await user.click(sidebarButton(/^Ready, 1 issue$/u));
     expect(loadIssueExplorerStateFromTauRpc).toHaveBeenCalledOnce();
   });
+
+  it("switches between List and Graph without loading the Issue snapshot again", async () => {
+    const user = userEvent.setup();
+    const issue = buildIssue({ id: "bsm-graph", title: "Graph Issue" });
+    loadIssueExplorerStateFromTauRpc.mockResolvedValue(
+      successState({ allIssues: [issue], workspacePath: "/work" })
+    );
+
+    render(<App />);
+
+    await screen.findByRole("button", { name: "All, 1 issue" });
+    await user.click(sidebarButton(/^Graph$/u));
+
+    expect(window.location.pathname).toBe("/graph");
+    expect(
+      screen.getByRole("main", { name: "Issue Graph" })
+    ).toBeInTheDocument();
+    expect(screen.getByText("Focused Graph")).toBeInTheDocument();
+
+    await user.click(sidebarButton(/^All, 1 issue$/u));
+
+    expect(window.location.pathname).toBe("/issues");
+    expect(
+      screen.getByRole("main", { name: "Issue detail" })
+    ).toBeInTheDocument();
+    expect(loadIssueExplorerStateFromTauRpc).toHaveBeenCalledOnce();
+  });
+
+  it("restores the selected destination through Graph history", async () => {
+    const user = userEvent.setup();
+    const issue = buildIssue({
+      id: "bsm-graph-selected",
+      title: "Selected Graph Issue",
+    });
+    loadIssueExplorerStateFromTauRpc.mockResolvedValue(
+      successState({ allIssues: [issue], workspacePath: "/work" })
+    );
+
+    render(<App />);
+
+    await user.click(
+      await screen.findByRole("link", { name: /Selected Graph Issue/iu })
+    );
+    const issueDetail = await screen.findByRole("main", {
+      name: "Issue detail",
+    });
+    expect(
+      within(issueDetail).getByRole("heading", { name: issue.title })
+    ).toBeInTheDocument();
+    await user.click(sidebarButton(/^Graph$/u));
+
+    expect(screen.getByRole("main", { name: "Issue Graph" })).toHaveAttribute(
+      "data-graph-selected-issue",
+      issue.id
+    );
+    await user.click(sidebarButton(/^All, 1 issue$/u));
+    expect(
+      within(screen.getByRole("main", { name: "Issue detail" })).getByRole(
+        "heading",
+        { name: issue.title }
+      )
+    ).toBeInTheDocument();
+
+    await user.click(
+      screen.getByRole("button", { name: /Back to bsm-graph-selected/iu })
+    );
+    await waitFor(() => {
+      expect(
+        screen.getByRole("main", { name: "Issue Graph" })
+      ).toBeInTheDocument();
+    });
+    await user.click(
+      screen.getByRole("button", { name: /Forward to bsm-graph-selected/iu })
+    );
+    await waitFor(() => {
+      expect(
+        within(screen.getByRole("main", { name: "Issue detail" })).getByRole(
+          "heading",
+          { name: issue.title }
+        )
+      ).toBeInTheDocument();
+    });
+  });
 });

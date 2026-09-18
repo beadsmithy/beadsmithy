@@ -45,7 +45,12 @@ describe("issue navigation route contract", () => {
   it("round-trips the default route without query parameters", () => {
     const route = parseIssueExplorerRoute("/issues");
 
-    expect(route).toStrictEqual({ issueId: null, search: "", viewId: "all" });
+    expect(route).toStrictEqual({
+      issueId: null,
+      kind: "list",
+      search: "",
+      viewId: "all",
+    });
     expect(serializeIssueExplorerRoute(route)).toBe("/issues");
   });
 
@@ -58,7 +63,7 @@ describe("issue navigation route contract", () => {
 
     expect(
       parseIssueExplorerRoute(serializeIssueExplorerRoute(route))
-    ).toStrictEqual(route);
+    ).toStrictEqual({ ...route, kind: "list" });
   });
 
   it("falls back to All for unknown or malformed view values", () => {
@@ -71,6 +76,7 @@ describe("issue navigation route contract", () => {
   it("does not mistake a missing Issue route for a selected route", () => {
     expect(parseIssueExplorerRoute("/issues/")).toStrictEqual({
       issueId: null,
+      kind: "list",
       search: "",
       viewId: "all",
     });
@@ -87,5 +93,28 @@ describe("issue navigation route contract", () => {
     expect(selectIssueForView(explorerState, "closed", "bsm-closed")).toBe(
       "bsm-closed"
     );
+  });
+
+  it("round-trips a focused Graph route with an optional selected Issue", () => {
+    const route = parseIssueExplorerRoute(
+      "/graph?scope=focused&issue=bsm-parent%2E1"
+    );
+
+    expect(route).toStrictEqual({
+      issueId: "bsm-parent.1",
+      kind: "graph",
+      scope: "focused",
+    });
+    expect(serializeIssueExplorerRoute(route)).toBe(
+      "/graph?issue=bsm-parent.1"
+    );
+  });
+
+  it("canonicalizes an invalid Graph scope to Focused", () => {
+    expect(parseIssueExplorerRoute("/graph?scope=unknown")).toStrictEqual({
+      issueId: null,
+      kind: "graph",
+      scope: "focused",
+    });
   });
 });

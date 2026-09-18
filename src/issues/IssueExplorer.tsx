@@ -34,7 +34,7 @@ import type { IssueListViewId } from "./issue-list-view";
 import type { IssueExplorerLoadState } from "./issue-loader";
 import { generateIssueLocationUri } from "./issue-location-uri";
 import { serializeIssueExplorerRoute } from "./issue-navigation";
-import type { IssueExplorerRouteState } from "./issue-navigation";
+import type { IssueListRouteState } from "./issue-navigation";
 import { toIssueViewModel } from "./issue-view";
 import type { IssueTone } from "./issue-view";
 import {
@@ -92,7 +92,7 @@ const IssueRow = ({
   isSelected: boolean;
   issueMap: Record<string, Issue>;
   onSelect?: (issueId: string) => void;
-  route: IssueExplorerRouteState;
+  route: IssueListRouteState;
 }) => {
   const view = toIssueViewModel(issue, issueMap);
   const ToneIcon = ISSUE_TONE_ICONS[view.tone];
@@ -214,7 +214,7 @@ const IssueListContent = ({
   issueMap: Record<string, Issue>;
   onSelect?: (issueId: string) => void;
   rawSearchQuery: string;
-  route: IssueExplorerRouteState;
+  route: IssueListRouteState;
   selectedIssueId: string | null;
   state: IssueExplorerLoadState;
   visibleIssues: Issue[];
@@ -389,7 +389,7 @@ const IssueReferenceLink = ({
 }: {
   id: string;
   onSelect?: (issueId: string) => void;
-  route: IssueExplorerRouteState;
+  route: IssueListRouteState;
 }) => (
   <Link
     aria-label={`Open Issue ${id}`}
@@ -414,7 +414,7 @@ const DependencyChip = ({
 }: {
   id: string;
   onSelect?: (issueId: string) => void;
-  route: IssueExplorerRouteState;
+  route: IssueListRouteState;
 }) => (
   <span className="border-border-main text-text-main rounded border px-2 py-0.5 font-mono text-xs">
     <IssueReferenceLink id={id} onSelect={onSelect} route={route} />
@@ -432,7 +432,7 @@ const DependencyRow = ({
   ids: string[];
   label: string;
   onSelect?: (issueId: string) => void;
-  route: IssueExplorerRouteState;
+  route: IssueListRouteState;
 }) => (
   <div className="flex flex-col gap-1">
     <dt className="text-muted font-mono text-[10px] tracking-wider uppercase">
@@ -472,7 +472,7 @@ const ChildIssueRow = ({
   issueMap: Record<string, Issue>;
   onSelect: (issueId: string) => void;
   onUserDrivenSelect: () => void;
-  route: IssueExplorerRouteState;
+  route: IssueListRouteState;
 }) => {
   const view = toIssueViewModel(issue, issueMap);
 
@@ -515,7 +515,7 @@ const ChildIssuesSection = ({
   issueMap: Record<string, Issue>;
   onSelect: (issueId: string) => void;
   onUserDrivenSelect: () => void;
-  route: IssueExplorerRouteState;
+  route: IssueListRouteState;
 }) => (
   <section>
     <h3 className="text-muted font-mono text-[10px] tracking-wider uppercase">
@@ -552,7 +552,7 @@ const IssueDetailContent = ({
   childIssues: Issue[];
   issue: Issue;
   issueMap: Record<string, Issue>;
-  route: IssueExplorerRouteState;
+  route: IssueListRouteState;
   markdownFontSizePx?: number;
   onSelect: (issueId: string) => void;
   onUserDrivenSelect: () => void;
@@ -767,7 +767,7 @@ const IssueDetailPane = ({
   issueMap: Record<string, Issue>;
   selectedIssue: Issue | null;
   missingIssueId: string | null;
-  route: IssueExplorerRouteState;
+  route: IssueListRouteState;
   markdownFontSizePx?: number;
   onSelect: (issueId: string) => void;
   onUserDrivenSelect: () => void;
@@ -816,7 +816,7 @@ export const IssueExplorer = ({
 }: {
   activeIssueListViewId?: IssueListViewId;
   issueState: IssueExplorerLoadState;
-  route?: IssueExplorerRouteState;
+  route?: IssueListRouteState;
   titleOverride?: string | null;
   focusRouteChanges?: boolean;
   markdownFontSizePx?: number;
@@ -832,8 +832,9 @@ export const IssueExplorer = ({
     string | null
   >(null);
   const isRouteControlled = route !== undefined;
-  const activeRoute: IssueExplorerRouteState = route ?? {
+  const activeRoute: IssueListRouteState = route ?? {
     issueId: localSelectedIssueId,
+    kind: "list",
     search: localSearchQuery,
     viewId: activeIssueListViewId ?? "all",
   };
