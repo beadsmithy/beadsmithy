@@ -4,6 +4,7 @@ import {
   Background,
   Controls,
   getStraightPath,
+  Handle,
   MarkerType,
   Panel,
   Position,
@@ -37,23 +38,39 @@ type IssueCardNode = Node<IssueCardData, "issue">;
 type IssueFlowEdge = Edge<{ kind: IssueGraphEdgeKind }, "blocker" | "default">;
 
 const IssueCard = ({ data }: NodeProps<IssueCardNode>) => (
-  <button
-    aria-label={`${data.issue.id}: ${data.issue.title}. Status: ${data.issue.status.replace(
-      "_",
-      " "
-    )}${data.parentId === null ? ". Root Issue." : `. Parent: ${data.parentId}`}`}
-    className="border-border-main bg-surface min-w-[220px] rounded-lg border p-3 shadow-lg"
-    data-issue-card-id={data.issue.id}
-    type="button"
-  >
-    <div className="text-muted font-mono text-[11px]">{data.issue.id}</div>
-    <span className="text-text-main mt-1 block text-left text-sm font-medium">
-      {data.issue.title}
-    </span>
-    <div className="text-muted mt-2 text-[11px] capitalize">
-      {data.issue.status.replace("_", " ")}
-    </div>
-  </button>
+  <div className="relative">
+    <Handle
+      aria-hidden="true"
+      className="bg-muted! border-none!"
+      isConnectable={false}
+      position={Position.Top}
+      type="target"
+    />
+    <button
+      aria-label={`${data.issue.id}: ${data.issue.title}. Status: ${data.issue.status.replace(
+        "_",
+        " "
+      )}${data.parentId === null ? ". Root Issue." : `. Parent: ${data.parentId}`}`}
+      className="border-border-main bg-surface min-w-[220px] rounded-lg border p-3 shadow-lg"
+      data-issue-card-id={data.issue.id}
+      type="button"
+    >
+      <div className="text-muted font-mono text-[11px]">{data.issue.id}</div>
+      <span className="text-text-main mt-1 block text-left text-sm font-medium">
+        {data.issue.title}
+      </span>
+      <div className="text-muted mt-2 text-[11px] capitalize">
+        {data.issue.status.replace("_", " ")}
+      </div>
+    </button>
+    <Handle
+      aria-hidden="true"
+      className="bg-muted! border-none!"
+      isConnectable={false}
+      position={Position.Bottom}
+      type="source"
+    />
+  </div>
 );
 
 const NODE_TYPES: NodeTypes = {
