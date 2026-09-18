@@ -11,9 +11,15 @@
   "id": "bsm-1zl.5",
   "labels": [],
   "parent": "bsm-1zl",
+  "comments": [
+    {
+      "text": "Implemented Show-all Graph scope through the existing navigation contract. The graph projection now supports Focused and All from one deterministic builder; Show all includes every Issue and valid parent/blocker edge, including disconnected closed Issues. Added navigation-owned scope controls, accurate visible/total counts, a representative 141-Issue/213-link fixture, and App coverage for scope switching. mise run ts:check, ts:typecheck, and ts:test pass (414 tests).",
+      "timestamp": "2026-09-18T21:11:16Z"
+    }
+  ],
   "priority": 2,
   "status": "in_progress",
   "title": "Reveal every Issue with Show all",
   "type": "task",
-  "updated_at": "2026-09-18T21:04:36Z"
+  "updated_at": "2026-09-18T21:11:16Z"
 }
