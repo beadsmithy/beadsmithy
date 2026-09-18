@@ -12,9 +12,15 @@
   "id": "bsm-1zl.6",
   "labels": [],
   "parent": "bsm-1zl",
+  "comments": [
+    {
+      "text": "Implemented selected Graph navigation and shared Issue Detail overlay. Graph cards are native keyboard/pointer buttons, selected routes serialize as /graph/\u003cid\u003e with scope preserved, Close pushes an unselected Graph entry, and missing selections reuse Issue-not-found. Added App integration coverage for activation, overlay, Close, Back/Forward, keyboard activation, and missing routes. mise run ts:check, ts:typecheck, and ts:test pass (407 tests).",
+      "timestamp": "2026-09-18T20:55:11Z"
+    }
+  ],
   "priority": 2,
   "status": "in_progress",
   "title": "Open and close Issue Detail over Graph",
   "type": "task",
-  "updated_at": "2026-09-18T20:45:09Z"
+  "updated_at": "2026-09-18T20:55:11Z"
 }
