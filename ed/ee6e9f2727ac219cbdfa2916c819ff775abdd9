@@ -1,0 +1,20 @@
+src/issues/use-issue-explorer-coordinator.ts
+  s_2abc0b754825c3::t_a545dfab0c8b83 287,299-303,318-322,325-326
+  s_2abc0b754825c3::t_686ed7b4caa32c 327
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.4",
+  "base_commit_sha": "edee6e9f2727ac219cbdfa2916c819ff775abdd9",
+  "prompts": {},
+  "sessions": {
+    "s_2abc0b754825c3": {
+      "agent_id": {
+        "tool": "pi",
+        "id": "01a057c3-564d-7137-80ba-2e2d1240a006",
+        "model": "gpt-5.6-luna"
+      },
+      "human_author": "Tomas Thor Jonsson <benregn@gmail.com>"
+    }
+  }
+}
