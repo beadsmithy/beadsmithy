@@ -1,0 +1,20 @@
+src/issues/IssueGraphCanvas.tsx
+  s_1492929ba5595f::t_28a7131ea81a86 6,47,52-59,80,85-92,103,108,112-121,285
+  s_1492929ba5595f::t_19462843d71910 295
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.4",
+  "base_commit_sha": "7264d22ca3112a51a1371af4d38e7008c4f1047e",
+  "prompts": {},
+  "sessions": {
+    "s_1492929ba5595f": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a0b518-4d66-77c2-a7cd-0cda815ef6f9",
+        "model": "gpt-5.6-luna"
+      },
+      "human_author": "Tomas Thor Jonsson <benregn@gmail.com>"
+    }
+  }
+}
