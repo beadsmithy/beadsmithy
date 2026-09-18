@@ -15,6 +15,7 @@ import type {
   Node,
   NodeProps,
   NodeTypes,
+  Viewport,
 } from "@xyflow/react";
 import { useMemo } from "react";
 
@@ -213,11 +214,15 @@ const layoutFocusedGraph = (
 export const IssueGraphCanvas = ({
   allIssues,
   onIssueSelect,
+  handleViewportChange,
   selectedIssueId,
+  viewport,
 }: {
   allIssues: Issue[];
   onIssueSelect: (issueId: string) => void;
+  handleViewportChange: (viewport: Viewport) => void;
   selectedIssueId: string | null;
+  viewport: Viewport | null;
 }) => {
   const graph = useMemo(
     () => buildFocusedIssueGraph({ allIssues, selectedIssueId }),
@@ -308,7 +313,7 @@ export const IssueGraphCanvas = ({
         aria-label="Focused Issue Graph"
         nodes={flowGraph.nodes}
         edges={flowGraph.edges}
-        fitView
+        fitView={viewport === null}
         edgeTypes={EDGE_TYPES}
         fitViewOptions={{ padding: 0.18 }}
         maxZoom={1.5}
@@ -316,7 +321,9 @@ export const IssueGraphCanvas = ({
         nodesConnectable={false}
         nodesDraggable={false}
         nodeTypes={NODE_TYPES}
+        onViewportChange={handleViewportChange}
         panOnDrag
+        viewport={viewport ?? undefined}
       >
         <Background gap={24} size={1} />
         <Controls showInteractive={false} />

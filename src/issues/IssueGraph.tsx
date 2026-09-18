@@ -1,3 +1,4 @@
+import type { Viewport } from "@xyflow/react";
 import { AlertTriangle, LoaderCircle, Network } from "lucide-react";
 import { useMemo, useRef, useState } from "react";
 
@@ -24,19 +25,25 @@ export const IssueGraph = ({
   markdownFontSizePx,
   onIssueClose,
   onIssueSelect,
+  handleViewportChange,
   openExternalLink = defaultOpenExternalLink,
   refreshHealth,
   route,
   titleOverride,
+  viewport,
+  workspacePath,
 }: {
   issueState: IssueExplorerLoadState;
   markdownFontSizePx?: number;
   onIssueClose: () => void;
   onIssueSelect: (issueId: string) => void;
+  handleViewportChange: (viewport: Viewport) => void;
   openExternalLink?: ExternalLinkOpener;
   refreshHealth: RefreshHealth | null;
   route: IssueGraphRouteState;
   titleOverride?: string | null;
+  viewport: Viewport | null;
+  workspacePath: string | null;
 }) => {
   const [copySucceeded, setCopySucceeded] = useState(false);
   const detailHeadingRef = useRef<HTMLHeadingElement>(null);
@@ -210,8 +217,11 @@ export const IssueGraph = ({
       <div className="relative min-h-0 flex-1">
         <IssueGraphCanvas
           allIssues={issueState.allIssues}
+          key={workspacePath ?? "no-workspace"}
           onIssueSelect={onIssueSelect}
+          handleViewportChange={handleViewportChange}
           selectedIssueId={route.issueId}
+          viewport={viewport}
         />
         {route.issueId === null ? null : (
           <aside

@@ -16,6 +16,7 @@ import { issueNavigationDestinationLabel } from "./issues/issue-navigation-coord
 import { IssueExplorer } from "./issues/IssueExplorer";
 import { IssueGraph } from "./issues/IssueGraph";
 import { useIssueExplorerCoordinator } from "./issues/use-issue-explorer-coordinator";
+import { useIssueGraphViewport } from "./issues/use-issue-graph-viewport";
 import { useExternalLifecycle } from "./lib/use-external-lifecycle";
 import { useAppSettings } from "./settings/app-settings";
 import { SettingsPage } from "./settings/SettingsPage";
@@ -85,6 +86,13 @@ const App = () => {
     navigate,
   });
 
+  const confirmedWorkspacePath =
+    workspaceState?.currentWorkspace?.path ??
+    (presentedIssueState.status === "success"
+      ? presentedIssueState.workspacePath
+      : null);
+  const graphViewport = useIssueGraphViewport(confirmedWorkspacePath);
+
   const appDestination: AppDestination = isSettingsRoute
     ? "settings"
     : "issueExplorer";
@@ -113,9 +121,12 @@ const App = () => {
       markdownFontSizePx={settings.state.appliedFontSizePx}
       onIssueClose={onGraphIssueClose}
       onIssueSelect={onGraphIssueSelect}
+      handleViewportChange={graphViewport.onViewportChange}
       refreshHealth={refreshHealth}
       route={explorerRoute}
       titleOverride={isSettingsRoute ? "Settings · Beadsmithy" : null}
+      viewport={graphViewport.viewport}
+      workspacePath={confirmedWorkspacePath}
     />
   );
 
