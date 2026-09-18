@@ -1,0 +1,20 @@
+e2e/issue-list/fixtures/workspace.ts
+  s_b61cc339579898::t_561ff8f203f1c7 282-283
+  s_b61cc339579898::t_7492f888c93037 236-241,250-251
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.4",
+  "base_commit_sha": "ecbbbfa92136c082895b4eb03fcb28f76cbe6e15",
+  "prompts": {},
+  "sessions": {
+    "s_b61cc339579898": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a0b5ca-82c3-7f13-bcb1-b5e12e722fe1",
+        "model": "gpt-5.6-luna"
+      },
+      "human_author": "Tomas Thor Jonsson <benregn@gmail.com>"
+    }
+  }
+}
