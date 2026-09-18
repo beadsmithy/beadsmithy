@@ -73,7 +73,7 @@
     "oxlint-tailwindcss": "^1.10.0",
     "react-doctor": "^0.5.8",
     "tailwindcss": "^4.3.3",
-    "tauri-agent-tools": "^0.8.0",
+    "tauri-agent-tools": "^0.9.3",
     "tsx": "^4.22.4",
     "typescript": "^7.0.2",
     "ultracite": "^7.12.0",
