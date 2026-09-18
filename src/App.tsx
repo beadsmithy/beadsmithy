@@ -54,6 +54,8 @@ const App = () => {
 
   const {
     explorer: {
+      onGraphIssueClose,
+      onGraphIssueSelect,
       onIssueListViewSelect,
       onGraphSelect,
       onIssueReferenceSelect,
@@ -108,6 +110,9 @@ const App = () => {
   ) : (
     <IssueGraph
       issueState={presentedIssueState}
+      markdownFontSizePx={settings.state.appliedFontSizePx}
+      onIssueClose={onGraphIssueClose}
+      onIssueSelect={onGraphIssueSelect}
       refreshHealth={refreshHealth}
       route={explorerRoute}
       titleOverride={isSettingsRoute ? "Settings · Beadsmithy" : null}

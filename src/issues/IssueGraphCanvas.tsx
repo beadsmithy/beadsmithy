@@ -31,6 +31,8 @@ import "@xyflow/react/dist/style.css";
 
 interface IssueCardData extends Record<string, unknown> {
   issue: Issue;
+  isSelected: boolean;
+  onSelectIssue: (issueId: string) => void;
   parentId: string | null;
 }
 
@@ -65,8 +67,10 @@ const IssueCard = ({ data }: NodeProps<IssueCardNode>) => (
         "_",
         " "
       )}${data.parentId === null ? ". Root Issue." : `. Parent: ${data.parentId}`}`}
-      className="border-border-main bg-surface min-h-[104px] w-full rounded-lg border p-3 shadow-lg"
+      className={`border-border-main bg-surface min-h-[104px] w-full rounded-lg border p-3 shadow-lg ${data.isSelected ? "ring-accent ring-2" : ""}`}
       data-issue-card-id={data.issue.id}
+      data-selected={data.isSelected ? "true" : "false"}
+      onClick={() => data.onSelectIssue(data.issue.id)}
       type="button"
     >
       <div className="text-muted font-mono text-[11px]">{data.issue.id}</div>
@@ -158,14 +162,21 @@ const EDGE_TYPES: EdgeTypes = {
 
 const layoutFocusedGraph = (
   graph: FocusedIssueGraph,
-  layout: IssueGraphLayoutResult
+  layout: IssueGraphLayoutResult,
+  onSelectIssue: (issueId: string) => void,
+  selectedIssueId: string | null
 ): { edges: IssueFlowEdge[]; nodes: IssueCardNode[] } => {
   const layoutNodeById = new Map(layout.nodes.map((node) => [node.id, node]));
 
   const nodes = graph.nodes.map((node) => {
     const position = layoutNodeById.get(node.id)?.position ?? { x: 0, y: 0 };
     return {
-      data: { issue: node.issue, parentId: node.parentId },
+      data: {
+        isSelected: node.id === selectedIssueId,
+        issue: node.issue,
+        onSelectIssue,
+        parentId: node.parentId,
+      },
       id: node.id,
       position: {
         x: position.x,
@@ -201,9 +212,11 @@ const layoutFocusedGraph = (
 
 export const IssueGraphCanvas = ({
   allIssues,
+  onIssueSelect,
   selectedIssueId,
 }: {
   allIssues: Issue[];
+  onIssueSelect: (issueId: string) => void;
   selectedIssueId: string | null;
 }) => {
   const graph = useMemo(
@@ -215,8 +228,13 @@ export const IssueGraphCanvas = ({
     () =>
       layoutState.layout === null
         ? null
-        : layoutFocusedGraph(graph, layoutState.layout),
-    [graph, layoutState.layout]
+        : layoutFocusedGraph(
+            graph,
+            layoutState.layout,
+            onIssueSelect,
+            selectedIssueId
+          ),
+    [graph, layoutState.layout, onIssueSelect, selectedIssueId]
   );
 
   if (graph.nodes.length === 0) {
