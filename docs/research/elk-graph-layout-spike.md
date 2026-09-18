@@ -1,15 +1,14 @@
 # ELK graph layout spike
 
-Date: 2026-09-18
-Issue: `bsm-1zl.10`
+Date: 2026-09-18 Issue: `bsm-1zl.10`
 
 ## Decision
 
-Do not replace the production Graph renderer with ELK yet. Keep the extracted Dagre adapter as the production path and retain the ELK adapter as a comparison seam for a later focused experiment.
+The production Graph renderer now uses ELK Layered by default. Dagre remains an explicit deterministic adapter for fallback, diagnostics, and comparison. The layout contract is intentionally relaxed: blocker relationships participate in placement so ELK can reserve route space and minimize edge-through-card cases.
 
-ELK Layered materially improves the fixture's blocker routing: it sees both relationship classes, respects explicit top/bottom and left/right ports, emits orthogonal edge sections, and reduced the measured edge-through-node cases from 5 unique edge/node pairs to 0. It also reduced the fixture's segment crossings from 3 to 1. The tradeoff is that the resulting layout moves the hierarchy to make cross-cutting blocker edges fit, which conflicts with the current product contract that parent links determine layout and blocker links do not influence positions. The remaining crossing is also evidence that ELK is not a complete comprehension solution for cyclic, cross-tree dependencies.
+ELK Layered materially improves the fixture's blocker routing: it sees both relationship classes, respects explicit top/bottom and left/right ports, emits orthogonal edge sections, and reduced the measured edge-through-node cases from 5 unique edge/node pairs to 0. It also reduced the fixture's segment crossings from 3 to 1. The resulting layout moves the hierarchy to make cross-cutting blocker edges fit, which is the intentional change from the earlier contract that parent links determine layout and blocker links do not influence positions. The remaining crossing is also evidence that ELK is not a complete comprehension solution for cyclic, cross-tree dependencies.
 
-The next production experiment should be a product decision about relaxing that contract, followed by a real Graph-view comparison with user-facing labels and the expected focused-graph density. This spike does not silently make that contract change.
+The production follow-up made that contract decision explicit and wired the ELK sections into the real Graph view. This document retains the fixture evidence and rejected hierarchy-only strategy that motivated the decision.
 
 ## Tested fixture
 
@@ -78,8 +77,9 @@ The image shows the core tradeoff: Dagre preserves the clean parent hierarchy bu
 
 - `issue-graph.ts` remains the semantic projection and anomaly source.
 - `issue-graph-layout.ts` owns Dagre conversion, ELK conversion, explicit ports, edge sections, async ELK behavior, and geometry diagnostics.
-- `IssueGraphCanvas.tsx` now maps the Dagre layout result into React Flow and does not contain engine-specific graph construction or packing policy.
-- The production renderer remains on Dagre. No async loading state, worker, or user-visible layout change was introduced by this spike.
+- `IssueGraphCanvas.tsx` maps layout sections into read-only React Flow edges and does not contain engine-specific graph construction or packing policy.
+- `use-issue-graph-layout.ts` owns the asynchronous ELK lifecycle, retains a visible layout during recomputation, and falls back to Dagre when ELK fails.
+- The production renderer uses ELK without a worker. The measured fixture and current focused-graph sizes do not justify worker complexity; revisit this if real renderer responsiveness demonstrates a need.
 
 ## Primary references
 

@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import {
   diagnoseIssueGraphLayout,
+  layoutIssueGraph,
   layoutIssueGraphWithDagre,
   layoutIssueGraphWithElk,
 } from "./issue-graph-layout";
@@ -57,10 +58,19 @@ describe("issue graph layout", () => {
       })
     );
     expect(diagnostics.nodeOverlaps).toStrictEqual([]);
+    expect(diagnostics.edgeThroughNode).toStrictEqual([]);
     expect(diagnostics.duplicateEdgeIds).toStrictEqual([]);
     expect(diagnostics.blockerCycles).toStrictEqual([
       ["bsm-fixture-a.2", "bsm-fixture-b.1"],
     ]);
+  });
+
+  it("selects ELK as the production default layout engine", async () => {
+    const layout = await layoutIssueGraph({
+      graph: createIssueGraphLayoutFixture(),
+    });
+
+    expect(layout.engine).toBe("elk");
   });
 
   it("proves hierarchy-only ELK cannot provide blocker routes", async () => {

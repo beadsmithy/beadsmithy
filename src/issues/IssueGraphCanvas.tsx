@@ -2,7 +2,6 @@ import {
   BaseEdge,
   Background,
   Controls,
-  getSmoothStepPath,
   Handle,
   MarkerType,
   Panel,
@@ -22,7 +21,11 @@ import { useMemo } from "react";
 import type { Issue } from "../rpc/bindings";
 import { buildFocusedIssueGraph } from "./issue-graph";
 import type { FocusedIssueGraph, IssueGraphEdgeKind } from "./issue-graph";
-import { layoutIssueGraphWithDagre } from "./issue-graph-layout";
+import type {
+  IssueGraphLayoutSection,
+  IssueGraphLayoutResult,
+} from "./issue-graph-layout";
+import { useIssueGraphLayout } from "./use-issue-graph-layout";
 
 import "@xyflow/react/dist/style.css";
 
@@ -32,7 +35,12 @@ interface IssueCardData extends Record<string, unknown> {
 }
 
 type IssueCardNode = Node<IssueCardData, "issue">;
-type IssueFlowEdge = Edge<{ kind: IssueGraphEdgeKind }, "blocker" | "default">;
+interface IssueFlowEdgeData extends Record<string, unknown> {
+  kind: IssueGraphEdgeKind;
+  sections: IssueGraphLayoutSection[];
+}
+
+type IssueFlowEdge = Edge<IssueFlowEdgeData, "issue">;
 
 const IssueCard = ({ data }: NodeProps<IssueCardNode>) => (
   <div className="relative w-[240px]">
@@ -92,46 +100,66 @@ const NODE_TYPES: NodeTypes = {
   issue: IssueCard,
 };
 
-const BlockerEdge = ({
+const createOrthogonalPath = (
+  sections: IssueGraphLayoutSection[],
+  fallbackStart: { x: number; y: number },
+  fallbackEnd: { x: number; y: number }
+): string => {
+  const points = sections.flatMap((section) => [
+    section.startPoint,
+    ...section.bendPoints,
+    section.endPoint,
+  ]);
+  const distinctPoints = points.filter((point, index) => {
+    const [previousPoint] = points.slice(index - 1, index);
+    return (
+      index === 0 ||
+      point.x !== previousPoint?.x ||
+      point.y !== previousPoint?.y
+    );
+  });
+  const [firstPoint] = distinctPoints;
+  if (firstPoint === undefined) {
+    return `M ${fallbackStart.x} ${fallbackStart.y} L ${fallbackEnd.x} ${fallbackEnd.y}`;
+  }
+  let path = `M ${firstPoint.x} ${firstPoint.y}`;
+  for (const point of distinctPoints.slice(1)) {
+    path += ` L ${point.x} ${point.y}`;
+  }
+  return path;
+};
+
+const IssueGraphEdge = ({
+  data,
   markerEnd,
   source,
-  sourcePosition,
   sourceX,
   sourceY,
   style,
   target,
-  targetPosition,
   targetX,
   targetY,
-}: EdgeProps<IssueFlowEdge>) => {
-  const [path] = getSmoothStepPath({
-    borderRadius: 16,
-    offset: 24,
-    sourcePosition,
-    sourceX,
-    sourceY,
-    targetPosition,
-    targetX,
-    targetY,
-  });
-  return (
-    <BaseEdge
-      aria-label={`Blocker relationship: ${source} blocks ${target}`}
-      markerEnd={markerEnd}
-      path={path}
-      style={style}
-    />
-  );
-};
+}: EdgeProps<IssueFlowEdge>) => (
+  <BaseEdge
+    aria-label={`${data?.kind === "blocker" ? "Blocker" : "Parent"} relationship: ${source} to ${target}`}
+    markerEnd={markerEnd}
+    path={createOrthogonalPath(
+      data?.sections ?? [],
+      { x: sourceX, y: sourceY },
+      { x: targetX, y: targetY }
+    )}
+    style={style}
+  />
+);
 
 const EDGE_TYPES: EdgeTypes = {
-  blocker: BlockerEdge,
+  issue: IssueGraphEdge,
 };
 
 const layoutFocusedGraph = (
-  graph: FocusedIssueGraph
+  graph: FocusedIssueGraph,
+  layout: IssueGraphLayoutResult
 ): { edges: IssueFlowEdge[]; nodes: IssueCardNode[] } => {
-  const layout = layoutIssueGraphWithDagre(graph);
   const layoutNodeById = new Map(layout.nodes.map((node) => [node.id, node]));
 
   const nodes = graph.nodes.map((node) => {
@@ -150,7 +178,7 @@ const layoutFocusedGraph = (
   });
   const edges = layout.edges.map((edge) => ({
     className: edge.kind === "blocker" ? "beadsmith-blocker-edge" : undefined,
-    data: { kind: edge.kind },
+    data: { kind: edge.kind, sections: edge.sections },
     id: edge.id,
     markerEnd: { type: MarkerType.ArrowClosed },
     source: edge.source,
@@ -165,7 +193,7 @@ const layoutFocusedGraph = (
         : { stroke: "var(--color-muted)", strokeWidth: 1.5 },
     target: edge.target,
     targetHandle: edge.targetPort,
-    type: edge.kind === "blocker" ? ("blocker" as const) : ("default" as const),
+    type: "issue" as const,
   }));
 
   return { edges, nodes };
@@ -182,7 +210,14 @@ export const IssueGraphCanvas = ({
     () => buildFocusedIssueGraph({ allIssues, selectedIssueId }),
     [allIssues, selectedIssueId]
   );
-  const flowGraph = useMemo(() => layoutFocusedGraph(graph), [graph]);
+  const layoutState = useIssueGraphLayout(graph);
+  const flowGraph = useMemo(
+    () =>
+      layoutState.layout === null
+        ? null
+        : layoutFocusedGraph(graph, layoutState.layout),
+    [graph, layoutState.layout]
+  );
 
   if (graph.nodes.length === 0) {
     return (
@@ -201,12 +236,56 @@ export const IssueGraphCanvas = ({
     );
   }
 
+  if (flowGraph === null) {
+    return (
+      <div
+        aria-label="Focused Issue Graph canvas"
+        className="relative flex min-h-0 flex-1 items-center justify-center"
+        data-focused-graph="true"
+        data-graph-layout-state="loading"
+      >
+        <div className="text-muted text-center text-sm">
+          <p className="text-text-main font-medium">Arranging issue graph</p>
+          <p className="mt-1 text-xs">Calculating relationship routes…</p>
+        </div>
+      </div>
+    );
+  }
+
+  const { layout } = layoutState;
+  if (layout === null) {
+    return null;
+  }
+
   return (
     <div
       aria-label="Focused Issue Graph canvas"
       className="relative min-h-0 flex-1"
       data-focused-graph="true"
+      data-graph-layout-engine={layout.engine}
+      data-graph-layout-fallback={layoutState.isFallback ? "true" : undefined}
+      data-graph-layout-state={layoutState.isLoading ? "loading" : "ready"}
     >
+      {layoutState.error === null ? null : (
+        <output
+          aria-live="assertive"
+          className="border-danger/40 bg-danger/10 text-danger absolute inset-x-4 top-4 z-10 rounded border px-3 py-2 text-xs"
+          data-graph-layout-error="true"
+          role="alert"
+        >
+          Graph layout failed; showing the deterministic Dagre fallback. ELK
+          will retry when the graph changes.
+        </output>
+      )}
+      {layoutState.isLoading ? (
+        <output
+          aria-live="polite"
+          className="bg-surface/90 text-muted absolute bottom-4 left-4 z-10 rounded border px-3 py-2 text-xs shadow"
+          data-graph-layout-loading="true"
+        >
+          Refreshing graph layout…
+        </output>
+      ) : null}
       <ReactFlow
         aria-label="Focused Issue Graph"
         nodes={flowGraph.nodes}

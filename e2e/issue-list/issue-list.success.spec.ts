@@ -220,6 +220,28 @@ describe("Issue explorer (WebDriver e2e): workspace with selectable Issue List V
     await expectCurrentWorkspace(fixtureA);
   });
 
+  it("renders Graph Mode through the built desktop app with ELK routes", async () => {
+    const graphButton = await browser.$('button[aria-label="Graph"]');
+    await graphButton.click();
+
+    const graphCanvas = await browser.$('[data-focused-graph="true"]');
+    await graphCanvas.waitForExist({ timeout: 30_000 });
+    await browser.waitUntil(
+      async () =>
+        (await graphCanvas.getAttribute("data-graph-layout-state")) === "ready",
+      {
+        timeout: 30_000,
+        timeoutMsg: "Graph Mode did not finish its asynchronous layout",
+      }
+    );
+
+    expect(await graphCanvas.getAttribute("data-graph-layout-engine")).toBe(
+      "elk"
+    );
+    expect(await graphCanvas.$$("[data-issue-card-id]")).not.toHaveLength(0);
+    expect(await graphCanvas.$$("path")).not.toHaveLength(0);
+  });
+
   it("converges Issue Explorer counts after an external bw mutation in the selected workspace", async () => {
     // External local mutation proof for the
     // `beadwork://issue-explorer-state-changed` refresh event. The
