@@ -105,9 +105,22 @@ describe("issue navigation route contract", () => {
       kind: "graph",
       scope: "focused",
     });
+    expect(serializeIssueExplorerRoute(route)).toBe("/graph/bsm-parent.1");
+  });
+
+  it("serializes a selected Show-all Graph route as a path with scope", () => {
+    const route = {
+      issueId: "bsm/issue 1",
+      kind: "graph" as const,
+      scope: "all" as const,
+    };
+
     expect(serializeIssueExplorerRoute(route)).toBe(
-      "/graph?issue=bsm-parent.1"
+      "/graph/bsm%2Fissue%201?scope=all"
     );
+    expect(
+      parseIssueExplorerRoute(serializeIssueExplorerRoute(route))
+    ).toStrictEqual(route);
   });
 
   it("canonicalizes an invalid Graph scope to Focused", () => {
