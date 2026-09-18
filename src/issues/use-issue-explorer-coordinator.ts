@@ -17,13 +17,23 @@ import {
   applyIssueExplorerRefresh,
   applyStartupIssueLoad,
   applyWorkspaceTransition,
-  INITIAL_WORKSPACE_REMOUNT_KEY,
   INITIAL_WORKSPACE_TRANSITION_GATE_STATE,
 } from "../workspaces/transition-gate";
 import type {
+  WorkspaceStartupDecision,
   WorkspaceTransitionDecision,
   WorkspaceTransitionGateState,
 } from "../workspaces/transition-gate";
+import {
+  INITIAL_ISSUE_EXPLORER_PRESENTATION,
+  INITIAL_LOAD_FAILURE_STATE,
+  noWorkspacePresentation,
+} from "./issue-explorer-presentation";
+import type {
+  IssueExplorerPresentation,
+  IssueExplorerPresentationUpdate,
+  PublishIssueExplorerPresentation,
+} from "./issue-explorer-presentation";
 import type { IssueListViewId } from "./issue-list-view";
 import {
   ISSUE_EXPLORER_LOADING_STATE,
@@ -53,52 +63,46 @@ type Navigate = (
   options?: { replace?: boolean; state?: unknown }
 ) => void;
 
-const NO_WORKSPACE_ERROR_STATE: IssueExplorerLoadState = {
-  error: {
-    kind: "noWorkspace",
-    message: "Select a workspace to load issues.",
-  },
-  status: "failure",
-};
-
-const INITIAL_LOAD_FAILURE_STATE: IssueExplorerLoadState = {
-  error: {
-    kind: "unknown",
-    message: "Beadsmith could not load issues.",
-  },
-  status: "failure",
-};
-
-const applyNoWorkspacePresentation = (
-  remountKey: string,
-  setIssueState: (state: IssueExplorerLoadState) => void,
-  setWorkspaceKey: (key: string) => void
-): void => {
-  setIssueState(NO_WORKSPACE_ERROR_STATE);
-  setWorkspaceKey(remountKey);
-};
-
-const applyTransitionDecision = (
-  decision: WorkspaceTransitionDecision,
-  setIssueState: (state: IssueExplorerLoadState) => void,
-  setWorkspaceKey: (key: string) => void
-): void => {
-  if (
-    decision.kind === "ignore" ||
-    decision.kind === "acceptStateRetainSnapshot"
-  ) {
-    return;
+const transitionPresentation = (
+  decision: WorkspaceTransitionDecision
+): IssueExplorerPresentationUpdate => {
+  switch (decision.kind) {
+    case "ignore":
+    case "acceptStateRetainSnapshot": {
+      return {};
+    }
+    case "clearSnapshot": {
+      return noWorkspacePresentation(decision.remountKey);
+    }
+    case "commitSnapshot": {
+      return {
+        issueState: { ...decision.snapshot, status: "success" },
+        workspaceKey: decision.remountKey,
+      };
+    }
+    default: {
+      return {};
+    }
   }
-  if (decision.kind === "clearSnapshot") {
-    applyNoWorkspacePresentation(
-      decision.remountKey,
-      setIssueState,
-      setWorkspaceKey
-    );
-    return;
+};
+
+const startupPresentation = (
+  decision: WorkspaceStartupDecision
+): IssueExplorerPresentationUpdate => {
+  switch (decision.kind) {
+    case "ignore": {
+      return {};
+    }
+    case "commitSnapshot": {
+      return {
+        issueState: decision.snapshot,
+        workspaceKey: decision.remountKey,
+      };
+    }
+    default: {
+      return {};
+    }
   }
-  setIssueState({ ...decision.snapshot, status: "success" });
-  setWorkspaceKey(decision.remountKey);
 };
 
 /**
@@ -116,8 +120,7 @@ const applyRefreshDecision = (
   deferredHealthRef: {
     current: IssueExplorerRefreshHealthEvent | null;
   },
-  setIssueState: (state: IssueExplorerLoadState) => void,
-  setRefreshHealth: (health: RefreshHealth | null) => void
+  publishPresentation: PublishIssueExplorerPresentation
 ): void => {
   if (!isIssueExplorerRefreshEvent(payload)) {
     return;
@@ -142,7 +145,9 @@ const applyRefreshDecision = (
       }
       case "commitRefreshSnapshot": {
         gateRef.current = next;
-        setIssueState({ ...decision.snapshot, status: "success" });
+        publishPresentation({
+          issueState: { ...decision.snapshot, status: "success" },
+        });
         return;
       }
       default: {
@@ -172,7 +177,7 @@ const applyRefreshDecision = (
     }
     case "commitRefreshHealth": {
       gateRef.current = next;
-      setRefreshHealth(decision.health);
+      publishPresentation({ refreshHealth: decision.health });
       break;
     }
     default: {
@@ -222,9 +227,23 @@ export const useIssueExplorerCoordinator = ({
   issueRoute,
   navigate,
 }: IssueExplorerCoordinatorOptions): IssueExplorerCoordinatorResult => {
-  const [issueState, setIssueState] = useState<IssueExplorerLoadState>(
-    ISSUE_EXPLORER_LOADING_STATE
+  const [presentation, setPresentation] = useState<IssueExplorerPresentation>(
+    INITIAL_ISSUE_EXPLORER_PRESENTATION
   );
+  const publishPresentation = useCallback(
+    (update: IssueExplorerPresentationUpdate): void => {
+      setPresentation((current) => ({ ...current, ...update }));
+    },
+    []
+  );
+  const {
+    confirmedWorkspacePath,
+    dismissedSwitchErrorGeneration,
+    issueState,
+    refreshHealth,
+    workspaceKey,
+    workspaceState,
+  } = presentation;
   const currentWorkspacePath =
     issueState.status === "success" ? issueState.workspacePath : null;
   const {
@@ -242,24 +261,11 @@ export const useIssueExplorerCoordinator = ({
     issueRoute,
     navigate,
   });
-  const [workspaceState, setWorkspaceState] = useState<WorkspaceState | null>(
-    null
-  );
-  const [workspaceKey, setWorkspaceKey] = useState<string>(
-    INITIAL_WORKSPACE_TRANSITION_GATE_STATE.confirmedWorkspacePath ??
-      INITIAL_WORKSPACE_REMOUNT_KEY
-  );
-  const [refreshHealth, setRefreshHealth] = useState<RefreshHealth | null>(
-    null
-  );
   const manualWorkspaceSwitchRef = useRef(false);
   const navigationIntentRef = useRef(INITIAL_NAVIGATION_INTENT);
   const transitionGateRef = useRef<WorkspaceTransitionGateState>(
     INITIAL_WORKSPACE_TRANSITION_GATE_STATE
   );
-  const [confirmedWorkspacePath, setConfirmedWorkspacePath] = useState<
-    string | null
-  >(INITIAL_WORKSPACE_TRANSITION_GATE_STATE.confirmedWorkspacePath);
   /**
    * Per-variant deferred buffer for refresh events whose selection
    * generation is newer than the gate's confirmed generation. Snapshot
@@ -272,9 +278,6 @@ export const useIssueExplorerCoordinator = ({
   const deferredHealthRef = useRef<IssueExplorerRefreshHealthEvent | null>(
     null
   );
-  const [dismissedSwitchErrorGeneration, setDismissedSwitchErrorGeneration] =
-    useState<number | null>(null);
-
   const applyDeferredRefresh = useCallback((): boolean => {
     // Replay the Snapshot first so its confirmed identity is available
     // before a deferred Health event runs through the gate.
@@ -294,7 +297,9 @@ export const useIssueExplorerCoordinator = ({
         );
         if (decision.kind === "commitRefreshSnapshot") {
           transitionGateRef.current = next;
-          setIssueState({ ...decision.snapshot, status: "success" });
+          publishPresentation({
+            issueState: { ...decision.snapshot, status: "success" },
+          });
           applied = true;
           progressed = true;
         } else if (decision.kind === "defer") {
@@ -313,7 +318,7 @@ export const useIssueExplorerCoordinator = ({
         );
         if (decision.kind === "commitRefreshHealth") {
           transitionGateRef.current = next;
-          setRefreshHealth(decision.health);
+          publishPresentation({ refreshHealth: decision.health });
           applied = true;
           progressed = true;
         } else if (decision.kind === "defer") {
@@ -327,7 +332,7 @@ export const useIssueExplorerCoordinator = ({
       }
     }
     return applied;
-  }, []);
+  }, [publishPresentation]);
 
   const applyTransition = useCallback(
     (
@@ -340,31 +345,31 @@ export const useIssueExplorerCoordinator = ({
         expectedGeneration
       );
       transitionGateRef.current = next;
-      setConfirmedWorkspacePath(next.confirmedWorkspacePath);
 
       if (decision.kind === "ignore") {
         return decision;
       }
 
-      // The gate resets health when the confirmed Workspace identity
-      // changes and retains it for in-place transitions. Mirror that
-      // computed state so a prior Workspace's banner cannot linger.
-      setRefreshHealth(next.refreshHealth);
-      setWorkspaceState(transition.state);
-      applyTransitionDecision(decision, setIssueState, setWorkspaceKey);
+      // The gate computes the complete admitted identity and health state.
+      // Publish those values with the matching Workspace snapshot so React
+      // never renders a mixed Workspace/snapshot pair.
+      publishPresentation({
+        confirmedWorkspacePath: next.confirmedWorkspacePath,
+        refreshHealth: next.refreshHealth,
+        workspaceState: transition.state,
+        ...transitionPresentation(decision),
+      });
       applyDeferredRefresh();
       return decision;
     },
-    [applyDeferredRefresh]
+    [applyDeferredRefresh, publishPresentation]
   );
 
   const { refreshWorkspaceState, workspaceHandlers } = useWorkspaceCoordinator({
     applyTransition,
     manualWorkspaceSwitchRef,
     navigationIntentRef,
-    setDismissedSwitchErrorGeneration,
-    setIssueState,
-    setWorkspaceKey,
+    publishPresentation,
     transitionGateRef,
     workspaceState,
   });
@@ -508,8 +513,7 @@ export const useIssueExplorerCoordinator = ({
             transitionGateRef,
             deferredSnapshotRef,
             deferredHealthRef,
-            setIssueState,
-            setRefreshHealth
+            publishPresentation
           );
         }
       );
@@ -540,12 +544,13 @@ export const useIssueExplorerCoordinator = ({
             dispatchedAtCommittedGeneration
           );
           transitionGateRef.current = next;
-          setConfirmedWorkspacePath(next.confirmedWorkspacePath);
           if (decision.kind === "ignore") {
             return;
           }
-          setIssueState(decision.snapshot);
-          setWorkspaceKey(decision.remountKey);
+          publishPresentation({
+            confirmedWorkspacePath: next.confirmedWorkspacePath,
+            ...startupPresentation(decision),
+          });
           applyDeferredRefresh();
         } catch {
           const { decision, next } = applyStartupIssueLoad(
@@ -554,11 +559,13 @@ export const useIssueExplorerCoordinator = ({
             dispatchedAtCommittedGeneration
           );
           transitionGateRef.current = next;
-          setConfirmedWorkspacePath(next.confirmedWorkspacePath);
           if (decision.kind === "ignore") {
             return;
           }
-          setIssueState(decision.snapshot);
+          publishPresentation({
+            confirmedWorkspacePath: next.confirmedWorkspacePath,
+            ...startupPresentation(decision),
+          });
         }
       })();
       void refreshWorkspaceState();
@@ -583,7 +590,7 @@ export const useIssueExplorerCoordinator = ({
       unlistenTransition?.();
       unlistenRefresh?.();
     };
-  }, [applyTransition, refreshWorkspaceState]);
+  }, [applyTransition, publishPresentation, refreshWorkspaceState]);
 
   return {
     explorer: {

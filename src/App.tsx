@@ -97,7 +97,7 @@ const App = () => {
   );
 
   return (
-    <div className="bg-background font-primary text-text-main flex h-screen w-screen flex-col overflow-hidden antialiased">
+    <div className="flex h-screen w-screen flex-col overflow-hidden bg-background font-primary text-text-main antialiased">
       <Titlebar
         backDisabled={backDisabled}
         backLabel={issueNavigationDestinationLabel(previousNavigationEntry)}
@@ -111,13 +111,13 @@ const App = () => {
       {deepLinkError === null ? null : (
         <div
           aria-live="assertive"
-          className="border-danger/40 bg-danger/10 flex items-center gap-3 border-b px-4 py-2 text-sm text-red-200"
+          className="flex items-center gap-3 border-b border-danger/40 bg-danger/10 px-4 py-2 text-sm text-red-200"
           role="alert"
         >
           <span className="flex-1">{deepLinkError}</span>
           <button
             aria-label="Dismiss deep-link error"
-            className="text-text-main rounded px-2 py-1 text-xs hover:bg-white/10"
+            className="rounded px-2 py-1 text-xs text-text-main hover:bg-white/10"
             onClick={dismissDeepLinkError}
             type="button"
           >
@@ -159,17 +159,17 @@ const App = () => {
             workspaceState.pendingWorkspace === null ? (
               <main
                 aria-label="Choose a workspace"
-                className="bg-background flex flex-1 items-center justify-center p-8 text-center"
+                className="flex flex-1 items-center justify-center bg-background p-8 text-center"
               >
                 <div>
-                  <h1 className="text-primary text-lg font-semibold">
+                  <h1 className="text-lg font-semibold text-primary">
                     Choose a workspace
                   </h1>
-                  <p className="text-muted mt-2 text-sm">
+                  <p className="mt-2 text-sm text-muted">
                     Select a Beadwork repository to load its issue views.
                   </p>
                   <button
-                    className="border-border-main mt-4 rounded border px-3 py-2 text-sm hover:bg-white/5"
+                    className="mt-4 rounded border border-border-main px-3 py-2 text-sm hover:bg-white/5"
                     onClick={() => workspaceHandlers.onChoose()}
                     type="button"
                   >
@@ -178,11 +178,7 @@ const App = () => {
                 </div>
               </main>
             ) : (
-              <Switch location={location}>
-                <Route path="/issues/:issueId">{issueExplorerView}</Route>
-                <Route path="/issues">{issueExplorerView}</Route>
-                <Route>{issueExplorerView}</Route>
-              </Switch>
+              issueExplorerView
             )}
           </div>
           <Switch location={location}>

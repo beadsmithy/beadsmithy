@@ -25,29 +25,14 @@ import type {
   WorkspaceService,
   WorkspaceServiceFailure,
 } from "../workspaces/workspace-service";
-import type { IssueExplorerLoadState } from "./issue-loader";
+import { noWorkspacePresentation } from "./issue-explorer-presentation";
+import type { PublishIssueExplorerPresentation } from "./issue-explorer-presentation";
 import {
   beginNavigationIntent,
   finishNavigationIntent,
   isCurrentNavigationIntent,
 } from "./navigation-intent";
 import type { NavigationIntentRef } from "./navigation-intent";
-
-const NO_WORKSPACE_ERROR_STATE: IssueExplorerLoadState = {
-  error: {
-    kind: "noWorkspace",
-    message: "Select a workspace to load issues.",
-  },
-  status: "failure",
-};
-
-const applyNoWorkspacePresentation = (
-  setIssueState: (state: IssueExplorerLoadState) => void,
-  setWorkspaceKey: (key: string) => void
-): void => {
-  setIssueState(NO_WORKSPACE_ERROR_STATE);
-  setWorkspaceKey("/__reset__");
-};
 
 const ignoreWorkspaceFailure = (_error: WorkspaceServiceFailure): void => {
   // The existing workspace snapshot remains the authoritative presentation.
@@ -57,9 +42,7 @@ export interface WorkspaceCoordinatorOptions {
   applyTransition: ApplyWorkspaceTransition;
   manualWorkspaceSwitchRef: MutableRefObject<boolean>;
   navigationIntentRef: NavigationIntentRef;
-  setDismissedSwitchErrorGeneration: (generation: number | null) => void;
-  setIssueState: (state: IssueExplorerLoadState) => void;
-  setWorkspaceKey: (key: string) => void;
+  publishPresentation: PublishIssueExplorerPresentation;
   transitionGateRef: MutableRefObject<WorkspaceTransitionGateState>;
   workspaceState: WorkspaceState | null;
 }
@@ -82,9 +65,7 @@ export const useWorkspaceCoordinator = ({
   applyTransition,
   manualWorkspaceSwitchRef,
   navigationIntentRef,
-  setDismissedSwitchErrorGeneration,
-  setIssueState,
-  setWorkspaceKey,
+  publishPresentation,
   transitionGateRef,
   workspaceState,
 }: WorkspaceCoordinatorOptions): WorkspaceCoordinatorResult => {
@@ -137,7 +118,7 @@ export const useWorkspaceCoordinator = ({
     manualWorkspaceSwitchRef.current = true;
     const expectedGeneration = transitionGateRef.current.acceptedGeneration + 1;
     const intentGeneration = beginNavigationIntent(navigationIntentRef, path);
-    setDismissedSwitchErrorGeneration(null);
+    publishPresentation({ dismissedSwitchErrorGeneration: null });
     try {
       await runProgram(
         selectWorkspace(path),
@@ -229,7 +210,7 @@ export const useWorkspaceCoordinator = ({
         },
         (state) => {
           applyTransition({ issueData: null, state }, null);
-          applyNoWorkspacePresentation(setIssueState, setWorkspaceKey);
+          publishPresentation(noWorkspacePresentation("/__reset__"));
         }
       );
     } catch {
@@ -267,7 +248,9 @@ export const useWorkspaceCoordinator = ({
   };
 
   const dismissSwitchError = (): void => {
-    setDismissedSwitchErrorGeneration(workspaceState?.generation ?? null);
+    publishPresentation({
+      dismissedSwitchErrorGeneration: workspaceState?.generation ?? null,
+    });
   };
 
   // The active Fiber is intentionally interrupted on unmount, not merely
