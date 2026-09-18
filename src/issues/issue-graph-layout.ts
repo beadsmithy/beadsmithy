@@ -15,6 +15,8 @@ const GRAPH_LAYOUT_ROW_WIDTH = 1000;
 
 export type IssueGraphLayoutEngine = "dagre" | "elk";
 
+export const DEFAULT_ISSUE_GRAPH_LAYOUT_ENGINE = "elk" as const;
+
 export interface IssueGraphLayoutPoint {
   x: number;
   y: number;
@@ -460,10 +462,10 @@ export const layoutIssueGraph = ({
   engine,
   graph,
 }: {
-  engine: IssueGraphLayoutEngine;
+  engine?: IssueGraphLayoutEngine;
   graph: FocusedIssueGraph;
 }): Promise<IssueGraphLayoutResult> =>
-  engine === "elk"
+  (engine ?? DEFAULT_ISSUE_GRAPH_LAYOUT_ENGINE) === "elk"
     ? layoutIssueGraphWithElk({ graph })
     : Promise.resolve(layoutIssueGraphWithDagre(graph));
 
