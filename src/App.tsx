@@ -1,214 +1,25 @@
-import { listen } from "@tauri-apps/api/event";
-import type { UnlistenFn } from "@tauri-apps/api/event";
-import { useCallback, useRef, useState } from "react";
+import { useState } from "react";
 import { Route, Switch, useLocation, useRoute, useSearchParams } from "wouter";
 import { useHistoryState } from "wouter/use-browser-location";
 
 import "./App.css";
 import { Sidebar } from "./components/Sidebar";
 import { Titlebar } from "./components/Titlebar";
-import type { IssueListViewId } from "./issues/issue-list-view";
-import {
-  ISSUE_EXPLORER_LOADING_STATE,
-  loadIssueExplorerStateFromTauRpc,
-} from "./issues/issue-loader";
-import type { IssueExplorerLoadState } from "./issues/issue-loader";
 import {
   createIssueExplorerRoute,
-  isIssueInListView,
   isIssueListViewId,
-  selectIssueForView,
   serializeIssueExplorerRoute,
 } from "./issues/issue-navigation";
 import { issueNavigationDestinationLabel } from "./issues/issue-navigation-coordinator";
 import { IssueExplorer } from "./issues/IssueExplorer";
-import {
-  finishNavigationIntent,
-  INITIAL_NAVIGATION_INTENT,
-  transitionMatchesNavigationIntent,
-} from "./issues/navigation-intent";
-import { useIssueDeepLinkCoordinator } from "./issues/use-issue-deep-link-coordinator";
-import { useIssueNavigationCoordinator } from "./issues/use-issue-navigation-coordinator";
-import { useIssueWorkspaceTraversal } from "./issues/use-issue-workspace-traversal";
-import { useWorkspaceCoordinator } from "./issues/use-workspace-coordinator";
+import { useIssueExplorerCoordinator } from "./issues/use-issue-explorer-coordinator";
 import { useExternalLifecycle } from "./lib/use-external-lifecycle";
-import { isIssueExplorerRefreshEvent } from "./refresh-health";
-import type {
-  IssueExplorerRefreshEvent,
-  IssueExplorerRefreshHealthEvent,
-  IssueExplorerRefreshSnapshotEvent,
-  RefreshHealth,
-} from "./refresh-health";
-import type { WorkspaceState } from "./rpc/bindings";
 import { useAppSettings } from "./settings/app-settings";
 import { SettingsPage } from "./settings/SettingsPage";
-import type { WorkspaceTransition } from "./workspaces/transition-contract";
-import {
-  applyIssueExplorerHealthRefresh,
-  applyIssueExplorerRefresh,
-  applyStartupIssueLoad,
-  applyWorkspaceTransition,
-  INITIAL_WORKSPACE_REMOUNT_KEY,
-  INITIAL_WORKSPACE_TRANSITION_GATE_STATE,
-} from "./workspaces/transition-gate";
-import type {
-  WorkspaceTransitionDecision,
-  WorkspaceTransitionGateState,
-} from "./workspaces/transition-gate";
-
-const WORKSPACE_TRANSITION_EVENT = "workspace-transition";
-const ISSUE_EXPLORER_REFRESH_EVENT = "beadwork://issue-explorer-state-changed";
 
 type AppDestination = "issueExplorer" | "settings";
 
-const NO_WORKSPACE_ERROR_STATE: IssueExplorerLoadState = {
-  error: {
-    kind: "noWorkspace",
-    message: "Select a workspace to load issues.",
-  },
-  status: "failure",
-};
-
-const INITIAL_LOAD_FAILURE_STATE: IssueExplorerLoadState = {
-  error: {
-    kind: "unknown",
-    message: "Beadsmith could not load issues.",
-  },
-  status: "failure",
-};
-
-const applyNoWorkspacePresentation = (
-  remountKey: string,
-  setIssueState: (state: IssueExplorerLoadState) => void,
-  setWorkspaceKey: (key: string) => void
-): void => {
-  setIssueState(NO_WORKSPACE_ERROR_STATE);
-  setWorkspaceKey(remountKey);
-};
-
-const applyTransitionDecision = (
-  decision: WorkspaceTransitionDecision,
-  setIssueState: (state: IssueExplorerLoadState) => void,
-  setWorkspaceKey: (key: string) => void
-): void => {
-  if (
-    decision.kind === "ignore" ||
-    decision.kind === "acceptStateRetainSnapshot"
-  ) {
-    return;
-  }
-  if (decision.kind === "clearSnapshot") {
-    applyNoWorkspacePresentation(
-      decision.remountKey,
-      setIssueState,
-      setWorkspaceKey
-    );
-    return;
-  }
-  setIssueState({ ...decision.snapshot, status: "success" });
-  setWorkspaceKey(decision.remountKey);
-};
-
-/**
- * Apply a `beadwork://issue-explorer-state-changed` event through the
- * pure [`applyIssueExplorerRefresh`] decision. On admission the existing
- * Issue Explorer snapshot is replaced with the new one in place: the
- * outer remount key, active view, search query, and selected Issue are
- * left untouched because the underlying Workspace identity is unchanged.
- * A deferred payload is buffered into the per-variant deferred slots
- * so it can be replayed after the matching `workspace-transition` admits
- * the new selection. A rejected event is silently dropped.
- *
- * The tagged-union event carries either a Snapshot variant (replaces
- * the issue state) or a Health variant (replaces the refresh health
- * state and renders the banner). Both variants share the same identity
- * triple; the gate tracks independent accepted revisions for each so
- * delivery order does not affect correctness.
- *
- * The buffer is split into two slots (one per variant) because a single
- * slot would lose one variant when both a Snapshot and a Health event
- * are pending for the same not-yet-admitted identity (e.g. during the
- * Pending phase of a Workspace switch or before the startup snapshot
- * commits the initial identity).
- */
-const applyRefreshDecision = (
-  payload: IssueExplorerRefreshEvent,
-  gateRef: { current: WorkspaceTransitionGateState },
-  deferredSnapshotRef: {
-    current: IssueExplorerRefreshSnapshotEvent | null;
-  },
-  deferredHealthRef: {
-    current: IssueExplorerRefreshHealthEvent | null;
-  },
-  setIssueState: (state: IssueExplorerLoadState) => void,
-  setRefreshHealth: (health: RefreshHealth | null) => void
-): void => {
-  if (!isIssueExplorerRefreshEvent(payload)) {
-    return;
-  }
-  if (payload.eventType === "snapshot") {
-    const { decision, next } = applyIssueExplorerRefresh(
-      gateRef.current,
-      payload
-    );
-    switch (decision.kind) {
-      case "ignore": {
-        return;
-      }
-      case "defer": {
-        if (
-          deferredSnapshotRef.current === null ||
-          deferredSnapshotRef.current.refreshRevision <= payload.refreshRevision
-        ) {
-          deferredSnapshotRef.current = payload;
-        }
-        return;
-      }
-      case "commitRefreshSnapshot": {
-        gateRef.current = next;
-        setIssueState({ ...decision.snapshot, status: "success" });
-        return;
-      }
-      default: {
-        return;
-      }
-    }
-  }
-  // Health variant
-  const healthPayload: IssueExplorerRefreshHealthEvent = payload;
-  const { decision, next } = applyIssueExplorerHealthRefresh(
-    gateRef.current,
-    healthPayload
-  );
-  switch (decision.kind) {
-    case "ignore": {
-      return;
-    }
-    case "defer": {
-      if (
-        deferredHealthRef.current === null ||
-        deferredHealthRef.current.refreshRevision <=
-          healthPayload.refreshRevision
-      ) {
-        deferredHealthRef.current = healthPayload;
-      }
-      return;
-    }
-    case "commitRefreshHealth": {
-      gateRef.current = next;
-      setRefreshHealth(decision.health);
-      break;
-    }
-    default: {
-      break;
-    }
-  }
-};
-
 const App = () => {
-  const [issueState, setIssueState] = useState<IssueExplorerLoadState>(
-    ISSUE_EXPLORER_LOADING_STATE
-  );
   const [location, navigate] = useLocation();
   const currentHistoryState = useHistoryState<unknown>();
   const [settingsMatch] = useRoute("/settings");
@@ -230,393 +41,42 @@ const App = () => {
       });
     }
   }, [currentHistoryState, issueRoute, navigate, rawViewParam]);
-  const currentWorkspacePath =
-    issueState.status === "success" ? issueState.workspacePath : null;
+
   const {
-    currentNavigationEntry,
-    currentNavigationIndex,
-    explorerRoute,
-    handleBackNavigation,
-    navigateIssueRoute,
-    nextNavigationEntry,
-    previousNavigationEntry,
-  } = useIssueNavigationCoordinator({
+    explorer: {
+      onIssueListViewSelect,
+      onIssueReferenceSelect,
+      onIssueSearchChange,
+      onIssueSelect,
+      presentedIssueState,
+      refreshHealth,
+      route: explorerRoute,
+      sidebarDisabled,
+      workspaceKey,
+    },
+    navigation: {
+      handleBackNavigation,
+      nextNavigationEntry,
+      previousNavigationEntry,
+    },
+    notice: { deepLinkError, dismissDeepLinkError },
+    workspace: {
+      dismissedSwitchErrorGeneration,
+      handlers: workspaceHandlers,
+      state: workspaceState,
+    },
+  } = useIssueExplorerCoordinator({
     currentHistoryState,
-    currentWorkspacePath,
     isSettingsRoute,
     issueRoute,
     navigate,
   });
+
   const appDestination: AppDestination = isSettingsRoute
     ? "settings"
     : "issueExplorer";
   const settings = useAppSettings();
   const [sidebarCollapsed, setSidebarCollapsed] = useState<boolean>(false);
-  const [workspaceState, setWorkspaceState] = useState<WorkspaceState | null>(
-    null
-  );
-  const [workspaceKey, setWorkspaceKey] = useState<string>(
-    INITIAL_WORKSPACE_TRANSITION_GATE_STATE.confirmedWorkspacePath ??
-      INITIAL_WORKSPACE_REMOUNT_KEY
-  );
-  const [refreshHealth, setRefreshHealth] = useState<RefreshHealth | null>(
-    null
-  );
-  const manualWorkspaceSwitchRef = useRef(false);
-  const navigationIntentRef = useRef(INITIAL_NAVIGATION_INTENT);
-  const transitionGateRef = useRef<WorkspaceTransitionGateState>(
-    INITIAL_WORKSPACE_TRANSITION_GATE_STATE
-  );
-  const [confirmedWorkspacePath, setConfirmedWorkspacePath] = useState<
-    string | null
-  >(INITIAL_WORKSPACE_TRANSITION_GATE_STATE.confirmedWorkspacePath);
-  /**
-   * Per-variant deferred buffer for `beadwork://issue-explorer-state-changed`
-   * events whose selection generation is newer than the gate's confirmed
-   * generation. The slots are replayed after every admitted Workspace
-   * transition or successful startup snapshot. `bsm-wj1.2` closed the
-   * backend event-ordering race by keeping only the newest payload per
-   * identity; a newer generation replaces the slot, an older generation
-   * is dropped.
-   *
-   * The buffer is split into two slots — one for Snapshot, one for
-   * Health — so a not-yet-admitted Snapshot and a not-yet-admitted
-   * Health event for the same identity can both be retained until the
-   * gate admits the matching transition. `bsm-wj1.3` introduced the
-   * Health variant; before the split, a single slot would silently
-   * drop one variant when both were deferred for the same identity.
-   */
-  const deferredSnapshotRef = useRef<IssueExplorerRefreshSnapshotEvent | null>(
-    null
-  );
-  const deferredHealthRef = useRef<IssueExplorerRefreshHealthEvent | null>(
-    null
-  );
-  const [dismissedSwitchErrorGeneration, setDismissedSwitchErrorGeneration] =
-    useState<number | null>(null);
-
-  const applyDeferredRefresh = useCallback((): boolean => {
-    // Replay the deferred Snapshot first so the gate's confirmed
-    // identity is committed before the Health event runs through the
-    // gate (Health admission requires a confirmed identity). Loop
-    // until both slots drain — committing a Snapshot may open the
-    // gate for a previously-deferred Health event.
-    let applied = false;
-    for (const _ of [0, 1]) {
-      const deferredSnapshot = deferredSnapshotRef.current;
-      if (deferredSnapshot !== null) {
-        deferredSnapshotRef.current = null;
-        const { decision, next } = applyIssueExplorerRefresh(
-          transitionGateRef.current,
-          deferredSnapshot
-        );
-        if (decision.kind === "commitRefreshSnapshot") {
-          transitionGateRef.current = next;
-          setIssueState({ ...decision.snapshot, status: "success" });
-          applied = true;
-          continue;
-        }
-        if (decision.kind === "ignore") {
-          continue;
-        }
-        deferredSnapshotRef.current = decision.payload;
-        continue;
-      }
-      const deferredHealth = deferredHealthRef.current;
-      if (deferredHealth !== null) {
-        deferredHealthRef.current = null;
-        const { decision, next } = applyIssueExplorerHealthRefresh(
-          transitionGateRef.current,
-          deferredHealth
-        );
-        if (decision.kind === "commitRefreshHealth") {
-          transitionGateRef.current = next;
-          setRefreshHealth(decision.health);
-          applied = true;
-          continue;
-        }
-        if (decision.kind === "ignore") {
-          continue;
-        }
-        deferredHealthRef.current = decision.payload;
-        continue;
-      }
-      break;
-    }
-    return applied;
-  }, []);
-
-  const applyTransition = useCallback(
-    (
-      transition: WorkspaceTransition,
-      expectedGeneration: number | null
-    ): WorkspaceTransitionDecision => {
-      const { decision, next } = applyWorkspaceTransition(
-        transitionGateRef.current,
-        transition,
-        expectedGeneration
-      );
-      transitionGateRef.current = next;
-      setConfirmedWorkspacePath(next.confirmedWorkspacePath);
-
-      if (decision.kind === "ignore") {
-        return decision;
-      }
-
-      // The gate resets health when the confirmed Workspace identity
-      // changes and retains it for in-place transitions. Mirror that
-      // computed presentation state for every admitted transition so
-      // a prior Workspace's banner cannot linger over a new snapshot.
-      setRefreshHealth(next.refreshHealth);
-      setWorkspaceState(transition.state);
-      applyTransitionDecision(decision, setIssueState, setWorkspaceKey);
-      applyDeferredRefresh();
-      return decision;
-    },
-    [applyDeferredRefresh]
-  );
-
-  const { refreshWorkspaceState, workspaceHandlers } = useWorkspaceCoordinator({
-    applyTransition,
-    manualWorkspaceSwitchRef,
-    navigationIntentRef,
-    setDismissedSwitchErrorGeneration,
-    setIssueState,
-    setWorkspaceKey,
-    transitionGateRef,
-    workspaceState,
-  });
-
-  const { deepLinkError, dismissDeepLinkError, setDeepLinkError } =
-    useIssueDeepLinkCoordinator({
-      applyTransition,
-      explorerRoute,
-      issueState,
-      navigateIssueRoute,
-      navigationIntentRef,
-      workspaceState,
-    });
-
-  useIssueWorkspaceTraversal({
-    applyTransition,
-    confirmedWorkspacePath,
-    currentNavigationEntry,
-    currentNavigationIndex,
-    issueState,
-    manualWorkspaceSwitchRef,
-    navigateIssueRoute,
-    navigationIntentRef,
-    setDeepLinkError,
-  });
-
-  const handleIssueListViewSelect = useCallback(
-    (viewId: IssueListViewId) => {
-      const selectedIssueId = selectIssueForView(
-        issueState,
-        viewId,
-        explorerRoute.issueId
-      );
-      const nextRoute = {
-        ...explorerRoute,
-        issueId: selectedIssueId,
-        viewId,
-      };
-      if (
-        nextRoute.viewId === explorerRoute.viewId &&
-        nextRoute.issueId === explorerRoute.issueId
-      ) {
-        if (isSettingsRoute) {
-          navigateIssueRoute(explorerRoute, true);
-        }
-        return;
-      }
-      navigateIssueRoute(nextRoute, false);
-    },
-    [explorerRoute, isSettingsRoute, issueState, navigateIssueRoute]
-  );
-
-  const handleIssueSelect = useCallback(
-    (issueId: string) => {
-      if (explorerRoute.issueId === issueId) {
-        return;
-      }
-      navigateIssueRoute({ ...explorerRoute, issueId }, false);
-    },
-    [explorerRoute, navigateIssueRoute]
-  );
-
-  const handleIssueSearchChange = useCallback(
-    (search: string) => {
-      navigateIssueRoute({ ...explorerRoute, search }, true);
-    },
-    [explorerRoute, navigateIssueRoute]
-  );
-
-  const handleIssueReferenceSelect = useCallback(
-    (issueId: string) => {
-      if (explorerRoute.issueId === issueId) {
-        return;
-      }
-      const targetIsVisible = isIssueInListView(
-        issueState,
-        explorerRoute.viewId,
-        issueId
-      );
-      navigateIssueRoute(
-        targetIsVisible
-          ? { ...explorerRoute, issueId }
-          : { issueId, search: "", viewId: "all" },
-        false
-      );
-    },
-    [explorerRoute, issueState, navigateIssueRoute]
-  );
-
-  // `presentedIssueState` masks the successful Issue Explorer
-  // snapshot with the established loading presentation while a
-  // Workspace switch is Pending, so the renderer's view of the new
-  // selection reflects the in-flight commit rather than A's prior
-  // Issue List. The successful `issueState` and `workspaceKey` are
-  // preserved through Pending so a Cancel reveals A's search and
-  // Issue Detail exactly as they were before the switch attempt.
-  // Pending also wins over the no-Current chooser so a no-Current
-  // → B selection shows loading instead of the chooser.
-  const presentedIssueState: IssueExplorerLoadState =
-    workspaceState?.pendingWorkspace === null ||
-    workspaceState?.pendingWorkspace === undefined
-      ? issueState
-      : ISSUE_EXPLORER_LOADING_STATE;
-  const sidebarDisabled = presentedIssueState.status !== "success";
-
-  useExternalLifecycle(() => {
-    let disposed = false;
-    let unlistenTransition: UnlistenFn | undefined;
-    let unlistenRefresh: UnlistenFn | undefined;
-
-    // Subscription-first: register both listeners before dispatching the
-    // startup snapshot read. Otherwise an emitted event that races the
-    // first poll would be lost forever — the renderer can only admit
-    // refreshes for the snapshot it has confirmed, and the only safe way
-    // to ensure the listener is alive when the first event lands is to
-    // await its registration before triggering the initial load.
-    const registerListeners = async () => {
-      const transitionListener = await listen<WorkspaceTransition>(
-        WORKSPACE_TRANSITION_EVENT,
-        (event) => {
-          const { currentWorkspace, pendingWorkspace } = event.payload.state;
-          const intentGeneration = navigationIntentRef.current.generation;
-          if (
-            !transitionMatchesNavigationIntent(
-              navigationIntentRef,
-              currentWorkspace?.path ?? null,
-              pendingWorkspace?.path ?? null
-            )
-          ) {
-            return;
-          }
-          applyTransition(event.payload, null);
-          if (
-            currentWorkspace?.path === navigationIntentRef.current.workspacePath
-          ) {
-            finishNavigationIntent(navigationIntentRef, intentGeneration);
-          }
-        }
-      );
-      if (disposed) {
-        transitionListener();
-      } else {
-        unlistenTransition = transitionListener;
-      }
-
-      const refreshListener = await listen<IssueExplorerRefreshEvent>(
-        ISSUE_EXPLORER_REFRESH_EVENT,
-        (event) => {
-          applyRefreshDecision(
-            event.payload,
-            transitionGateRef,
-            deferredSnapshotRef,
-            deferredHealthRef,
-            setIssueState,
-            setRefreshHealth
-          );
-        }
-      );
-      if (disposed) {
-        refreshListener();
-      } else {
-        unlistenRefresh = refreshListener;
-      }
-    };
-
-    const dispatchStartupLoad = () => {
-      const dispatchedAtCommittedGeneration =
-        transitionGateRef.current.committedGeneration;
-      void (async () => {
-        try {
-          const initial = await loadIssueExplorerStateFromTauRpc();
-          if (
-            initial.status === "success" &&
-            transitionGateRef.current.confirmedWorkspacePath !== null &&
-            initial.workspacePath !==
-              transitionGateRef.current.confirmedWorkspacePath
-          ) {
-            return;
-          }
-          const { decision, next } = applyStartupIssueLoad(
-            transitionGateRef.current,
-            initial,
-            dispatchedAtCommittedGeneration
-          );
-          transitionGateRef.current = next;
-          setConfirmedWorkspacePath(next.confirmedWorkspacePath);
-          if (decision.kind === "ignore") {
-            return;
-          }
-          setIssueState(decision.snapshot);
-          setWorkspaceKey(decision.remountKey);
-          applyDeferredRefresh();
-        } catch {
-          const { decision, next } = applyStartupIssueLoad(
-            transitionGateRef.current,
-            INITIAL_LOAD_FAILURE_STATE,
-            dispatchedAtCommittedGeneration
-          );
-          transitionGateRef.current = next;
-          setConfirmedWorkspacePath(next.confirmedWorkspacePath);
-          if (decision.kind === "ignore") {
-            return;
-          }
-          setIssueState(decision.snapshot);
-        }
-      })();
-      void refreshWorkspaceState();
-    };
-
-    void (async () => {
-      // Subscription-first: register both listeners before dispatching
-      // the startup snapshot read. The startup load is guarded with a
-      // try/catch so a listener registration failure does not strand
-      // the renderer on the loading presentation forever — the
-      // existing initial-load behavior is preserved even when one of
-      // the `listen` calls rejects.
-      try {
-        await registerListeners();
-      } catch (error) {
-        // eslint-disable-next-line no-console
-        console.warn("beadsmith: failed to register refresh listeners", error);
-      }
-      if (disposed) {
-        return;
-      }
-      dispatchStartupLoad();
-    })();
-
-    return () => {
-      disposed = true;
-      unlistenTransition?.();
-      unlistenRefresh?.();
-    };
-  }, [applyTransition, refreshWorkspaceState]);
 
   const backDisabled = isSettingsRoute
     ? false
@@ -627,9 +87,9 @@ const App = () => {
       focusRouteChanges={!isSettingsRoute}
       issueState={presentedIssueState}
       markdownFontSizePx={settings.state.appliedFontSizePx}
-      onIssueReferenceSelect={handleIssueReferenceSelect}
-      onIssueSearchChange={handleIssueSearchChange}
-      onIssueSelect={handleIssueSelect}
+      onIssueReferenceSelect={onIssueReferenceSelect}
+      onIssueSearchChange={onIssueSearchChange}
+      onIssueSelect={onIssueSelect}
       refreshHealth={refreshHealth}
       route={explorerRoute}
       titleOverride={isSettingsRoute ? "Settings · Beadsmithy" : null}
@@ -674,7 +134,7 @@ const App = () => {
           dismissedSwitchErrorGeneration={dismissedSwitchErrorGeneration}
           issueState={presentedIssueState}
           onCollapseToggle={setSidebarCollapsed}
-          onIssueListViewSelect={handleIssueListViewSelect}
+          onIssueListViewSelect={onIssueListViewSelect}
           onSettingsClick={() => {
             navigate("/settings", {
               replace: true,
