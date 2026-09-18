@@ -238,6 +238,7 @@ export const IssueGraph = ({
               navigation={{
                 hrefForIssue: (issueId) =>
                   serializeIssueExplorerRoute({ ...route, issueId }),
+                onSelectIssue: onIssueSelect,
               }}
               onCopyDeepLink={
                 selectedIssue === null ? undefined : handleCopyDeepLink

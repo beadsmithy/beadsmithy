@@ -552,4 +552,63 @@ describe("App navigation", () => {
     ).toBeInTheDocument();
     expect(window.location.pathname).toBe("/graph/bsm-missing");
   });
+
+  it("follows a Child Issue reference within the Graph overlay", async () => {
+    const user = userEvent.setup();
+    const parent = buildIssue({
+      id: "bsm-graph-parent",
+      parent: "",
+      title: "Graph Parent",
+    });
+    const child = buildIssue({
+      id: "bsm-graph-child",
+      parent: parent.id,
+      status: "closed",
+      title: "Graph Child",
+    });
+    loadIssueExplorerStateFromTauRpc.mockResolvedValue(
+      successState({ allIssues: [parent, child], workspacePath: "/work" })
+    );
+
+    render(<App />);
+
+    await screen.findByRole("button", { name: "All, 2 issues" });
+    await user.click(screen.getByRole("button", { name: /^Graph$/u }));
+    await user.click(
+      await screen.findByRole("button", {
+        name: /bsm-graph-parent: Graph Parent/iu,
+      })
+    );
+
+    const panel = await screen.findByRole("complementary", {
+      name: "Graph Issue detail panel",
+    });
+    await user.click(
+      within(panel).getByRole("link", {
+        name: /bsm-graph-child: Graph Child/iu,
+      })
+    );
+
+    await waitFor(() => {
+      expect(window.location.pathname).toBe("/graph/bsm-graph-child");
+    });
+    expect(
+      within(
+        screen.getByRole("complementary", { name: "Graph Issue detail panel" })
+      ).getByRole("heading", { name: child.title })
+    ).toBeInTheDocument();
+
+    await user.click(
+      screen.getByRole("button", { name: /Back to bsm-graph-parent/iu })
+    );
+    await waitFor(() => {
+      expect(
+        within(
+          screen.getByRole("complementary", {
+            name: "Graph Issue detail panel",
+          })
+        ).getByRole("heading", { name: parent.title })
+      ).toBeInTheDocument();
+    });
+  });
 });
