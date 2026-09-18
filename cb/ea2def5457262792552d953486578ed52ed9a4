@@ -1,0 +1,36 @@
+src/issues/IssueGraphCanvas.tsx
+  s_1490b1a0a720a3::t_089a14a6319e1f 18,219,225,316,326
+  s_1490b1a0a720a3::t_8a97ed3ee65350 217,223,324
+src/issues/use-issue-graph-viewport.ts
+  s_1490b1a0a720a3::t_2079a96036f55b 1-46
+src/App.tsx
+  s_1490b1a0a720a3::t_0f0ef4868c34af 19,89-95,128-129
+  s_1490b1a0a720a3::t_8a97ed3ee65350 124
+src/issues/issue-navigation.test.ts
+  s_1490b1a0a720a3::t_2d299562d5fe98 108-117,119,121-123
+src/issues/use-issue-graph-viewport.test.ts
+  s_1490b1a0a720a3::t_5818a33209ca13 11
+  s_1490b1a0a720a3::t_d0e9da69dc04a2 31
+  s_1490b1a0a720a3::t_727a3325e71d82 1-8,12-28,32-41
+  s_1490b1a0a720a3::t_55f01a604ea1c6 9-10,29-30
+src/issues/IssueGraph.tsx
+  s_1490b1a0a720a3::t_8a97ed3ee65350 1,28,40,222
+  s_1490b1a0a720a3::t_21eae2cf43b90d 33-34,45-46,224
+  s_1490b1a0a720a3::t_97b412fa21e0b9 220
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.4",
+  "base_commit_sha": "cbea2def5457262792552d953486578ed52ed9a4",
+  "prompts": {},
+  "sessions": {
+    "s_1490b1a0a720a3": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a0b639-46a0-7c32-a87e-d331a3d8b786",
+        "model": "gpt-5.6-luna"
+      },
+      "human_author": "Tomas Thor Jonsson <benregn@gmail.com>"
+    }
+  }
+}
