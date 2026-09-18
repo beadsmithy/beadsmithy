@@ -1,0 +1,68 @@
+e2e/issue-list/issue-list.child-issues.spec.ts
+  s_1490b1a0a720a3::t_aec4de59f9c3b1 31
+  s_1490b1a0a720a3::t_5ffbf5889d669f 396,450,487
+e2e/issue-list/scripts/harness-inputs.ts
+  s_1490b1a0a720a3::t_e1ee964219277d 24,34,47,56,105-106,168-169
+  s_1490b1a0a720a3::t_d19d1e070ccd3a 86
+e2e/issue-list/issue-list.empty.spec.ts
+  s_1490b1a0a720a3::t_aec4de59f9c3b1 6
+e2e/issue-list/fixtures/workspace.ts
+  s_1490b1a0a720a3::t_2d5c079efc9308 280-281,737-740
+  s_1490b1a0a720a3::t_e1ee964219277d 685-736,741-754
+e2e/issue-list/issue-list.atomic-switch.spec.ts
+  s_1490b1a0a720a3::t_5ffbf5889d669f 121
+  s_1490b1a0a720a3::t_aec4de59f9c3b1 30
+e2e/issue-list/issue-list.success.spec.ts
+  s_1490b1a0a720a3::t_7b725564aa6186 86
+  s_1490b1a0a720a3::t_aec4de59f9c3b1 10
+  s_1490b1a0a720a3::t_5ffbf5889d669f 103,146-147
+  s_1490b1a0a720a3::t_c4d9f8676ea3d3 274-276
+e2e/issue-list/scripts/harness-inputs.test.ts
+  s_1490b1a0a720a3::t_e218514855d71f 16,25
+  s_1490b1a0a720a3::t_8e9d1eba9b4732 51,110
+docs/agents/webdriver-e2e.md
+  s_1490b1a0a720a3::t_6b040ef31ff45f 144-147
+  s_1490b1a0a720a3::t_9d49a7f9e21b88 24
+e2e/issue-list/scripts/run-scenario.ts
+  s_1490b1a0a720a3::t_e1ee964219277d 21,46,101-104,131,321-323,330-331,339
+e2e/issue-list/issue-list.focus-refresh.spec.ts
+  s_1490b1a0a720a3::t_aec4de59f9c3b1 26
+e2e/issue-list/issue-list.time-refresh.spec.ts
+  s_1490b1a0a720a3::t_aec4de59f9c3b1 1
+package.json
+  s_1490b1a0a720a3::t_e1ee964219277d 17
+  s_1490b1a0a720a3::t_e218514855d71f 21-22
+wdio.issue-list.conf.ts
+  s_1490b1a0a720a3::t_e1ee964219277d 21,147-148
+  s_1490b1a0a720a3::t_52f0a180ee682b 149
+e2e/issue-list/helpers/rpc.ts
+  s_1490b1a0a720a3::t_e218514855d71f 252
+  s_1490b1a0a720a3::t_e1ee964219277d 243-250
+  s_1490b1a0a720a3::t_d19d1e070ccd3a 251
+e2e/issue-list/issue-list.graph.spec.ts
+  s_1490b1a0a720a3::t_d99ad70fdbaf8a 119-122
+  s_1490b1a0a720a3::t_313925e535347e 47-59
+  s_1490b1a0a720a3::t_70845d076624ac 1-6,8-46,60-61,64-99,102-109,114-118,123-129,134-144
+  s_1490b1a0a720a3::t_d19d1e070ccd3a 62-63,100-101,110-113,130-133
+  s_1490b1a0a720a3::t_1f5e0850b0d886 7
+  s_1490b1a0a720a3::t_c9971f1548a082 145
+e2e/issue-list/issue-list.restoration.spec.ts
+  s_1490b1a0a720a3::t_aec4de59f9c3b1 23
+  s_1490b1a0a720a3::t_5ffbf5889d669f 174
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.4",
+  "base_commit_sha": "a0b9e6da856d9eac01f008c9c2af5d56690238b5",
+  "prompts": {},
+  "sessions": {
+    "s_1490b1a0a720a3": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a0b639-46a0-7c32-a87e-d331a3d8b786",
+        "model": "gpt-5.6-luna"
+      },
+      "human_author": "Tomas Thor Jonsson <benregn@gmail.com>"
+    }
+  }
+}
