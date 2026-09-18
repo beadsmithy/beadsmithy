@@ -287,8 +287,8 @@ describe("App StrictMode listener lifecycle", () => {
 
         if (name === "R2") {
           startupStarted = true;
-          expect(loadIssueExplorerStateFromTauRpc).toHaveBeenCalledTimes(1);
-          expect(workspaceState).toHaveBeenCalledTimes(1);
+          expect(loadIssueExplorerStateFromTauRpc).toHaveBeenCalledOnce();
+          expect(workspaceState).toHaveBeenCalledOnce();
         } else if (!startupStarted) {
           expect(loadIssueExplorerStateFromTauRpc).not.toHaveBeenCalled();
           expect(workspaceState).not.toHaveBeenCalled();
@@ -296,32 +296,32 @@ describe("App StrictMode listener lifecycle", () => {
       }
 
       expect(listenerController.listen).toHaveBeenCalledTimes(4);
-      expect(listenerController.registration("T1").active).toBe(false);
-      expect(listenerController.registration("R1").active).toBe(false);
-      expect(listenerController.registration("T2").active).toBe(true);
-      expect(listenerController.registration("R2").active).toBe(true);
+      expect(listenerController.registration("T1").active).toBeFalsy();
+      expect(listenerController.registration("R1").active).toBeFalsy();
+      expect(listenerController.registration("T2").active).toBeTruthy();
+      expect(listenerController.registration("R2").active).toBeTruthy();
       expect(
         listenerController.registration("T1").unlisten
-      ).toHaveBeenCalledTimes(1);
+      ).toHaveBeenCalledOnce();
       expect(
         listenerController.registration("R1").unlisten
-      ).toHaveBeenCalledTimes(1);
+      ).toHaveBeenCalledOnce();
       expect(
         listenerController.registration("T2").unlisten
       ).not.toHaveBeenCalled();
       expect(
         listenerController.registration("R2").unlisten
       ).not.toHaveBeenCalled();
-      expect(loadIssueExplorerStateFromTauRpc).toHaveBeenCalledTimes(1);
-      expect(workspaceState).toHaveBeenCalledTimes(1);
+      expect(loadIssueExplorerStateFromTauRpc).toHaveBeenCalledOnce();
+      expect(workspaceState).toHaveBeenCalledOnce();
 
       await act(async () => {
         await Promise.resolve();
         await Promise.resolve();
       });
 
-      expect(loadIssueExplorerStateFromTauRpc).toHaveBeenCalledTimes(1);
-      expect(workspaceState).toHaveBeenCalledTimes(1);
+      expect(loadIssueExplorerStateFromTauRpc).toHaveBeenCalledOnce();
+      expect(workspaceState).toHaveBeenCalledOnce();
     }
   );
 
@@ -341,10 +341,10 @@ describe("App StrictMode listener lifecycle", () => {
       await Promise.resolve();
     });
 
-    expect(loadIssueExplorerStateFromTauRpc).toHaveBeenCalledTimes(1);
-    expect(workspaceState).toHaveBeenCalledTimes(1);
-    expect(listenerController.registration("T1").rejected).toBe(true);
-    expect(listenerController.registration("T2").rejected).toBe(true);
+    expect(loadIssueExplorerStateFromTauRpc).toHaveBeenCalledOnce();
+    expect(workspaceState).toHaveBeenCalledOnce();
+    expect(listenerController.registration("T1").rejected).toBeTruthy();
+    expect(listenerController.registration("T2").rejected).toBeTruthy();
     expect(listenerController.listen).toHaveBeenCalledTimes(2);
     expect(consoleWarnSpy).toHaveBeenCalledTimes(2);
     consoleWarnSpy.mockClear();
@@ -382,13 +382,13 @@ describe("App StrictMode listener lifecycle", () => {
       await Promise.resolve();
     });
 
-    expect(listenerController.registration("R1").rejected).toBe(true);
-    expect(listenerController.registration("R2").rejected).toBe(true);
-    expect(loadIssueExplorerStateFromTauRpc).toHaveBeenCalledTimes(1);
-    expect(workspaceState).toHaveBeenCalledTimes(1);
+    expect(listenerController.registration("R1").rejected).toBeTruthy();
+    expect(listenerController.registration("R2").rejected).toBeTruthy();
+    expect(loadIssueExplorerStateFromTauRpc).toHaveBeenCalledOnce();
+    expect(workspaceState).toHaveBeenCalledOnce();
     expect(
       listenerController.registration("T1").unlisten
-    ).toHaveBeenCalledTimes(1);
+    ).toHaveBeenCalledOnce();
     expect(
       listenerController.registration("T2").unlisten
     ).not.toHaveBeenCalled();
@@ -403,7 +403,7 @@ describe("App StrictMode listener lifecycle", () => {
     // disposed exactly once when the App is finally unmounted.
     expect(
       listenerController.registration("T2").unlisten
-    ).toHaveBeenCalledTimes(1);
+    ).toHaveBeenCalledOnce();
   });
 
   it("unregisters every listener when unmounted with registrations pending", async () => {
@@ -426,7 +426,7 @@ describe("App StrictMode listener lifecycle", () => {
     });
     expect(
       listenerController.registration("T1").unlisten
-    ).toHaveBeenCalledTimes(1);
+    ).toHaveBeenCalledOnce();
     expect(listenerController.registration("R1").eventName).toBe(
       refreshEventName
     );
@@ -438,7 +438,7 @@ describe("App StrictMode listener lifecycle", () => {
     });
     expect(
       listenerController.registration("T2").unlisten
-    ).toHaveBeenCalledTimes(1);
+    ).toHaveBeenCalledOnce();
     expect(listenerController.registration("R2").eventName).toBe(
       refreshEventName
     );
@@ -451,10 +451,10 @@ describe("App StrictMode listener lifecycle", () => {
     });
 
     for (const name of ["T1", "T2", "R1", "R2"] as const) {
-      expect(listenerController.registration(name).active).toBe(false);
+      expect(listenerController.registration(name).active).toBeFalsy();
       expect(
         listenerController.registration(name).unlisten
-      ).toHaveBeenCalledTimes(1);
+      ).toHaveBeenCalledOnce();
     }
     expect(loadIssueExplorerStateFromTauRpc).not.toHaveBeenCalled();
     expect(workspaceState).not.toHaveBeenCalled();
@@ -490,24 +490,24 @@ describe("App StrictMode listener lifecycle", () => {
     await resolveRegistration("T2");
     await resolveRegistration("R2");
 
-    expect(listenerController.registration("T1").active).toBe(false);
-    expect(listenerController.registration("R1").active).toBe(false);
-    expect(listenerController.registration("T2").active).toBe(true);
-    expect(listenerController.registration("R2").active).toBe(true);
+    expect(listenerController.registration("T1").active).toBeFalsy();
+    expect(listenerController.registration("R1").active).toBeFalsy();
+    expect(listenerController.registration("T2").active).toBeTruthy();
+    expect(listenerController.registration("R2").active).toBeTruthy();
     expect(
       listenerController.registration("T1").unlisten
-    ).toHaveBeenCalledTimes(1);
+    ).toHaveBeenCalledOnce();
     expect(
       listenerController.registration("R1").unlisten
-    ).toHaveBeenCalledTimes(1);
+    ).toHaveBeenCalledOnce();
     expect(
       listenerController.registration("T2").unlisten
     ).not.toHaveBeenCalled();
     expect(
       listenerController.registration("R2").unlisten
     ).not.toHaveBeenCalled();
-    expect(loadIssueExplorerStateFromTauRpc).toHaveBeenCalledTimes(1);
-    expect(workspaceState).toHaveBeenCalledTimes(1);
+    expect(loadIssueExplorerStateFromTauRpc).toHaveBeenCalledOnce();
+    expect(workspaceState).toHaveBeenCalledOnce();
 
     act(() => {
       unmount();
@@ -520,21 +520,21 @@ describe("App StrictMode listener lifecycle", () => {
 
     expect(
       listenerController.registration("T1").unlisten
-    ).toHaveBeenCalledTimes(1);
+    ).toHaveBeenCalledOnce();
     expect(
       listenerController.registration("R1").unlisten
-    ).toHaveBeenCalledTimes(1);
+    ).toHaveBeenCalledOnce();
     expect(
       listenerController.registration("T2").unlisten
-    ).toHaveBeenCalledTimes(1);
+    ).toHaveBeenCalledOnce();
     expect(
       listenerController.registration("R2").unlisten
-    ).toHaveBeenCalledTimes(1);
+    ).toHaveBeenCalledOnce();
     for (const name of ["T1", "T2", "R1", "R2"] as const) {
-      expect(listenerController.registration(name).active).toBe(false);
+      expect(listenerController.registration(name).active).toBeFalsy();
     }
-    expect(loadIssueExplorerStateFromTauRpc).toHaveBeenCalledTimes(1);
-    expect(workspaceState).toHaveBeenCalledTimes(1);
+    expect(loadIssueExplorerStateFromTauRpc).toHaveBeenCalledOnce();
+    expect(workspaceState).toHaveBeenCalledOnce();
   });
 });
 

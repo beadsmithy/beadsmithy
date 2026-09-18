@@ -1,4 +1,5 @@
 import { browser, expect } from "@wdio/globals";
+import { describe, it } from "vitest";
 
 import {
   FIXTURE_COMMENT_TEXT,

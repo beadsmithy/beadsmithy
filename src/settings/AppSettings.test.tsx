@@ -75,7 +75,7 @@ const createControllableTransport = (
   return { load, rejectUpdate, resolveUpdate, update, updateCalls };
 };
 
-describe("useAppSettings", () => {
+describe(useAppSettings, () => {
   it("loads persisted settings and shows Saved when they match the default", async () => {
     const transport = createControllableTransport();
     const { result } = renderHook(() => useAppSettings(transport));
@@ -87,7 +87,7 @@ describe("useAppSettings", () => {
     expect(result.current.state.draft).toBe("14");
     expect(result.current.state.loadWarning).toBeNull();
     expect(result.current.state.saveStatus).toBe("saved");
-    expect(transport.load).toHaveBeenCalledTimes(1);
+    expect(transport.load).toHaveBeenCalledOnce();
   });
 
   it("applies a persisted non-default font size at startup", async () => {
@@ -114,7 +114,7 @@ describe("useAppSettings", () => {
 
     await waitFor(() => expect(result.current.state.loadStatus).toBe("loaded"));
 
-    expect(result.current.state.loadWarning).toEqual({
+    expect(result.current.state.loadWarning).toStrictEqual({
       kind: "malformed",
       message: "Saved settings are malformed.",
     });
@@ -136,7 +136,9 @@ describe("useAppSettings", () => {
     expect(result.current.state.appliedFontSizePx).toBe(24);
     expect(result.current.state.validationError).toBeNull();
     expect(result.current.state.saveStatus).toBe("saving");
-    expect(transport.updateCalls).toEqual([{ markdown: { fontSizePx: 24 } }]);
+    expect(transport.updateCalls).toStrictEqual([
+      { markdown: { fontSizePx: 24 } },
+    ]);
 
     act(() => {
       transport.resolveUpdate({ markdown: { fontSizePx: 24 } });
@@ -188,7 +190,9 @@ describe("useAppSettings", () => {
       result.current.setDraft("18");
     });
 
-    expect(transport.updateCalls).toEqual([{ markdown: { fontSizePx: 18 } }]);
+    expect(transport.updateCalls).toStrictEqual([
+      { markdown: { fontSizePx: 18 } },
+    ]);
 
     act(() => {
       result.current.setDraft("20");
@@ -205,7 +209,7 @@ describe("useAppSettings", () => {
     });
 
     await waitFor(() =>
-      expect(transport.updateCalls).toEqual([
+      expect(transport.updateCalls).toStrictEqual([
         { markdown: { fontSizePx: 18 } },
         { markdown: { fontSizePx: 24 } },
       ])
@@ -276,7 +280,7 @@ describe("useAppSettings", () => {
     });
 
     await waitFor(() =>
-      expect(transport.updateCalls).toEqual([
+      expect(transport.updateCalls).toStrictEqual([
         { markdown: { fontSizePx: 18 } },
         { markdown: { fontSizePx: 24 } },
       ])
@@ -314,7 +318,7 @@ describe("useAppSettings", () => {
     expect(result.current.state.appliedFontSizePx).toBe(24);
     expect(result.current.state.draft).toBe("24");
     expect(result.current.state.saveStatus).toBe("idle");
-    expect(result.current.state.saveError).toEqual({
+    expect(result.current.state.saveError).toStrictEqual({
       kind: "storeSaveFailed",
       message: "disk full",
     });
@@ -325,7 +329,7 @@ describe("useAppSettings", () => {
 
     expect(result.current.state.saveError).toBeNull();
     expect(result.current.state.saveStatus).toBe("saving");
-    expect(transport.updateCalls).toEqual([
+    expect(transport.updateCalls).toStrictEqual([
       { markdown: { fontSizePx: 24 } },
       { markdown: { fontSizePx: 24 } },
     ]);
@@ -358,7 +362,9 @@ describe("useAppSettings", () => {
     expect(result.current.state.appliedFontSizePx).toBe(14);
     expect(result.current.state.validationError).toBeNull();
     expect(result.current.state.saveStatus).toBe("saving");
-    expect(transport.updateCalls).toEqual([{ markdown: { fontSizePx: 14 } }]);
+    expect(transport.updateCalls).toStrictEqual([
+      { markdown: { fontSizePx: 14 } },
+    ]);
 
     act(() => {
       transport.resolveUpdate({ markdown: { fontSizePx: 14 } });

@@ -44,6 +44,58 @@ export default defineConfig({
         "typescript/consistent-indexed-object-style": "off",
       },
     },
+    {
+      files: ["**/*.{jsx,tsx,ts,js}"],
+      plugins: ["vitest"],
+      rules: {
+        "vitest/consistent-test-filename": "allow",
+        "vitest/expect-expect": "allow",
+        "vitest/max-expects": [
+          "error",
+          {
+            max: 20,
+          },
+        ],
+        "vitest/no-conditional-expect": "allow",
+        "vitest/no-standalone-expect": "allow",
+        "vitest/prefer-called-exactly-once-with": "allow",
+        "vitest/prefer-import-in-mock": "allow",
+        "vitest/require-mock-type-parameters": "allow",
+        "vitest/require-top-level-describe": "allow",
+      },
+    },
+    {
+      files: ["e2e/**/*.spec.ts"],
+      plugins: ["vitest"],
+      rules: {
+        // WebdriverIO's expect provides the browser matchers used by these
+        // real-desktop specs and intentionally replaces Vitest's expect.
+        "vitest/prefer-importing-vitest-globals": "allow",
+      },
+    },
+    {
+      files: ["**/*.{jsx,tsx,js,ts}"],
+      rules: {
+        "anti-slop/no-chained-type-assertions": "allow",
+        "anti-slop/no-conditional-empty-object-spread": "allow",
+        "anti-slop/no-known-value-widening": "allow",
+        "anti-slop/no-module-mocking": "allow",
+        "anti-slop/no-object-parameters": "allow",
+        "anti-slop/no-runtime-typeof": "allow",
+        "anti-slop/no-unknown-parameters": "allow",
+        "anti-slop/no-unknown-returns": "allow",
+        "anti-slop/no-unsafe-dictionary-type": "allow",
+        "anti-slop/require-safety-comment-for-type-assertion": "allow",
+      },
+    },
+    {
+      files: ["**/*.{jsx,tsx,js,ts}"],
+      rules: {
+        "react-doctor/js-combine-iterations": "allow",
+        "react-doctor/no-tiny-text": "allow",
+        "react-doctor/only-export-components": "allow",
+      },
+    },
   ],
   plugins: ["react", "react-perf"],
   rules: {

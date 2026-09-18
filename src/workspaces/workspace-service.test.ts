@@ -52,7 +52,7 @@ describe("Workspace application programs", () => {
       )
     );
 
-    expect(Exit.isFailure(exit)).toBe(true);
+    expect(Exit.isFailure(exit)).toBeTruthy();
     if (Exit.isFailure(exit)) {
       expect(Cause.failureOption(exit.cause)).toMatchObject({
         _tag: "Some",
@@ -81,7 +81,7 @@ describe("Workspace application programs", () => {
       )
     );
 
-    expect(Exit.isFailure(exit)).toBe(true);
+    expect(Exit.isFailure(exit)).toBeTruthy();
     if (Exit.isFailure(exit)) {
       expect(Cause.failureOption(exit.cause)).toMatchObject({
         _tag: "Some",
@@ -119,7 +119,7 @@ describe("Workspace application programs", () => {
     resolveSwitch(null as never);
     await observed;
 
-    expect(committed).toBe(false);
+    expect(committed).toBeFalsy();
   });
 
   it("runs a fake WorkspaceService through a Layer without a hook adapter", async () => {
@@ -132,6 +132,6 @@ describe("Workspace application programs", () => {
         switchDuringHistoryTraversal("/work/b"),
         service({ switchWorkspace: () => Promise.resolve(response) })
       )
-    ).resolves.toEqual(response);
+    ).resolves.toStrictEqual(response);
   });
 });

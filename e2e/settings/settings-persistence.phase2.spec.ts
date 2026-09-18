@@ -1,4 +1,5 @@
 import { browser, expect } from "@wdio/globals";
+import { describe, it } from "vitest";
 
 import { FIXTURE_ISSUE_TITLE } from "../issue-list/fixtures/workspace.ts";
 import {

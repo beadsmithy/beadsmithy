@@ -57,7 +57,7 @@ const successState = (
 
 const ids = (issues: Issue[]): string[] => issues.map((issue) => issue.id);
 
-describe("getActiveIssueListViewId", () => {
+describe(getActiveIssueListViewId, () => {
   it("defaults to 'all' when no active view is provided", () => {
     expect(getActiveIssueListViewId()).toBe("all");
   });
@@ -67,7 +67,7 @@ describe("getActiveIssueListViewId", () => {
   });
 });
 
-describe("getActiveIssueListViewLabel", () => {
+describe(getActiveIssueListViewLabel, () => {
   it("returns the configured label for a known view ID", () => {
     expect(getActiveIssueListViewLabel("all")).toBe("All");
     expect(getActiveIssueListViewLabel("ready")).toBe("Ready");
@@ -79,7 +79,7 @@ describe("getActiveIssueListViewLabel", () => {
   });
 });
 
-describe("getIssueListEmptyReason", () => {
+describe(getIssueListEmptyReason, () => {
   it("returns null when there are visible issues", () => {
     expect(
       getIssueListEmptyReason({
@@ -187,7 +187,7 @@ describe("empty state copy", () => {
   });
 });
 
-describe("deriveIssueExplorerState", () => {
+describe(deriveIssueExplorerState, () => {
   it("normalizes the active view and exposes its label", () => {
     const state = deriveIssueExplorerState({
       activeIssueListViewId: "ready",
@@ -227,8 +227,8 @@ describe("deriveIssueExplorerState", () => {
       selectedIssueId: null,
     });
 
-    expect(loading.isSearchDisabled).toBe(true);
-    expect(failure.isSearchDisabled).toBe(true);
+    expect(loading.isSearchDisabled).toBeTruthy();
+    expect(failure.isSearchDisabled).toBeTruthy();
     expect(loading.emptyReason).toBeNull();
     expect(failure.emptyReason).toBeNull();
   });
@@ -244,9 +244,9 @@ describe("deriveIssueExplorerState", () => {
       selectedIssueId: null,
     });
 
-    expect(ids(derived.baseVisibleIssues)).toEqual(["bsm-a", "bsm-b"]);
-    expect(ids(derived.visibleIssues)).toEqual(["bsm-a"]);
-    expect(derived.hasSearchQuery).toBe(true);
+    expect(ids(derived.baseVisibleIssues)).toStrictEqual(["bsm-a", "bsm-b"]);
+    expect(ids(derived.visibleIssues)).toStrictEqual(["bsm-a"]);
+    expect(derived.hasSearchQuery).toBeTruthy();
   });
 
   it("preserves the incoming issue order", () => {
@@ -260,7 +260,7 @@ describe("deriveIssueExplorerState", () => {
       selectedIssueId: null,
     });
 
-    expect(ids(derived.visibleIssues)).toEqual(["bsm-b", "bsm-a"]);
+    expect(ids(derived.visibleIssues)).toStrictEqual(["bsm-b", "bsm-a"]);
   });
 
   it("uses command-backed Ready and Blocked collections", () => {
@@ -290,8 +290,8 @@ describe("deriveIssueExplorerState", () => {
       selectedIssueId: null,
     });
 
-    expect(ids(readyDerived.visibleIssues)).toEqual(["bsm-ready"]);
-    expect(ids(blockedDerived.visibleIssues)).toEqual(["bsm-blocked"]);
+    expect(ids(readyDerived.visibleIssues)).toStrictEqual(["bsm-ready"]);
+    expect(ids(blockedDerived.visibleIssues)).toStrictEqual(["bsm-blocked"]);
   });
 
   it("selects an issue from allIssues when it is not in the active view's base collection", () => {
@@ -315,7 +315,7 @@ describe("deriveIssueExplorerState", () => {
     });
 
     expect(closedViewDerived.selectedIssue).toBe(openIssue);
-    expect(ids(closedViewDerived.visibleIssues)).toEqual(["bsm-closed"]);
+    expect(ids(closedViewDerived.visibleIssues)).toStrictEqual(["bsm-closed"]);
   });
 
   it("selects an issue from allIssues when a search query hides it from the visible list", () => {
@@ -336,7 +336,7 @@ describe("deriveIssueExplorerState", () => {
     });
 
     expect(derived.selectedIssue).toBe(other);
-    expect(ids(derived.visibleIssues)).toEqual(["bsm-search-selected"]);
+    expect(ids(derived.visibleIssues)).toStrictEqual(["bsm-search-selected"]);
   });
 
   it("returns null selected issue when selectedIssueId is null", () => {
@@ -392,10 +392,10 @@ describe("deriveIssueExplorerState", () => {
       selectedIssueId: "bsm-open",
     });
 
-    expect(ids(withHiddenSelection.baseVisibleIssues)).toEqual(
+    expect(ids(withHiddenSelection.baseVisibleIssues)).toStrictEqual(
       ids(withoutSelection.baseVisibleIssues)
     );
-    expect(ids(withHiddenSelection.visibleIssues)).toEqual(
+    expect(ids(withHiddenSelection.visibleIssues)).toStrictEqual(
       ids(withoutSelection.visibleIssues)
     );
     expect(withHiddenSelection.activeViewId).toBe(
@@ -432,8 +432,8 @@ describe("deriveIssueExplorerState", () => {
 
     expect(loading.selectedIssue).toBeNull();
     expect(failure.selectedIssue).toBeNull();
-    expect(loading.visibleIssues).toEqual([]);
-    expect(failure.visibleIssues).toEqual([]);
+    expect(loading.visibleIssues).toStrictEqual([]);
+    expect(failure.visibleIssues).toStrictEqual([]);
   });
 
   it("reports the correct empty reason for a true-empty workspace", () => {

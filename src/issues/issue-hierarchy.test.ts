@@ -25,7 +25,7 @@ const buildIssue = (overrides: Partial<Issue> = {}): Issue => ({
   ...overrides,
 });
 
-describe("getChildIssues", () => {
+describe(getChildIssues, () => {
   it("returns every loaded Issue whose parent matches the selected Issue id", () => {
     const parent = buildIssue({ id: "bsm-parent", parent: "" });
     const firstChild = buildIssue({
@@ -48,7 +48,7 @@ describe("getChildIssues", () => {
 
     expect(
       getChildIssues([parent, firstChild, secondChild, unrelated], "bsm-parent")
-    ).toEqual([firstChild, secondChild]);
+    ).toStrictEqual([firstChild, secondChild]);
   });
 
   it("does not return the selected parent Issue itself even when it is in the input list", () => {
@@ -73,10 +73,10 @@ describe("getChildIssues", () => {
 
     expect(
       getChildIssues([parentWithEmptyParent, child], "bsm-parent")
-    ).toEqual([child]);
+    ).toStrictEqual([child]);
     expect(
       getChildIssues([parentPointingUpstream, child], "bsm-parent")
-    ).toEqual([child]);
+    ).toStrictEqual([child]);
   });
 
   it("orders matching children by numeric priority ascending, then by created ascending", () => {
@@ -117,7 +117,7 @@ describe("getChildIssues", () => {
       getChildIssues([olderP4, olderP0, newerP0, olderP1], "bsm-parent").map(
         (issue) => ({ id: issue.id, priority: issue.priority })
       )
-    ).toEqual([
+    ).toStrictEqual([
       { id: "bsm-p0-old", priority: 0 },
       { id: "bsm-p0-new", priority: 0 },
       { id: "bsm-p1", priority: 1 },
@@ -156,7 +156,7 @@ describe("getChildIssues", () => {
         [newerSamePriority, olderSamePriority, middleSamePriority],
         "bsm-parent"
       ).map((issue) => issue.id)
-    ).toEqual(["bsm-older", "bsm-middle", "bsm-newer"]);
+    ).toStrictEqual(["bsm-older", "bsm-middle", "bsm-newer"]);
   });
 
   it("retains the incoming order for children with identical priority and created", () => {
@@ -183,7 +183,7 @@ describe("getChildIssues", () => {
         id: issue.id,
         title: issue.title,
       }))
-    ).toEqual([
+    ).toStrictEqual([
       { id: "bsm-parent.2", title: "Second by command order" },
       { id: "bsm-parent.1", title: "First by command order" },
       { id: "bsm-parent.1.5", title: "Middle by command order" },
@@ -213,7 +213,7 @@ describe("getChildIssues", () => {
 
     expect(
       getChildIssues([p10, p2], "bsm-parent").map((issue) => issue.id)
-    ).toEqual(["bsm-p2", "bsm-p10"]);
+    ).toStrictEqual(["bsm-p2", "bsm-p10"]);
   });
 
   it("returns an empty array when no loaded Issue references the selected Issue", () => {
@@ -223,11 +223,11 @@ describe("getChildIssues", () => {
       title: "Unrelated",
     });
 
-    expect(getChildIssues([unrelated], "bsm-missing")).toEqual([]);
+    expect(getChildIssues([unrelated], "bsm-missing")).toStrictEqual([]);
   });
 
   it("returns an empty array for an empty allIssues collection", () => {
-    expect(getChildIssues([], "bsm-parent")).toEqual([]);
+    expect(getChildIssues([], "bsm-parent")).toStrictEqual([]);
   });
 
   it("does not mutate the supplied allIssues collection", () => {
@@ -250,7 +250,7 @@ describe("getChildIssues", () => {
 
     expect(
       allIssues.map((issue) => ({ id: issue.id, parent: issue.parent }))
-    ).toEqual(snapshot);
+    ).toStrictEqual(snapshot);
   });
 
   it("preserves the incoming allIssues order in the caller's collection after derivation", () => {
@@ -277,7 +277,7 @@ describe("getChildIssues", () => {
 
     getChildIssues(allIssues, "bsm-parent");
 
-    expect(allIssues.map((issue) => issue.id)).toEqual([
+    expect(allIssues.map((issue) => issue.id)).toStrictEqual([
       "bsm-other",
       "bsm-parent.2",
       "bsm-parent.1",
@@ -301,9 +301,9 @@ describe("getChildIssues", () => {
       title: "Uppercase parent",
     });
 
-    expect(getChildIssues([exact, padded, uppercase], "bsm-parent")).toEqual([
-      exact,
-    ]);
+    expect(
+      getChildIssues([exact, padded, uppercase], "bsm-parent")
+    ).toStrictEqual([exact]);
   });
 
   it("matches when the parent field is empty and the selected Issue id is empty", () => {
@@ -318,6 +318,6 @@ describe("getChildIssues", () => {
       title: "Named Issue with empty parent",
     });
 
-    expect(getChildIssues([root, other], "")).toEqual([root, other]);
+    expect(getChildIssues([root, other], "")).toStrictEqual([root, other]);
   });
 });

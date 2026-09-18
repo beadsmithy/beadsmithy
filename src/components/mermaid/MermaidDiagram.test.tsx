@@ -85,7 +85,7 @@ beforeEach(() => {
   mockedPanzoom.mockClear();
 });
 
-describe("MermaidDiagram", () => {
+describe(MermaidDiagram, () => {
   it("shows the Diagram tab by default and mounts the rendered SVG on success", async () => {
     mockedRenderMermaid.mockResolvedValue(
       '<svg data-testid="diagram-svg"></svg>'
@@ -98,9 +98,11 @@ describe("MermaidDiagram", () => {
       expect(diagramTab).toHaveAttribute("aria-selected", "true")
     );
 
-    expect(await screen.findByTestId("diagram-svg")).toBeInTheDocument();
+    await expect(
+      screen.findByTestId("diagram-svg")
+    ).resolves.toBeInTheDocument();
     expect(document.querySelector("svg")).not.toBeNull();
-    expect(mockedPanzoom).toHaveBeenCalledTimes(1);
+    expect(mockedPanzoom).toHaveBeenCalledOnce();
 
     const svgElement = container.querySelector("svg");
     expect(mockedPanzoom).toHaveBeenCalledWith(
@@ -222,54 +224,54 @@ describe("MermaidDiagram", () => {
 
     const scrollEvent = new WheelEvent("wheel", { deltaY: 100 });
     fireEvent(viewport as HTMLElement, scrollEvent);
-    expect(instance.zoomWithWheel).toHaveBeenCalledTimes(1);
-    expect(scrollEvent.defaultPrevented).toBe(false);
+    expect(instance.zoomWithWheel).toHaveBeenCalledOnce();
+    expect(scrollEvent.defaultPrevented).toBeFalsy();
   });
 
   it("exposes accessible buttons for zoom in, zoom out, and reset/fit", async () => {
     mockedRenderMermaid.mockResolvedValue("<svg></svg>");
 
     render(<MermaidDiagram source="graph TD; A-->B" />);
-    await waitFor(() => expect(mockedPanzoom).toHaveBeenCalled());
+    await waitFor(() => expect(mockedPanzoom).toHaveBeenCalledOnce());
 
     const instance = getLastPanzoomInstance();
     const user = userEvent.setup();
 
     await user.click(screen.getByRole("button", { name: "Zoom in diagram" }));
-    expect(instance.zoomIn).toHaveBeenCalledTimes(1);
+    expect(instance.zoomIn).toHaveBeenCalledOnce();
 
     await user.click(screen.getByRole("button", { name: "Zoom out diagram" }));
-    expect(instance.zoomOut).toHaveBeenCalledTimes(1);
+    expect(instance.zoomOut).toHaveBeenCalledOnce();
 
     await user.click(
       screen.getByRole("button", { name: "Reset and fit diagram" })
     );
-    expect(instance.reset).toHaveBeenCalledTimes(1);
+    expect(instance.reset).toHaveBeenCalledOnce();
   });
 
   it("destroys the Panzoom instance when the diagram unmounts", async () => {
     mockedRenderMermaid.mockResolvedValue("<svg></svg>");
 
     const { unmount } = render(<MermaidDiagram source="graph TD; A-->B" />);
-    await waitFor(() => expect(mockedPanzoom).toHaveBeenCalled());
+    await waitFor(() => expect(mockedPanzoom).toHaveBeenCalledOnce());
 
     const instance = getLastPanzoomInstance();
     unmount();
 
-    expect(instance.destroy).toHaveBeenCalled();
+    expect(instance.destroy).toHaveBeenCalledWith();
   });
 
   it("destroys the Panzoom instance when the source changes", async () => {
     mockedRenderMermaid.mockResolvedValue("<svg></svg>");
 
     const { rerender } = render(<MermaidDiagram source="first" />);
-    await waitFor(() => expect(mockedPanzoom).toHaveBeenCalledTimes(1));
+    await waitFor(() => expect(mockedPanzoom).toHaveBeenCalledOnce());
 
     const firstInstance = getLastPanzoomInstance();
 
     rerender(<MermaidDiagram source="second" />);
     await waitFor(() => expect(mockedPanzoom).toHaveBeenCalledTimes(2));
 
-    expect(firstInstance.destroy).toHaveBeenCalled();
+    expect(firstInstance.destroy).toHaveBeenCalledWith();
   });
 });

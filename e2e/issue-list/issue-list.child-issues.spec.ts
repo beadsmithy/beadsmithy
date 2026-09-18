@@ -28,6 +28,7 @@
  * renderer state instead of just being a frontend test.
  */
 import { browser, expect } from "@wdio/globals";
+import { describe, it } from "vitest";
 
 import {
   FIXTURE_CHILD_LONELY_ID,

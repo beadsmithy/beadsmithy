@@ -146,7 +146,9 @@ describe("App issue explorer refresh", () => {
     await waitFor(() => {
       expect(listeners.refresh).toBeDefined();
     });
-    expect(await screen.findByText("Original issue")).toBeInTheDocument();
+    await expect(
+      screen.findByText("Original issue")
+    ).resolves.toBeInTheDocument();
 
     // Ref move observed externally: backend emits a refresh with the
     // newest snapshot and a higher revision.
@@ -165,14 +167,16 @@ describe("App issue explorer refresh", () => {
       });
     });
 
-    expect(await screen.findByText("New issue")).toBeInTheDocument();
+    await expect(screen.findByText("New issue")).resolves.toBeInTheDocument();
     expect(screen.queryByText("Original issue")).toBeNull();
 
     // Sidebar counts rederive from the new snapshot.
     const readyButton = await screen.findByRole("button", {
       name: /^Ready,/u,
     });
-    expect(await readyButton.getAttribute("aria-label")).toBe("Ready, 1 issue");
+    await expect(
+      Promise.resolve(readyButton.getAttribute("aria-label"))
+    ).resolves.toBe("Ready, 1 issue");
   });
 
   it("does not show the loading state while a refresh is in flight", async () => {
@@ -198,7 +202,7 @@ describe("App issue explorer refresh", () => {
     await waitFor(() => {
       expect(listeners.refresh).toBeDefined();
     });
-    expect(await screen.findByText("Initial")).toBeInTheDocument();
+    await expect(screen.findByText("Initial")).resolves.toBeInTheDocument();
 
     // Fire a refresh event. The original list must remain visible
     // during the synchronous React commit (the synchronous act callback
@@ -254,7 +258,7 @@ describe("App issue explorer refresh", () => {
     await waitFor(() => {
       expect(listeners.refresh).toBeDefined();
     });
-    expect(await screen.findByText("Initial")).toBeInTheDocument();
+    await expect(screen.findByText("Initial")).resolves.toBeInTheDocument();
 
     // Several rapid refreshes all converge to the newest revision.
     for (const revision of [3, 4, 5]) {
@@ -278,7 +282,7 @@ describe("App issue explorer refresh", () => {
       });
     }
 
-    expect(await screen.findByText("Revision 5")).toBeInTheDocument();
+    await expect(screen.findByText("Revision 5")).resolves.toBeInTheDocument();
     expect(screen.queryByText(/^Loading/u)).toBeNull();
   });
 
@@ -305,7 +309,7 @@ describe("App issue explorer refresh", () => {
     await waitFor(() => {
       expect(listeners.refresh).toBeDefined();
     });
-    expect(await screen.findByText("Original")).toBeInTheDocument();
+    await expect(screen.findByText("Original")).resolves.toBeInTheDocument();
 
     act(() => {
       listeners.refresh?.({
@@ -351,7 +355,7 @@ describe("App issue explorer refresh", () => {
     await waitFor(() => {
       expect(listeners.refresh).toBeDefined();
     });
-    expect(await screen.findByText("Original")).toBeInTheDocument();
+    await expect(screen.findByText("Original")).resolves.toBeInTheDocument();
 
     // First, admit revision 20 (newer).
     act(() => {
@@ -368,7 +372,7 @@ describe("App issue explorer refresh", () => {
         }),
       });
     });
-    expect(await screen.findByText("Newer")).toBeInTheDocument();
+    await expect(screen.findByText("Newer")).resolves.toBeInTheDocument();
 
     // Then a stale revision 19 arrives.
     act(() => {
@@ -414,7 +418,7 @@ describe("App issue explorer refresh", () => {
     await waitFor(() => {
       expect(listeners.refresh).toBeDefined();
     });
-    expect(await screen.findByText("Original")).toBeInTheDocument();
+    await expect(screen.findByText("Original")).resolves.toBeInTheDocument();
 
     act(() => {
       listeners.refresh?.({
@@ -467,7 +471,7 @@ describe("App issue explorer refresh", () => {
     await waitFor(() => {
       expect(listeners.refresh).toBeDefined();
     });
-    expect(await screen.findByText("A issue")).toBeInTheDocument();
+    await expect(screen.findByText("A issue")).resolves.toBeInTheDocument();
 
     // Pending transition (user clicked B): confirmed identity remains A.
     act(() => {
@@ -537,7 +541,7 @@ describe("App issue explorer refresh", () => {
       });
     });
 
-    expect(await screen.findByText("Brand new")).toBeInTheDocument();
+    await expect(screen.findByText("Brand new")).resolves.toBeInTheDocument();
   });
 
   it("renders the refresh-failure banner above the list when a Health event arrives", async () => {
@@ -567,7 +571,7 @@ describe("App issue explorer refresh", () => {
     await waitFor(() => {
       expect(listeners.refresh).toBeDefined();
     });
-    expect(await screen.findByText("Original")).toBeInTheDocument();
+    await expect(screen.findByText("Original")).resolves.toBeInTheDocument();
 
     const healthFailure: RefreshFailure = {
       errorKind: "missingBw",
@@ -631,7 +635,7 @@ describe("App issue explorer refresh", () => {
       expect(listeners.refresh).toBeDefined();
       expect(listeners.transition).toBeDefined();
     });
-    expect(await screen.findByText("Workspace A")).toBeInTheDocument();
+    await expect(screen.findByText("Workspace A")).resolves.toBeInTheDocument();
 
     act(() => {
       listeners.refresh?.({
@@ -652,9 +656,9 @@ describe("App issue explorer refresh", () => {
         },
       });
     });
-    expect(
-      await screen.findByTestId("refresh-failure-banner")
-    ).toBeInTheDocument();
+    await expect(
+      screen.findByTestId("refresh-failure-banner")
+    ).resolves.toBeInTheDocument();
 
     act(() => {
       listeners.transition?.({
@@ -678,7 +682,7 @@ describe("App issue explorer refresh", () => {
       });
     });
 
-    expect(await screen.findByText("Workspace B")).toBeInTheDocument();
+    await expect(screen.findByText("Workspace B")).resolves.toBeInTheDocument();
     await waitFor(() => {
       expect(screen.queryByTestId("refresh-failure-banner")).toBeNull();
     });
@@ -707,7 +711,7 @@ describe("App issue explorer refresh", () => {
     await waitFor(() => {
       expect(listeners.refresh).toBeDefined();
     });
-    expect(await screen.findByText("Original")).toBeInTheDocument();
+    await expect(screen.findByText("Original")).resolves.toBeInTheDocument();
 
     const bannerFailure: RefreshFailure = {
       errorKind: "refProbe",
@@ -726,9 +730,9 @@ describe("App issue explorer refresh", () => {
         },
       });
     });
-    expect(
-      await screen.findByTestId("refresh-failure-banner")
-    ).toBeInTheDocument();
+    await expect(
+      screen.findByTestId("refresh-failure-banner")
+    ).resolves.toBeInTheDocument();
 
     act(() => {
       listeners.refresh?.({
@@ -771,7 +775,7 @@ describe("App issue explorer refresh", () => {
     await waitFor(() => {
       expect(listeners.refresh).toBeDefined();
     });
-    expect(await screen.findByText("Original")).toBeInTheDocument();
+    await expect(screen.findByText("Original")).resolves.toBeInTheDocument();
 
     // First, admit a Health event at the confirmed generation.
     act(() => {
@@ -793,9 +797,9 @@ describe("App issue explorer refresh", () => {
         },
       });
     });
-    expect(
-      await screen.findByTestId("refresh-failure-banner")
-    ).toBeInTheDocument();
+    await expect(
+      screen.findByTestId("refresh-failure-banner")
+    ).resolves.toBeInTheDocument();
 
     // A stale Health event for a previous generation is ignored.
     act(() => {
@@ -904,12 +908,12 @@ describe("App issue explorer refresh", () => {
       })
     );
 
-    expect(await screen.findByText("Deferred")).toBeInTheDocument();
+    await expect(screen.findByText("Deferred")).resolves.toBeInTheDocument();
     // The Health event must also have been replayed and the banner
     // must show the structural copy for the refProbe failure.
-    expect(
-      await screen.findByTestId("refresh-failure-banner")
-    ).toBeInTheDocument();
+    await expect(
+      screen.findByTestId("refresh-failure-banner")
+    ).resolves.toBeInTheDocument();
     expect(screen.getByTestId("refresh-failure-banner").textContent).toContain(
       "Automatic refresh is failing while checking Beadwork changes."
     );

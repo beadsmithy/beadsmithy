@@ -35,20 +35,24 @@ const LifecycleProbe = ({ events, token }: LifecycleProbeProps): null => {
   return null;
 };
 
-describe("useExternalLifecycle", () => {
+describe(useExternalLifecycle, () => {
   it("re-runs and cleans up when a dependency changes", () => {
     const events: string[] = [];
     const { rerender, unmount } = render(
       <LifecycleProbe events={events} token="first" />
     );
 
-    expect(events).toEqual(["start:first"]);
+    expect(events).toStrictEqual(["start:first"]);
 
     rerender(<LifecycleProbe events={events} token="second" />);
-    expect(events).toEqual(["start:first", "cleanup:first", "start:second"]);
+    expect(events).toStrictEqual([
+      "start:first",
+      "cleanup:first",
+      "start:second",
+    ]);
 
     unmount();
-    expect(events).toEqual([
+    expect(events).toStrictEqual([
       "start:first",
       "cleanup:first",
       "start:second",
@@ -87,7 +91,7 @@ describe("useExternalLifecycle", () => {
       </StrictMode>
     );
 
-    expect(events).toEqual([
+    expect(events).toStrictEqual([
       "setup 1 sees disposed=false",
       "cleanup 1 sees disposed=true",
       "setup 2 sees disposed=false",
@@ -99,7 +103,7 @@ describe("useExternalLifecycle", () => {
       }
     });
 
-    expect(events).toEqual([
+    expect(events).toStrictEqual([
       "setup 1 sees disposed=false",
       "cleanup 1 sees disposed=true",
       "setup 2 sees disposed=false",
@@ -116,6 +120,6 @@ describe("useExternalLifecycle", () => {
 
     rerender(<LifecycleProbe events={events} token="stable" />);
 
-    expect(events).toEqual(["start:stable"]);
+    expect(events).toStrictEqual(["start:stable"]);
   });
 });

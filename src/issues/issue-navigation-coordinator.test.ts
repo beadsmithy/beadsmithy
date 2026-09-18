@@ -22,20 +22,20 @@ describe("Issue Navigation coordinator", () => {
     const entry = createIssueNavigationEntry(route, "/workspace", 3);
     const state = writeIssueNavigationState({ unrelated: true }, entry);
 
-    expect(readIssueNavigationEntry(state)).toEqual(entry);
+    expect(readIssueNavigationEntry(state)).toStrictEqual(entry);
     expect(nextIssueNavigationIndex(entry)).toBe(4);
   });
 
   it("rejects malformed history state", () => {
     expect(
       readIssueNavigationEntry({ beadsmithNavigation: { index: -1 } })
-    ).toBe(null);
-    expect(readIssueNavigationEntry({ beadsmithNavigation: null })).toBe(null);
+    ).toBeNull();
+    expect(readIssueNavigationEntry({ beadsmithNavigation: null })).toBeNull();
     expect(
       readIssueNavigationEntry({
         beadsmithNavigation: { ...route, index: 0, viewId: "unknown" },
       })
-    ).toBe(null);
+    ).toBeNull();
   });
 
   it("truncates forward entries after a new push", () => {
@@ -59,7 +59,7 @@ describe("Issue Navigation coordinator", () => {
 
     truncateForwardIssueNavigationEntries(ledger, 1);
 
-    expect([...ledger.entries.keys()]).toEqual([0, 1]);
+    expect([...ledger.entries.keys()]).toStrictEqual([0, 1]);
   });
 
   it("labels selected and unselected destinations for control tooltips", () => {

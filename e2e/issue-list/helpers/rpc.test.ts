@@ -17,7 +17,7 @@ import {
   searchInputSelector,
 } from "./rpc.ts";
 
-describe("issueRowSelector", () => {
+describe(issueRowSelector, () => {
   it("emits an aria-label prefix-selector for the given title", () => {
     expect(issueRowSelector("Render selected issue details end to end")).toBe(
       'article[aria-label*="Render selected issue details end to end"]'
@@ -39,7 +39,7 @@ describe("issueRowSelector", () => {
   });
 });
 
-describe("childIssueButtonSelector", () => {
+describe(childIssueButtonSelector, () => {
   it("emits the named-list scoped button selector for the (id, title, status) tuple", () => {
     expect(
       childIssueButtonSelector(
@@ -72,13 +72,13 @@ describe("childIssueButtonSelector", () => {
   });
 });
 
-describe("childIssuesListSelector", () => {
+describe(childIssuesListSelector, () => {
   it("points at the Child Issues named list", () => {
     expect(childIssuesListSelector()).toBe('ul[aria-label="Child Issues"]');
   });
 });
 
-describe("searchInputSelector", () => {
+describe(searchInputSelector, () => {
   it("points at the local Issue Search input by id", () => {
     expect(searchInputSelector).toBe("#issue-search");
   });

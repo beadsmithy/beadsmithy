@@ -40,6 +40,7 @@
  * the article so it can resolve the right DOM subtree.
  */
 import { browser, expect } from "@wdio/globals";
+import { afterEach, describe, it } from "vitest";
 
 import {
   FIXTURE_COMMENT_MALFORMED_AUTHOR,

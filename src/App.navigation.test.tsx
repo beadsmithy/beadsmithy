@@ -120,6 +120,7 @@ describe("App navigation", () => {
     expect(screen.queryByText("States")).toBeNull();
     expect(within(sidebar()).queryByText(/^0$/u)).toBeNull();
   });
+
   it("keeps sidebar view controls unavailable with hidden counts after load failure", async () => {
     loadIssueExplorerStateFromTauRpc.mockResolvedValue(failureState);
 
@@ -131,6 +132,7 @@ describe("App navigation", () => {
     expect(sidebarButton(/^Open$/u)).toBeDisabled();
     expect(within(sidebar()).queryByText(/^0$/u)).toBeNull();
   });
+
   it("shows enabled base counts after load and defaults All to the only active item", async () => {
     const openIssue = buildIssue({ id: "bsm-open", status: "open" });
     const readyIssue = buildIssue({ id: "bsm-ready", status: "open" });
@@ -179,6 +181,7 @@ describe("App navigation", () => {
         .filter((button) => button.hasAttribute("aria-current"))
     ).toHaveLength(1);
   });
+
   it("shows a zero Blocked count from the command-backed Blocked collection", async () => {
     const issueWithDependencies = buildIssue({
       blockedBy: ["bsm-blocker"],
@@ -191,10 +194,11 @@ describe("App navigation", () => {
 
     render(<App />);
 
-    expect(
-      await screen.findByRole("button", { name: "Blocked, 0 issues" })
-    ).toBeEnabled();
+    await expect(
+      screen.findByRole("button", { name: "Blocked, 0 issues" })
+    ).resolves.toBeEnabled();
   });
+
   it("changes the active issue list view only when an inactive loaded sidebar item is clicked", async () => {
     const user = userEvent.setup();
     const issue = buildIssue({ status: "open" });
@@ -223,6 +227,7 @@ describe("App navigation", () => {
       expect(closedButton).toHaveAttribute("aria-current", "true");
     });
   });
+
   it("shows a zero count for Ready when the preloaded Ready collection is empty", async () => {
     loadIssueExplorerStateFromTauRpc.mockResolvedValue(
       successState({
@@ -236,6 +241,7 @@ describe("App navigation", () => {
     await screen.findByRole("button", { name: "All, 1 issue" });
     expect(sidebarButton(/^Ready, 0 issues$/u)).toBeEnabled();
   });
+
   it("renders the preloaded Ready collection when the Ready sidebar item is selected", async () => {
     const user = userEvent.setup();
     const readyIssue = buildIssue({ id: "bsm-ready", title: "Ready one" });
@@ -257,6 +263,7 @@ describe("App navigation", () => {
     expect(screen.getByText("Ready one")).toBeInTheDocument();
     expect(screen.queryByText("All only one")).toBeNull();
   });
+
   it("keeps sidebar counts based on base collections while search narrows rows", async () => {
     const user = userEvent.setup();
     const matchingIssue = buildIssue({ id: "bsm-match", title: "needle" });
@@ -283,6 +290,7 @@ describe("App navigation", () => {
     expect(screen.getByText("needle")).toBeInTheDocument();
     expect(screen.queryByText("haystack")).toBeNull();
   });
+
   it("does not re-run the Beadwork load when switching to the Ready view after load", async () => {
     const user = userEvent.setup();
     const readyIssue = buildIssue({ id: "bsm-ready" });
@@ -297,9 +305,9 @@ describe("App navigation", () => {
     render(<App />);
 
     await screen.findByRole("button", { name: "All, 1 issue" });
-    expect(loadIssueExplorerStateFromTauRpc).toHaveBeenCalledTimes(1);
+    expect(loadIssueExplorerStateFromTauRpc).toHaveBeenCalledOnce();
 
     await user.click(sidebarButton(/^Ready, 1 issue$/u));
-    expect(loadIssueExplorerStateFromTauRpc).toHaveBeenCalledTimes(1);
+    expect(loadIssueExplorerStateFromTauRpc).toHaveBeenCalledOnce();
   });
 });

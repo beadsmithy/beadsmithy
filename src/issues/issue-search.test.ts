@@ -27,7 +27,7 @@ const buildIssue = (overrides: Partial<Issue> = {}): Issue => ({
 
 const getIds = (issues: Issue[]) => issues.map((issue) => issue.id);
 
-describe("filterIssuesBySearchQuery", () => {
+describe(filterIssuesBySearchQuery, () => {
   it("returns all issues for empty or whitespace-only queries", () => {
     const issues = [
       buildIssue({ id: "bsm-first" }),
@@ -55,7 +55,7 @@ describe("filterIssuesBySearchQuery", () => {
           "dbh.6"
         )
       )
-    ).toEqual(["bsm-DBH.6"]);
+    ).toStrictEqual(["bsm-DBH.6"]);
     expect(
       getIds(
         filterIssuesBySearchQuery(
@@ -63,7 +63,7 @@ describe("filterIssuesBySearchQuery", () => {
           "search"
         )
       )
-    ).toEqual(["bsm-title"]);
+    ).toStrictEqual(["bsm-title"]);
     expect(
       getIds(
         filterIssuesBySearchQuery(
@@ -71,7 +71,7 @@ describe("filterIssuesBySearchQuery", () => {
           "hiddentoken"
         )
       )
-    ).toEqual(["bsm-description"]);
+    ).toStrictEqual(["bsm-description"]);
   });
 
   it("uses whitespace-tokenized AND substring matching while preserving punctuation", () => {
@@ -96,7 +96,7 @@ describe("filterIssuesBySearchQuery", () => {
           "  bsm-dbh.6 sea  "
         )
       )
-    ).toEqual(["bsm-dbh.6", "bsm-dbh.60"]);
+    ).toStrictEqual(["bsm-dbh.6", "bsm-dbh.60"]);
   });
 
   it("preserves the incoming issue order", () => {
@@ -110,6 +110,6 @@ describe("filterIssuesBySearchQuery", () => {
           "search"
         )
       )
-    ).toEqual(["bsm-b", "bsm-a"]);
+    ).toStrictEqual(["bsm-b", "bsm-a"]);
   });
 });

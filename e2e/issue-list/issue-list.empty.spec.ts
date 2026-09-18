@@ -3,6 +3,7 @@
  * typed switch transport as the product to select a real zero-issue fixture.
  */
 import { browser, expect } from "@wdio/globals";
+import { describe, it } from "vitest";
 
 import {
   invokeTypedWorkspaceSwitch,

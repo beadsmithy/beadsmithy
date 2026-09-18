@@ -27,6 +27,7 @@
  * suite.
  */
 import { browser, expect } from "@wdio/globals";
+import { describe, it } from "vitest";
 
 import {
   applyExternalMutation,

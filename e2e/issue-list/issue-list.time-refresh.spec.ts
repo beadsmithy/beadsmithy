@@ -1,3 +1,5 @@
+import { describe, it } from "vitest";
+
 /**
  * Time-trigger refresh proof (bsm-wj1.4): launches the real Beadsmith
  * debug binary with the debug-only shortened time-refresh cadence

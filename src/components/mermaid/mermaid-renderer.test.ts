@@ -23,13 +23,13 @@ beforeEach(() => {
   render.mockResolvedValue({ svg: "<svg></svg>" });
 });
 
-describe("renderMermaid", () => {
+describe(renderMermaid, () => {
   it("does not initialize Mermaid until the first render is requested", async () => {
     expect(initialize).not.toHaveBeenCalled();
 
     await renderMermaid("graph TD; A-->B");
 
-    expect(initialize).toHaveBeenCalledTimes(1);
+    expect(initialize).toHaveBeenCalledOnce();
   });
 
   it("initializes Mermaid exactly once across many renders", async () => {
@@ -37,7 +37,7 @@ describe("renderMermaid", () => {
     await renderMermaid("graph TD; C-->D");
     await renderMermaid("graph TD; E-->F");
 
-    expect(initialize).toHaveBeenCalledTimes(1);
+    expect(initialize).toHaveBeenCalledOnce();
   });
 
   it("configures strict security and locks theme and security directives", async () => {
@@ -53,8 +53,8 @@ describe("renderMermaid", () => {
 
     expect(config.securityLevel).toBe("strict");
     expect(config.theme).toBe("base");
-    expect(config.startOnLoad).toBe(false);
-    expect(config.secure).toEqual(
+    expect(config.startOnLoad).toBeFalsy();
+    expect(config.secure).toStrictEqual(
       expect.arrayContaining([
         "securityLevel",
         "secure",
@@ -101,12 +101,12 @@ describe("renderMermaid", () => {
       setTimeout(resolve, 0);
     });
     // The second render must not have started while the first is pending.
-    expect(events).toEqual(["start:beadsmith-mermaid-1"]);
+    expect(events).toStrictEqual(["start:beadsmith-mermaid-1"]);
 
     firstRender.resolve({ svg: "<svg></svg>" });
     await Promise.all([first, second]);
 
-    expect(events).toEqual([
+    expect(events).toStrictEqual([
       "start:beadsmith-mermaid-1",
       "start:beadsmith-mermaid-2",
     ]);
@@ -134,7 +134,7 @@ describe("renderMermaid", () => {
   });
 });
 
-describe("deriveThemeVariables", () => {
+describe(deriveThemeVariables, () => {
   it("maps resolved Beadsmith tokens to normalized hex theme variables", () => {
     const tokens: Record<string, string> = {
       "--color-accent": "#5E6AD2",

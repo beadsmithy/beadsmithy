@@ -6,7 +6,7 @@ import {
   parseScenario,
 } from "./harness-inputs.ts";
 
-describe("parseScenario", () => {
+describe(parseScenario, () => {
   it.each([
     "child-issues",
     "empty",
@@ -26,7 +26,7 @@ describe("parseScenario", () => {
   });
 });
 
-describe("parsePhase", () => {
+describe(parsePhase, () => {
   it.each(["1", "2"] as const)("accepts phase %s", (phase) => {
     expect(parsePhase(phase)).toBe(phase);
   });
@@ -38,7 +38,7 @@ describe("parsePhase", () => {
   });
 });
 
-describe("parseHarnessEnvironment", () => {
+describe(parseHarnessEnvironment, () => {
   it("reports an omitted scenario consistently with other received values", () => {
     expect(() =>
       parseHarnessEnvironment({
@@ -61,7 +61,7 @@ describe("parseHarnessEnvironment", () => {
         BEADSMITH_E2E_WORKSPACE_B_SECOND: "/fixtures/b-second",
         BEADSMITH_WORKSPACE_STORE_PATH: "/stores/workspaces.json",
       })
-    ).toEqual({
+    ).toStrictEqual({
       fixtureA: "/fixtures/a",
       fixtureB: "/fixtures/b",
       fixtureBSecond: "/fixtures/b-second",
@@ -123,7 +123,7 @@ describe("parseHarnessEnvironment", () => {
         BEADSMITH_E2E_WORKSPACE_A: "/fixtures/a",
         BEADSMITH_WORKSPACE_STORE_PATH: "/stores/workspaces.json",
       })
-    ).toEqual({
+    ).toStrictEqual({
       fixtureA: "/fixtures/a",
       phase: "1",
       scenario: "restoration",
@@ -138,7 +138,7 @@ describe("parseHarnessEnvironment", () => {
         BEADSMITH_E2E_WORKSPACE_A: "/fixtures/a",
         BEADSMITH_WORKSPACE_STORE_PATH: "/stores/workspaces.json",
       })
-    ).toEqual({
+    ).toStrictEqual({
       fixtureA: "/fixtures/a",
       phase: "1",
       scenario: "child-issues",
@@ -153,7 +153,7 @@ describe("parseHarnessEnvironment", () => {
         BEADSMITH_E2E_WORKSPACE_A: "/fixtures/a",
         BEADSMITH_WORKSPACE_STORE_PATH: "/stores/workspaces.json",
       })
-    ).toEqual({
+    ).toStrictEqual({
       fixtureA: "/fixtures/a",
       phase: "1",
       scenario: "focus-refresh",
@@ -168,7 +168,7 @@ describe("parseHarnessEnvironment", () => {
         BEADSMITH_E2E_WORKSPACE_A: "/fixtures/a",
         BEADSMITH_WORKSPACE_STORE_PATH: "/stores/workspaces.json",
       })
-    ).toEqual({
+    ).toStrictEqual({
       fixtureA: "/fixtures/a",
       phase: "1",
       scenario: "time-refresh",

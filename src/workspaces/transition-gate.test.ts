@@ -95,7 +95,7 @@ const buildIssue = (overrides: Partial<Issue> = {}): Issue => ({
   ...overrides,
 });
 
-describe("applyWorkspaceTransition", () => {
+describe("workspace transition gate", () => {
   it("admits a Pending transition while retaining the existing snapshot", () => {
     // A pending switch attempt bumps the selection generation even
     // when Current Workspace does not change. Pending transitions do
@@ -118,8 +118,10 @@ describe("applyWorkspaceTransition", () => {
 
     const result = applyWorkspaceTransition(gate, payload, null);
 
-    expect(result.decision).toEqual({ kind: "acceptStateRetainSnapshot" });
-    expect(result.next).toEqual(
+    expect(result.decision).toStrictEqual({
+      kind: "acceptStateRetainSnapshot",
+    });
+    expect(result.next).toStrictEqual(
       initialGate({
         acceptedGeneration: 2,
         acceptedRefreshRevision: null,
@@ -145,12 +147,12 @@ describe("applyWorkspaceTransition", () => {
 
     const result = applyWorkspaceTransition(gate, payload, null);
 
-    expect(result.decision).toEqual({
+    expect(result.decision).toStrictEqual({
       kind: "commitSnapshot",
       remountKey: "/work/b",
       snapshot: matchingSnapshot,
     });
-    expect(result.next).toEqual(
+    expect(result.next).toStrictEqual(
       initialGate({
         acceptedGeneration: 3,
         committedGeneration: 3,
@@ -175,7 +177,9 @@ describe("applyWorkspaceTransition", () => {
       },
       null
     );
-    expect(pending.decision).toEqual({ kind: "acceptStateRetainSnapshot" });
+    expect(pending.decision).toStrictEqual({
+      kind: "acceptStateRetainSnapshot",
+    });
     expect(pending.next.confirmedWorkspacePath).toBe("/work/a");
 
     const matchingSnapshot = snapshot("/work/b");
@@ -190,7 +194,7 @@ describe("applyWorkspaceTransition", () => {
       },
       2
     );
-    expect(commit.decision).toEqual({
+    expect(commit.decision).toStrictEqual({
       kind: "commitSnapshot",
       remountKey: "/work/b",
       snapshot: matchingSnapshot,
@@ -221,8 +225,8 @@ describe("applyWorkspaceTransition", () => {
       },
       null
     );
-    expect(latePendingCurrentNull.decision).toEqual({ kind: "ignore" });
-    expect(latePendingCurrentNull.next).toEqual(committed);
+    expect(latePendingCurrentNull.decision).toStrictEqual({ kind: "ignore" });
+    expect(latePendingCurrentNull.next).toStrictEqual(committed);
 
     const latePendingCurrentA = applyWorkspaceTransition(
       committed,
@@ -236,8 +240,8 @@ describe("applyWorkspaceTransition", () => {
       },
       null
     );
-    expect(latePendingCurrentA.decision).toEqual({ kind: "ignore" });
-    expect(latePendingCurrentA.next).toEqual(committed);
+    expect(latePendingCurrentA.decision).toStrictEqual({ kind: "ignore" });
+    expect(latePendingCurrentA.next).toStrictEqual(committed);
   });
 
   it("ignores an older-generation transition without advancing any marker", () => {
@@ -258,8 +262,8 @@ describe("applyWorkspaceTransition", () => {
       null
     );
 
-    expect(result.decision).toEqual({ kind: "ignore" });
-    expect(result.next).toEqual(gate);
+    expect(result.decision).toStrictEqual({ kind: "ignore" });
+    expect(result.next).toStrictEqual(gate);
   });
 
   it("ignores a direct RPC response whose generation does not match the expected one", () => {
@@ -279,8 +283,8 @@ describe("applyWorkspaceTransition", () => {
       3
     );
 
-    expect(result.decision).toEqual({ kind: "ignore" });
-    expect(result.next).toEqual(gate);
+    expect(result.decision).toStrictEqual({ kind: "ignore" });
+    expect(result.next).toStrictEqual(gate);
   });
 
   it("admits a Pending cancellation while retaining the existing snapshot", () => {
@@ -304,8 +308,10 @@ describe("applyWorkspaceTransition", () => {
       null
     );
 
-    expect(result.decision).toEqual({ kind: "acceptStateRetainSnapshot" });
-    expect(result.next).toEqual(
+    expect(result.decision).toStrictEqual({
+      kind: "acceptStateRetainSnapshot",
+    });
+    expect(result.next).toStrictEqual(
       initialGate({
         acceptedGeneration: 4,
         committedGeneration: 3,
@@ -347,8 +353,8 @@ describe("applyWorkspaceTransition", () => {
       },
       2
     );
-    expect(lateBResult.decision).toEqual({ kind: "ignore" });
-    expect(lateBResult.next).toEqual(afterCSelection.next);
+    expect(lateBResult.decision).toStrictEqual({ kind: "ignore" });
+    expect(lateBResult.next).toStrictEqual(afterCSelection.next);
   });
 
   it("admits a retryable failure and ignores a delayed same-generation Pending replay", () => {
@@ -370,7 +376,9 @@ describe("applyWorkspaceTransition", () => {
       },
       null
     );
-    expect(failure.decision).toEqual({ kind: "acceptStateRetainSnapshot" });
+    expect(failure.decision).toStrictEqual({
+      kind: "acceptStateRetainSnapshot",
+    });
     expect(failure.next.terminalGeneration).toBe(3);
     expect(failure.next.confirmedWorkspacePath).toBe("/work/a");
 
@@ -388,8 +396,8 @@ describe("applyWorkspaceTransition", () => {
       },
       null
     );
-    expect(latePending.decision).toEqual({ kind: "ignore" });
-    expect(latePending.next).toEqual(failure.next);
+    expect(latePending.decision).toStrictEqual({ kind: "ignore" });
+    expect(latePending.next).toStrictEqual(failure.next);
   });
 
   it("admits a non-retryable failure with no retry target and ignores a delayed same-generation Pending replay", () => {
@@ -410,7 +418,9 @@ describe("applyWorkspaceTransition", () => {
       },
       null
     );
-    expect(failure.decision).toEqual({ kind: "acceptStateRetainSnapshot" });
+    expect(failure.decision).toStrictEqual({
+      kind: "acceptStateRetainSnapshot",
+    });
     expect(failure.next.terminalGeneration).toBe(3);
 
     const latePending = applyWorkspaceTransition(
@@ -425,8 +435,8 @@ describe("applyWorkspaceTransition", () => {
       },
       null
     );
-    expect(latePending.decision).toEqual({ kind: "ignore" });
-    expect(latePending.next).toEqual(failure.next);
+    expect(latePending.decision).toStrictEqual({ kind: "ignore" });
+    expect(latePending.next).toStrictEqual(failure.next);
   });
 
   it("does not advance the terminal marker for a non-retryable failure with a retry target", () => {
@@ -467,7 +477,7 @@ describe("applyWorkspaceTransition", () => {
       },
       null
     );
-    expect(pendingReplay.decision).toEqual({
+    expect(pendingReplay.decision).toStrictEqual({
       kind: "acceptStateRetainSnapshot",
     });
   });
@@ -494,7 +504,7 @@ describe("applyWorkspaceTransition", () => {
       null
     );
 
-    expect(result.decision).toEqual({
+    expect(result.decision).toStrictEqual({
       kind: "commitSnapshot",
       remountKey: "/work/b",
       snapshot: matchingSnapshot,
@@ -519,7 +529,7 @@ describe("applyWorkspaceTransition", () => {
       null
     );
 
-    expect(result.decision).toEqual({
+    expect(result.decision).toStrictEqual({
       kind: "commitSnapshot",
       remountKey: "/work/restored",
       snapshot: matchingSnapshot,
@@ -547,7 +557,7 @@ describe("applyWorkspaceTransition", () => {
       null
     );
 
-    expect(result.decision).toEqual({
+    expect(result.decision).toStrictEqual({
       kind: "clearSnapshot",
       remountKey: CLEARED_WORKSPACE_REMOUNT_KEY,
     });
@@ -572,10 +582,10 @@ describe("applyWorkspaceTransition", () => {
       null
     );
 
-    expect(duplicate.decision).toEqual({
+    expect(duplicate.decision).toStrictEqual({
       kind: "acceptStateRetainSnapshot",
     });
-    expect(duplicate.next).toEqual({
+    expect(duplicate.next).toStrictEqual({
       acceptedGeneration: 5,
       acceptedRefreshHealthRevision: null,
       acceptedRefreshRevision: null,
@@ -606,7 +616,9 @@ describe("applyWorkspaceTransition", () => {
       null
     );
 
-    expect(result.decision).toEqual({ kind: "acceptStateRetainSnapshot" });
+    expect(result.decision).toStrictEqual({
+      kind: "acceptStateRetainSnapshot",
+    });
     expect(result.next.confirmedWorkspacePath).toBeNull();
   });
 
@@ -631,12 +643,14 @@ describe("applyWorkspaceTransition", () => {
       null
     );
 
-    expect(result.decision).toEqual({ kind: "acceptStateRetainSnapshot" });
+    expect(result.decision).toStrictEqual({
+      kind: "acceptStateRetainSnapshot",
+    });
     expect(result.next.confirmedWorkspacePath).toBe("/work/a");
   });
 });
 
-describe("applyStartupIssueLoad", () => {
+describe(applyStartupIssueLoad, () => {
   it("ignores a successful startup load superseded by a later committed switch", () => {
     const gate = initialGate({
       acceptedGeneration: 3,
@@ -654,8 +668,8 @@ describe("applyStartupIssueLoad", () => {
 
     const result = applyStartupIssueLoad(gate, load, 2);
 
-    expect(result.decision).toEqual({ kind: "ignore" });
-    expect(result.next).toEqual(gate);
+    expect(result.decision).toStrictEqual({ kind: "ignore" });
+    expect(result.next).toStrictEqual(gate);
   });
 
   it("ignores a failed startup load superseded by a later committed switch", () => {
@@ -671,8 +685,8 @@ describe("applyStartupIssueLoad", () => {
 
     const result = applyStartupIssueLoad(gate, load, 2);
 
-    expect(result.decision).toEqual({ kind: "ignore" });
-    expect(result.next).toEqual(gate);
+    expect(result.decision).toStrictEqual({ kind: "ignore" });
+    expect(result.next).toStrictEqual(gate);
   });
 
   it("commits a non-superseded successful startup load and records the confirmed path", () => {
@@ -688,7 +702,7 @@ describe("applyStartupIssueLoad", () => {
 
     const result = applyStartupIssueLoad(gate, load, -1);
 
-    expect(result.decision).toEqual({
+    expect(result.decision).toStrictEqual({
       kind: "commitSnapshot",
       remountKey: "/work/a",
       snapshot: load,
@@ -705,7 +719,7 @@ describe("applyStartupIssueLoad", () => {
 
     const result = applyStartupIssueLoad(gate, load, -1);
 
-    expect(result.decision).toEqual({
+    expect(result.decision).toStrictEqual({
       kind: "commitSnapshot",
       remountKey: INITIAL_WORKSPACE_REMOUNT_KEY,
       snapshot: load,
@@ -714,9 +728,9 @@ describe("applyStartupIssueLoad", () => {
   });
 });
 
-describe("INITIAL_WORKSPACE_TRANSITION_GATE_STATE", () => {
+describe("initial workspace transition gate state", () => {
   it("starts the admitted markers below the lowest possible backend generation", () => {
-    expect(INITIAL_WORKSPACE_TRANSITION_GATE_STATE).toEqual({
+    expect(INITIAL_WORKSPACE_TRANSITION_GATE_STATE).toStrictEqual({
       acceptedGeneration: 0,
       acceptedRefreshHealthRevision: null,
       acceptedRefreshRevision: null,
@@ -761,7 +775,7 @@ const refreshPayload = (overrides: {
   workspaceSelectionGeneration: overrides.workspaceSelectionGeneration ?? 1,
 });
 
-describe("applyIssueExplorerRefresh", () => {
+describe(applyIssueExplorerRefresh, () => {
   it("defers a refresh when the gate has no confirmed snapshot identity", () => {
     // bsm-wj1.2 changes the original ignore-on-no-identity behavior:
     // the design treats "no confirmed generation" as older than any
@@ -774,7 +788,7 @@ describe("applyIssueExplorerRefresh", () => {
     if (result.decision.kind !== "defer") {
       throw new Error("expected defer decision");
     }
-    expect(result.next).toEqual(gate);
+    expect(result.next).toStrictEqual(gate);
   });
 
   it("admits a matching newer refresh and advances the accepted revision", () => {
@@ -794,7 +808,7 @@ describe("applyIssueExplorerRefresh", () => {
       }),
     });
 
-    expect(result.decision).toEqual({
+    expect(result.decision).toStrictEqual({
       kind: "commitRefreshSnapshot",
       snapshot: refreshSnapshot("/work/a", 1, { allIssues: [newIssue] }),
     });
@@ -828,8 +842,8 @@ describe("applyIssueExplorerRefresh", () => {
         allIssues: [buildIssue({ id: "stale", title: "stale" })],
       }),
     });
-    expect(replay.decision).toEqual({ kind: "ignore" });
-    expect(replay.next).toEqual(result.next);
+    expect(replay.decision).toStrictEqual({ kind: "ignore" });
+    expect(replay.next).toStrictEqual(result.next);
   });
 
   it("ignores an older revision", () => {
@@ -850,8 +864,8 @@ describe("applyIssueExplorerRefresh", () => {
         allIssues: [buildIssue({ id: "stale", title: "stale" })],
       }),
     });
-    expect(older.decision).toEqual({ kind: "ignore" });
-    expect(older.next).toEqual(newer.next);
+    expect(older.decision).toStrictEqual({ kind: "ignore" });
+    expect(older.next).toStrictEqual(newer.next);
   });
 
   it("rejects a refresh for a different workspace path", () => {
@@ -864,8 +878,8 @@ describe("applyIssueExplorerRefresh", () => {
       ...refreshPayload({ workspacePath: "/work/b" }),
       issueData: refreshSnapshot("/work/b", 1),
     });
-    expect(result.decision).toEqual({ kind: "ignore" });
-    expect(result.next).toEqual(gate);
+    expect(result.decision).toStrictEqual({ kind: "ignore" });
+    expect(result.next).toStrictEqual(gate);
   });
 
   it("rejects a refresh for a different selection generation", () => {
@@ -881,8 +895,8 @@ describe("applyIssueExplorerRefresh", () => {
       }),
       issueData: refreshSnapshot("/work/a", 1),
     });
-    expect(result.decision).toEqual({ kind: "ignore" });
-    expect(result.next).toEqual(gate);
+    expect(result.decision).toStrictEqual({ kind: "ignore" });
+    expect(result.next).toStrictEqual(gate);
   });
 
   it("rejects a refresh whose nested snapshot identity disagrees with the outer envelope", () => {
@@ -895,8 +909,8 @@ describe("applyIssueExplorerRefresh", () => {
       ...refreshPayload({}),
       issueData: refreshSnapshot("/work/b", 1),
     });
-    expect(result.decision).toEqual({ kind: "ignore" });
-    expect(result.next).toEqual(gate);
+    expect(result.decision).toStrictEqual({ kind: "ignore" });
+    expect(result.next).toStrictEqual(gate);
   });
 
   it("a newer event followed by a late older event cannot regress state", () => {
@@ -922,8 +936,8 @@ describe("applyIssueExplorerRefresh", () => {
         allIssues: [buildIssue({ id: "stale", title: "stale" })],
       }),
     });
-    expect(lateOlder.decision).toEqual({ kind: "ignore" });
-    expect(lateOlder.next).toEqual(newer.next);
+    expect(lateOlder.decision).toStrictEqual({ kind: "ignore" });
+    expect(lateOlder.next).toStrictEqual(newer.next);
   });
 
   it("committing a new workspace snapshot resets the refresh admission marker", () => {
@@ -1095,7 +1109,7 @@ describe("applyIssueExplorerRefresh", () => {
       }),
       issueData: refreshSnapshot("/work/a", 3),
     });
-    expect(refresh.decision).toEqual({
+    expect(refresh.decision).toStrictEqual({
       kind: "commitRefreshSnapshot",
       snapshot: refreshSnapshot("/work/a", 3),
     });
@@ -1133,7 +1147,7 @@ describe("applyIssueExplorerRefresh", () => {
       throw new Error("expected defer decision");
     }
     expect(result.decision.payload.workspaceSelectionGeneration).toBe(3);
-    expect(result.next).toEqual(gate);
+    expect(result.next).toStrictEqual(gate);
   });
 
   it("ignores a refresh for a generation older than confirmed", () => {
@@ -1152,8 +1166,8 @@ describe("applyIssueExplorerRefresh", () => {
       }),
       issueData: refreshSnapshot("/work/a", 2),
     });
-    expect(result.decision).toEqual({ kind: "ignore" });
-    expect(result.next).toEqual(gate);
+    expect(result.decision).toStrictEqual({ kind: "ignore" });
+    expect(result.next).toStrictEqual(gate);
   });
 
   it("admits the deferred refresh once the matching transition commits", () => {
@@ -1209,7 +1223,7 @@ describe("applyIssueExplorerRefresh", () => {
     expect(committed.decision.kind).toBe("commitSnapshot");
 
     const replayed = applyIssueExplorerRefresh(committed.next, deferredPayload);
-    expect(replayed.decision).toEqual({
+    expect(replayed.decision).toStrictEqual({
       kind: "commitRefreshSnapshot",
       snapshot: refreshSnapshot("/work/b", 3),
     });
@@ -1242,8 +1256,8 @@ describe("applyIssueExplorerRefresh", () => {
       }),
       issueData: refreshSnapshot("/work/a", 2),
     });
-    expect(stale.decision).toEqual({ kind: "ignore" });
-    expect(stale.next).toEqual(committedB.next);
+    expect(stale.decision).toStrictEqual({ kind: "ignore" });
+    expect(stale.next).toStrictEqual(committedB.next);
   });
 });
 
@@ -1297,7 +1311,7 @@ const refreshHealthPayload = (overrides: {
   workspaceSelectionGeneration: overrides.workspaceSelectionGeneration,
 });
 
-describe("applyIssueExplorerHealthRefresh", () => {
+describe(applyIssueExplorerHealthRefresh, () => {
   it("defers a Health event that arrives before any confirmed snapshot identity", () => {
     // Pre-confirmation buffering: a startup-arriving Health event must
     // be retained in the App-level buffer so it can be replayed after
@@ -1311,7 +1325,7 @@ describe("applyIssueExplorerHealthRefresh", () => {
     });
     const result = applyIssueExplorerHealthRefresh(gate, payload);
     expect(result.decision.kind).toBe("defer");
-    expect(result.next).toEqual(gate);
+    expect(result.next).toStrictEqual(gate);
   });
 
   it("admits a matching Health event against a confirmed identity and replaces the complete health", () => {
@@ -1328,12 +1342,12 @@ describe("applyIssueExplorerHealthRefresh", () => {
       workspaceSelectionGeneration: 1,
     });
     const result = applyIssueExplorerHealthRefresh(gate, payload);
-    expect(result.decision).toEqual({
+    expect(result.decision).toStrictEqual({
       health: payload.health,
       kind: "commitRefreshHealth",
     });
     expect(result.next.acceptedRefreshHealthRevision).toBe(3);
-    expect(result.next.refreshHealth).toEqual(payload.health);
+    expect(result.next.refreshHealth).toStrictEqual(payload.health);
   });
 
   it("ignores a Health event with a mismatched path", () => {
@@ -1348,8 +1362,8 @@ describe("applyIssueExplorerHealthRefresh", () => {
       workspaceSelectionGeneration: 1,
     });
     const result = applyIssueExplorerHealthRefresh(gate, payload);
-    expect(result.decision).toEqual({ kind: "ignore" });
-    expect(result.next).toEqual(gate);
+    expect(result.decision).toStrictEqual({ kind: "ignore" });
+    expect(result.next).toStrictEqual(gate);
   });
 
   it("ignores a Health event with a mismatched selection generation", () => {
@@ -1364,7 +1378,7 @@ describe("applyIssueExplorerHealthRefresh", () => {
       workspaceSelectionGeneration: 1,
     });
     const result = applyIssueExplorerHealthRefresh(gate, payload);
-    expect(result.decision).toEqual({ kind: "ignore" });
+    expect(result.decision).toStrictEqual({ kind: "ignore" });
   });
 
   it("ignores a Health event with an older revision than the one already admitted", () => {
@@ -1380,7 +1394,7 @@ describe("applyIssueExplorerHealthRefresh", () => {
       workspaceSelectionGeneration: 1,
     });
     const result = applyIssueExplorerHealthRefresh(gate, payload);
-    expect(result.decision).toEqual({ kind: "ignore" });
+    expect(result.decision).toStrictEqual({ kind: "ignore" });
   });
 
   it("clears both slots when an empty Health event arrives", () => {
@@ -1432,7 +1446,7 @@ describe("applyIssueExplorerHealthRefresh", () => {
   });
 });
 
-describe("clearRefreshHealth", () => {
+describe(clearRefreshHealth, () => {
   it("resets both the accepted health revision and the health state", () => {
     const gate = initialGate({
       acceptedRefreshHealthRevision: 5,
@@ -1470,7 +1484,7 @@ describe("applyIssueExplorerHealthRefresh generation ordering", () => {
     });
     const result = applyIssueExplorerHealthRefresh(gate, payload);
     expect(result.decision.kind).toBe("defer");
-    expect(result.next).toEqual(gate);
+    expect(result.next).toStrictEqual(gate);
   });
 
   it("defers a Health event for a different workspace path on a not-yet-admitted generation", () => {
@@ -1509,7 +1523,7 @@ describe("applyIssueExplorerHealthRefresh generation ordering", () => {
       workspaceSelectionGeneration: 2,
     });
     const result = applyIssueExplorerHealthRefresh(gate, payload);
-    expect(result.decision).toEqual({ kind: "ignore" });
+    expect(result.decision).toStrictEqual({ kind: "ignore" });
   });
 
   it("ignores a Health event for a generation older than the confirmed identity", () => {
@@ -1524,6 +1538,6 @@ describe("applyIssueExplorerHealthRefresh generation ordering", () => {
       workspaceSelectionGeneration: 1,
     });
     const result = applyIssueExplorerHealthRefresh(gate, payload);
-    expect(result.decision).toEqual({ kind: "ignore" });
+    expect(result.decision).toStrictEqual({ kind: "ignore" });
   });
 });
