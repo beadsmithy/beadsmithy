@@ -1,6 +1,7 @@
 {
   "assignee": "",
   "blocked_by": [
+    "bsm-1zl.5",
     "bsm-1zl.8"
   ],
   "blocks": [],
@@ -13,5 +14,5 @@
   "status": "open",
   "title": "Prove Graph Mode in the real desktop application",
   "type": "task",
-  "updated_at": "2026-09-18T07:47:39Z"
+  "updated_at": "2026-09-18T15:10:49Z"
 }
