@@ -1,0 +1,14 @@
+{
+  "assignee": "",
+  "blocked_by": [],
+  "blocks": [],
+  "created": "2026-09-18T10:28:07Z",
+  "description": "Integrate the Ultracite reinit additions into Beadsmith's existing oxlint configuration while preserving repository-specific ignores, rules, plugins, overrides, and Tailwind settings. Commit the current package and lockfile upgrades together with the merged config.",
+  "id": "bsm-e6k",
+  "labels": [],
+  "priority": 2,
+  "status": "open",
+  "title": "Merge Ultracite lint configuration additions",
+  "type": "task",
+  "updated_at": "2026-09-18T10:28:07Z"
+}
