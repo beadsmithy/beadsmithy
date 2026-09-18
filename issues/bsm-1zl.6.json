@@ -1,8 +1,7 @@
 {
   "assignee": "",
   "blocked_by": [
-    "bsm-1zl.1",
-    "bsm-1zl.5"
+    "bsm-1zl.1"
   ],
   "blocks": [
     "bsm-1zl.7"
@@ -16,5 +15,5 @@
   "status": "open",
   "title": "Open and close Issue Detail over Graph",
   "type": "task",
-  "updated_at": "2026-09-18T07:46:29Z"
+  "updated_at": "2026-09-18T15:10:48Z"
 }
