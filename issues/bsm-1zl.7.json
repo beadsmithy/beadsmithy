@@ -11,9 +11,15 @@
   "id": "bsm-1zl.7",
   "labels": [],
   "parent": "bsm-1zl",
+  "comments": [
+    {
+      "text": "Graph Issue Detail now supplies Graph hrefs and the coordinator's selection callback to the reusable presentation. Parent, blocker, blocked, and Child Issue references push selected Graph entries, preserve scope, reveal hidden selected targets through the existing focused projection, and restore prior selection through Back. Added integration coverage for a closed Child Issue traversal. mise run ts:check, ts:typecheck, and ts:test pass (408 tests).",
+      "timestamp": "2026-09-18T20:58:21Z"
+    }
+  ],
   "priority": 2,
   "status": "open",
   "title": "Follow Issue References within Graph",
   "type": "task",
-  "updated_at": "2026-09-18T07:47:00Z"
+  "updated_at": "2026-09-18T20:58:21Z"
 }
