@@ -20,6 +20,12 @@ interface NavigationOptions {
 
 type Navigate = (path: string, options?: NavigationOptions) => void;
 
+const routesEqual = (
+  left: IssueExplorerRouteState,
+  right: IssueExplorerRouteState
+): boolean =>
+  serializeIssueExplorerRoute(left) === serializeIssueExplorerRoute(right);
+
 export interface IssueNavigationCoordinatorOptions {
   currentHistoryState: unknown;
   currentWorkspacePath: string | null;
@@ -55,11 +61,7 @@ export const useIssueNavigationCoordinator = ({
       return;
     }
     setUnderlyingIssueRoute((currentRoute) => {
-      if (
-        currentRoute.issueId === issueRoute.issueId &&
-        currentRoute.search === issueRoute.search &&
-        currentRoute.viewId === issueRoute.viewId
-      ) {
+      if (routesEqual(currentRoute, issueRoute)) {
         return currentRoute;
       }
       return issueRoute;

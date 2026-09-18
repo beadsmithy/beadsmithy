@@ -1,13 +1,15 @@
 import type { IssueExplorerRouteState } from "./issue-navigation";
 import {
+  isIssueGraphRoute,
+  isIssueGraphScope,
   isIssueListViewId,
   serializeIssueExplorerRoute,
 } from "./issue-navigation";
 
-export interface IssueNavigationEntry extends IssueExplorerRouteState {
+export type IssueNavigationEntry = IssueExplorerRouteState & {
   index: number;
   workspacePath: string | null;
-}
+};
 
 export interface IssueNavigationHistoryState {
   beadsmithNavigation?: IssueNavigationEntry;
@@ -25,11 +27,10 @@ export const createIssueNavigationEntry = (
   route: IssueExplorerRouteState,
   workspacePath: string | null,
   index: number
-): IssueNavigationEntry => ({
-  ...route,
-  index,
-  workspacePath,
-});
+): IssueNavigationEntry =>
+  isIssueGraphRoute(route)
+    ? { ...route, index, workspacePath }
+    : { ...route, index, kind: "list", workspacePath };
 
 const isRecord = (value: unknown): value is Record<string, unknown> =>
   typeof value === "object" && value !== null;
@@ -42,13 +43,28 @@ export const readIssueNavigationEntry = (
   }
 
   const navigation = state.beadsmithNavigation;
-  const { index, workspacePath, issueId, search, viewId } = navigation;
+  const { index, workspacePath, issueId, kind } = navigation;
   if (
     typeof index !== "number" ||
     !Number.isInteger(index) ||
     index < 0 ||
     (typeof workspacePath !== "string" && workspacePath !== null) ||
-    (typeof issueId !== "string" && issueId !== null) ||
+    (typeof issueId !== "string" && issueId !== null)
+  ) {
+    return null;
+  }
+
+  if (kind === "graph") {
+    const { scope } = navigation;
+    if (!isIssueGraphScope(scope)) {
+      return null;
+    }
+    return { index, issueId, kind, scope, workspacePath };
+  }
+
+  const { search, viewId } = navigation;
+  if (
+    (kind !== undefined && kind !== "list") ||
     typeof search !== "string" ||
     typeof viewId !== "string" ||
     !isIssueListViewId(viewId)
@@ -56,7 +72,14 @@ export const readIssueNavigationEntry = (
     return null;
   }
 
-  return { index, issueId, search, viewId, workspacePath };
+  return {
+    index,
+    issueId,
+    kind: "list",
+    search,
+    viewId,
+    workspacePath,
+  };
 };
 
 export const writeIssueNavigationState = (
@@ -98,6 +121,10 @@ export const issueNavigationDestinationLabel = (
 
   if (entry.issueId !== null) {
     return entry.issueId;
+  }
+
+  if (isIssueGraphRoute(entry)) {
+    return entry.scope === "all" ? "All Graph" : "Focused Graph";
   }
 
   return entry.viewId === "all" ? "All Issues" : `${entry.viewId} Issues`;

@@ -40,7 +40,13 @@ import {
   loadIssueExplorerStateFromTauRpc,
 } from "./issue-loader";
 import type { IssueExplorerLoadState } from "./issue-loader";
-import { isIssueInListView, selectIssueForView } from "./issue-navigation";
+import {
+  createIssueExplorerRoute,
+  isIssueGraphRoute,
+  isIssueInListView,
+  isIssueListRoute,
+  selectIssueForView,
+} from "./issue-navigation";
 import type { IssueExplorerRouteState } from "./issue-navigation";
 import type { IssueNavigationEntry } from "./issue-navigation-coordinator";
 import {
@@ -195,6 +201,7 @@ export interface IssueExplorerCoordinatorOptions {
 
 export interface IssueExplorerCoordinatorResult {
   explorer: {
+    onGraphSelect: () => void;
     onIssueListViewSelect: (viewId: IssueListViewId) => void;
     onIssueReferenceSelect: (issueId: string) => void;
     onIssueSearchChange: (search: string) => void;
@@ -404,11 +411,12 @@ export const useIssueExplorerCoordinator = ({
         explorerRoute.issueId
       );
       const nextRoute = {
-        ...explorerRoute,
+        ...createIssueExplorerRoute(null, new URLSearchParams()),
         issueId: selectedIssueId,
         viewId,
       };
       if (
+        isIssueListRoute(explorerRoute) &&
         nextRoute.viewId === explorerRoute.viewId &&
         nextRoute.issueId === explorerRoute.issueId
       ) {
@@ -422,9 +430,30 @@ export const useIssueExplorerCoordinator = ({
     [explorerRoute, isSettingsRoute, issueState, navigateIssueRoute]
   );
 
+  const handleGraphSelect = useCallback(() => {
+    const nextRoute = {
+      issueId: explorerRoute.issueId,
+      kind: "graph" as const,
+      scope: "focused" as const,
+    };
+    if (
+      isIssueGraphRoute(explorerRoute) &&
+      explorerRoute.scope === nextRoute.scope
+    ) {
+      if (isSettingsRoute) {
+        navigateIssueRoute(explorerRoute, true);
+      }
+      return;
+    }
+    navigateIssueRoute(nextRoute, false);
+  }, [explorerRoute, isSettingsRoute, navigateIssueRoute]);
+
   const handleIssueSelect = useCallback(
     (issueId: string) => {
-      if (explorerRoute.issueId === issueId) {
+      if (
+        !isIssueListRoute(explorerRoute) ||
+        explorerRoute.issueId === issueId
+      ) {
         return;
       }
       navigateIssueRoute({ ...explorerRoute, issueId }, false);
@@ -434,6 +463,9 @@ export const useIssueExplorerCoordinator = ({
 
   const handleIssueSearchChange = useCallback(
     (search: string) => {
+      if (!isIssueListRoute(explorerRoute)) {
+        return;
+      }
       navigateIssueRoute({ ...explorerRoute, search }, true);
     },
     [explorerRoute, navigateIssueRoute]
@@ -441,7 +473,10 @@ export const useIssueExplorerCoordinator = ({
 
   const handleIssueReferenceSelect = useCallback(
     (issueId: string) => {
-      if (explorerRoute.issueId === issueId) {
+      if (
+        !isIssueListRoute(explorerRoute) ||
+        explorerRoute.issueId === issueId
+      ) {
         return;
       }
       const targetIsVisible = isIssueInListView(
@@ -594,6 +629,7 @@ export const useIssueExplorerCoordinator = ({
 
   return {
     explorer: {
+      onGraphSelect: handleGraphSelect,
       onIssueListViewSelect: handleIssueListViewSelect,
       onIssueReferenceSelect: handleIssueReferenceSelect,
       onIssueSearchChange: handleIssueSearchChange,

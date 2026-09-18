@@ -16,7 +16,11 @@ import {
 import type { WorkspaceProgramFiber } from "../workspaces/workspace-service";
 import type { IssueExplorerLoadState } from "./issue-loader";
 import { parseIssueLocationUri } from "./issue-location-uri";
-import { isIssueInListView } from "./issue-navigation";
+import {
+  isIssueListRoute,
+  isIssueInListView,
+  createIssueExplorerRoute,
+} from "./issue-navigation";
 import type { IssueExplorerRouteState } from "./issue-navigation";
 import {
   beginNavigationIntent,
@@ -122,13 +126,21 @@ export const useIssueDeepLinkCoordinator = ({
         }
         const targetIsVisible = isIssueInListView(
           issueState,
-          explorerRoute.viewId,
+          isIssueListRoute(explorerRoute) ? explorerRoute.viewId : "all",
           parsed.value.issueId
         );
         navigateIssueRoute(
           targetIsVisible
-            ? { ...explorerRoute, issueId: parsed.value.issueId }
-            : { issueId: parsed.value.issueId, search: "", viewId: "all" },
+            ? {
+                ...(isIssueListRoute(explorerRoute)
+                  ? explorerRoute
+                  : createIssueExplorerRoute(null, new URLSearchParams())),
+                issueId: parsed.value.issueId,
+              }
+            : createIssueExplorerRoute(
+                parsed.value.issueId,
+                new URLSearchParams()
+              ),
           startup
         );
         completeCurrentIntent(requestGeneration);
@@ -183,13 +195,21 @@ export const useIssueDeepLinkCoordinator = ({
               issueState.status === "success" &&
               isIssueInListView(
                 issueState,
-                explorerRoute.viewId,
+                isIssueListRoute(explorerRoute) ? explorerRoute.viewId : "all",
                 parsed.value.issueId
               );
             navigateIssueRoute(
               targetIsVisible
-                ? { ...explorerRoute, issueId: parsed.value.issueId }
-                : { issueId: parsed.value.issueId, search: "", viewId: "all" },
+                ? {
+                    ...(isIssueListRoute(explorerRoute)
+                      ? explorerRoute
+                      : createIssueExplorerRoute(null, new URLSearchParams())),
+                    issueId: parsed.value.issueId,
+                  }
+                : createIssueExplorerRoute(
+                    parsed.value.issueId,
+                    new URLSearchParams()
+                  ),
               startup,
               result.resolution.workspace.path
             );
@@ -207,7 +227,10 @@ export const useIssueDeepLinkCoordinator = ({
             null
           );
           navigateIssueRoute(
-            { issueId: parsed.value.issueId, search: "", viewId: "all" },
+            createIssueExplorerRoute(
+              parsed.value.issueId,
+              new URLSearchParams()
+            ),
             startup,
             switched.issueData.workspacePath
           );

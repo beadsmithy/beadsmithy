@@ -75,4 +75,17 @@ describe("Issue Navigation coordinator", () => {
     ).toBe("All Issues");
     expect(issueNavigationDestinationLabel(null)).toBeNull();
   });
+
+  it("records and labels Graph destinations separately from List views", () => {
+    const entry = createIssueNavigationEntry(
+      { issueId: null, kind: "graph", scope: "focused" },
+      "/workspace",
+      4
+    );
+
+    expect(
+      readIssueNavigationEntry(writeIssueNavigationState({}, entry))
+    ).toStrictEqual(entry);
+    expect(issueNavigationDestinationLabel(entry)).toBe("Focused Graph");
+  });
 });
