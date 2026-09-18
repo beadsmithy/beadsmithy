@@ -284,6 +284,7 @@ export const useIssueExplorerCoordinator = ({
       replayAttempt < DEFERRED_REFRESH_REPLAY_LIMIT;
       replayAttempt += 1
     ) {
+      let progressed = false;
       const deferredSnapshot = deferredSnapshotRef.current;
       if (deferredSnapshot !== null) {
         deferredSnapshotRef.current = null;
@@ -295,13 +296,12 @@ export const useIssueExplorerCoordinator = ({
           transitionGateRef.current = next;
           setIssueState({ ...decision.snapshot, status: "success" });
           applied = true;
-          continue;
+          progressed = true;
+        } else if (decision.kind === "defer") {
+          deferredSnapshotRef.current = decision.payload;
+        } else {
+          progressed = true;
         }
-        if (decision.kind === "ignore") {
-          continue;
-        }
-        deferredSnapshotRef.current = decision.payload;
-        continue;
       }
 
       const deferredHealth = deferredHealthRef.current;
@@ -315,15 +315,16 @@ export const useIssueExplorerCoordinator = ({
           transitionGateRef.current = next;
           setRefreshHealth(decision.health);
           applied = true;
-          continue;
+          progressed = true;
+        } else if (decision.kind === "defer") {
+          deferredHealthRef.current = decision.payload;
+        } else {
+          progressed = true;
         }
-        if (decision.kind === "ignore") {
-          continue;
-        }
-        deferredHealthRef.current = decision.payload;
-        continue;
       }
-      break;
+      if (!progressed) {
+        break;
+      }
     }
     return applied;
   }, []);
