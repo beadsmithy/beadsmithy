@@ -1,0 +1,37 @@
+src/issues/use-issue-explorer-coordinator.ts
+  s_1490b1a0a720a3::t_2fd144b6865a7e 204-205,453-472,654-655
+src/issues/issue-navigation.ts
+  s_1490b1a0a720a3::t_468f8626162c4e 109-112,114
+src/App.tsx
+  s_1490b1a0a720a3::t_386416f21dbf7d 57-58,113-115
+src/issues/IssueGraphCanvas.tsx
+  s_1490b1a0a720a3::t_539669ac836b99 34-35,70,72-73,165-167,174-179,215,219,231-237
+src/issues/IssueGraph.tsx
+  s_1490b1a0a720a3::t_92e33624ffc156 2,4-5,8,10,24-27,33-36,41-42,57-101,210-252
+  s_1490b1a0a720a3::t_8f1f5936fa80e1 12-13
+  s_1490b1a0a720a3::t_5d7d1755de675a 15
+src/App.navigation.test.tsx
+  s_1490b1a0a720a3::t_9f23827327a1ce 3,98,100-103
+  s_1490b1a0a720a3::t_9d7134867fc10a 99,527-535
+  s_1490b1a0a720a3::t_87d20982a214a6 468-480,482-491,495-496,500-502,506-526,536-549,553-554
+  s_1490b1a0a720a3::t_6e4d3fec88ba95 481
+  s_1490b1a0a720a3::t_f62f1b199f57dd 41,95
+  s_1490b1a0a720a3::t_7207d68e90512b 4-5,33-40,42-44,94,96-97,104-118
+  s_1490b1a0a720a3::t_96c6809519231e 8-9,32,45-65,119-126,492-494,497-499,503-505,550-552
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.4",
+  "base_commit_sha": "bc59bb0947871b31a8b15a21c9b42fabb09a8441",
+  "prompts": {},
+  "sessions": {
+    "s_1490b1a0a720a3": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a0b639-46a0-7c32-a87e-d331a3d8b786",
+        "model": "gpt-5.6-luna"
+      },
+      "human_author": "Tomas Thor Jonsson <benregn@gmail.com>"
+    }
+  }
+}
