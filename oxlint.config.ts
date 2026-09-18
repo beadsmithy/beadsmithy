@@ -1,17 +1,23 @@
 import { defineConfig } from "oxlint";
+import antiSlop from "ultracite/oxlint/anti-slop";
 import core from "ultracite/oxlint/core";
+import { jsPluginSettings, selectJsPlugins } from "ultracite/oxlint/js-plugins";
 import react from "ultracite/oxlint/react";
+import vitest from "ultracite/oxlint/vitest";
 
 import { SCRATCH_IGNORES, VENDORED_IGNORES } from "./quality.ignores.ts";
 
+const jsPlugins = selectJsPlugins(["react-doctor"]);
+
 export default defineConfig({
-  extends: [core, react],
+  extends: [core, react, vitest, antiSlop, jsPlugins],
   ignorePatterns: [
     ...(core.ignorePatterns ?? []),
     ...VENDORED_IGNORES,
     ...SCRATCH_IGNORES,
   ],
   jsPlugins: [
+    ...(jsPlugins.jsPlugins ?? []),
     "oxlint-tailwindcss",
     {
       name: "eslint-js",
@@ -74,6 +80,7 @@ export default defineConfig({
     "tailwindcss/no-unnecessary-whitespace": "warn",
   },
   settings: {
+    ...jsPluginSettings,
     tailwindcss: {
       entryPoint: "src/App.css",
     },
