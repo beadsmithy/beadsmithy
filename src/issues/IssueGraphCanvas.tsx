@@ -3,7 +3,7 @@ import {
   BaseEdge,
   Background,
   Controls,
-  getStraightPath,
+  getSmoothStepPath,
   Handle,
   MarkerType,
   Panel,
@@ -44,8 +44,17 @@ const IssueCard = ({ data }: NodeProps<IssueCardNode>) => (
     <Handle
       aria-hidden="true"
       className="bg-muted! border-none!"
+      id="parent-target"
       isConnectable={false}
       position={Position.Top}
+      type="target"
+    />
+    <Handle
+      aria-hidden="true"
+      className="bg-danger! border-none! opacity-0"
+      id="blocker-target"
+      isConnectable={false}
+      position={Position.Left}
       type="target"
     />
     <button
@@ -68,8 +77,17 @@ const IssueCard = ({ data }: NodeProps<IssueCardNode>) => (
     <Handle
       aria-hidden="true"
       className="bg-muted! border-none!"
+      id="parent-source"
       isConnectable={false}
       position={Position.Bottom}
+      type="source"
+    />
+    <Handle
+      aria-hidden="true"
+      className="bg-danger! border-none! opacity-0"
+      id="blocker-source"
+      isConnectable={false}
+      position={Position.Right}
       type="source"
     />
   </div>
@@ -82,14 +100,25 @@ const NODE_TYPES: NodeTypes = {
 const BlockerEdge = ({
   markerEnd,
   source,
+  sourcePosition,
   sourceX,
   sourceY,
   style,
   target,
+  targetPosition,
   targetX,
   targetY,
 }: EdgeProps<IssueFlowEdge>) => {
-  const [path] = getStraightPath({ sourceX, sourceY, targetX, targetY });
+  const [path] = getSmoothStepPath({
+    borderRadius: 16,
+    offset: 24,
+    sourcePosition,
+    sourceX,
+    sourceY,
+    targetPosition,
+    targetX,
+    targetY,
+  });
   return (
     <BaseEdge
       aria-label={`Blocker relationship: ${source} blocks ${target}`}
@@ -253,6 +282,7 @@ const layoutFocusedGraph = (
     id: edge.id,
     markerEnd: { type: MarkerType.ArrowClosed },
     source: edge.source,
+    sourceHandle: edge.kind === "blocker" ? "blocker-source" : "parent-source",
     style:
       edge.kind === "blocker"
         ? {
@@ -262,6 +292,7 @@ const layoutFocusedGraph = (
           }
         : { stroke: "var(--color-muted)", strokeWidth: 1.5 },
     target: edge.target,
+    targetHandle: edge.kind === "blocker" ? "blocker-target" : "parent-target",
     type: edge.kind === "blocker" ? ("blocker" as const) : ("default" as const),
   }));
 
