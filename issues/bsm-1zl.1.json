@@ -9,9 +9,15 @@
   "id": "bsm-1zl.1",
   "labels": [],
   "parent": "bsm-1zl",
+  "comments": [
+    {
+      "text": "Implemented the reusable Issue Detail presentation in src/issues/IssueDetail.tsx. Issue Explorer still owns allIssues selection and child derivation, while List-mode route construction and selection remain caller-supplied through IssueDetailNavigation. mise run ts:check and mise run ts:test pass (404 tests).",
+      "timestamp": "2026-09-18T20:44:14Z"
+    }
+  ],
   "priority": 2,
   "status": "in_progress",
   "title": "Extract the reusable Issue Detail presentation",
   "type": "task",
-  "updated_at": "2026-09-18T20:38:48Z"
+  "updated_at": "2026-09-18T20:44:14Z"
 }
