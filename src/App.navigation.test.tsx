@@ -410,6 +410,57 @@ describe("App navigation", () => {
     expect(loadIssueExplorerStateFromTauRpc).toHaveBeenCalledOnce();
   });
 
+  it("switches Graph scope through navigation and reveals disconnected Issues", async () => {
+    const user = userEvent.setup();
+    const currentIssue = buildIssue({
+      id: "bsm-current",
+      title: "Current Work",
+    });
+    const closedIssue = buildIssue({
+      id: "bsm-disconnected-closed",
+      status: "closed",
+      title: "Disconnected Closed",
+    });
+    loadIssueExplorerStateFromTauRpc.mockResolvedValue(
+      successState({ allIssues: [currentIssue, closedIssue] })
+    );
+
+    render(<App />);
+
+    await screen.findByRole("button", { name: "All, 2 issues" });
+    await user.click(screen.getByRole("button", { name: /^Graph$/u }));
+    expect(screen.getByRole("button", { name: "Show all" })).toHaveAttribute(
+      "aria-pressed",
+      "false"
+    );
+    expect(
+      screen.queryByRole("button", {
+        name: /bsm-disconnected-closed: Disconnected Closed/iu,
+      })
+    ).toBeNull();
+
+    await user.click(screen.getByRole("button", { name: "Show all" }));
+    await waitFor(() => {
+      expect(window.location.pathname).toBe("/graph");
+      expect(window.location.search).toBe("?scope=all");
+    });
+    expect(screen.getByRole("button", { name: "Show all" })).toHaveAttribute(
+      "aria-pressed",
+      "true"
+    );
+    expect(
+      screen.getByRole("button", {
+        name: /bsm-disconnected-closed: Disconnected Closed/iu,
+      })
+    ).toBeInTheDocument();
+
+    await user.click(screen.getByRole("button", { name: "Focused" }));
+    await waitFor(() => {
+      expect(window.location.pathname).toBe("/graph");
+      expect(window.location.search).toBe("");
+    });
+  });
+
   it("restores the selected destination through Graph history", async () => {
     const user = userEvent.setup();
     const issue = buildIssue({

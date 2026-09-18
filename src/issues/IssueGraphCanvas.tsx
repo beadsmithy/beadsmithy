@@ -20,12 +20,13 @@ import type {
 import { useMemo } from "react";
 
 import type { Issue } from "../rpc/bindings";
-import { buildFocusedIssueGraph } from "./issue-graph";
+import { buildIssueGraph } from "./issue-graph";
 import type { FocusedIssueGraph, IssueGraphEdgeKind } from "./issue-graph";
 import type {
   IssueGraphLayoutSection,
   IssueGraphLayoutResult,
 } from "./issue-graph-layout";
+import type { IssueGraphScope } from "./issue-navigation";
 import { useIssueGraphLayout } from "./use-issue-graph-layout";
 
 import "@xyflow/react/dist/style.css";
@@ -215,18 +216,20 @@ export const IssueGraphCanvas = ({
   allIssues,
   onIssueSelect,
   handleViewportChange,
+  scope,
   selectedIssueId,
   viewport,
 }: {
   allIssues: Issue[];
   onIssueSelect: (issueId: string) => void;
   handleViewportChange: (viewport: Viewport) => void;
+  scope: IssueGraphScope;
   selectedIssueId: string | null;
   viewport: Viewport | null;
 }) => {
   const graph = useMemo(
-    () => buildFocusedIssueGraph({ allIssues, selectedIssueId }),
-    [allIssues, selectedIssueId]
+    () => buildIssueGraph({ allIssues, scope, selectedIssueId }),
+    [allIssues, scope, selectedIssueId]
   );
   const layoutState = useIssueGraphLayout(graph);
   const flowGraph = useMemo(
@@ -245,14 +248,18 @@ export const IssueGraphCanvas = ({
   if (graph.nodes.length === 0) {
     return (
       <div
-        aria-label="Focused graph is empty"
+        aria-label={`${scope === "all" ? "All" : "Focused"} graph is empty`}
         className="text-muted flex flex-1 items-center justify-center p-8 text-center text-sm"
         data-focused-graph-empty="true"
       >
         <div>
-          <h2 className="text-text-main font-medium">Focused graph is empty</h2>
+          <h2 className="text-text-main font-medium">
+            {scope === "all" ? "All" : "Focused"} graph is empty
+          </h2>
           <p className="mt-1 text-xs">
-            Focused Graph includes current work and the selected Issue.
+            {scope === "all"
+              ? "Show all includes every Issue in this Workspace."
+              : "Focused Graph includes current work and the selected Issue."}
           </p>
         </div>
       </div>
@@ -262,7 +269,7 @@ export const IssueGraphCanvas = ({
   if (flowGraph === null) {
     return (
       <div
-        aria-label="Focused Issue Graph canvas"
+        aria-label={`${scope === "all" ? "All" : "Focused"} Issue Graph canvas`}
         className="relative flex min-h-0 flex-1 items-center justify-center"
         data-focused-graph="true"
         data-graph-layout-state="loading"
@@ -282,9 +289,10 @@ export const IssueGraphCanvas = ({
 
   return (
     <div
-      aria-label="Focused Issue Graph canvas"
+      aria-label={`${scope === "all" ? "All" : "Focused"} Issue Graph canvas`}
       className="relative min-h-0 flex-1"
       data-focused-graph="true"
+      data-graph-scope={scope}
       data-graph-layout-engine={layout.engine}
       data-graph-layout-fallback={layoutState.isFallback ? "true" : undefined}
       data-graph-layout-state={layoutState.isLoading ? "loading" : "ready"}
@@ -310,7 +318,7 @@ export const IssueGraphCanvas = ({
         </output>
       ) : null}
       <ReactFlow
-        aria-label="Focused Issue Graph"
+        aria-label={`${scope === "all" ? "All" : "Focused"} Issue Graph`}
         nodes={flowGraph.nodes}
         edges={flowGraph.edges}
         fitView={viewport === null}

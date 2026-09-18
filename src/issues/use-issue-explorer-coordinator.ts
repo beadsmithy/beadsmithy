@@ -204,6 +204,7 @@ export interface IssueExplorerCoordinatorResult {
     onGraphIssueClose: () => void;
     onGraphIssueSelect: (issueId: string) => void;
     onGraphSelect: () => void;
+    onGraphScopeSelect: (scope: "all" | "focused") => void;
     onIssueListViewSelect: (viewId: IssueListViewId) => void;
     onIssueReferenceSelect: (issueId: string) => void;
     onIssueSearchChange: (search: string) => void;
@@ -470,6 +471,16 @@ export const useIssueExplorerCoordinator = ({
     navigateIssueRoute({ ...explorerRoute, issueId: null }, false);
   }, [explorerRoute, navigateIssueRoute]);
 
+  const handleGraphScopeSelect = useCallback(
+    (scope: "all" | "focused") => {
+      if (!isIssueGraphRoute(explorerRoute) || explorerRoute.scope === scope) {
+        return;
+      }
+      navigateIssueRoute({ ...explorerRoute, scope }, false);
+    },
+    [explorerRoute, navigateIssueRoute]
+  );
+
   const handleIssueSelect = useCallback(
     (issueId: string) => {
       if (
@@ -653,6 +664,7 @@ export const useIssueExplorerCoordinator = ({
     explorer: {
       onGraphIssueClose: handleGraphIssueClose,
       onGraphIssueSelect: handleGraphIssueSelect,
+      onGraphScopeSelect: handleGraphScopeSelect,
       onGraphSelect: handleGraphSelect,
       onIssueListViewSelect: handleIssueListViewSelect,
       onIssueReferenceSelect: handleIssueReferenceSelect,

@@ -57,6 +57,7 @@ const App = () => {
     explorer: {
       onGraphIssueClose,
       onGraphIssueSelect,
+      onGraphScopeSelect,
       onIssueListViewSelect,
       onGraphSelect,
       onIssueReferenceSelect,
@@ -121,6 +122,7 @@ const App = () => {
       markdownFontSizePx={settings.state.appliedFontSizePx}
       onIssueClose={onGraphIssueClose}
       onIssueSelect={onGraphIssueSelect}
+      handleScopeChange={onGraphScopeSelect}
       handleViewportChange={graphViewport.onViewportChange}
       refreshHealth={refreshHealth}
       route={explorerRoute}
