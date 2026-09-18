@@ -125,22 +125,22 @@ const IssueRow = ({
               aria-hidden="true"
               className={`size-4 shrink-0 ${ISSUE_TONE_ICON_CLASSES[view.tone]}`}
             />
-            <span className="text-muted shrink-0 font-mono text-[12px]">
+            <span className="shrink-0 font-mono text-[12px] text-muted">
               {view.id}
             </span>
           </div>
-          <h3 className="text-text-main truncate text-[13px] font-medium">
+          <h3 className="truncate text-[13px] font-medium text-text-main">
             {view.title}
           </h3>
-          <div className="text-muted mt-2 flex min-w-0 items-center gap-1.5 overflow-hidden font-mono text-[10px]">
-            <span className="border-border-main shrink-0 rounded border px-1 py-0.5">
+          <div className="mt-2 flex min-w-0 items-center gap-1.5 overflow-hidden font-mono text-[10px] text-muted">
+            <span className="shrink-0 rounded border border-border-main px-1 py-0.5">
               {view.priorityLabel}
             </span>
-            <span className="border-border-main shrink-0 rounded border px-1 py-0.5">
+            <span className="shrink-0 rounded border border-border-main px-1 py-0.5">
               {view.typeLabel}
             </span>
             {view.dependencyLabel.length > 0 ? (
-              <span className="border-border-main truncate rounded border px-1 py-0.5">
+              <span className="truncate rounded border border-border-main px-1 py-0.5">
                 {view.dependencyLabel}
               </span>
             ) : null}
@@ -152,14 +152,14 @@ const IssueRow = ({
             >
               {view.labels.slice(0, MAX_VISIBLE_LABELS).map((label) => (
                 <span
-                  className="text-muted truncate rounded bg-white/5 px-1.5 py-0.5 font-mono text-[10px]"
+                  className="truncate rounded bg-white/5 px-1.5 py-0.5 font-mono text-[10px] text-muted"
                   key={label}
                 >
                   {label}
                 </span>
               ))}
               {view.labels.length > MAX_VISIBLE_LABELS ? (
-                <span className="text-muted shrink-0 font-mono text-[10px]">
+                <span className="shrink-0 font-mono text-[10px] text-muted">
                   +{view.labels.length - MAX_VISIBLE_LABELS}
                 </span>
               ) : null}
@@ -181,11 +181,11 @@ const IssueListEmptyState = ({
   reason: IssueListEmptyReason;
 }) => (
   <div
-    className="text-muted flex h-full flex-col items-center justify-center p-6 text-center text-sm"
+    className="flex h-full flex-col items-center justify-center p-6 text-center text-sm text-muted"
     data-empty-reason={reason}
   >
-    <Inbox className="text-muted mb-3 size-6" />
-    <h2 className="text-text-main font-medium">
+    <Inbox className="mb-3 size-6 text-muted" />
+    <h2 className="font-medium text-text-main">
       {getIssueListEmptyTitle({ activeViewLabel, reason })}
     </h2>
     <p className="mt-1 text-xs">
@@ -221,9 +221,9 @@ const IssueListContent = ({
 }) => {
   if (state.status === "loading") {
     return (
-      <div className="text-muted flex h-full flex-col items-center justify-center p-6 text-center text-sm">
-        <LoaderCircle className="text-accent mb-3 size-5 animate-spin" />
-        <p className="text-text-main font-medium">Loading issue views</p>
+      <div className="flex h-full flex-col items-center justify-center p-6 text-center text-sm text-muted">
+        <LoaderCircle className="mb-3 size-5 animate-spin text-accent" />
+        <p className="font-medium text-text-main">Loading issue views</p>
         <p className="mt-1 text-xs">
           Reading All, Ready, and Blocked views from Beadwork…
         </p>
@@ -234,15 +234,15 @@ const IssueListContent = ({
   if (state.status === "failure") {
     return (
       <div className="p-4" role="alert">
-        <div className="border-danger/40 bg-danger/10 rounded-lg border p-3">
+        <div className="rounded-lg border border-danger/40 bg-danger/10 p-3">
           <div className="mb-2 flex items-center gap-2 text-sm font-medium text-red-200">
             <AlertTriangle className="size-4" />
             Could not load issues
           </div>
-          <p className="text-text-main text-xs leading-5">
+          <p className="text-xs leading-5 text-text-main">
             {state.error.message}
           </p>
-          <p className="text-muted mt-2 font-mono text-[10px]">
+          <p className="mt-2 font-mono text-[10px] text-muted">
             {state.error.kind}
           </p>
         </div>
@@ -285,19 +285,19 @@ const IssueDetailNotFound = ({
 }) => (
   <main
     aria-label="Issue detail"
-    className="bg-background flex flex-1 flex-col items-center justify-center p-8"
+    className="flex flex-1 flex-col items-center justify-center bg-background p-8"
   >
-    <div className="border-danger/40 bg-danger/10 mb-6 flex size-16 items-center justify-center rounded-2xl border shadow-[inset_0_1px_0_var(--color-surface-highlight)]">
-      <AlertTriangle className="text-danger size-8" strokeWidth={1.5} />
+    <div className="mb-6 flex size-16 items-center justify-center rounded-2xl border border-danger/40 bg-danger/10 shadow-[inset_0_1px_0_var(--color-surface-highlight)]">
+      <AlertTriangle className="size-8 text-danger" strokeWidth={1.5} />
     </div>
     <h2
-      className="text-primary mb-2 text-xl font-semibold"
+      className="mb-2 text-xl font-semibold text-primary"
       ref={titleRef}
       tabIndex={-1}
     >
       Issue not found
     </h2>
-    <p className="text-muted max-w-sm text-center text-sm">
+    <p className="max-w-sm text-center text-sm text-muted">
       Beadwork does not contain Issue{" "}
       <span className="font-mono">{issueId}</span> in this Workspace.
     </p>
@@ -311,19 +311,19 @@ const IssueDetailEmpty = ({
 }) => (
   <main
     aria-label="Issue detail"
-    className="bg-background flex flex-1 flex-col items-center justify-center p-8"
+    className="flex flex-1 flex-col items-center justify-center bg-background p-8"
   >
-    <div className="border-border-main bg-surface mb-6 flex size-16 items-center justify-center rounded-2xl border shadow-[inset_0_1px_0_var(--color-surface-highlight)]">
-      <FileText className="text-muted size-8" strokeWidth={1.5} />
+    <div className="mb-6 flex size-16 items-center justify-center rounded-2xl border border-border-main bg-surface shadow-[inset_0_1px_0_var(--color-surface-highlight)]">
+      <FileText className="size-8 text-muted" strokeWidth={1.5} />
     </div>
     <h2
-      className="text-primary mb-2 text-xl font-semibold"
+      className="mb-2 text-xl font-semibold text-primary"
       ref={titleRef}
       tabIndex={-1}
     >
       No issue selected
     </h2>
-    <p className="text-muted max-w-sm text-center text-sm">
+    <p className="max-w-sm text-center text-sm text-muted">
       Select an issue from the list to see its details.
     </p>
   </main>
@@ -332,15 +332,15 @@ const IssueDetailEmpty = ({
 const IssueDetailDescriptionEmpty = () => (
   <div
     aria-label="No description"
-    className="border-border-main bg-surface mt-2 flex items-center gap-3 rounded-lg border p-4"
+    className="mt-2 flex items-center gap-3 rounded-lg border border-border-main bg-surface p-4"
     role="note"
   >
-    <div className="border-border-main bg-background flex size-10 shrink-0 items-center justify-center rounded-xl border shadow-[inset_0_1px_0_var(--color-surface-highlight)]">
-      <FileText className="text-muted size-5" strokeWidth={1.5} />
+    <div className="flex size-10 shrink-0 items-center justify-center rounded-xl border border-border-main bg-background shadow-[inset_0_1px_0_var(--color-surface-highlight)]">
+      <FileText className="size-5 text-muted" strokeWidth={1.5} />
     </div>
     <div>
-      <p className="text-text-main text-sm font-medium">No description</p>
-      <p className="text-muted text-xs">
+      <p className="text-sm font-medium text-text-main">No description</p>
+      <p className="text-xs text-muted">
         This issue doesn&apos;t have a description yet.
       </p>
     </div>
@@ -359,14 +359,14 @@ const IssueCommentCard = ({
   const hasAuthor = comment.author.trim().length > 0;
 
   return (
-    <li className="border-border-main bg-surface rounded-lg border p-4">
+    <li className="rounded-lg border border-border-main bg-surface p-4">
       <article className="flex flex-col gap-3">
         <header className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
-          <time className="text-muted font-mono text-xs">
+          <time className="font-mono text-xs text-muted">
             {comment.timestamp}
           </time>
           {hasAuthor ? (
-            <span className="text-text-main font-mono text-xs">
+            <span className="font-mono text-xs text-text-main">
               {comment.author}
             </span>
           ) : null}
@@ -393,7 +393,7 @@ const IssueReferenceLink = ({
 }) => (
   <Link
     aria-label={`Open Issue ${id}`}
-    className="text-text-main decoration-border-main hover:text-primary font-mono text-xs underline underline-offset-2"
+    className="font-mono text-xs text-text-main underline decoration-border-main underline-offset-2 hover:text-primary"
     data-reference-issue-id={id}
     href={serializeIssueExplorerRoute({ ...route, issueId: id })}
     onClick={(event) => {
@@ -416,7 +416,7 @@ const DependencyChip = ({
   onSelect?: (issueId: string) => void;
   route: IssueExplorerRouteState;
 }) => (
-  <span className="border-border-main text-text-main rounded border px-2 py-0.5 font-mono text-xs">
+  <span className="rounded border border-border-main px-2 py-0.5 font-mono text-xs text-text-main">
     <IssueReferenceLink id={id} onSelect={onSelect} route={route} />
   </span>
 );
@@ -435,7 +435,7 @@ const DependencyRow = ({
   route: IssueExplorerRouteState;
 }) => (
   <div className="flex flex-col gap-1">
-    <dt className="text-muted font-mono text-[10px] tracking-wider uppercase">
+    <dt className="font-mono text-[10px] tracking-wider text-muted uppercase">
       {label}
     </dt>
     <dd className="flex flex-wrap gap-1">
@@ -444,7 +444,7 @@ const DependencyRow = ({
           <DependencyChip id={id} key={id} onSelect={onSelect} route={route} />
         ))
       ) : (
-        <span className="text-muted font-mono text-xs">{emptyText}</span>
+        <span className="font-mono text-xs text-muted">{emptyText}</span>
       )}
     </dd>
   </div>
@@ -452,10 +452,10 @@ const DependencyRow = ({
 
 const MetadataRow = ({ label, value }: { label: string; value: string }) => (
   <div className="flex flex-col gap-1">
-    <dt className="text-muted font-mono text-[10px] tracking-wider uppercase">
+    <dt className="font-mono text-[10px] tracking-wider text-muted uppercase">
       {label}
     </dt>
-    <dd className="border-border-main text-text-main rounded border px-2 py-0.5 font-mono text-xs">
+    <dd className="rounded border border-border-main px-2 py-0.5 font-mono text-xs text-text-main">
       {value}
     </dd>
   </div>
@@ -480,7 +480,7 @@ const ChildIssueRow = ({
     <li>
       <Link
         aria-label={`${view.id}: ${view.title}. ${view.statusLabel}`}
-        className="border-border-main bg-surface flex w-full cursor-pointer flex-wrap items-center gap-x-2 gap-y-1 rounded border px-2 py-1.5 text-left transition-colors hover:bg-white/5 focus:bg-white/5 focus:outline-none"
+        className="flex w-full cursor-pointer flex-wrap items-center gap-x-2 gap-y-1 rounded border border-border-main bg-surface px-2 py-1.5 text-left transition-colors hover:bg-white/5 focus:bg-white/5 focus:outline-none"
         data-child-issue-id={issue.id}
         href={serializeIssueExplorerRoute({ ...route, issueId: issue.id })}
         onClick={(event) => {
@@ -492,13 +492,13 @@ const ChildIssueRow = ({
           onSelect(issue.id);
         }}
       >
-        <span className="text-text-main font-mono text-xs">{view.id}</span>
+        <span className="font-mono text-xs text-text-main">{view.id}</span>
         <span
           className={`shrink-0 rounded-full border px-1.5 py-0.5 font-mono text-[10px] ${TONE_BADGE_CLASSES[view.badgeTone]}`}
         >
           {view.statusLabel}
         </span>
-        <span className="text-text-main text-sm">{view.title}</span>
+        <span className="text-sm text-text-main">{view.title}</span>
       </Link>
     </li>
   );
@@ -518,7 +518,7 @@ const ChildIssuesSection = ({
   route: IssueExplorerRouteState;
 }) => (
   <section>
-    <h3 className="text-muted font-mono text-[10px] tracking-wider uppercase">
+    <h3 className="font-mono text-[10px] tracking-wider text-muted uppercase">
       Child Issues
     </h3>
     <ul aria-label="Child Issues" className="mt-2 flex flex-col gap-1">
@@ -570,19 +570,19 @@ const IssueDetailContent = ({
     <main
       aria-label="Issue detail"
       aria-live="polite"
-      className="bg-background flex flex-1 flex-col gap-6 overflow-y-auto p-8"
+      className="flex flex-1 flex-col gap-6 overflow-y-auto bg-background p-8"
     >
       <header className="relative">
         {onCopyDeepLink === undefined ? null : (
           <button
             aria-label={copySucceeded ? "Copied deep link" : "Copy deep link"}
-            className="border-border-main text-muted hover:text-text-main absolute top-0 right-0 flex size-8 items-center justify-center rounded border transition-colors hover:bg-white/5"
+            className="absolute top-0 right-0 flex size-8 items-center justify-center rounded border border-border-main text-muted transition-colors hover:bg-white/5 hover:text-text-main"
             onClick={onCopyDeepLink}
             title={copySucceeded ? "Copied!" : "Copy deep link"}
             type="button"
           >
             {copySucceeded ? (
-              <Check aria-hidden="true" className="text-accent size-4" />
+              <Check aria-hidden="true" className="size-4 text-accent" />
             ) : (
               <Copy aria-hidden="true" className="size-4" />
             )}
@@ -595,21 +595,21 @@ const IssueDetailContent = ({
         </span>
         <div className="mt-3 flex flex-wrap items-baseline gap-x-3 gap-y-1">
           <h2
-            className="text-primary text-2xl leading-tight font-semibold"
+            className="text-2xl leading-tight font-semibold text-primary"
             ref={titleRef}
             tabIndex={-1}
           >
             {view.title}
           </h2>
-          <span className="text-muted font-mono text-xs">{view.id}</span>
+          <span className="font-mono text-xs text-muted">{view.id}</span>
         </div>
         {hasParent ? (
           <dl className="mt-3 flex flex-wrap items-start gap-x-6 gap-y-3">
             <div className="flex flex-col gap-1">
-              <dt className="text-muted font-mono text-[10px] tracking-wider uppercase">
+              <dt className="font-mono text-[10px] tracking-wider text-muted uppercase">
                 Parent
               </dt>
-              <dd className="border-border-main rounded border px-2 py-0.5">
+              <dd className="rounded border border-border-main px-2 py-0.5">
                 <IssueReferenceLink
                   id={issue.parent}
                   onSelect={onSelect}
@@ -622,31 +622,31 @@ const IssueDetailContent = ({
       </header>
       <dl className="flex flex-wrap items-start gap-x-6 gap-y-3">
         <div className="flex flex-col gap-1">
-          <dt className="text-muted font-mono text-[10px] tracking-wider uppercase">
+          <dt className="font-mono text-[10px] tracking-wider text-muted uppercase">
             Priority
           </dt>
-          <dd className="border-border-main text-text-main rounded border px-2 py-0.5 font-mono text-xs">
+          <dd className="rounded border border-border-main px-2 py-0.5 font-mono text-xs text-text-main">
             {view.priorityLabel}
           </dd>
         </div>
         <div className="flex flex-col gap-1">
-          <dt className="text-muted font-mono text-[10px] tracking-wider uppercase">
+          <dt className="font-mono text-[10px] tracking-wider text-muted uppercase">
             Type
           </dt>
-          <dd className="border-border-main text-text-main rounded border px-2 py-0.5 font-mono text-xs">
+          <dd className="rounded border border-border-main px-2 py-0.5 font-mono text-xs text-text-main">
             {view.typeLabel}
           </dd>
         </div>
       </dl>
       {view.labels.length > 0 ? (
         <section>
-          <h3 className="text-muted font-mono text-[10px] tracking-wider uppercase">
+          <h3 className="font-mono text-[10px] tracking-wider text-muted uppercase">
             Labels
           </h3>
           <ul className="mt-2 flex flex-wrap gap-1">
             {view.labels.map((label) => (
               <li
-                className="text-muted rounded bg-white/5 px-2 py-0.5 font-mono text-[11px]"
+                className="rounded bg-white/5 px-2 py-0.5 font-mono text-[11px] text-muted"
                 key={label}
               >
                 {label}
@@ -656,7 +656,7 @@ const IssueDetailContent = ({
         </section>
       ) : null}
       <section>
-        <h3 className="text-muted font-mono text-[10px] tracking-wider uppercase">
+        <h3 className="font-mono text-[10px] tracking-wider text-muted uppercase">
           Description
         </h3>
         {hasDescription ? (
@@ -673,10 +673,10 @@ const IssueDetailContent = ({
         )}
       </section>
       <section>
-        <h3 className="text-muted font-mono text-[10px] tracking-wider uppercase">
+        <h3 className="font-mono text-[10px] tracking-wider text-muted uppercase">
           Dependencies
         </h3>
-        <div className="border-border-main bg-surface mt-2 rounded-lg border p-4">
+        <div className="mt-2 rounded-lg border border-border-main bg-surface p-4">
           <dl className="flex flex-wrap items-start gap-x-6 gap-y-3">
             <DependencyRow
               emptyText="No blockers"
@@ -705,7 +705,7 @@ const IssueDetailContent = ({
         />
       ) : null}
       <section>
-        <h3 className="text-muted font-mono text-[10px] tracking-wider uppercase">
+        <h3 className="font-mono text-[10px] tracking-wider text-muted uppercase">
           Other metadata
         </h3>
         <dl className="mt-2 flex flex-wrap items-start gap-x-6 gap-y-3">
@@ -730,7 +730,7 @@ const IssueDetailContent = ({
       </section>
       {hasComments ? (
         <section>
-          <h3 className="text-muted font-mono text-[10px] tracking-wider uppercase">
+          <h3 className="font-mono text-[10px] tracking-wider text-muted uppercase">
             Comments
           </h3>
           <ul className="mt-2 flex flex-col gap-3">
@@ -1000,18 +1000,18 @@ export const IssueExplorer = ({
   return (
     <>
       <section
-        className="border-border-main bg-background flex w-[320px] shrink-0 flex-col border-r"
+        className="flex w-[320px] shrink-0 flex-col border-r border-border-main bg-background"
         data-active-issue-list-view-id={activeViewId}
       >
         <RefreshFailureBanner failure={bannerFailure} />
-        <div className="border-border-main flex h-14 items-center border-b p-2">
+        <div className="flex h-14 items-center border-b border-border-main p-2">
           <div className="relative w-full">
             <label className="sr-only" htmlFor="issue-search">
               Search issues
             </label>
-            <Search className="text-muted absolute top-1/2 left-3 size-4 -translate-y-1/2" />
+            <Search className="absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted" />
             <input
-              className="border-border-main bg-surface text-text-main placeholder:text-muted focus:border-accent w-full rounded-md border py-1.5 pr-12 pl-9 text-sm focus:outline-none disabled:opacity-50"
+              className="w-full rounded-md border border-border-main bg-surface py-1.5 pr-12 pl-9 text-sm text-text-main placeholder:text-muted focus:border-accent focus:outline-none disabled:opacity-50"
               disabled={isSearchDisabled}
               id="issue-search"
               onChange={(event) => handleSearchChange(event.target.value)}
@@ -1019,7 +1019,7 @@ export const IssueExplorer = ({
               type="text"
               value={searchQuery}
             />
-            <div className="border-border-main text-muted absolute top-1/2 right-2 -translate-y-1/2 rounded border px-1.5 py-0.5 font-mono text-[10px]">
+            <div className="absolute top-1/2 right-2 -translate-y-1/2 rounded border border-border-main px-1.5 py-0.5 font-mono text-[10px] text-muted">
               Cmd+F
             </div>
           </div>
