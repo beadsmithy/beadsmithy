@@ -12,7 +12,7 @@ describe("Issue Location URI", () => {
       workspacePath: "/Users/tomas/Work issue/#repo",
     });
 
-    expect(generated).toEqual({
+    expect(generated).toStrictEqual({
       ok: true,
       value:
         "beadsmithy:///Users/tomas/Work%20issue/%23repo/issue/bsm-7en.2%2F%23%3F",
@@ -20,7 +20,7 @@ describe("Issue Location URI", () => {
     if (!generated.ok) {
       throw new Error("Expected URI generation to succeed");
     }
-    expect(parseIssueLocationUri(generated.value)).toEqual({
+    expect(parseIssueLocationUri(generated.value)).toStrictEqual({
       ok: true,
       value: {
         issueId: "bsm-7en.2/#?",
@@ -35,9 +35,9 @@ describe("Issue Location URI", () => {
       workspacePath: "/tmp/issue/workspace",
     });
 
-    expect(generated.ok).toBe(true);
+    expect(generated.ok).toBeTruthy();
     if (generated.ok) {
-      expect(parseIssueLocationUri(generated.value)).toEqual({
+      expect(parseIssueLocationUri(generated.value)).toStrictEqual({
         ok: true,
         value: { issueId: "bsm-1", workspacePath: "/tmp/issue/workspace" },
       });
@@ -51,17 +51,17 @@ describe("Issue Location URI", () => {
     "beadsmith:///Users/work/issue/bsm-1/extra",
     "beadsmith:///Users/%E0%A4%A/issue/bsm-1",
   ])("rejects malformed URI %s", (uri) => {
-    expect(parseIssueLocationUri(uri).ok).toBe(false);
+    expect(parseIssueLocationUri(uri).ok).toBeFalsy();
   });
 
   it("rejects empty Issue IDs and invalid workspace paths", () => {
     expect(
       generateIssueLocationUri({ issueId: "", workspacePath: "/Users/work" })
-    ).toEqual({ error: "empty-issue-id", ok: false });
+    ).toStrictEqual({ error: "empty-issue-id", ok: false });
     for (const workspacePath of ["relative", "/", "/tmp/work/", "/tmp//work"]) {
       expect(
         generateIssueLocationUri({ issueId: "bsm-1", workspacePath })
-      ).toEqual({ error: "invalid-workspace-path", ok: false });
+      ).toStrictEqual({ error: "invalid-workspace-path", ok: false });
     }
   });
 });

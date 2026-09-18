@@ -149,7 +149,7 @@ describe("App settings", () => {
     await user.click(settingsButton());
 
     expect(window.location.pathname).toBe("/settings");
-    expect(window.history.state.beadsmithNavigation).toEqual({
+    expect(window.history.state.beadsmithNavigation).toStrictEqual({
       index: 1,
       issueId: "bsm-settings-retained",
       search: "",

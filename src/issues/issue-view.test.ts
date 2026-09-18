@@ -25,7 +25,7 @@ const issue = (overrides: Partial<Issue> = {}): Issue => ({
   ...overrides,
 });
 
-describe("toIssueViewModel", () => {
+describe(toIssueViewModel, () => {
   it("exposes dense row metadata for issues", () => {
     expect(
       toIssueViewModel(issue({ blockedBy: ["bsm-tes"], blocks: ["bsm-mq4.5"] }))

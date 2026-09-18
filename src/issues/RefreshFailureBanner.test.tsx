@@ -15,7 +15,7 @@ const failure = (overrides: Partial<RefreshFailure>): RefreshFailure => ({
   ...overrides,
 });
 
-describe("RefreshFailureBanner", () => {
+describe(RefreshFailureBanner, () => {
   it("renders nothing when no failure is supplied", () => {
     const { container } = render(<RefreshFailureBanner failure={null} />);
     expect(container.firstChild).toBeNull();
@@ -85,7 +85,7 @@ describe("RefreshFailureBanner", () => {
   });
 });
 
-describe("selectBannerFailure", () => {
+describe(selectBannerFailure, () => {
   it("returns null when both slots are empty", () => {
     expect(selectBannerFailure({ loader: null, refProbe: null })).toBeNull();
   });
@@ -103,20 +103,20 @@ describe("selectBannerFailure", () => {
     });
     expect(
       selectBannerFailure({ loader: structural, refProbe: transient })
-    ).toEqual(structural);
+    ).toStrictEqual(structural);
     expect(
       selectBannerFailure({ loader: transient, refProbe: structural })
-    ).toEqual(structural);
+    ).toStrictEqual(structural);
   });
 
   it("within the same category, prefers the highest failureRevision", () => {
     const older = failure({ errorKind: "refProbe", failureRevision: 3 });
     const newer = failure({ errorKind: "refProbe", failureRevision: 5 });
-    expect(selectBannerFailure({ loader: newer, refProbe: older })).toEqual(
-      newer
-    );
-    expect(selectBannerFailure({ loader: older, refProbe: newer })).toEqual(
-      newer
-    );
+    expect(
+      selectBannerFailure({ loader: newer, refProbe: older })
+    ).toStrictEqual(newer);
+    expect(
+      selectBannerFailure({ loader: older, refProbe: newer })
+    ).toStrictEqual(newer);
   });
 });

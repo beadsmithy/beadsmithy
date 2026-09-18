@@ -53,12 +53,12 @@ const WorkspaceEntry = ({
       <button
         aria-current={current ? "true" : undefined}
         aria-label={`${basename}, ${workspace.path}, ${availabilityLabel}`}
-        className="min-w-0 flex-1 p-1 text-left font-mono text-xs text-text-main"
+        className="text-text-main min-w-0 flex-1 p-1 text-left font-mono text-xs"
         onClick={() => onSelect(workspace.path)}
         type="button"
       >
         <span className="block truncate">{basename}</span>
-        <span className="block text-[10px] break-all text-muted">
+        <span className="text-muted block text-[10px] break-all">
           {workspace.path}
         </span>
         {unavailable ? (
@@ -67,7 +67,7 @@ const WorkspaceEntry = ({
       </button>
       <button
         aria-label={`Remove ${workspace.path}`}
-        className="rounded p-1 text-muted hover:bg-white/5 hover:text-text-main"
+        className="text-muted hover:text-text-main rounded p-1 hover:bg-white/5"
         onClick={() => onRemove(workspace.path)}
         type="button"
       >
@@ -88,15 +88,15 @@ const SwitchFailureBanner = ({
 }) => (
   <div
     aria-label="Switch failed"
-    className="mt-2 rounded border border-danger/40 bg-danger/10 p-2"
+    className="border-danger/40 bg-danger/10 mt-2 rounded border p-2"
     data-testid="switch-failure-banner"
     role="alert"
   >
     <div className="flex items-start justify-between gap-2">
-      <p className="text-xs leading-5 text-text-main">{errorMessage}</p>
+      <p className="text-text-main text-xs leading-5">{errorMessage}</p>
       <button
         aria-label="Dismiss switch failure"
-        className="shrink-0 rounded p-0.5 text-muted hover:bg-white/5 hover:text-text-main"
+        className="text-muted hover:text-text-main shrink-0 rounded p-0.5 hover:bg-white/5"
         onClick={onDismiss}
         type="button"
       >
@@ -105,7 +105,7 @@ const SwitchFailureBanner = ({
     </div>
     <div className="mt-2 flex gap-3">
       <button
-        className="inline-flex items-center gap-1 text-xs text-primary underline"
+        className="text-primary inline-flex items-center gap-1 text-xs underline"
         onClick={onRetry}
         type="button"
       >
@@ -125,20 +125,20 @@ const StorageFailureRecoveryPanel = ({
   onRetryMemory: () => void;
 }) => (
   <div
-    className="rounded border border-danger/40 bg-danger/10 p-2"
+    className="border-danger/40 bg-danger/10 rounded border p-2"
     role="alert"
   >
-    <p className="text-xs text-text-main">{message}</p>
+    <p className="text-text-main text-xs">{message}</p>
     <div className="mt-2 flex gap-3">
       <button
-        className="inline-flex items-center gap-1 text-xs text-primary underline"
+        className="text-primary inline-flex items-center gap-1 text-xs underline"
         onClick={onRetryMemory}
         type="button"
       >
         Retry
       </button>
       <button
-        className="inline-flex items-center gap-1 text-xs text-primary underline"
+        className="text-primary inline-flex items-center gap-1 text-xs underline"
         onClick={onResetMemory}
         type="button"
       >
@@ -166,7 +166,7 @@ const PendingLabel = ({
     {canCancel ? (
       <button
         aria-label="Cancel workspace switch"
-        className="rounded border border-border-main px-1.5 py-0.5 text-[10px] text-text-main hover:bg-white/5"
+        className="border-border-main text-text-main rounded border px-1.5 py-0.5 text-[10px] hover:bg-white/5"
         data-testid="cancel-workspace-switch"
         onClick={onCancel}
         type="button"
@@ -204,15 +204,15 @@ const CurrentWorkspacePanel = ({
   return (
     <>
       {current ? (
-        <div className="font-mono text-xs text-text-main">
+        <div className="text-text-main font-mono text-xs">
           <p className="truncate">{workspaceBasename(current.path)}</p>
-          <p className="text-[10px] break-all text-muted">{current.path}</p>
+          <p className="text-muted text-[10px] break-all">{current.path}</p>
         </div>
       ) : (
-        <p className="font-mono text-xs text-muted">No workspace selected</p>
+        <p className="text-muted font-mono text-xs">No workspace selected</p>
       )}
       <button
-        className="mt-2 inline-flex items-center gap-1 rounded border border-border-main px-2 py-1 text-xs text-text-main hover:bg-white/5"
+        className="border-border-main text-text-main mt-2 inline-flex items-center gap-1 rounded border px-2 py-1 text-xs hover:bg-white/5"
         onClick={onChoose}
         type="button"
       >
@@ -282,8 +282,8 @@ const SelectorBody = ({
   showStorageFailure: boolean;
   showSwitchBanner: boolean;
 }) => (
-  <section aria-label="Workspace" className="border-t border-border-main p-3">
-    <div className="mb-1 flex items-center justify-between font-mono text-[10px] tracking-wider text-muted uppercase">
+  <section aria-label="Workspace" className="border-border-main border-t p-3">
+    <div className="text-muted mb-1 flex items-center justify-between font-mono text-[10px] tracking-wider uppercase">
       <span>Workspace</span>
       {showLoadingLabel && pendingPath !== null && onCancel !== null ? (
         <PendingLabel

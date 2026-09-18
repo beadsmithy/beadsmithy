@@ -17,7 +17,7 @@ import {
   sidebarButtonSelector,
 } from "./sidebar.ts";
 
-describe("CURRENT_WORKSPACE_BASENAME_SELECTOR", () => {
+describe(CURRENT_WORKSPACE_BASENAME_SELECTOR, () => {
   it("targets the basename paragraph inside the Workspace sidebar panel", () => {
     expect(CURRENT_WORKSPACE_BASENAME_SELECTOR).toBe(
       "[aria-label='Workspace'] p.truncate"
@@ -25,13 +25,13 @@ describe("CURRENT_WORKSPACE_BASENAME_SELECTOR", () => {
   });
 });
 
-describe("WORKSPACE_PANEL_SELECTOR", () => {
+describe(WORKSPACE_PANEL_SELECTOR, () => {
   it("targets the Workspace sidebar panel without coupling to its inner paragraphs", () => {
     expect(WORKSPACE_PANEL_SELECTOR).toBe("[aria-label='Workspace']");
   });
 });
 
-describe("sidebarButtonSelector", () => {
+describe(sidebarButtonSelector, () => {
   it("prefix-matches the sidebar button aria-label '<view>, <count>'", () => {
     expect(sidebarButtonSelector("All")).toBe('button[aria-label^="All,"]');
     expect(sidebarButtonSelector("Ready")).toBe('button[aria-label^="Ready,"]');

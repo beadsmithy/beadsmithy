@@ -56,7 +56,10 @@ vi.mock("./rpc/bindings", async (importOriginal) => {
 
 vi.mock("@tauri-apps/api/event", () => ({ listen }));
 vi.mock("@tauri-apps/api/window", () => ({ getCurrentWindow }));
-vi.mock("@tauri-apps/plugin-deep-link", () => ({ getCurrent, onOpenUrl }));
+vi.mock("@tauri-apps/plugin-deep-link", () => ({
+  getCurrent,
+  onOpenUrl,
+}));
 vi.mock("@tauri-apps/plugin-dialog", () => ({ confirm, open }));
 
 const { default: App } = await import("./App");
@@ -131,7 +134,7 @@ describe("App deep-link delivery", () => {
 
     render(<App />);
 
-    await waitFor(() => expect(getCurrent).toHaveBeenCalled());
+    await waitFor(() => expect(getCurrent).toHaveBeenCalledWith());
     expect(confirm).not.toHaveBeenCalled();
     expect(switchWorkspace).not.toHaveBeenCalled();
 
@@ -177,7 +180,7 @@ describe("App deep-link delivery", () => {
     });
     deliverUrl([issueLocation("/work/two", current.id)]);
 
-    expect(await screen.findByRole("alert")).toHaveTextContent(
+    await expect(screen.findByRole("alert")).resolves.toHaveTextContent(
       "Workspace resolution failed"
     );
     expect(window.location.pathname).toBe("/issues");
@@ -357,7 +360,9 @@ describe("App deep-link delivery", () => {
       },
     });
 
-    expect(await screen.findByText("Loading issue views")).toBeInTheDocument();
+    await expect(
+      screen.findByText("Loading issue views")
+    ).resolves.toBeInTheDocument();
   });
 
   it("opens the latest running-instance URL and focuses the existing window", async () => {
@@ -380,7 +385,7 @@ describe("App deep-link delivery", () => {
     await waitFor(() =>
       expect(window.location.pathname).toBe(`/issues/${second.id}`)
     );
-    expect(windowApi.setFocus).toHaveBeenCalled();
+    expect(windowApi.setFocus).toHaveBeenCalledWith();
   });
 
   it("lets a newer same-Workspace link supersede an older async Workspace resolution", async () => {
@@ -407,7 +412,7 @@ describe("App deep-link delivery", () => {
     render(<App />);
     await screen.findByRole("heading", { name: current.title });
     deliverUrl?.([issueLocation("/work/two", newer.id)]);
-    await waitFor(() => expect(resolveWorkspace).toHaveBeenCalledTimes(1));
+    await waitFor(() => expect(resolveWorkspace).toHaveBeenCalledOnce());
     deliverUrl?.([issueLocation("/work/one", newer.id)]);
 
     await waitFor(() =>
@@ -465,7 +470,7 @@ describe("App deep-link delivery", () => {
     });
     deliverUrl([issueLocation("/work/two", current.id)]);
 
-    await waitFor(() => expect(confirm).toHaveBeenCalled());
+    await waitFor(() => expect(confirm).toHaveBeenCalledOnce());
     expect(confirm.mock.calls[0]?.[0]).toContain("/work/two");
     expect(switchWorkspace).not.toHaveBeenCalled();
     expect(

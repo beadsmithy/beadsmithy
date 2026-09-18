@@ -12,7 +12,7 @@ vi.mock("./mermaid/MermaidDiagram", () => ({
   ),
 }));
 
-describe("MarkdownContent", () => {
+describe(MarkdownContent, () => {
   it("renders a Markdown paragraph as visible text and not as raw punctuation", () => {
     render(
       <MarkdownContent markdown="Hello world." openExternalLink={vi.fn()} />
@@ -220,7 +220,7 @@ describe("MarkdownContent", () => {
 
     await user.click(link);
 
-    expect(openExternalLink).toHaveBeenCalledTimes(1);
+    expect(openExternalLink).toHaveBeenCalledOnce();
     expect(openExternalLink).toHaveBeenCalledWith("https://example.com/docs");
   });
 
@@ -239,7 +239,7 @@ describe("MarkdownContent", () => {
 
     await user.click(link);
 
-    expect(openExternalLink).toHaveBeenCalledTimes(1);
+    expect(openExternalLink).toHaveBeenCalledOnce();
     expect(openExternalLink).toHaveBeenCalledWith("https://example.com");
   });
 
@@ -258,7 +258,7 @@ describe("MarkdownContent", () => {
 
     await user.click(link);
 
-    expect(openExternalLink).toHaveBeenCalledTimes(1);
+    expect(openExternalLink).toHaveBeenCalledOnce();
     expect(openExternalLink).toHaveBeenCalledWith("http://example.com/plain");
   });
 

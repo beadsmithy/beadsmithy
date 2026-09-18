@@ -14,8 +14,8 @@ describe("navigation intent cancellation", () => {
     const first = beginNavigationIntent(intentRef, "/work/a");
     const second = beginNavigationIntent(intentRef, "/work/b");
 
-    expect(isCurrentNavigationIntent(intentRef, first)).toBe(false);
-    expect(isCurrentNavigationIntent(intentRef, second)).toBe(true);
+    expect(isCurrentNavigationIntent(intentRef, first)).toBeFalsy();
+    expect(isCurrentNavigationIntent(intentRef, second)).toBeTruthy();
 
     finishNavigationIntent(intentRef, first);
     expect(intentRef.current.workspacePath).toBe("/work/b");
@@ -29,12 +29,12 @@ describe("navigation intent cancellation", () => {
 
     expect(
       transitionMatchesNavigationIntent(intentRef, "/work/a", "/work/b")
-    ).toBe(true);
-    expect(transitionMatchesNavigationIntent(intentRef, "/work/b", null)).toBe(
-      true
-    );
-    expect(transitionMatchesNavigationIntent(intentRef, "/work/a", null)).toBe(
-      false
-    );
+    ).toBeTruthy();
+    expect(
+      transitionMatchesNavigationIntent(intentRef, "/work/b", null)
+    ).toBeTruthy();
+    expect(
+      transitionMatchesNavigationIntent(intentRef, "/work/a", null)
+    ).toBeFalsy();
   });
 });

@@ -115,7 +115,7 @@ describe("App workspace switching", () => {
         },
       });
     });
-    expect(await screen.findByText("B issue")).toBeInTheDocument();
+    await expect(screen.findByText("B issue")).resolves.toBeInTheDocument();
 
     act(() => {
       listeners.transition?.({
@@ -137,6 +137,7 @@ describe("App workspace switching", () => {
     expect(screen.getByText("B issue")).toBeInTheDocument();
     expect(screen.queryByText("A issue")).toBeNull();
   });
+
   it("preserves the prior Issue Explorer snapshot when switch_workspace rejects", async () => {
     const user = userEvent.setup();
     const aIssue = buildIssue({ id: "bsm-current", title: "Current issue" });
@@ -173,8 +174,11 @@ describe("App workspace switching", () => {
     );
 
     // Rejection never swapped snapshots: the prior issue is still listed.
-    expect(await screen.findByText("Current issue")).toBeInTheDocument();
+    await expect(
+      screen.findByText("Current issue")
+    ).resolves.toBeInTheDocument();
   });
+
   it("keeps a Pending transition visible until the success RPC commits, then ignores a delayed same-generation replay", async () => {
     const { listeners, implementation } = createBothListenersMock();
     listen.mockImplementation(implementation);
@@ -263,7 +267,7 @@ describe("App workspace switching", () => {
       });
     });
 
-    expect(await screen.findByText("B issue")).toBeInTheDocument();
+    await expect(screen.findByText("B issue")).resolves.toBeInTheDocument();
     expect(screen.queryByText(/^Loading b…$/u)).toBeNull();
   });
 
@@ -312,6 +316,7 @@ describe("App workspace switching", () => {
     expect(screen.queryByText("Choose a workspace")).toBeNull();
     expect(screen.getByText("Loading b…")).toBeInTheDocument();
   });
+
   it("produces no mixed workspace state or Issue Explorer snapshot when the success RPC completes before its own Pending transition event", async () => {
     // This test directly asserts the reviewer-flagged invariant: even when
     // the backend completes the durable commit and emits the Pending event
@@ -364,7 +369,7 @@ describe("App workspace switching", () => {
     await user.click(
       await screen.findByRole("button", { name: "b, /work/b, Available" })
     );
-    expect(await screen.findByText("B issue")).toBeInTheDocument();
+    await expect(screen.findByText("B issue")).resolves.toBeInTheDocument();
 
     // Backend delivered the success RPC first (commit), then the Pending
     // transition event for the same generation arrives late.
@@ -420,6 +425,7 @@ describe("App workspace switching", () => {
     expect(screen.getByText("B issue")).toBeInTheDocument();
     expect(screen.queryByText("A issue")).toBeNull();
   });
+
   it("preserves the typed current when an initial-load snapshot races a later committed switch", async () => {
     // bsm-kia.7 (2): the initial `load_issue_explorer_data` IPC can be in
     // flight while a user-driven switch is also racing. The committed B
@@ -475,7 +481,7 @@ describe("App workspace switching", () => {
     await user.click(
       await screen.findByRole("button", { name: "b, /work/b, Available" })
     );
-    expect(await screen.findByText("B issue")).toBeInTheDocument();
+    await expect(screen.findByText("B issue")).resolves.toBeInTheDocument();
 
     // Now the initial load resolves with A's snapshot. The renderer must
     // NOT overwrite B's snapshot with A's.

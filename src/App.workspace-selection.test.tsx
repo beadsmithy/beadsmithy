@@ -100,11 +100,12 @@ describe("App workspace selection", () => {
       within(catalog)
         .getAllByRole("listitem")
         .map((entry) => entry.textContent)
-    ).toEqual([
+    ).toStrictEqual([
       expect.stringContaining("/work/most-recent"),
       expect.stringContaining("/work/older"),
     ]);
   });
+
   it("leaves the app unchanged when the native picker is cancelled and defaults to the latest available workspace", async () => {
     const user = userEvent.setup();
     loadIssueExplorerStateFromTauRpc.mockResolvedValue(failureState);
@@ -134,6 +135,7 @@ describe("App workspace selection", () => {
     });
     expect(switchWorkspace).not.toHaveBeenCalled();
   });
+
   it("clears the Issue Explorer to the empty chooser after removing Current Workspace", async () => {
     const user = userEvent.setup();
     const currentPath = "/work/current";
@@ -163,10 +165,11 @@ describe("App workspace selection", () => {
     await user.click(remove);
 
     expect(removeWorkspace).toHaveBeenCalledWith(currentPath);
-    expect(
-      await screen.findByRole("heading", { name: "Choose a workspace" })
-    ).toBeInTheDocument();
+    await expect(
+      screen.findByRole("heading", { name: "Choose a workspace" })
+    ).resolves.toBeInTheDocument();
   });
+
   it("refreshes and renders typed workspace failure after a rejected switch RPC", async () => {
     const user = userEvent.setup();
     loadIssueExplorerStateFromTauRpc.mockResolvedValue(failureState);
@@ -203,9 +206,8 @@ describe("App workspace selection", () => {
     });
     await user.click(current);
 
-    expect(await screen.findByText("Not a Beadwork workspace")).toHaveAttribute(
-      "role",
-      "alert"
-    );
+    await expect(
+      screen.findByText("Not a Beadwork workspace")
+    ).resolves.toHaveAttribute("role", "alert");
   });
 });

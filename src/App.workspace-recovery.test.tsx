@@ -130,13 +130,14 @@ describe("App workspace recovery", () => {
 
     const cancelButton = await screen.findByTestId("cancel-workspace-switch");
     await user.click(cancelButton);
-    expect(cancelWorkspace).toHaveBeenCalledTimes(1);
+    expect(cancelWorkspace).toHaveBeenCalledOnce();
     expect(
       within(screen.getByRole("navigation")).getByRole("button", {
         name: "current, /work/current, Available",
       })
     ).toHaveAttribute("aria-current", "true");
   });
+
   it("renders a dismissible Retry banner for a loadFailed switch and hides both controls when dismissed", async () => {
     const user = userEvent.setup();
     loadIssueExplorerStateFromTauRpc.mockResolvedValue(
@@ -203,6 +204,7 @@ describe("App workspace recovery", () => {
       })
     ).toHaveAttribute("aria-current", "true");
   });
+
   it("Retry replays the backend retry target through selectWorkspace", async () => {
     const user = userEvent.setup();
     loadIssueExplorerStateFromTauRpc.mockResolvedValue(
@@ -265,7 +267,7 @@ describe("App workspace recovery", () => {
 
     const banner = await screen.findByTestId("switch-failure-banner");
     expect(banner).toBeInTheDocument();
-    expect(switchWorkspace).toHaveBeenCalledTimes(1);
+    expect(switchWorkspace).toHaveBeenCalledOnce();
 
     await user.click(within(banner).getByRole("button", { name: "Retry" }));
     await waitFor(() => {
@@ -273,6 +275,7 @@ describe("App workspace recovery", () => {
     });
     expect(switchWorkspace).toHaveBeenNthCalledWith(2, "/work/second");
   });
+
   it("preserves the retry banner when delayed Pending follows a retryable failure", async () => {
     // bsm-kia.7 (4): a retryable failure must be terminal against any
     // late same-generation Pending transition so the Retry banner does
@@ -359,6 +362,7 @@ describe("App workspace recovery", () => {
     expect(screen.queryByText(/^Loading b…$/u)).toBeNull();
     expect(screen.getByTestId("switch-failure-banner")).toBeInTheDocument();
   });
+
   it("preserves inline validation feedback when delayed Pending follows a non-retryable failure", async () => {
     const { listeners, implementation } = createBothListenersMock();
     // oxlint-disable-next-line promise/prefer-await-to-callbacks
@@ -404,10 +408,9 @@ describe("App workspace recovery", () => {
     await user.click(
       await screen.findByRole("button", { name: "b, /work/b, Available" })
     );
-    expect(await screen.findByText("Not a Beadwork workspace")).toHaveAttribute(
-      "role",
-      "alert"
-    );
+    await expect(
+      screen.findByText("Not a Beadwork workspace")
+    ).resolves.toHaveAttribute("role", "alert");
 
     act(() => {
       listeners.transition?.({
@@ -433,6 +436,7 @@ describe("App workspace recovery", () => {
     );
     expect(screen.queryByTestId("switch-failure-banner")).toBeNull();
   });
+
   it("does not regress the committed snapshot when a Cancel transition races a success transition for the same generation", async () => {
     // bsm-kia.7 (1): the renderer must never show "B Current with A
     // snapshot". Reproduces the cancel-after-commit-before-success-
@@ -548,7 +552,7 @@ describe("App workspace recovery", () => {
     });
     await user.click(await screen.findByTestId("cancel-workspace-switch"));
     await waitFor(() => {
-      expect(cancelWorkspace).toHaveBeenCalledTimes(1);
+      expect(cancelWorkspace).toHaveBeenCalledOnce();
     });
 
     // The delayed success publication is still generation 2, so it must
@@ -573,9 +577,10 @@ describe("App workspace recovery", () => {
       });
     });
 
-    expect(await screen.findByText("B issue")).toBeInTheDocument();
+    await expect(screen.findByText("B issue")).resolves.toBeInTheDocument();
     expect(screen.queryByText("A issue")).toBeNull();
   });
+
   it("retry_workspace_memory response carries the restored Issue Explorer snapshot through applyTransition", async () => {
     // bsm-kia.7 (3): retry_workspace_memory must publish the restored
     // snapshot to the renderer so the Issue Explorer reflects the new
@@ -626,9 +631,12 @@ describe("App workspace recovery", () => {
     await screen.findByRole("heading", { name: "Choose a workspace" });
 
     await user.click(await screen.findByRole("button", { name: "Retry" }));
-    expect(await screen.findByText("Restored issue")).toBeInTheDocument();
+    await expect(
+      screen.findByText("Restored issue")
+    ).resolves.toBeInTheDocument();
     expect(screen.queryByText("First issue")).toBeNull();
   });
+
   it("clears a confirmed Issue Explorer snapshot when local memory is reset", async () => {
     const user = userEvent.setup();
     const staleIssue = buildIssue({
@@ -660,17 +668,20 @@ describe("App workspace recovery", () => {
 
     render(<App />);
 
-    expect(await screen.findByText("Stale rendered issue")).toBeInTheDocument();
+    await expect(
+      screen.findByText("Stale rendered issue")
+    ).resolves.toBeInTheDocument();
     await user.click(
       screen.getByRole("button", { name: "Reset local memory" })
     );
 
-    expect(resetWorkspaceMemory).toHaveBeenCalledTimes(1);
-    expect(
-      await screen.findByRole("heading", { name: "Choose a workspace" })
-    ).toBeInTheDocument();
+    expect(resetWorkspaceMemory).toHaveBeenCalledOnce();
+    await expect(
+      screen.findByRole("heading", { name: "Choose a workspace" })
+    ).resolves.toBeInTheDocument();
     expect(screen.queryByText("Stale rendered issue")).toBeNull();
   });
+
   it("App.retryWorkspaceMemory replaces a stale rendered Issue list with the restored workspace's data, no refresh", async () => {
     // bsm-kia.7 (3): the renderer-level retry path drives
     // `App.retryWorkspaceMemory`, which feeds the typed response into the
@@ -738,21 +749,24 @@ describe("App workspace recovery", () => {
     render(<App />);
 
     // Sanity: the prior workspace's issues are rendered before Retry.
-    expect(await screen.findByText("Stale rendered issue")).toBeInTheDocument();
+    await expect(
+      screen.findByText("Stale rendered issue")
+    ).resolves.toBeInTheDocument();
     expect(retryWorkspaceMemory).not.toHaveBeenCalled();
 
     // Click the renderer-level Retry in the recovery panel.
     await user.click(await screen.findByRole("button", { name: "Retry" }));
-    expect(retryWorkspaceMemory).toHaveBeenCalledTimes(1);
+    expect(retryWorkspaceMemory).toHaveBeenCalledOnce();
 
     // The Issue Explorer now shows the restored workspace's issues and
     // the prior workspace's snapshot has been replaced — without a
     // browser refresh.
-    expect(
-      await screen.findByText("Restored workspace issue")
-    ).toBeInTheDocument();
+    await expect(
+      screen.findByText("Restored workspace issue")
+    ).resolves.toBeInTheDocument();
     expect(screen.queryByText("Stale rendered issue")).toBeNull();
   });
+
   it("applies the cancel response's matching snapshot atomically when cancel races after commit-before-success-publication", async () => {
     // bsm-kia.7 (1): explicit guard for the intermediate cancel RPC
     // response. The durable commit has already landed on the backend
@@ -850,12 +864,12 @@ describe("App workspace recovery", () => {
     // observe the renderer state sourced entirely from this response.
     await user.click(await screen.findByTestId("cancel-workspace-switch"));
     await waitFor(() => {
-      expect(cancelWorkspace).toHaveBeenCalledTimes(1);
+      expect(cancelWorkspace).toHaveBeenCalledOnce();
     });
 
     // Workspace state and Issue Explorer snapshot are paired: B Current,
     // B's issues rendered, no Loading label, B is the marked-current entry.
-    expect(await screen.findByText("B issue")).toBeInTheDocument();
+    await expect(screen.findByText("B issue")).resolves.toBeInTheDocument();
     expect(screen.queryByText("A issue")).toBeNull();
     expect(screen.queryByText(/^Loading b…$/u)).toBeNull();
     expect(
@@ -951,7 +965,9 @@ describe("App workspace recovery", () => {
     render(<App />);
 
     // A is rendered as Current and its snapshot is fully visible.
-    expect(await screen.findByText("Current issue")).toBeInTheDocument();
+    await expect(
+      screen.findByText("Current issue")
+    ).resolves.toBeInTheDocument();
 
     await user.click(
       await screen.findByRole("button", {
@@ -1052,11 +1068,11 @@ describe("App workspace recovery", () => {
     });
     // The known second workspace still lives in the catalog and is still
     // selectable for a later retry.
-    expect(
-      await screen.findByRole("button", {
+    await expect(
+      screen.findByRole("button", {
         name: "second, /work/second, Available",
       })
-    ).toBeInTheDocument();
+    ).resolves.toBeInTheDocument();
     // A remains the marked-current entry.
     expect(
       within(screen.getByRole("navigation")).getByRole("button", {
@@ -1145,7 +1161,7 @@ describe("App workspace recovery", () => {
       })
     );
     const banner = await screen.findByTestId("switch-failure-banner");
-    expect(switchWorkspace).toHaveBeenCalledTimes(1);
+    expect(switchWorkspace).toHaveBeenCalledOnce();
     expect(switchWorkspace).toHaveBeenCalledWith("/work/second");
 
     // Retry plays through select_workspace with the retained path.
@@ -1156,7 +1172,9 @@ describe("App workspace recovery", () => {
     expect(switchWorkspace).toHaveBeenNthCalledWith(2, "/work/second");
 
     // Retry atomically committed B as Current with B's snapshot.
-    expect(await screen.findByText("Second issue")).toBeInTheDocument();
+    await expect(
+      screen.findByText("Second issue")
+    ).resolves.toBeInTheDocument();
     expect(screen.queryByText("Current issue")).toBeNull();
     expect(
       within(screen.getByRole("navigation")).getByRole("button", {
@@ -1219,10 +1237,9 @@ describe("App workspace recovery", () => {
     );
 
     // Inline validation alert is shown — no retry banner.
-    expect(await screen.findByText("Not a Beadwork workspace")).toHaveAttribute(
-      "role",
-      "alert"
-    );
+    await expect(
+      screen.findByText("Not a Beadwork workspace")
+    ).resolves.toHaveAttribute("role", "alert");
     expect(screen.queryByTestId("switch-failure-banner")).toBeNull();
   });
 });

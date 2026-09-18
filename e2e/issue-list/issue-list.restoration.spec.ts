@@ -20,6 +20,7 @@
 import path from "node:path";
 
 import { browser, expect } from "@wdio/globals";
+import { describe, it } from "vitest";
 
 import {
   FIXTURE_BLOCKER_TITLE,

@@ -36,7 +36,7 @@ const renderPage = (state: AppSettingsHookState = baseState()) => {
   return { ...result, onDraftChange, onReset, onRetry };
 };
 
-describe("SettingsPage", () => {
+describe(SettingsPage, () => {
   it("renders the Settings heading and Markdown Typography section", () => {
     renderPage();
 
@@ -131,7 +131,7 @@ describe("SettingsPage", () => {
 
     await user.click(screen.getByRole("button", { name: /reset/iu }));
 
-    expect(onReset).toHaveBeenCalled();
+    expect(onReset).toHaveBeenCalledOnce();
   });
 
   it("shows the saving and saved status text", () => {
@@ -172,7 +172,7 @@ describe("SettingsPage", () => {
 
     await user.click(retryButton);
 
-    expect(onRetry).toHaveBeenCalled();
+    expect(onRetry).toHaveBeenCalledOnce();
   });
 
   it("announces status updates through a polite live region", () => {

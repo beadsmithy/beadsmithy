@@ -63,7 +63,7 @@ const successState = (
   workspacePath: "/Users/dev/work/beads",
 });
 
-describe("selectAllIssuesBackedIssueListViewIssues", () => {
+describe(selectAllIssuesBackedIssueListViewIssues, () => {
   it("returns every All Issue in original order for the All view", () => {
     const allIssues = [
       issue({ id: "bsm-closed", status: "closed" }),
@@ -73,7 +73,7 @@ describe("selectAllIssuesBackedIssueListViewIssues", () => {
 
     expect(
       ids(selectAllIssuesBackedIssueListViewIssues(data(allIssues), "all"))
-    ).toEqual(["bsm-closed", "bsm-unknown", "bsm-open"]);
+    ).toStrictEqual(["bsm-closed", "bsm-unknown", "bsm-open"]);
   });
 
   it("returns exact stored-status slices while preserving All Issues order", () => {
@@ -97,18 +97,18 @@ describe("selectAllIssuesBackedIssueListViewIssues", () => {
     for (const [viewId, expectedIds] of expectedSlices) {
       expect(
         ids(selectAllIssuesBackedIssueListViewIssues(explorerData, viewId))
-      ).toEqual(expectedIds);
+      ).toStrictEqual(expectedIds);
     }
   });
 
   it("keeps command-authored Ready and Blocked views outside the All-backed selector", () => {
-    expect(isAllIssuesBackedIssueListViewId("all")).toBe(true);
-    expect(isAllIssuesBackedIssueListViewId("open")).toBe(true);
-    expect(isAllIssuesBackedIssueListViewId("in_progress")).toBe(true);
-    expect(isAllIssuesBackedIssueListViewId("closed")).toBe(true);
-    expect(isAllIssuesBackedIssueListViewId("deferred")).toBe(true);
-    expect(isAllIssuesBackedIssueListViewId("ready")).toBe(false);
-    expect(isAllIssuesBackedIssueListViewId("blocked")).toBe(false);
+    expect(isAllIssuesBackedIssueListViewId("all")).toBeTruthy();
+    expect(isAllIssuesBackedIssueListViewId("open")).toBeTruthy();
+    expect(isAllIssuesBackedIssueListViewId("in_progress")).toBeTruthy();
+    expect(isAllIssuesBackedIssueListViewId("closed")).toBeTruthy();
+    expect(isAllIssuesBackedIssueListViewId("deferred")).toBeTruthy();
+    expect(isAllIssuesBackedIssueListViewId("ready")).toBeFalsy();
+    expect(isAllIssuesBackedIssueListViewId("blocked")).toBeFalsy();
   });
 
   it("counts unknown-status Issues in All without adding them to supported status counts", () => {
@@ -150,7 +150,7 @@ describe("getVisibleIssuesForListView Ready view", () => {
     });
 
     expect(getVisibleIssuesForListView(state, "ready")).toBe(state.readyIssues);
-    expect(ids(getVisibleIssuesForListView(state, "ready"))).toEqual([
+    expect(ids(getVisibleIssuesForListView(state, "ready"))).toStrictEqual([
       "bsm-ready",
     ]);
   });
@@ -165,7 +165,7 @@ describe("getVisibleIssuesForListView Ready view", () => {
       readyIssues: [issue({ id: "bsm-c" }), issue({ id: "bsm-a" })],
     });
 
-    expect(ids(getVisibleIssuesForListView(state, "ready"))).toEqual([
+    expect(ids(getVisibleIssuesForListView(state, "ready"))).toStrictEqual([
       "bsm-c",
       "bsm-a",
     ]);
@@ -177,16 +177,16 @@ describe("getVisibleIssuesForListView Ready view", () => {
       readyIssues: [],
     });
 
-    expect(getVisibleIssuesForListView(state, "ready")).toEqual([]);
+    expect(getVisibleIssuesForListView(state, "ready")).toStrictEqual([]);
   });
 
   it("returns an empty array while loading or after a load failure", () => {
-    expect(getVisibleIssuesForListView({ status: "loading" }, "ready")).toEqual(
-      []
-    );
-    expect(getVisibleIssuesForListView({ status: "loading" }, "all")).toEqual(
-      []
-    );
+    expect(
+      getVisibleIssuesForListView({ status: "loading" }, "ready")
+    ).toStrictEqual([]);
+    expect(
+      getVisibleIssuesForListView({ status: "loading" }, "all")
+    ).toStrictEqual([]);
     expect(
       getVisibleIssuesForListView(
         {
@@ -195,7 +195,7 @@ describe("getVisibleIssuesForListView Ready view", () => {
         },
         "ready"
       )
-    ).toEqual([]);
+    ).toStrictEqual([]);
   });
 });
 

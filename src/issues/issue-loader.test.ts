@@ -51,9 +51,9 @@ const loadWithResponse = (response: LoadIssueExplorerDataResponse) =>
     })
   );
 
-describe("loadIssueExplorerState", () => {
+describe("load issue explorer state", () => {
   it("exposes a loading state for React consumers before the request resolves", () => {
-    expect(ISSUE_EXPLORER_LOADING_STATE).toEqual({ status: "loading" });
+    expect(ISSUE_EXPLORER_LOADING_STATE).toStrictEqual({ status: "loading" });
   });
 
   it("maps combined RPC results to a success state with workspace path", async () => {
@@ -69,7 +69,7 @@ describe("loadIssueExplorerState", () => {
         workspaceGeneration: 4,
         workspacePath: "/Users/dev/work/portal",
       })
-    ).resolves.toEqual({
+    ).resolves.toStrictEqual({
       allIssues: [allIssue],
       blockedIssues: [blockedIssue],
       readyIssues: [readyIssue],
@@ -88,7 +88,7 @@ describe("loadIssueExplorerState", () => {
         workspaceGeneration: 0,
         workspacePath: "/Users/dev/work/empty",
       })
-    ).resolves.toEqual({
+    ).resolves.toStrictEqual({
       allIssues: [],
       blockedIssues: [],
       readyIssues: [],
@@ -132,7 +132,7 @@ describe("loadIssueExplorerState", () => {
       })
     );
 
-    expect(state).toEqual({
+    expect(state).toStrictEqual({
       error: {
         kind: "notBeadworkWorkspace",
         message: "The current directory is not a Beadwork workspace.",

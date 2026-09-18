@@ -16,7 +16,7 @@ const state = (overrides: Partial<WorkspaceState> = {}): WorkspaceState => ({
   ...overrides,
 });
 
-describe("pickerDefaultPath", () => {
+describe(pickerDefaultPath, () => {
   it("prefers Current Workspace over the MRU catalog", () => {
     expect(
       pickerDefaultPath(
@@ -47,7 +47,7 @@ describe("pickerDefaultPath", () => {
   });
 });
 
-describe("WorkspaceSelector", () => {
+describe(WorkspaceSelector, () => {
   it("renders known unavailable entries with visible full paths, retryable semantics, and local remove actions", async () => {
     const user = userEvent.setup();
     const onRemove = vi.fn();

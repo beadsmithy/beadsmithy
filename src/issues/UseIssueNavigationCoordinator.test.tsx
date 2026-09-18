@@ -68,7 +68,7 @@ afterEach(() => {
   vi.restoreAllMocks();
 });
 
-describe("useIssueNavigationCoordinator", () => {
+describe(useIssueNavigationCoordinator, () => {
   it("observes push, replace, traversal, and same-path state replacement through Wouter", async () => {
     const addEventListener = vi.spyOn(window, "addEventListener");
     render(<NavigationHarness />);

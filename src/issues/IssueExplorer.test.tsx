@@ -137,7 +137,7 @@ const getDetailSectionFlow = () =>
     return heading?.textContent ?? "";
   });
 
-describe("IssueExplorer", () => {
+describe(IssueExplorer, () => {
   it("renders the true-empty Issue List UI from a successful empty All Issues collection", () => {
     renderExplorer([]);
 
@@ -287,15 +287,15 @@ describe("IssueExplorer", () => {
     renderExplorer([idMatch, titleMatch, descriptionMatch, commentOnlyMatch]);
 
     await user.type(getSearchInput(), "needle");
-    expect(getRenderedIssueIds()).toEqual(["bsm-description"]);
+    expect(getRenderedIssueIds()).toStrictEqual(["bsm-description"]);
 
     await user.clear(getSearchInput());
     await user.type(getSearchInput(), "DBH.6");
-    expect(getRenderedIssueIds()).toEqual(["bsm-dbh.6"]);
+    expect(getRenderedIssueIds()).toStrictEqual(["bsm-dbh.6"]);
 
     await user.clear(getSearchInput());
     await user.type(getSearchInput(), "key sea");
-    expect(getRenderedIssueIds()).toEqual(["bsm-title"]);
+    expect(getRenderedIssueIds()).toStrictEqual(["bsm-title"]);
   });
 
   it("keeps whitespace-only All Issues search unfiltered and preserves match order", async () => {
@@ -307,10 +307,10 @@ describe("IssueExplorer", () => {
     renderExplorer([first, second, miss]);
 
     await user.type(getSearchInput(), "   ");
-    expect(getRenderedIssueIds()).toEqual(["bsm-z", "bsm-a", "bsm-miss"]);
+    expect(getRenderedIssueIds()).toStrictEqual(["bsm-z", "bsm-a", "bsm-miss"]);
 
     await user.type(getSearchInput(), "search");
-    expect(getRenderedIssueIds()).toEqual(["bsm-z", "bsm-a"]);
+    expect(getRenderedIssueIds()).toStrictEqual(["bsm-z", "bsm-a"]);
   });
 
   it("applies the same search query to the active Issue List View", async () => {
@@ -354,7 +354,7 @@ describe("IssueExplorer", () => {
     );
 
     await user.type(getSearchInput(), "needle");
-    expect(getRenderedIssueIds()).toEqual([
+    expect(getRenderedIssueIds()).toStrictEqual([
       "bsm-all",
       "bsm-closed",
       "bsm-open",
@@ -364,20 +364,20 @@ describe("IssueExplorer", () => {
       <IssueExplorer activeIssueListViewId="ready" issueState={state} />
     );
     expect(getSearchInput()).toHaveValue("needle");
-    expect(getRenderedIssueIds()).toEqual(["bsm-ready"]);
+    expect(getRenderedIssueIds()).toStrictEqual(["bsm-ready"]);
 
     rerender(
       <IssueExplorer activeIssueListViewId="blocked" issueState={state} />
     );
-    expect(getRenderedIssueIds()).toEqual(["bsm-blocked"]);
+    expect(getRenderedIssueIds()).toStrictEqual(["bsm-blocked"]);
 
     rerender(
       <IssueExplorer activeIssueListViewId="closed" issueState={state} />
     );
-    expect(getRenderedIssueIds()).toEqual(["bsm-closed"]);
+    expect(getRenderedIssueIds()).toStrictEqual(["bsm-closed"]);
 
     rerender(<IssueExplorer activeIssueListViewId="open" issueState={state} />);
-    expect(getRenderedIssueIds()).toEqual(["bsm-open"]);
+    expect(getRenderedIssueIds()).toStrictEqual(["bsm-open"]);
   });
 
   it("does not leak search matches from another active Issue List View", async () => {
@@ -434,7 +434,7 @@ describe("IssueExplorer", () => {
       activeIssueListViewId: "all",
     });
 
-    expect(getRenderedIssueIds()).toEqual([
+    expect(getRenderedIssueIds()).toStrictEqual([
       "bsm-closed",
       "bsm-unknown",
       "bsm-open",
@@ -473,7 +473,7 @@ describe("IssueExplorer", () => {
       { activeIssueListViewId: "in_progress" }
     );
 
-    expect(getRenderedIssueIds()).toEqual([
+    expect(getRenderedIssueIds()).toStrictEqual([
       "bsm-progress-epic",
       "bsm-progress-task",
     ]);
@@ -525,7 +525,7 @@ describe("IssueExplorer", () => {
       .getAllByRole("link")
       .map((link) => link.dataset.issueId);
 
-    expect(rowLinks).toEqual(["bsm-command-first", "bsm-command-second"]);
+    expect(rowLinks).toStrictEqual(["bsm-command-first", "bsm-command-second"]);
     expect(screen.queryByText("Would be derived locally")).toBeNull();
   });
 
@@ -710,7 +710,7 @@ describe("IssueExplorer", () => {
 
     await user.click(getRowButton(issue));
 
-    expect(getDetailSectionFlow()).toEqual([
+    expect(getDetailSectionFlow()).toStrictEqual([
       "title/header",
       "primary metadata",
       "Labels",
@@ -1259,7 +1259,7 @@ describe("IssueExplorer", () => {
           within(item as HTMLElement).getByText(/^bsm-parent\./u).textContent ??
           ""
       );
-      expect(orderedIds).toEqual([
+      expect(orderedIds).toStrictEqual([
         "bsm-parent.p1-older",
         "bsm-parent.p1-newer",
         "bsm-parent.p2",
@@ -1302,7 +1302,7 @@ describe("IssueExplorer", () => {
 
       // The full section flow still places Child Issues between
       // Dependencies and Other metadata when children are populated.
-      expect(getDetailSectionFlow()).toEqual([
+      expect(getDetailSectionFlow()).toStrictEqual([
         "title/header",
         "primary metadata",
         "Labels",
@@ -1317,7 +1317,7 @@ describe("IssueExplorer", () => {
       // shared `allIssues` collection. The unrelated Issue sits
       // between two children in the input, which is also the order
       // the list renders.
-      expect(getRenderedIssueIds()).toEqual([
+      expect(getRenderedIssueIds()).toStrictEqual([
         "bsm-parent",
         "bsm-parent.p4",
         "bsm-parent.p1-newer",
@@ -1364,7 +1364,7 @@ describe("IssueExplorer", () => {
       // The section flow for an Issue without children skips straight
       // from Dependencies to Other metadata; Comments is absent
       // because the lonely Issue has no comments either.
-      expect(getDetailSectionFlow()).toEqual([
+      expect(getDetailSectionFlow()).toStrictEqual([
         "title/header",
         "primary metadata",
         "Labels",
@@ -1726,7 +1726,7 @@ describe("IssueExplorer", () => {
       // Narrow the visible rows to the other Issue only.
       await user.type(getSearchInput(), "other needle");
 
-      expect(getRenderedIssueIds()).toEqual(["bsm-search-other"]);
+      expect(getRenderedIssueIds()).toStrictEqual(["bsm-search-other"]);
 
       // The detail pane still shows the previously selected Issue.
       expect(
@@ -1771,7 +1771,7 @@ describe("IssueExplorer", () => {
         <IssueExplorer activeIssueListViewId="closed" issueState={state} />
       );
 
-      expect(getRenderedIssueIds()).toEqual(["bsm-closed"]);
+      expect(getRenderedIssueIds()).toStrictEqual(["bsm-closed"]);
 
       // Detail still shows the open Issue.
       expect(
@@ -1809,7 +1809,7 @@ describe("IssueExplorer", () => {
       // Clear the search query so the row becomes visible again.
       await user.clear(getSearchInput());
 
-      expect(getRenderedIssueIds()).toEqual([
+      expect(getRenderedIssueIds()).toStrictEqual([
         "bsm-search-selected",
         "bsm-search-other",
       ]);
@@ -1853,7 +1853,7 @@ describe("IssueExplorer", () => {
         <IssueExplorer activeIssueListViewId="open" issueState={state} />
       );
 
-      expect(getRenderedIssueIds()).toEqual(["bsm-view-selected"]);
+      expect(getRenderedIssueIds()).toStrictEqual(["bsm-view-selected"]);
       expect(
         getDetail().getByRole("heading", { level: 2, name: "Open selected" })
       ).toBeInTheDocument();
@@ -2248,7 +2248,7 @@ describe("IssueExplorer", () => {
       .getAllByRole("link")
       .map((link) => link.dataset.issueId);
 
-    expect(rowLinks).toEqual(["bsm-command-first", "bsm-command-second"]);
+    expect(rowLinks).toStrictEqual(["bsm-command-first", "bsm-command-second"]);
     expect(screen.queryByText("Would be derived locally")).toBeNull();
   });
 
@@ -2366,7 +2366,7 @@ describe("IssueExplorer", () => {
 
       await user.type(getSearchInput(), "keyboard");
 
-      expect(getRenderedIssueIds()).toEqual(["bsm-search-keep"]);
+      expect(getRenderedIssueIds()).toStrictEqual(["bsm-search-keep"]);
       const row = getRowButton(selected);
       expect(row).toHaveAttribute("aria-current", "true");
       expect(row).toHaveAttribute("data-selected", "true");

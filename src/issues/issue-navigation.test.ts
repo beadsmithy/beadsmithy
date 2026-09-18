@@ -45,7 +45,7 @@ describe("issue navigation route contract", () => {
   it("round-trips the default route without query parameters", () => {
     const route = parseIssueExplorerRoute("/issues");
 
-    expect(route).toEqual({ issueId: null, search: "", viewId: "all" });
+    expect(route).toStrictEqual({ issueId: null, search: "", viewId: "all" });
     expect(serializeIssueExplorerRoute(route)).toBe("/issues");
   });
 
@@ -56,9 +56,9 @@ describe("issue navigation route contract", () => {
       viewId: "in_progress" as const,
     };
 
-    expect(parseIssueExplorerRoute(serializeIssueExplorerRoute(route))).toEqual(
-      route
-    );
+    expect(
+      parseIssueExplorerRoute(serializeIssueExplorerRoute(route))
+    ).toStrictEqual(route);
   });
 
   it("falls back to All for unknown or malformed view values", () => {
@@ -69,7 +69,7 @@ describe("issue navigation route contract", () => {
   });
 
   it("does not mistake a missing Issue route for a selected route", () => {
-    expect(parseIssueExplorerRoute("/issues/")).toEqual({
+    expect(parseIssueExplorerRoute("/issues/")).toStrictEqual({
       issueId: null,
       search: "",
       viewId: "all",
@@ -82,7 +82,7 @@ describe("issue navigation route contract", () => {
       issue("bsm-closed", "closed"),
     ]);
 
-    expect(isIssueInListView(explorerState, "closed", "bsm-open")).toBe(false);
+    expect(isIssueInListView(explorerState, "closed", "bsm-open")).toBeFalsy();
     expect(selectIssueForView(explorerState, "closed", "bsm-open")).toBeNull();
     expect(selectIssueForView(explorerState, "closed", "bsm-closed")).toBe(
       "bsm-closed"
