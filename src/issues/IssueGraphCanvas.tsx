@@ -28,6 +28,8 @@ import "@xyflow/react/dist/style.css";
 
 const GRAPH_NODE_WIDTH = 240;
 const GRAPH_NODE_HEIGHT = 104;
+const GRAPH_COMPONENT_GAP = 72;
+const GRAPH_LAYOUT_ROW_WIDTH = 1000;
 
 interface IssueCardData extends Record<string, unknown> {
   issue: Issue;
@@ -38,7 +40,7 @@ type IssueCardNode = Node<IssueCardData, "issue">;
 type IssueFlowEdge = Edge<{ kind: IssueGraphEdgeKind }, "blocker" | "default">;
 
 const IssueCard = ({ data }: NodeProps<IssueCardNode>) => (
-  <div className="relative">
+  <div className="relative w-[240px]">
     <Handle
       aria-hidden="true"
       className="bg-muted! border-none!"
@@ -51,7 +53,7 @@ const IssueCard = ({ data }: NodeProps<IssueCardNode>) => (
         "_",
         " "
       )}${data.parentId === null ? ". Root Issue." : `. Parent: ${data.parentId}`}`}
-      className="border-border-main bg-surface min-w-[220px] rounded-lg border p-3 shadow-lg"
+      className="border-border-main bg-surface min-h-[104px] w-full rounded-lg border p-3 shadow-lg"
       data-issue-card-id={data.issue.id}
       type="button"
     >
@@ -102,37 +104,143 @@ const EDGE_TYPES: EdgeTypes = {
   blocker: BlockerEdge,
 };
 
+interface ParentComponentLayout {
+  height: number;
+  nodePositions: Map<string, { x: number; y: number }>;
+  width: number;
+}
+
+const createParentComponentLayouts = (
+  graph: FocusedIssueGraph
+): ParentComponentLayout[] => {
+  const parentEdges = graph.edges.filter((edge) => edge.kind === "parent");
+  const adjacency = new Map<string, string[]>();
+  for (const node of graph.nodes) {
+    adjacency.set(node.id, []);
+  }
+  for (const edge of parentEdges) {
+    adjacency.get(edge.source)?.push(edge.target);
+    adjacency.get(edge.target)?.push(edge.source);
+  }
+
+  const unvisitedIds = new Set(graph.nodes.map((node) => node.id));
+  const componentLayouts: ParentComponentLayout[] = [];
+  for (const graphNode of graph.nodes) {
+    if (!unvisitedIds.has(graphNode.id)) {
+      continue;
+    }
+
+    const componentIds: string[] = [];
+    const pendingIds = [graphNode.id];
+    unvisitedIds.delete(graphNode.id);
+    let pendingIndex = 0;
+    while (pendingIndex < pendingIds.length) {
+      const currentId = pendingIds[pendingIndex];
+      pendingIndex += 1;
+      componentIds.push(currentId);
+      for (const neighborId of adjacency.get(currentId) ?? []) {
+        if (unvisitedIds.has(neighborId)) {
+          unvisitedIds.delete(neighborId);
+          pendingIds.push(neighborId);
+        }
+      }
+    }
+
+    const componentIdSet = new Set(componentIds);
+    const dagreGraph = new graphlib.Graph().setDefaultEdgeLabel(() => ({}));
+    dagreGraph.setGraph({
+      nodesep: 32,
+      rankdir: "TB",
+      ranksep: 64,
+    });
+    for (const id of componentIds) {
+      dagreGraph.setNode(id, {
+        height: GRAPH_NODE_HEIGHT,
+        width: GRAPH_NODE_WIDTH,
+      });
+    }
+    for (const edge of parentEdges) {
+      if (componentIdSet.has(edge.source) && componentIdSet.has(edge.target)) {
+        dagreGraph.setEdge(edge.source, edge.target);
+      }
+    }
+    layout(dagreGraph);
+
+    let minX = Number.POSITIVE_INFINITY;
+    let minY = Number.POSITIVE_INFINITY;
+    let maxX = Number.NEGATIVE_INFINITY;
+    let maxY = Number.NEGATIVE_INFINITY;
+    const absolutePositions = new Map<string, { x: number; y: number }>();
+    for (const id of componentIds) {
+      const position = dagreGraph.node(id);
+      const x = position.x - GRAPH_NODE_WIDTH / 2;
+      const y = position.y - GRAPH_NODE_HEIGHT / 2;
+      absolutePositions.set(id, { x, y });
+      minX = Math.min(minX, x);
+      minY = Math.min(minY, y);
+      maxX = Math.max(maxX, x + GRAPH_NODE_WIDTH);
+      maxY = Math.max(maxY, y + GRAPH_NODE_HEIGHT);
+    }
+
+    const nodePositions = new Map<string, { x: number; y: number }>();
+    for (const [id, position] of absolutePositions) {
+      nodePositions.set(id, {
+        x: position.x - minX,
+        y: position.y - minY,
+      });
+    }
+    componentLayouts.push({
+      height: maxY - minY,
+      nodePositions,
+      width: maxX - minX,
+    });
+  }
+
+  return componentLayouts;
+};
+
+const packParentComponentLayouts = (
+  componentLayouts: ParentComponentLayout[]
+): Map<string, { x: number; y: number }> => {
+  const nodePositions = new Map<string, { x: number; y: number }>();
+  let rowHeight = 0;
+  let rowX = 0;
+  let rowY = 0;
+  for (const component of componentLayouts) {
+    const startsNewRow =
+      rowX > 0 && rowX + component.width > GRAPH_LAYOUT_ROW_WIDTH;
+    if (startsNewRow) {
+      rowX = 0;
+      rowY += rowHeight + GRAPH_COMPONENT_GAP;
+      rowHeight = 0;
+    }
+
+    for (const [id, position] of component.nodePositions) {
+      nodePositions.set(id, {
+        x: rowX + position.x,
+        y: rowY + position.y,
+      });
+    }
+    rowX += component.width + GRAPH_COMPONENT_GAP;
+    rowHeight = Math.max(rowHeight, component.height);
+  }
+  return nodePositions;
+};
+
 const layoutFocusedGraph = (
   graph: FocusedIssueGraph
 ): { edges: IssueFlowEdge[]; nodes: IssueCardNode[] } => {
-  const dagreGraph = new graphlib.Graph().setDefaultEdgeLabel(() => ({}));
-  dagreGraph.setGraph({
-    nodesep: 48,
-    rankdir: "TB",
-    ranksep: 88,
-  });
-
-  for (const node of graph.nodes) {
-    dagreGraph.setNode(node.id, {
-      height: GRAPH_NODE_HEIGHT,
-      width: GRAPH_NODE_WIDTH,
-    });
-  }
-  for (const graphEdge of graph.edges.filter(
-    (candidateEdge) => candidateEdge.kind === "parent"
-  )) {
-    dagreGraph.setEdge(graphEdge.source, graphEdge.target);
-  }
-  layout(dagreGraph);
+  const componentLayouts = createParentComponentLayouts(graph);
+  const nodePositions = packParentComponentLayouts(componentLayouts);
 
   const nodes = graph.nodes.map((node) => {
-    const position = dagreGraph.node(node.id);
+    const position = nodePositions.get(node.id) ?? { x: 0, y: 0 };
     return {
       data: { issue: node.issue, parentId: node.parentId },
       id: node.id,
       position: {
-        x: position.x - GRAPH_NODE_WIDTH / 2,
-        y: position.y - GRAPH_NODE_HEIGHT / 2,
+        x: position.x,
+        y: position.y,
       },
       sourcePosition: Position.Bottom,
       targetPosition: Position.Top,
@@ -147,8 +255,12 @@ const layoutFocusedGraph = (
     source: edge.source,
     style:
       edge.kind === "blocker"
-        ? { stroke: "var(--color-danger)", strokeDasharray: "6 4" }
-        : undefined,
+        ? {
+            stroke: "var(--color-danger)",
+            strokeDasharray: "6 4",
+            strokeWidth: 2,
+          }
+        : { stroke: "var(--color-muted)", strokeWidth: 1.5 },
     target: edge.target,
     type: edge.kind === "blocker" ? ("blocker" as const) : ("default" as const),
   }));
@@ -198,6 +310,9 @@ export const IssueGraphCanvas = ({
         edges={flowGraph.edges}
         fitView
         edgeTypes={EDGE_TYPES}
+        fitViewOptions={{ padding: 0.18 }}
+        maxZoom={1.5}
+        minZoom={0.25}
         nodesConnectable={false}
         nodesDraggable={false}
         nodeTypes={NODE_TYPES}
@@ -210,8 +325,23 @@ export const IssueGraphCanvas = ({
             aria-label="Graph relationship legend"
             className="border-border-main bg-surface text-muted flex gap-3 rounded border px-2 py-1 text-[11px]"
           >
-            <span data-graph-edge-kind="parent">Parent → child</span>
-            <span data-graph-edge-kind="blocker">Blocker → blocked</span>
+            <span
+              className="flex items-center gap-1.5"
+              data-graph-edge-kind="parent"
+            >
+              <span aria-hidden="true" className="bg-muted h-px w-4" />
+              Parent → child
+            </span>
+            <span
+              className="flex items-center gap-1.5"
+              data-graph-edge-kind="blocker"
+            >
+              <span
+                aria-hidden="true"
+                className="border-danger w-4 border-t-2 border-dashed"
+              />
+              Blocker → blocked
+            </span>
           </div>
         </Panel>
       </ReactFlow>
