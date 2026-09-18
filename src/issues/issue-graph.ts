@@ -36,6 +36,10 @@ export interface BuildFocusedIssueGraphInput {
   selectedIssueId: string | null;
 }
 
+export interface BuildIssueGraphInput extends BuildFocusedIssueGraphInput {
+  scope: "all" | "focused";
+}
+
 const compareIssueIds = (left: Issue, right: Issue): number =>
   left.id.localeCompare(right.id);
 
@@ -106,12 +110,16 @@ const collectVisibleRelationshipContext = (
   return { anomalies, visibleIds };
 };
 
-export const buildFocusedIssueGraph = ({
+export const buildIssueGraph = ({
   allIssues,
   selectedIssueId,
-}: BuildFocusedIssueGraphInput): FocusedIssueGraph => {
+  scope,
+}: BuildIssueGraphInput): FocusedIssueGraph => {
   const issueById = new Map(allIssues.map((issue) => [issue.id, issue]));
-  const seedIds = collectSeedIds(allIssues, issueById, selectedIssueId);
+  const seedIds =
+    scope === "all"
+      ? allIssues.map((issue) => issue.id)
+      : collectSeedIds(allIssues, issueById, selectedIssueId);
   const seedIdSet = new Set(seedIds);
   const { anomalies, visibleIds } = collectVisibleRelationshipContext(
     seedIds,
@@ -191,3 +199,9 @@ export const buildFocusedIssueGraph = ({
     totalIssueCount: allIssues.length,
   };
 };
+
+export const buildFocusedIssueGraph = ({
+  allIssues,
+  selectedIssueId,
+}: BuildFocusedIssueGraphInput): FocusedIssueGraph =>
+  buildIssueGraph({ allIssues, scope: "focused", selectedIssueId });

@@ -7,7 +7,7 @@ import { openExternalLink as defaultOpenExternalLink } from "../components/exter
 import { useExternalLifecycle } from "../lib/use-external-lifecycle";
 import type { RefreshHealth } from "../refresh-health";
 import type { Issue } from "../rpc/bindings";
-import { buildFocusedIssueGraph } from "./issue-graph";
+import { buildIssueGraph } from "./issue-graph";
 import { getChildIssues } from "./issue-hierarchy";
 import type { IssueExplorerLoadState } from "./issue-loader";
 import { generateIssueLocationUri } from "./issue-location-uri";
@@ -20,8 +20,39 @@ import {
   selectBannerFailure,
 } from "./RefreshFailureBanner";
 
+const GraphScopeControl = ({
+  handleScopeChange,
+  scope,
+}: {
+  handleScopeChange: (scope: IssueGraphRouteState["scope"]) => void;
+  scope: IssueGraphRouteState["scope"];
+}) => (
+  <fieldset className="border-border-main text-muted flex items-center gap-2 border-b px-5 py-2 text-xs">
+    <legend className="sr-only">Graph scope</legend>
+    <span aria-hidden="true">Scope</span>
+    <button
+      aria-pressed={scope === "focused"}
+      className="rounded px-2 py-1 hover:bg-white/5"
+      onClick={() => handleScopeChange("focused")}
+      type="button"
+    >
+      Focused
+    </button>
+    <button
+      aria-pressed={scope === "all"}
+      className="rounded px-2 py-1 hover:bg-white/5"
+      onClick={() => handleScopeChange("all")}
+      type="button"
+    >
+      Show all
+    </button>
+  </fieldset>
+);
+
+// eslint-disable-next-line complexity -- Graph owns loading, failure, scope, and overlay states.
 export const IssueGraph = ({
   issueState,
+  handleScopeChange,
   markdownFontSizePx,
   onIssueClose,
   onIssueSelect,
@@ -34,6 +65,7 @@ export const IssueGraph = ({
   workspacePath,
 }: {
   issueState: IssueExplorerLoadState;
+  handleScopeChange: (scope: IssueGraphRouteState["scope"]) => void;
   markdownFontSizePx?: number;
   onIssueClose: () => void;
   onIssueSelect: (issueId: string) => void;
@@ -54,10 +86,11 @@ export const IssueGraph = ({
   const bannerFailure = refreshHealth
     ? selectBannerFailure(refreshHealth)
     : null;
-  const focusedGraph =
+  const graph =
     issueState.status === "success"
-      ? buildFocusedIssueGraph({
+      ? buildIssueGraph({
           allIssues: issueState.allIssues,
+          scope: route.scope,
           selectedIssueId: route.issueId,
         })
       : null;
@@ -191,19 +224,23 @@ export const IssueGraph = ({
           </p>
         </div>
         <span className="text-muted font-mono text-xs">
-          {focusedGraph?.nodes.length ?? 0} visible /{" "}
-          {issueState.allIssues.length} total Issues
+          {graph?.nodes.length ?? 0} visible / {issueState.allIssues.length}{" "}
+          total Issues
         </span>
       </header>
-      {focusedGraph === null || focusedGraph.anomalies.length === 0 ? null : (
+      <GraphScopeControl
+        handleScopeChange={handleScopeChange}
+        scope={route.scope}
+      />
+      {graph === null || graph.anomalies.length === 0 ? null : (
         <div
           aria-live="polite"
           className="border-accent/40 bg-accent/10 border-b px-5 py-2 text-xs text-indigo-200"
           data-graph-anomaly-warning="true"
         >
-          {focusedGraph.anomalies.length} relationship endpoint
-          {focusedGraph.anomalies.length === 1 ? " is" : "s are"} missing from
-          this Workspace snapshot.
+          {graph.anomalies.length} relationship endpoint
+          {graph.anomalies.length === 1 ? " is" : "s are"} missing from this
+          Workspace snapshot.
         </div>
       )}
       <div className="border-border-main text-muted flex items-center gap-4 border-b px-5 py-2 text-xs">
@@ -211,6 +248,9 @@ export const IssueGraph = ({
           {route.scope === "focused" ? "Focused" : "All"} graph
         </span>
         <span aria-label="Visible issue count">
+          {graph?.nodes.length ?? 0} visible
+        </span>
+        <span aria-label="Total issue count">
           {issueState.allIssues.length} total Issues
         </span>
       </div>
@@ -221,6 +261,7 @@ export const IssueGraph = ({
           onIssueSelect={onIssueSelect}
           handleViewportChange={handleViewportChange}
           selectedIssueId={route.issueId}
+          scope={route.scope}
           viewport={viewport}
         />
         {route.issueId === null ? null : (

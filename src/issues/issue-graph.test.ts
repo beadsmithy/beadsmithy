@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import type { Issue } from "../rpc/bindings";
-import { buildFocusedIssueGraph } from "./issue-graph";
+import { buildFocusedIssueGraph, buildIssueGraph } from "./issue-graph";
 
 const issue = (overrides: Partial<Issue> = {}): Issue => ({
   assignee: "",
@@ -141,5 +141,97 @@ describe(buildFocusedIssueGraph, () => {
         referencedIssueId: "bsm-parent-absent",
       },
     ]);
+  });
+});
+
+describe(buildIssueGraph, () => {
+  it("includes every Issue and valid relationship in Show all", () => {
+    const graph = buildIssueGraph({
+      allIssues: [
+        issue({ id: "bsm-root", status: "closed" }),
+        issue({ id: "bsm-child", parent: "bsm-root" }),
+        issue({
+          blockedBy: ["bsm-child"],
+          id: "bsm-unrelated",
+          status: "closed",
+        }),
+      ],
+      scope: "all",
+      selectedIssueId: null,
+    });
+
+    expect(graph.nodes.map((node) => node.id)).toStrictEqual([
+      "bsm-child",
+      "bsm-root",
+      "bsm-unrelated",
+    ]);
+    expect(graph.edges).toStrictEqual([
+      {
+        id: "parent:bsm-root->bsm-child",
+        kind: "parent",
+        source: "bsm-root",
+        target: "bsm-child",
+      },
+      {
+        id: "blocker:bsm-child->bsm-unrelated",
+        kind: "blocker",
+        source: "bsm-child",
+        target: "bsm-unrelated",
+      },
+    ]);
+    expect(graph.nodes).toHaveLength(3);
+  });
+
+  it("keeps Show all deterministic when the snapshot order changes", () => {
+    const first = [
+      issue({ id: "bsm-root", status: "closed" }),
+      issue({ id: "bsm-child", parent: "bsm-root" }),
+      issue({ blockedBy: ["bsm-child"], id: "bsm-other" }),
+    ];
+
+    expect(
+      buildIssueGraph({
+        allIssues: first,
+        scope: "all",
+        selectedIssueId: null,
+      })
+    ).toStrictEqual(
+      buildIssueGraph({
+        allIssues: [first[2], first[1], first[0]],
+        scope: "all",
+        selectedIssueId: null,
+      })
+    );
+  });
+
+  it("constructs a deterministic representative 141-Issue, 213-link graph", () => {
+    const ids = Array.from(
+      { length: 141 },
+      (_, index) => `bsm-dense-${String(index).padStart(3, "0")}`
+    );
+    const allIssues = ids.map((id, index) =>
+      issue({
+        blockedBy: index >= 68 ? [ids[index - 68] ?? ""] : [],
+        id,
+        parent: index === 0 ? "" : (ids[index - 1] ?? ""),
+        status: index % 3 === 0 ? "closed" : "open",
+      })
+    );
+
+    const graph = buildIssueGraph({
+      allIssues,
+      scope: "all",
+      selectedIssueId: null,
+    });
+
+    expect(graph.nodes).toHaveLength(141);
+    expect(graph.edges).toHaveLength(213);
+    expect(graph).toStrictEqual(
+      buildIssueGraph({
+        allIssues,
+        scope: "all",
+        selectedIssueId: null,
+      })
+    );
   });
 });
