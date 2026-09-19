@@ -114,4 +114,65 @@ describe("useIssueGraphLayout", () => {
       expect(result.current.layout?.engine).toBe("dagre");
     });
   });
+
+  it("ignores a layout that resolves after the graph changes again", async () => {
+    const firstGraph = createIssueGraphLayoutFixture();
+    const [firstNode] = firstGraph.nodes;
+    if (firstNode === undefined) {
+      throw new Error("Expected the graph fixture to contain a node");
+    }
+    const secondGraph = {
+      ...firstGraph,
+      nodes: [...firstGraph.nodes, { ...firstNode, id: "bsm-second-node" }],
+    };
+    const thirdGraph = {
+      ...secondGraph,
+      nodes: [...secondGraph.nodes, { ...firstNode, id: "bsm-third-node" }],
+    };
+    const firstLayout = createLayout(firstGraph, "elk");
+    const secondLayout = createLayout(secondGraph, "elk");
+    const secondDagreLayout = createLayout(secondGraph, "dagre");
+    const thirdDagreLayout = createLayout(thirdGraph, "dagre");
+    let resolveSecondLayout!: (layout: IssueGraphLayoutResult) => void;
+    // oxlint-disable-next-line promise/avoid-new
+    const secondLayoutPromise = new Promise<IssueGraphLayoutResult>(
+      (resolve) => {
+        resolveSecondLayout = resolve;
+      }
+    );
+    // oxlint-disable-next-line promise/avoid-new
+    const thirdLayoutPromise = new Promise<IssueGraphLayoutResult>(() => {});
+    layoutIssueGraph
+      .mockResolvedValueOnce(firstLayout)
+      .mockReturnValueOnce(secondLayoutPromise)
+      .mockReturnValueOnce(thirdLayoutPromise);
+    layoutIssueGraphWithDagre.mockImplementation((graph) =>
+      graph === secondGraph ? secondDagreLayout : thirdDagreLayout
+    );
+
+    const { result, rerender } = renderHook(
+      ({ currentGraph }) => useIssueGraphLayout(currentGraph),
+      { initialProps: { currentGraph: firstGraph } }
+    );
+
+    await waitFor(() => {
+      expect(result.current.layout).toBe(firstLayout);
+    });
+
+    rerender({ currentGraph: secondGraph });
+    await waitFor(() => {
+      expect(result.current.layout).toBe(secondDagreLayout);
+      expect(result.current.isLoading).toBeTruthy();
+    });
+
+    rerender({ currentGraph: thirdGraph });
+    await waitFor(() => {
+      expect(result.current.layout).toBe(thirdDagreLayout);
+      expect(result.current.isLoading).toBeTruthy();
+    });
+
+    resolveSecondLayout(secondLayout);
+    await Promise.resolve();
+    expect(result.current.layout).toBe(thirdDagreLayout);
+  });
 });

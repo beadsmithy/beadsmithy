@@ -123,6 +123,9 @@ importers:
       lefthook:
         specifier: ^2.1.10
         version: 2.1.10
+      mocha:
+        specifier: ^10.8.2
+        version: 10.8.2
       oxfmt:
         specifier: ^0.68.0
         version: 0.68.0
