@@ -1,0 +1,33 @@
+docs/research/elk-graph-layout-spike.md
+  s_1490b1a0a720a3::t_6f71b08a59bbe0 59
+package.json
+  s_1490b1a0a720a3::t_05b3a453201daf 73
+src/issues/use-issue-graph-layout.ts
+  s_1490b1a0a720a3::t_c2a3ba09864d83 1,48-50
+  s_1490b1a0a720a3::t_6f71b08a59bbe0 16,24,44,60,74,80,83-89,91,99,109
+  s_1490b1a0a720a3::t_002dcd2d391ccc 51
+src/issues/UseIssueGraphLayout.test.tsx
+  s_1490b1a0a720a3::t_946ce5fabbe280 117-177
+scripts/render-elk-graph-spike.ts
+  s_1490b1a0a720a3::t_6f71b08a59bbe0 75
+docs/research/elk-graph-layout-spike.svg
+  s_1490b1a0a720a3::t_cecc437c87ac06 1
+pnpm-lock.yaml
+  s_1490b1a0a720a3::t_1d176ef84f9c27 126-128
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.4",
+  "base_commit_sha": "6617252fdcd08cbd5a6e79481adaa646d588b1a1",
+  "prompts": {},
+  "sessions": {
+    "s_1490b1a0a720a3": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a0b639-46a0-7c32-a87e-d331a3d8b786",
+        "model": "gpt-5.6-luna"
+      },
+      "human_author": "Tomas Thor Jonsson <benregn@gmail.com>"
+    }
+  }
+}
