@@ -36,6 +36,9 @@ const waitForReadyGraph = async (): Promise<void> => {
       timeoutMsg: "Graph Mode did not finish its asynchronous layout",
     }
   );
+  const canvasSize = await canvas.getSize();
+  expect(canvasSize.width).toBeGreaterThan(0);
+  expect(canvasSize.height).toBeGreaterThan(0);
 };
 
 describe("Graph Mode (WebDriver e2e): real relationship navigation", () => {
