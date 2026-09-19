@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useLayoutEffect, useMemo, useRef, useState } from "react";
 
 import { useExternalLifecycle } from "../lib/use-external-lifecycle";
 import type { FocusedIssueGraph } from "./issue-graph";
@@ -13,6 +13,7 @@ export interface IssueGraphLayoutState {
   isFallback: boolean;
   isLoading: boolean;
   layout: IssueGraphLayoutResult | null;
+  layoutGraphKey: string | null;
 }
 
 const INITIAL_LAYOUT_STATE: IssueGraphLayoutState = {
@@ -20,6 +21,7 @@ const INITIAL_LAYOUT_STATE: IssueGraphLayoutState = {
   isFallback: false,
   isLoading: true,
   layout: null,
+  layoutGraphKey: null,
 };
 
 const graphIdentity = (graph: FocusedIssueGraph): string =>
@@ -39,8 +41,13 @@ export const useIssueGraphLayout = (
   graph: FocusedIssueGraph
 ): IssueGraphLayoutState => {
   const graphKey = useMemo(() => graphIdentity(graph), [graph]);
+  const currentGraphKey = useRef(graphKey);
   const [state, setState] =
     useState<IssueGraphLayoutState>(INITIAL_LAYOUT_STATE);
+
+  useLayoutEffect(() => {
+    currentGraphKey.current = graphKey;
+  }, [graphKey]);
 
   useExternalLifecycle(() => {
     const graphForLayout = graph;
@@ -50,6 +57,7 @@ export const useIssueGraphLayout = (
         isFallback: false,
         isLoading: false,
         layout: null,
+        layoutGraphKey: graphKey,
       });
       return;
     }
@@ -63,17 +71,24 @@ export const useIssueGraphLayout = (
         previous.layout === null
           ? null
           : layoutIssueGraphWithDagre(graphForLayout),
+      layoutGraphKey: graphKey,
     }));
 
     void (async () => {
       try {
         const layout = await layoutIssueGraph({ graph: graphForLayout });
-        if (cancelled) {
+        if (cancelled || currentGraphKey.current !== graphKey) {
           return;
         }
-        setState({ error: null, isFallback: false, isLoading: false, layout });
+        setState({
+          error: null,
+          isFallback: false,
+          isLoading: false,
+          layout,
+          layoutGraphKey: graphKey,
+        });
       } catch (error) {
-        if (cancelled) {
+        if (cancelled || currentGraphKey.current !== graphKey) {
           return;
         }
         setState({
@@ -81,6 +96,7 @@ export const useIssueGraphLayout = (
           isFallback: true,
           isLoading: false,
           layout: layoutIssueGraphWithDagre(graphForLayout),
+          layoutGraphKey: graphKey,
         });
       }
     })();
@@ -90,5 +106,5 @@ export const useIssueGraphLayout = (
     };
   }, [graphKey]);
 
-  return state;
+  return state.layoutGraphKey === graphKey ? state : { ...state, layout: null };
 };

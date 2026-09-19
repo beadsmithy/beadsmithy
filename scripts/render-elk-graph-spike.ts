@@ -15,8 +15,6 @@ import { createIssueGraphLayoutFixture } from "../src/issues/issue-graph-layout-
 
 const PANEL_WIDTH = 880;
 const PANEL_HEIGHT = 580;
-const NODE_WIDTH = 120;
-const NODE_HEIGHT = 52;
 
 const escapeXml = (value: string): string =>
   value
@@ -74,7 +72,7 @@ const renderPanel = (
     .map((node: IssueGraphLayoutNode) => {
       const position = transformPoint(node.position);
       const label = node.id.replace("bsm-fixture-", "");
-      return `<g><rect fill="#202938" height="${NODE_HEIGHT}" rx="7" stroke="#475569" width="${NODE_WIDTH}" x="${position.x}" y="${position.y}"/><text fill="#e2e8f0" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="10" x="${position.x + 8}" y="${position.y + 20}">${escapeXml(label)}</text></g>`;
+      return `<g><rect fill="#202938" height="${node.height * scale}" rx="7" stroke="#475569" width="${node.width * scale}" x="${position.x}" y="${position.y}"/><text fill="#e2e8f0" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="10" x="${position.x + 8}" y="${position.y + 20}">${escapeXml(label)}</text></g>`;
     })
     .join("");
   const blockerCount = layout.edges.filter(

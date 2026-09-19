@@ -56,7 +56,7 @@ The layout module records both engine identity and execution time. One observed 
 | Diagnostic              | Dagre baseline | ELK, both edge classes |
 | ----------------------- | -------------: | ---------------------: |
 | Node overlaps           |              0 |                      0 |
-| Edge/node-through cases | 8 unique pairs |                      0 |
+| Edge/node-through cases | 5 unique pairs |                      0 |
 | Segment crossings       |              3 |                      1 |
 | Duplicate edge IDs      |              0 |                      0 |
 | Missing endpoints       |              1 |                      1 |
