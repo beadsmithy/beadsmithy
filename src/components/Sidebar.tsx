@@ -6,6 +6,7 @@ import {
   Clock,
   HardDrive,
   Inbox,
+  Network,
   PlayCircle,
   Settings as SettingsIcon,
 } from "lucide-react";
@@ -26,6 +27,7 @@ import type { WorkspaceState } from "../rpc/bindings";
 import { WorkspaceSelector } from "./WorkspaceSelector";
 
 type AppDestination = "issueExplorer" | "settings";
+type IssueNavigationDestination = "list" | "graph";
 
 const ISSUE_LIST_VIEW_ICONS: Record<IssueListViewId, LucideIcon> = {
   all: Inbox,
@@ -49,9 +51,11 @@ const SidebarSettingsButton = ({
   <button
     aria-current={current ? "page" : undefined}
     aria-label="Settings"
-    className={`hover:text-text-main flex w-full items-center rounded-md px-2 py-1.5 text-sm transition-colors hover:bg-white/5 ${
-      collapsed ? "justify-center" : ""
-    } ${current ? "text-primary bg-white/5" : "text-muted"}`}
+    className={[
+      "hover:text-text-main flex w-full items-center rounded-md px-2 py-1.5 text-sm transition-colors hover:bg-white/5",
+      collapsed ? "justify-center" : "",
+      current ? "text-primary bg-white/5" : "text-muted",
+    ].join(" ")}
     onClick={onClick}
     title="Settings"
     type="button"
@@ -85,13 +89,13 @@ const SidebarNavButton = ({
       aria-label={
         countLabel === null ? item.label : `${item.label}, ${countLabel}`
       }
-      className={`hover:text-text-main hover:disabled:text-muted flex w-full items-center rounded-md px-2 py-1.5 text-sm transition-colors hover:bg-white/5 hover:disabled:bg-transparent ${
-        collapsed ? "justify-center" : ""
-      } ${current ? "text-primary bg-white/5" : "text-muted"}`}
+      className={[
+        "hover:text-text-main hover:disabled:text-muted flex w-full items-center rounded-md px-2 py-1.5 text-sm transition-colors hover:bg-white/5 hover:disabled:bg-transparent",
+        collapsed ? "justify-center" : "",
+        current ? "text-primary bg-white/5" : "text-muted",
+      ].join(" ")}
       disabled={disabled}
-      onClick={() => {
-        onSelect(item.id);
-      }}
+      onClick={() => onSelect(item.id)}
       title={collapsed ? item.label : undefined}
       type="button"
     >
@@ -112,6 +116,7 @@ const SidebarNavButton = ({
 
 interface SidebarProps {
   activeIssueListViewId: IssueListViewId;
+  activeIssueNavigationDestination: IssueNavigationDestination;
   appDestination: AppDestination;
   collapsed: boolean;
   disabled: boolean;
@@ -119,6 +124,7 @@ interface SidebarProps {
   issueState: IssueExplorerLoadState;
   onCollapseToggle: (collapsed: boolean) => void;
   onIssueListViewSelect: (viewId: IssueListViewId) => void;
+  onGraphSelect: () => void;
   onSettingsClick: () => void;
   workspaceHandlers: Omit<
     ComponentProps<typeof WorkspaceSelector>,
@@ -129,6 +135,7 @@ interface SidebarProps {
 
 export const Sidebar = ({
   activeIssueListViewId,
+  activeIssueNavigationDestination,
   appDestination,
   collapsed,
   disabled,
@@ -136,6 +143,7 @@ export const Sidebar = ({
   issueState,
   onCollapseToggle,
   onIssueListViewSelect,
+  onGraphSelect,
   onSettingsClick,
   workspaceHandlers,
   workspaceState,
@@ -147,24 +155,45 @@ export const Sidebar = ({
   const statusItems = ISSUE_LIST_VIEW_DEFINITIONS.filter(
     (item) => item.group === "status"
   );
+  const graphIsCurrent =
+    appDestination === "issueExplorer" &&
+    activeIssueNavigationDestination === "graph";
 
   return (
     <nav
-      className={`border-border-main bg-surface flex shrink-0 flex-col border-r ${
-        collapsed ? "w-14" : "w-60"
-      }`}
+      className={[
+        "border-border-main bg-surface flex shrink-0 flex-col border-r",
+        collapsed ? "w-14" : "w-60",
+      ].join(" ")}
     >
       <div className="flex-1 overflow-y-auto py-2">
         <div className="text-muted px-4 py-2 font-mono text-[10px] tracking-wider uppercase">
           {collapsed ? <hr className="border-border-main" /> : "Views"}
         </div>
         <div className="px-2">
+          <button
+            aria-current={graphIsCurrent ? "true" : undefined}
+            aria-label="Graph"
+            className={[
+              "hover:text-text-main flex w-full items-center rounded-md px-2 py-1.5 text-sm transition-colors hover:bg-white/5",
+              collapsed ? "justify-center" : "",
+              graphIsCurrent ? "text-primary bg-white/5" : "text-muted",
+            ].join(" ")}
+            disabled={disabled}
+            onClick={onGraphSelect}
+            title={collapsed ? "Graph" : undefined}
+            type="button"
+          >
+            <Network className={collapsed ? "size-4" : "mr-2 size-4"} />
+            {collapsed ? null : <span>Graph</span>}
+          </button>
           {viewItems.map((item) => (
             <SidebarNavButton
               collapsed={collapsed}
               count={issueListViewCounts?.[item.id] ?? null}
               current={
                 appDestination === "issueExplorer" &&
+                activeIssueNavigationDestination === "list" &&
                 item.id === activeIssueListViewId
               }
               disabled={disabled}
@@ -185,6 +214,7 @@ export const Sidebar = ({
               count={issueListViewCounts?.[item.id] ?? null}
               current={
                 appDestination === "issueExplorer" &&
+                activeIssueNavigationDestination === "list" &&
                 item.id === activeIssueListViewId
               }
               disabled={disabled}

@@ -7,11 +7,37 @@ import {
 import type { IssueListViewId } from "./issue-list-view";
 import type { IssueExplorerLoadState } from "./issue-loader";
 
-export interface IssueExplorerRouteState {
+export type IssueGraphScope = "focused" | "all";
+
+export interface IssueListRouteState {
+  kind?: "list";
   issueId: string | null;
   search: string;
   viewId: IssueListViewId;
 }
+
+export interface IssueGraphRouteState {
+  kind: "graph";
+  issueId: string | null;
+  scope: IssueGraphScope;
+  search?: never;
+  viewId?: never;
+}
+
+export type IssueExplorerRouteState =
+  | IssueListRouteState
+  | IssueGraphRouteState;
+
+export const isIssueListRoute = (
+  route: IssueExplorerRouteState
+): route is IssueListRouteState => route.kind !== "graph";
+
+export const isIssueGraphRoute = (
+  route: IssueExplorerRouteState
+): route is IssueGraphRouteState => route.kind === "graph";
+
+export const isIssueGraphScope = (value: unknown): value is IssueGraphScope =>
+  value === "focused" || value === "all";
 
 export const isIssueListViewId = (value: string): value is IssueListViewId =>
   ISSUE_LIST_VIEW_DEFINITIONS.some((definition) => definition.id === value);
@@ -34,10 +60,20 @@ const decodeIssueId = (value: string): string => {
 export const createIssueExplorerRoute = (
   issueId: string | null,
   searchParams: URLSearchParams
-): IssueExplorerRouteState => ({
+): IssueListRouteState => ({
   issueId,
+  kind: "list",
   search: searchParams.get("search") ?? "",
   viewId: normalizeIssueListViewId(searchParams.get("view")),
+});
+
+export const createIssueGraphRoute = (
+  issueId: string | null,
+  searchParams: URLSearchParams
+): IssueGraphRouteState => ({
+  issueId,
+  kind: "graph",
+  scope: searchParams.get("scope") === "all" ? "all" : ("focused" as const),
 });
 
 export const parseIssueExplorerRoute = (
@@ -45,11 +81,19 @@ export const parseIssueExplorerRoute = (
 ): IssueExplorerRouteState => {
   const [rawPath, rawSearch = ""] = location.split("?", 2);
   const path = rawPath.replace(/\/+$/u, "") || "/";
+  const params = new URLSearchParams(rawSearch);
+  const graphPathMatch = /^\/graph(?:\/(?<issueId>.+))?$/u.exec(path);
+  if (graphPathMatch !== null) {
+    const issueId = graphPathMatch.groups?.issueId
+      ? decodeIssueId(graphPathMatch.groups.issueId)
+      : params.get("issue");
+    return createIssueGraphRoute(issueId, params);
+  }
+
   const issuePathMatch = /^\/issues\/(?<issueId>.+)$/u.exec(path);
   const issueId = issuePathMatch?.groups?.issueId
     ? decodeIssueId(issuePathMatch.groups.issueId)
     : null;
-  const params = new URLSearchParams(rawSearch);
 
   return createIssueExplorerRoute(issueId, params);
 };
@@ -57,6 +101,19 @@ export const parseIssueExplorerRoute = (
 export const serializeIssueExplorerRoute = (
   route: IssueExplorerRouteState
 ): string => {
+  if (isIssueGraphRoute(route)) {
+    const params = new URLSearchParams();
+    if (route.scope !== "focused") {
+      params.set("scope", route.scope);
+    }
+    const path =
+      route.issueId === null
+        ? "/graph"
+        : `/graph/${encodeURIComponent(route.issueId)}`;
+    const query = params.toString();
+    return query.length > 0 ? `${path}?${query}` : path;
+  }
+
   const path = route.issueId
     ? `/issues/${encodeURIComponent(route.issueId)}`
     : "/issues";

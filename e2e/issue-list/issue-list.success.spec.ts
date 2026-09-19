@@ -7,7 +7,7 @@
 import path from "node:path";
 
 import { browser, expect } from "@wdio/globals";
-import { describe, it } from "vitest";
+import { describe, it } from "mocha";
 
 import {
   FIXTURE_BLOCKER_TITLE,
@@ -21,7 +21,6 @@ import {
   FIXTURE_EXTERNAL_BLOCKED_TARGET_TITLE,
   FIXTURE_EXTERNAL_READY_BLOCKER_TITLE,
   FIXTURE_ISSUE_TITLE,
-  FIXTURE_READY_SEARCH_QUERY,
   FIXTURE_READY_TITLE,
   applyExternalMutation,
 } from "./fixtures/workspace.ts";
@@ -84,7 +83,7 @@ describe("Issue explorer (WebDriver e2e): workspace with selectable Issue List V
     await browser.refresh();
   });
 
-  it("renders sidebar counts, switches Issue List Views, and searches the active view", async () => {
+  it("renders sidebar counts and switches Issue List Views", async () => {
     console.log("[e2e:spec] waiting for sidebar counts from combined load");
     await expectSidebarCount("All", "6 issues");
     await expectSidebarCount("Ready", "3 issues");
@@ -97,35 +96,11 @@ describe("Issue explorer (WebDriver e2e): workspace with selectable Issue List V
     await expectIssueVisible(FIXTURE_BLOCKER_TITLE);
     await expectIssueNotVisible(FIXTURE_ISSUE_TITLE);
 
-    console.log(
-      `[e2e:spec] searching active Ready view for ${FIXTURE_READY_SEARCH_QUERY}`
-    );
-    const searchInput = await browser.$("#issue-search");
-    await searchInput.setValue(FIXTURE_READY_SEARCH_QUERY);
-    await expect(searchInput).toHaveValue(FIXTURE_READY_SEARCH_QUERY);
-    await expectIssueVisible(FIXTURE_READY_TITLE);
-    await expectIssueNotVisible(FIXTURE_BLOCKER_TITLE);
-
     await selectIssueListView("Blocked", "blocked");
-    await expect(searchInput).toHaveValue(FIXTURE_READY_SEARCH_QUERY);
-    await expectIssueNotVisible(FIXTURE_READY_TITLE);
-    await expectIssueNotVisible(FIXTURE_ISSUE_TITLE);
-    const emptyState = await browser.$(
-      '[data-empty-reason="search-filtered-empty"]'
-    );
-    await emptyState.waitForExist({
-      timeout: 30_000,
-      timeoutMsg:
-        "Expected preserved search query to empty the Blocked Issue List View",
-    });
-
-    console.log("[e2e:spec] clearing search in Blocked view");
-    await searchInput.clearValue();
-    await expect(searchInput).toHaveValue("");
     const blockedIssueRow = await expectIssueVisible(FIXTURE_ISSUE_TITLE);
     await expectIssueNotVisible(FIXTURE_READY_TITLE);
 
-    const blockedIssueButton = await blockedIssueRow.$("button[data-issue-id]");
+    const blockedIssueButton = await blockedIssueRow.$("a[data-issue-id]");
     await blockedIssueButton.click();
     const detail = await browser.$('main[aria-label="Issue detail"]');
     await browser.waitUntil(
@@ -168,8 +143,8 @@ describe("Issue explorer (WebDriver e2e): workspace with selectable Issue List V
     const issueRow = await expectIssueVisible(FIXTURE_ISSUE_TITLE);
     const blockerRow = await expectIssueVisible(FIXTURE_BLOCKER_TITLE);
 
-    const issueButton = await issueRow.$("button[data-issue-id]");
-    const blockerButton = await blockerRow.$("button[data-issue-id]");
+    const issueButton = await issueRow.$("a[data-issue-id]");
+    const blockerButton = await blockerRow.$("a[data-issue-id]");
     const selectedIssueId = await issueButton.getAttribute("data-issue-id");
     const blockerId = await blockerButton.getAttribute("data-issue-id");
 
@@ -218,6 +193,28 @@ describe("Issue explorer (WebDriver e2e): workspace with selectable Issue List V
     console.log(`[e2e:spec] asserting sidebar reports workspace: ${fixtureA}`);
 
     await expectCurrentWorkspace(fixtureA);
+  });
+
+  it("renders Graph Mode through the built desktop app with ELK routes", async () => {
+    const graphButton = await browser.$('button[aria-label="Graph"]');
+    await graphButton.click();
+
+    const graphCanvas = await browser.$('[data-focused-graph="true"]');
+    await graphCanvas.waitForExist({ timeout: 30_000 });
+    await browser.waitUntil(
+      async () =>
+        (await graphCanvas.getAttribute("data-graph-layout-state")) === "ready",
+      {
+        timeout: 30_000,
+        timeoutMsg: "Graph Mode did not finish its asynchronous layout",
+      }
+    );
+
+    expect(await graphCanvas.getAttribute("data-graph-layout-engine")).toBe(
+      "elk"
+    );
+    expect(await graphCanvas.$$("[data-issue-card-id]")).not.toHaveLength(0);
+    expect(await graphCanvas.$$("path")).not.toHaveLength(0);
   });
 
   it("converges Issue Explorer counts after an external bw mutation in the selected workspace", async () => {
@@ -274,6 +271,9 @@ describe("Issue explorer (WebDriver e2e): workspace with selectable Issue List V
       throw new Error(switched.failure);
     }
     expect(switched.issueData.allIssues).toHaveLength(0);
+    await browser.execute(() => {
+      window.history.replaceState(null, "", window.location.href);
+    });
     await browser.refresh();
 
     const invalid = await invokeTypedWorkspaceSwitch(

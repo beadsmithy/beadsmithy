@@ -18,6 +18,7 @@
  *   - `empty`         — true-empty B fixture only
  *   - `atomic-switch` — populated A + populated B fixtures, delayed wrappers
  *   - `child-issues`  — dedicated closed-parent fixture A only
+ *   - `graph`         — dedicated parent/blocker graph fixture A only
  *   - `restoration`   — two sequential binaries against one shared store
  *   - `time-refresh`  — single-baseline fixture A, shortened debug
  *                       time-refresh cadence, post-launch deferred Issue
@@ -142,6 +143,9 @@ export const config: WebdriverIO.Config = {
     }
     if (scenario === "child-issues") {
       return ["./e2e/issue-list/issue-list.child-issues.spec.ts"];
+    }
+    if (scenario === "graph") {
+      return ["./e2e/issue-list/issue-list.graph.spec.ts"];
     }
     if (scenario === "restoration") {
       return ["./e2e/issue-list/issue-list.restoration.spec.ts"];

@@ -28,7 +28,7 @@
  * renderer state instead of just being a frontend test.
  */
 import { browser, expect } from "@wdio/globals";
-import { describe, it } from "vitest";
+import { describe, it } from "mocha";
 
 import {
   FIXTURE_CHILD_LONELY_ID,
@@ -393,7 +393,7 @@ describe("Child Issues (WebDriver e2e): closed parent, ordered children, and vie
     await clearSearchInput();
 
     const parentRow = await expectIssueVisible(FIXTURE_CHILD_PARENT_TITLE);
-    const parentButton = await parentRow.$("button[data-issue-id]");
+    const parentButton = await parentRow.$("a[data-issue-id]");
     const parentIssueId = await parentButton.getAttribute("data-issue-id");
     expect(parentIssueId).toBe(FIXTURE_CHILD_PARENT_ID);
     await parentButton.click();
@@ -447,7 +447,7 @@ describe("Child Issues (WebDriver e2e): closed parent, ordered children, and vie
     await clearSearchInput();
 
     const lonelyRow = await expectIssueVisible(FIXTURE_CHILD_LONELY_TITLE);
-    const lonelyButton = await lonelyRow.$("button[data-issue-id]");
+    const lonelyButton = await lonelyRow.$("a[data-issue-id]");
     const lonelyIssueId = await lonelyButton.getAttribute("data-issue-id");
     expect(lonelyIssueId).toBe(FIXTURE_CHILD_LONELY_ID);
     await lonelyButton.click();
@@ -484,7 +484,7 @@ describe("Child Issues (WebDriver e2e): closed parent, ordered children, and vie
     await clearSearchInput();
 
     const parentRow = await expectIssueVisible(FIXTURE_CHILD_PARENT_TITLE);
-    const parentButton = await parentRow.$("button[data-issue-id]");
+    const parentButton = await parentRow.$("a[data-issue-id]");
     await parentButton.click();
 
     const childList = await browser.$(childIssuesListSelector());
