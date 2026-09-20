@@ -114,6 +114,46 @@ describe("Graph Mode (WebDriver e2e): real relationship navigation", () => {
     const currentCard = await browser.$(
       graphCardSelector(FIXTURE_GRAPH_CURRENT_ID)
     );
+    const flowViewport = await browser.$(".react-flow__viewport");
+    const viewportStyleBeforeZoom = await flowViewport.getAttribute("style");
+    const zoomInButton = await browser.$(".react-flow__controls-zoomin");
+    await zoomInButton.click();
+    await browser.waitUntil(
+      async () =>
+        (await flowViewport.getAttribute("style")) !== viewportStyleBeforeZoom,
+      {
+        timeout: 5000,
+        timeoutMsg: "Zoom control did not change the Graph viewport transform",
+      }
+    );
+    await browser.waitUntil(
+      () =>
+        browser.execute(() => {
+          const canvas = document.querySelector<HTMLElement>(
+            '[data-focused-graph="true"]'
+          );
+          const cards = document.querySelectorAll<HTMLElement>(
+            "[data-issue-card-id]"
+          );
+          if (canvas === null) {
+            return false;
+          }
+          const canvasBounds = canvas.getBoundingClientRect();
+          return [...cards].some((card) => {
+            const cardBounds = card.getBoundingClientRect();
+            return (
+              cardBounds.right > canvasBounds.left &&
+              cardBounds.left < canvasBounds.right &&
+              cardBounds.bottom > canvasBounds.top &&
+              cardBounds.top < canvasBounds.bottom
+            );
+          });
+        }),
+      {
+        timeout: 5000,
+        timeoutMsg: "Zooming made every Graph card leave the visible viewport",
+      }
+    );
     await currentCard.click();
     const detailPanel = await browser.$(
       'aside[aria-label="Graph Issue detail panel"]'

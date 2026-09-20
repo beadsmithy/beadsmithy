@@ -321,6 +321,7 @@ export const IssueGraphCanvas = ({
         aria-label={`${scope === "all" ? "All" : "Focused"} Issue Graph`}
         nodes={flowGraph.nodes}
         edges={flowGraph.edges}
+        defaultViewport={viewport ?? undefined}
         fitView={viewport === null}
         edgeTypes={EDGE_TYPES}
         fitViewOptions={{ padding: 0.18 }}
@@ -329,9 +330,8 @@ export const IssueGraphCanvas = ({
         nodesConnectable={false}
         nodesDraggable={false}
         nodeTypes={NODE_TYPES}
-        onViewportChange={handleViewportChange}
+        onMoveEnd={(_event, nextViewport) => handleViewportChange(nextViewport)}
         panOnDrag
-        viewport={viewport ?? undefined}
       >
         <Background gap={24} size={1} />
         <Controls showInteractive={false} />
