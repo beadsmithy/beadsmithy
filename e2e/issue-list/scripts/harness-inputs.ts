@@ -21,6 +21,7 @@ type ValidatedHarnessInputs =
       readonly scenario:
         | "child-issues"
         | "focus-refresh"
+        | "graph"
         | "restoration"
         | "time-refresh";
     });
@@ -30,6 +31,7 @@ export type Scenario =
   | "child-issues"
   | "empty"
   | "focus-refresh"
+  | "graph"
   | "issues"
   | "atomic-switch"
   | "restoration"
@@ -42,7 +44,7 @@ const phaseError = (value: string | undefined): string =>
   `BEADSMITH_E2E_PHASE must be one of 1|2; received ${formatReceived(value)}`;
 
 const scenarioError = (value: string | undefined): string =>
-  `BEADSMITH_E2E_SCENARIO must be one of child-issues|empty|focus-refresh|issues|atomic-switch|restoration|time-refresh; received ${formatReceived(value)}`;
+  `BEADSMITH_E2E_SCENARIO must be one of child-issues|empty|focus-refresh|graph|issues|atomic-switch|restoration|time-refresh; received ${formatReceived(value)}`;
 
 export const isPhase = (value: string | undefined): value is Phase =>
   value === "1" || value === "2";
@@ -51,6 +53,7 @@ export const isScenario = (value: string | undefined): value is Scenario =>
   value === "child-issues" ||
   value === "empty" ||
   value === "focus-refresh" ||
+  value === "graph" ||
   value === "issues" ||
   value === "atomic-switch" ||
   value === "restoration" ||
@@ -80,6 +83,7 @@ const requireValidatedInput = (
   return value;
 };
 
+// eslint-disable-next-line complexity -- scenario-specific validation keeps CLI errors actionable.
 export const parseHarnessEnvironment = (
   env: NodeJS.ProcessEnv
 ): ValidatedHarnessInputs => {
@@ -98,7 +102,8 @@ export const parseHarnessEnvironment = (
     rawScenario === "restoration" ||
     rawScenario === "child-issues" ||
     rawScenario === "focus-refresh" ||
-    rawScenario === "time-refresh"
+    rawScenario === "time-refresh" ||
+    rawScenario === "graph"
       ? [
           ["BEADSMITH_E2E_WORKSPACE_A", env.BEADSMITH_E2E_WORKSPACE_A],
           [
@@ -160,7 +165,8 @@ export const parseHarnessEnvironment = (
     scenario === "child-issues" ||
     scenario === "restoration" ||
     scenario === "focus-refresh" ||
-    scenario === "time-refresh"
+    scenario === "time-refresh" ||
+    scenario === "graph"
   ) {
     return {
       fixtureA: commonInputs.fixtureA,

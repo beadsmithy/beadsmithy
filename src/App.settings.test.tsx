@@ -152,6 +152,7 @@ describe("App settings", () => {
     expect(window.history.state.beadsmithNavigation).toStrictEqual({
       index: 1,
       issueId: "bsm-settings-retained",
+      kind: "list",
       search: "",
       viewId: "all",
       workspacePath: "/work",

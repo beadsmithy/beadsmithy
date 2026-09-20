@@ -233,6 +233,12 @@ export const createIssueListWorkspace = (): BeadworkWorkspace => {
     title: FIXTURE_BLOCKER_TITLE,
     workspacePath,
   });
+  const readyIssueId = createTaskIssue({
+    description: FIXTURE_READY_DESCRIPTION,
+    priority: "2",
+    title: FIXTURE_READY_TITLE,
+    workspacePath,
+  });
   const issueId = runBw(
     [
       "create",
@@ -247,12 +253,6 @@ export const createIssueListWorkspace = (): BeadworkWorkspace => {
     ],
     workspacePath
   );
-  const readyIssueId = createTaskIssue({
-    description: FIXTURE_READY_DESCRIPTION,
-    priority: "2",
-    title: FIXTURE_READY_TITLE,
-    workspacePath,
-  });
   const closedIssueId = createTaskIssue({
     description: FIXTURE_CLOSED_DESCRIPTION,
     priority: "3",
@@ -277,6 +277,8 @@ export const createIssueListWorkspace = (): BeadworkWorkspace => {
     `[e2e:fixture] created issues: blocker=${blockerId}, blocked=${issueId}, ready=${readyIssueId}, closed=${closedIssueId}, deferred=${deferredIssueId}, shared=${sharedIssueId}`
   );
   runBw(["label", issueId, "+e2e-fixture", "+ready-for-agent"], workspacePath);
+  // Keep the blocker in its own root component so the Issue List fixture
+  // retains an independent Ready item under the current Beadwork CLI rules.
   runBw(["dep", "add", blockerId, "blocks", issueId], workspacePath);
   runBw(
     ["close", closedIssueId, "--reason", "e2e closed fixture"],
@@ -676,6 +678,76 @@ export const createChildIssuesWorkspace = (): BeadworkWorkspace & {
       parentId,
       parentTitle: FIXTURE_CHILD_PARENT_TITLE,
     },
+    path: workspacePath,
+  };
+};
+
+export const FIXTURE_GRAPH_CURRENT_ID = "bsm-e2e-graph-current";
+export const FIXTURE_GRAPH_CURRENT_TITLE = "Graph current work fixture";
+export const FIXTURE_GRAPH_PARENT_ID = "bsm-e2e-graph-parent";
+export const FIXTURE_GRAPH_PARENT_TITLE = "Graph closed parent fixture";
+export const FIXTURE_GRAPH_BLOCKER_ID = "bsm-e2e-graph-blocker";
+export const FIXTURE_GRAPH_BLOCKER_TITLE = "Graph direct blocker fixture";
+export const FIXTURE_GRAPH_UNRELATED_ID = "bsm-e2e-graph-unrelated";
+export const FIXTURE_GRAPH_UNRELATED_TITLE = "Graph unrelated closed fixture";
+
+/**
+ * Compact real-Beadwork fixture for the Graph Mode desktop acceptance path.
+ * The open Current Work Issue is a child of a closed parent and is blocked by
+ * the open direct blocker; the unrelated closed Issue must only appear in the
+ * all-scope graph.
+ */
+export const createGraphWorkspace = (): BeadworkWorkspace => {
+  const workspacePath = mkdtempSync(
+    path.join(tmpdir(), "beadsmith-e2e-graph-")
+  );
+  console.log(
+    `[e2e:fixture] creating Graph Mode workspace at ${workspacePath}`
+  );
+  initGitBeadworkRepo(workspacePath);
+
+  const parentId = createTaskIssue({
+    explicitId: FIXTURE_GRAPH_PARENT_ID,
+    priority: "2",
+    title: FIXTURE_GRAPH_PARENT_TITLE,
+    workspacePath,
+  });
+  const blockerId = createTaskIssue({
+    explicitId: FIXTURE_GRAPH_BLOCKER_ID,
+    priority: "2",
+    title: FIXTURE_GRAPH_BLOCKER_TITLE,
+    workspacePath,
+  });
+  const currentId = createTaskIssue({
+    description: "Graph detail content authored in the desktop fixture.",
+    explicitId: FIXTURE_GRAPH_CURRENT_ID,
+    parent: parentId,
+    priority: "1",
+    title: FIXTURE_GRAPH_CURRENT_TITLE,
+    workspacePath,
+  });
+  const unrelatedId = createTaskIssue({
+    explicitId: FIXTURE_GRAPH_UNRELATED_ID,
+    priority: "3",
+    title: FIXTURE_GRAPH_UNRELATED_TITLE,
+    workspacePath,
+  });
+
+  runBw(["dep", "add", blockerId, "blocks", currentId], workspacePath);
+  runBw(
+    ["close", parentId, "--reason", "e2e graph parent fixture"],
+    workspacePath
+  );
+  runBw(
+    ["close", unrelatedId, "--reason", "e2e graph unrelated fixture"],
+    workspacePath
+  );
+
+  console.log(
+    `[e2e:fixture] Graph Mode workspace ready: current=${currentId}, parent=${parentId}, blocker=${blockerId}, unrelated=${unrelatedId}`
+  );
+  return {
+    issue: { id: currentId, title: FIXTURE_GRAPH_CURRENT_TITLE },
     path: workspacePath,
   };
 };

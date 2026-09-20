@@ -240,6 +240,16 @@ export const childIssueButtonSelector = (
 export const childIssuesListSelector = (): string =>
   'ul[aria-label="Child Issues"]';
 
+/** Semantic selectors for Graph Mode cards and relationship edges. */
+export const graphCardSelector = (issueId: string): string =>
+  `button[data-issue-card-id="${issueId}"]`;
+
+export const graphRelationshipSelector = (
+  kind: "Blocker" | "Parent",
+  sourceId: string,
+  targetId: string
+): string => `[aria-label="${kind} relationship: ${sourceId} to ${targetId}"]`;
+
 /**
  * Selector constant for the local Issue Search input. Issue Explorer
  * remounts on `workspaceKey` are expected to clear its value.

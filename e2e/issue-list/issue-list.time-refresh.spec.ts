@@ -1,4 +1,4 @@
-import { describe, it } from "vitest";
+import { describe, it } from "mocha";
 
 /**
  * Time-trigger refresh proof (bsm-wj1.4): launches the real Beadsmith
